@@ -27,4 +27,6 @@ def main():
 
 
 if __name__ == '__main__':
+    from configuration import Config
+    Config()
     main()
