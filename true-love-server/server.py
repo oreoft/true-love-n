@@ -2,7 +2,9 @@ import flask
 from flask import Flask
 
 import base_client
+import msg_router
 from configuration import Config
+from models.wx_msg import WxMsgServer
 
 app = Flask(__name__)
 http_config: dict = Config().HTTP
@@ -32,6 +34,16 @@ def send_msg():
         # 开始发送
         base_client.send_text(content, receiver_map.get(send_receiver, ""), receiver_map.get(at_receiver, ""))
         return {"code": 0, "message": "success", "data": None}
+    return {"code": 103, "message": "failed token check", "data": None}
+
+
+@app.route('/get_chat', methods=['post'])
+def get_chat():
+    app.logger.info(f"聊天消息收到请求, req:{flask.request.json}")
+    if flask.request.json.get('token') in http_config.get("token", []):
+        # 进行消息路由
+        result = msg_router.router_msg(WxMsgServer(flask.request.json))
+        return {"code": 0, "message": "success", "data": result}
     return {"code": 103, "message": "failed token check", "data": None}
 
 

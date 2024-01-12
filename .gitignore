@@ -1,3 +1,5 @@
 /true-love-base/logs/base_error.log
 /true-love-base/logs/base_info.log
 /true-love-server/config.yaml
+/true-love-base/logs/
+/true-love-server/logs/
