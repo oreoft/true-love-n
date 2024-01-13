@@ -32,7 +32,7 @@ class Robot:
                         return None
                     self.LOG.info(msg)
                     # 进行消息转发回复
-                    if msg.from_group():
+                    if msg.from_group() and msg.is_at("wxid_ii1pon2s4t4h22"):
                         self.send_text_msg(self.forward_msg(msg), msg.roomid, msg.sender)
                     else:
                         self.send_text_msg(self.forward_msg(msg), msg.sender)
