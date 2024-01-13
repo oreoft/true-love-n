@@ -11,7 +11,7 @@ circuit_breaker = {
     "last_fail_time": 0
 }
 
-host = "http://192.168.1.101:8088"
+host = "http://192.168.1.21:8088"
 text_url = f"{host}/get-chat"
 LOG = logging.getLogger("ServerClient")
 
