@@ -66,7 +66,7 @@ class Job(object):
             schedule.every(1).days.at(t).do(task, *args, **kwargs)
 
     def async_enable_jobs(self):
-        Thread(target=self.enable_jobs, name="enableJobs", daemon=True).start()
+        Thread(target=self.enable_jobs, name="enableJobs").start()
 
     @staticmethod
     def enable_jobs() -> None:

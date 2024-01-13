@@ -14,6 +14,7 @@ def main():
     def handler(sig, frame):
         # 退出前清理环境
         wcf.cleanup()
+        wcf.send_text("真爱粉正在关闭...", "wxid_tqn5yglpe9gj21")
         exit(0)
 
     signal.signal(signal.SIGINT, handler)

@@ -38,7 +38,7 @@ class Robot:
                     self.LOG.error(f"Receiving message error: {e}")
 
         self.wcf.enable_receiving_msg()
-        Thread(target=inner_process_msg, name="GetMessage", args=(self.wcf,), daemon=True).start()
+        Thread(target=inner_process_msg, name="GetMessage", args=(self.wcf,)).start()
 
     def send_img_msg(self, path: str, receiver: str) -> int:
         """发送图片，非线程安全
