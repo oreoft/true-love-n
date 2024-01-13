@@ -6,6 +6,8 @@ from threading import Thread
 
 from wcferry import Wcf, WxMsg
 
+import server_client
+
 
 class Robot:
 
@@ -16,9 +18,9 @@ class Robot:
         self.allContacts = self.get_all_contacts()
         self.LOG.info("真爱粉启动成功···")
 
-    def forward_msg(self, msg: WxMsg) -> None:
+    def forward_msg(self, msg: WxMsg) -> str:
         # 这里进行转发消息
-        pass
+        return server_client.get_chat(msg)
 
     def enable_receiving_msg(self) -> None:
         def inner_process_msg(wcf: Wcf):
@@ -26,7 +28,10 @@ class Robot:
                 try:
                     msg = wcf.get_msg()
                     self.LOG.info(msg)
-                    self.forward_msg(msg)
+                    if msg.from_group():
+                        self.send_text_msg(self.forward_msg(msg), msg.roomid, msg.sender)
+                    else:
+                        self.send_text_msg(self.forward_msg(msg), msg.sender)
                 except Empty:
                     continue  # Empty message
                 except Exception as e:
