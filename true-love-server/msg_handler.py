@@ -37,6 +37,6 @@ class MsgHandler:
         if not handler.chatbot:
             return "你@我干嘛？"
 
-        # 其他默认是联调消息
+        # 其他默认是聊天消息
         else:
             return handler.get_answer(q, (msg.roomid if msg.from_group() else msg.sender), msg.sender)

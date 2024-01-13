@@ -29,6 +29,7 @@ class Config:
     def _load_config() -> dict:
         pwd = os.path.dirname(os.path.abspath(__file__))
         config_path = f"{pwd}/config.yaml"
+        print("_load_config 刷新配置")
         # 如果这里有问题, 直接不让服务启动
         with open(config_path, "r") as fp:
             return yaml.safe_load(fp)
@@ -41,7 +42,7 @@ class Config:
             self.PRIVATES: dict = yconfig["privates"]
             self.ENABLE_BOT: dict = yconfig["enable_bot"]
             self.LLM_BOT: dict = yconfig.get(self.ENABLE_BOT, None)
-            self.GITHUB:dict = yconfig.get("github", {})
+            self.GITHUB: dict = yconfig.get("github", {})
             self.HTTP = yconfig.get("http")
             self.BASE_SERVER: dict = yconfig.get("base_server")
             self.CARD: dict = yconfig.get("card", {})

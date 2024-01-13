@@ -26,12 +26,12 @@ def router_msg(msg: WxMsgServer) -> str:
         return msg_handler.handler_msg(msg)
 
     # 好友请求
-    if msg.type == 37:  # 好友请求
+    if msg.type == 37:
         pass
         # self.autoAcceptFriendRequest(msg)
 
     # 系统信息
-    elif msg.type == 10000:  # 系统信息
+    elif msg.type == 10000:
         pass
         # self.sayHiToNewFriend(msg)
     return ""

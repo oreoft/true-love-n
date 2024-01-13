@@ -30,6 +30,10 @@ class TrigTaskHandler:
             if sender not in self.card_user.values():
                 return "该执行任务您没有执行权限哦"
             return self._query_cafeteria_card_record(sender)
+        if '更新配置' in question:
+            if sender not in self.allowUser:
+                return "该执行任务您没有执行权限哦"
+            return self.reload_config()
         return '该执行任务无法找到'
 
     def run_ovlerlc_deploy(self, num: int) -> str:
@@ -153,3 +157,8 @@ class TrigTaskHandler:
         # 将更新后的记录写回文件
         with open("cardSwipeRecords.json", "w") as file:
             json.dump(records, file, indent=4)
+
+    @staticmethod
+    def reload_config():
+        Config().reload()
+        return "success"
