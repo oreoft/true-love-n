@@ -20,3 +20,7 @@ class ChatMsgHandler:
             return self.chatbot.get_answer(question, wxid, sender)
         self.LOG.info("self.chatbot为空, 但是调用get_answer方法")
         return ""
+
+
+if __name__ == "__main__":
+    print(ChatMsgHandler().get_answer("你好", "13", "3"))

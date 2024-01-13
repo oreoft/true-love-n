@@ -42,3 +42,9 @@ def send_img(path, send_receiver):
     except Exception as e:
         LOG.info("send_img 失败", e)
     return ""
+
+
+if __name__ == "__main__":
+    config = Config()
+    send_img("123", config.BASE_SERVER.get("master_group"))
+    send_text(config.BASE_SERVER.get("master_group"), config.BASE_SERVER.get("master_wxid"), "asfs")
