@@ -6,7 +6,7 @@ from typing import Any, Callable
 
 import schedule
 
-import notice_process
+import job_process
 
 
 class Job(object):
@@ -75,28 +75,21 @@ class Job(object):
             time.sleep(1)
 
 
-# 每班小时查询汇率
+# 导入这个包的时候,就会把这里的代码都执行一遍
 daytime_list = ["10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00",
                 "15:30", "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30",
                 "21:00", "21:30", "22:00"]
 job = Job()
-job.on_every_time(daytime_list, notice_process.notice_mei_yuan)
-job.on_every_time("07:00", notice_process.notice_library_schedule)
-job.on_every_time("18:00", notice_process.notice_ao_yuan_schedule)
-job.on_every_time("20:00", notice_process.async_download_file)
-job.on_every_time("20:01", notice_process.async_download_moyu_file)
-job.on_every_time("20:05", notice_process.notice_moyu_schedule)
-job.on_every_time("22:00", notice_process.notice_card_schedule)
+job.on_every_time(daytime_list, job_process.notice_mei_yuan)
+job.on_every_time("07:00", job_process.notice_library_schedule)
+job.on_every_time("18:00", job_process.notice_ao_yuan_schedule)
+job.on_every_time("20:00", job_process.async_download_file)
+job.on_every_time("20:01", job_process.async_download_moyu_file)
+job.on_every_time("20:05", job_process.notice_moyu_schedule)
+job.on_every_time("22:00", job_process.notice_card_schedule)
 
 if __name__ == "__main__":
     def print_str(s):
         print(s)
-
-
-    job = Job()
-    job.on_every_seconds(1, print_str, "onEverySeconds 1")
-    job.on_every_minutes(1, print_str, "onEveryMinutes 1")
-    job.on_every_hours(20, print_str, "onEveryHours 20")
-    job.on_every_days(1, print_str, "onEveryDays 1")
-    job.on_every_time("23:59", print_str, "onEveryTime 23:59")
+    job.on_every_seconds(1, job_process.notice_library_schedule)
     job.enable_jobs()
