@@ -64,7 +64,10 @@ def enable_http(robot: Robot):
     # 启动服务
     global robot_g
     robot_g = robot
-    Thread(target=app.run, name="ListenHttp", daemon=True).start()
+    try:
+        Thread(target=app.run, name="ListenHttp", daemon=True).start()
+    except Exception as e:
+        app.logger.erro("enable_http 发生致命错误", e)
 
 
 if __name__ == '__main__':
