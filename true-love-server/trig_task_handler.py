@@ -51,7 +51,7 @@ class TrigTaskHandler:
         return "命令发送成功, 请等待部署平台结果"
 
     @staticmethod
-    def _query_cafeteria_card_record_all():
+    def query_cafeteria_card_record_all():
         results = {}
         try:
             # 读取次数记录

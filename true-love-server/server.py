@@ -33,7 +33,7 @@ def send_msg():
             return {"code": 100, "message": "input error or receivers not registered", "data": None}
         # 开始发送
         try:
-            base_client.send_text(content, receiver_map.get(send_receiver, ""), receiver_map.get(at_receiver, ""))
+            base_client.send_text(receiver_map.get(send_receiver, ""), receiver_map.get(at_receiver, ""), content)
             return {"code": 0, "message": "success", "data": None}
         except Exception as e:
             app.logger.error("推送消息可能失败", e)
