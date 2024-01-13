@@ -17,17 +17,17 @@ LOG = logging.getLogger("ServerClient")
 
 
 def get_chat(req: WxMsg):
-    payload = json.dumps(req)
-    headers = {
-        'Content-Type': 'application/json'
-    }
-
-    # 暂不检查熔断器, 只是做文案分流
-    # current_time = int(time.time())
-    # if circuit_breaker["fail_count"] >= 3 and current_time - circuit_breaker["last_fail_time"] < 60:
-    #     return "正在部署，请稍后重试"
-
     try:
+        payload = json.dumps(req)
+        headers = {
+            'Content-Type': 'application/json'
+        }
+
+        # 暂不检查熔断器, 只是做文案分流
+        # current_time = int(time.time())
+        # if circuit_breaker["fail_count"] >= 3 and current_time - circuit_breaker["last_fail_time"] < 60:
+        #     return "正在部署，请稍后重试"
+
         # 发起请求
         response = requests.request("POST", text_url, headers=headers, data=payload, timeout=(2, 60))
         # 检查HTTP响应状态
