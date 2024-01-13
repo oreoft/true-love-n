@@ -1,4 +1,5 @@
 import signal
+import time
 
 from wcferry import Wcf
 
@@ -13,8 +14,8 @@ def main():
     # 设置信号被杀的回调
     def handler(sig, frame):
         # 退出前清理环境
-        wcf.cleanup()
         wcf.send_text("真爱粉正在关闭...", "wxid_tqn5yglpe9gj21")
+        wcf.cleanup()
         exit(0)
 
     signal.signal(signal.SIGINT, handler)
@@ -25,6 +26,9 @@ def main():
     robot.enable_receiving_msg()
     # 启动http服务
     server.enable_http(robot)
+    # 让服务保持不关闭
+    while True:
+        time.sleep(1)
 
 
 if __name__ == '__main__':
