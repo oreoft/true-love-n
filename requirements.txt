@@ -1,0 +1,8 @@
+beautifulsoup4==4.12.2
+Flask==1.1.4
+openai==1.7.2
+PyYAML==6.0.1
+PyYAML==6.0.1
+Requests==2.31.0
+schedule==1.2.1
+wcferry==39.0.12.0
