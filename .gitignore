@@ -4,3 +4,5 @@
 /true-love-base/logs/
 /true-love-server/logs/
 /.idea
+/true-love-server/cardSwipeRecords.json
+/true-love-server/cardRecord.json

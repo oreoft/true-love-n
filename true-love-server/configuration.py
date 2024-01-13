@@ -41,6 +41,7 @@ class Config:
             self.PRIVATES: dict = yconfig["privates"]
             self.ENABLE_BOT: dict = yconfig["enable_bot"]
             self.LLM_BOT: dict = yconfig.get(self.ENABLE_BOT, None)
-            self.GITHUB = yconfig["github"]
+            self.GITHUB:dict = yconfig.get("github", {})
             self.HTTP = yconfig.get("http")
             self.BASE_SERVER: dict = yconfig.get("base_server")
+            self.CARD: dict = yconfig.get("card", {})

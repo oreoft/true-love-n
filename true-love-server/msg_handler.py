@@ -2,7 +2,8 @@ import logging
 import re
 
 from models.wx_msg import WxMsgServer
-from trig_msg_handler import *
+from trig_search_handler import TrigSearchHandler
+from trig_task_handler import TrigTaskHandler
 
 
 # 抽象接口
@@ -13,7 +14,7 @@ class ChatBot:
 
 class MsgHandler:
 
-    def __int__(self):
+    def __init__(self):
         self.LOG = logging.getLogger("MsgHandler")
 
     def handler_msg(self, msg: WxMsgServer) -> str:
@@ -27,7 +28,7 @@ class MsgHandler:
         # 如果是执行任务
         if q.startswith('执行'):
             self.LOG.info(f"收到:{msg.sender}, 执行任务:{q}")
-            return TrigTaskHandler().run(q)
+            return TrigTaskHandler().run(q, msg.sender)
 
         # 如果聊天没开
         from chat_msg_handler import ChatMsgHandler
