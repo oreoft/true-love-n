@@ -44,15 +44,13 @@ def send_msg():
 @app.route('/get-chat', methods=['post'])
 def get_chat():
     app.logger.info("聊天消息收到请求, req: %s", flask.request.json)
-    if flask.request.json.get('token') in http_config.get("token", []):
-        # 进行消息路由
-        try:
-            result = msg_router.router_msg(WxMsgServer(flask.request.json))
-            return {"code": 0, "message": "success", "data": result}
-        except Exception as e:
-            app.logger.error("聊天消息处理失败", e)
-            return {"code": 105, "message": str(e.args), "data": None}
-    return {"code": 103, "message": "failed token check", "data": None}
+    # 进行消息路由
+    try:
+        result = msg_router.router_msg(WxMsgServer(flask.request.json))
+        return {"code": 0, "message": "success", "data": result}
+    except Exception as e:
+        app.logger.error("聊天消息处理失败", e)
+        return {"code": 105, "message": str(e.args), "data": None}
 
 
 def enable_http():
