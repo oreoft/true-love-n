@@ -18,7 +18,20 @@ LOG = logging.getLogger("ServerClient")
 
 def get_chat(req: WxMsg):
     try:
-        payload = json.dumps(req)
+        payload = json.dumps({
+            "_is_self": req._is_self,
+            "_is_group": req._is_group,
+            "type": req.type,
+            "id": req.id,
+            "ts": req.ts,
+            "sign": req.sign,
+            "xml": req.xml,
+            "sender": req.sender,
+            "roomid": req.roomid,
+            "content": req.content,
+            "thumb": req.thumb,
+            "extra": req.extra
+        })
         headers = {
             'Content-Type': 'application/json'
         }

@@ -27,7 +27,11 @@ class Robot:
             while wcf.is_receiving_msg():
                 try:
                     msg = wcf.get_msg()
+                    # 微信官方消息不回
+                    if msg.sender == 'weixin':
+                        return None
                     self.LOG.info(msg)
+                    # 进行消息转发回复
                     if msg.from_group():
                         self.send_text_msg(self.forward_msg(msg), msg.roomid, msg.sender)
                     else:
