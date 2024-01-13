@@ -22,7 +22,7 @@ def ping():
 
 @app.route('/send-msg', methods=['post'])
 def send_msg():
-    app.logger.info(f"推送消息收到请求, req:{flask.request.json}")
+    app.logger.info("推送消息收到请求, req: %s", flask.request.json)
     if flask.request.json.get('token') in http_config.get("token", []):
         send_receiver = flask.request.json.get('sendReceiver')
         at_receiver = flask.request.json.get('atReceiver')
@@ -32,18 +32,26 @@ def send_msg():
         if (not receiver_map.get(send_receiver)) or not content:
             return {"code": 100, "message": "input error or receivers not registered", "data": None}
         # 开始发送
-        base_client.send_text(content, receiver_map.get(send_receiver, ""), receiver_map.get(at_receiver, ""))
-        return {"code": 0, "message": "success", "data": None}
+        try:
+            base_client.send_text(content, receiver_map.get(send_receiver, ""), receiver_map.get(at_receiver, ""))
+            return {"code": 0, "message": "success", "data": None}
+        except Exception as e:
+            app.logger.error("推送消息可能失败", e)
+            return {"code": 104, "message": str(e.args), "data": None}
     return {"code": 103, "message": "failed token check", "data": None}
 
 
-@app.route('/get_chat', methods=['post'])
+@app.route('/get-chat', methods=['post'])
 def get_chat():
-    app.logger.info(f"聊天消息收到请求, req:{flask.request.json}")
+    app.logger.info("聊天消息收到请求, req: %s", flask.request.json)
     if flask.request.json.get('token') in http_config.get("token", []):
         # 进行消息路由
-        result = msg_router.router_msg(WxMsgServer(flask.request.json))
-        return {"code": 0, "message": "success", "data": result}
+        try:
+            result = msg_router.router_msg(WxMsgServer(flask.request.json))
+            return {"code": 0, "message": "success", "data": result}
+        except Exception as e:
+            app.logger.error("聊天消息处理失败", e)
+            return {"code": 105, "message": str(e.args), "data": None}
     return {"code": 103, "message": "failed token check", "data": None}
 
 

@@ -6,7 +6,7 @@ from configuration import Config
 
 config = Config()
 host = config.BASE_SERVER["host"]
-url = f"http://{host}/send-text"
+url = f"{host}/send-text"
 
 
 def send_text(send_receiver, at_receiver, content):
@@ -18,4 +18,4 @@ def send_text(send_receiver, at_receiver, content):
     headers = {
         'Content-Type': 'application/json'
     }
-    return requests.request("POST", url, headers=headers, data=payload)
+    return requests.request("POST", url, headers=headers, data=payload, timeout=(2, 60))

@@ -1,3 +1,22 @@
+import logging
+
+import chatgpt
+from configuration import Config
+
+
+# 封装抽象层调用
 class ChatMsgHandler:
-    def run(self):
-        pass
+    def __init__(self):
+        self.LOG = logging.getLogger("ChatMsgHandler")
+        config = Config()
+        # 默认是none
+        self.chatbot = None
+        # 如果是chatgpt
+        if config.ENABLE_BOT == chatgpt.name:
+            self.chatbot = chatgpt.ChatGPT()
+
+    def get_answer(self, question: str, wxid: str, sender: str) -> str:
+        if self.chatbot:
+            return self.chatbot.get_answer(question, wxid, sender)
+        self.LOG.info("self.chatbot为空, 但是调用get_answer方法")
+        return ""

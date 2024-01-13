@@ -1,8 +1,12 @@
+import server
+from configuration import Config
+
+
 def main():
-    pass
+    # 启动http 这个留到最后启动 保活进程
+    server.enable_http()
 
 
 if __name__ == '__main__':
-    from configuration import Config
     Config()
     main()

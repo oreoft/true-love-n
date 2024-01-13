@@ -37,10 +37,10 @@ class Config:
         yconfig = self._load_config()
         if yconfig:
             logging.config.dictConfig(yconfig.get("logging", {}))
-            self.GROUPS = yconfig["groups"]["enable"]
-            self.PRI = yconfig["groups"]["enable2"]
-            self.CHATGPT = yconfig.get("chatgpt")
-            self.ENABLE_BOT = yconfig.get("enable_bot")
+            self.GROUPS: dict = yconfig["groups"]
+            self.PRIVATES: dict = yconfig["privates"]
+            self.ENABLE_BOT: dict = yconfig["enable_bot"]
+            self.LLM_BOT: dict = yconfig.get(self.ENABLE_BOT, None)
             self.GITHUB = yconfig["github"]
             self.HTTP = yconfig.get("http")
             self.BASE_SERVER: dict = yconfig.get("base_server")
