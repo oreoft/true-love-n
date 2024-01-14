@@ -158,7 +158,8 @@ class TrigSearchHandler:
         }
         try:
             from configuration import Config
-            response = requests.request("GET", url, headers=headers, data={}, proxies=Config().LLM_BOT.get("proxy"))
+            proxy = Config().LLM_BOT.get("proxy")
+            response = requests.request("GET", url, headers=headers, data={}, proxies={"http": proxy, "https": proxy})
             json_str = response.text
             data = json.loads(json_str[4:])
             hours = data[0][1][0][14][203][1]
