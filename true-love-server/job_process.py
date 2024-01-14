@@ -110,7 +110,8 @@ def download_moyu_file():
     # 构建完整的文件路径
     full_file_path = os.path.join(download_directory, local_filename)
     # 指定要下载的文件的URL
-    file_url = 'https://moyu.qqsuu.cn/'
+    file_url = 'https://api.vvhan.com/api/moyu'
+    # file_url = 'https://dayu.qqsuu.cn/moyuribao/apis.php'
     # 使用urllib.request库下载文件并保存到指定的位置
     urllib.request.urlretrieve(file_url, full_file_path)
     LOG.info(f'{local_filename} 已下载到 {download_directory}')
