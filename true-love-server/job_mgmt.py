@@ -87,9 +87,10 @@ job.on_every_time("20:00", job_process.async_download_file)
 job.on_every_time("20:01", job_process.async_download_moyu_file)
 job.on_every_time("20:05", job_process.notice_moyu_schedule)
 job.on_every_time("22:00", job_process.notice_card_schedule)
+job.on_every_seconds(1, job_process.notice_test)
 
 if __name__ == "__main__":
     def print_str(s):
         print(s)
-    job.on_every_seconds(1, job_process.notice_library_schedule)
+    job.on_every_seconds(1, job_process.notice_test)
     job.enable_jobs()

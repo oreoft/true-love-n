@@ -1,4 +1,5 @@
 import concurrent
+import logging
 import os
 import re
 import urllib.request
@@ -16,14 +17,15 @@ trig_search_handler = TrigSearchHandler()
 trig_task_handler = TrigTaskHandler()
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
 config = Config().GROUPS.get("auto_notice", {})
-test_room_ids = config.get("test")
+test_room_ids: list = config.get("test")
+LOG = logging.getLogger("JobProcess")
 
 
 def notice_mei_yuan():
     room_ids: list = config.get("notice_mei_yuan")
     rsp = trig_search_handler.run("查询美元汇率")
     numbers = re.findall('\d+\.\d+|\d+', rsp)
-    print(numbers)
+    LOG.info(numbers)
     if len(numbers) > 2 and float(numbers[2]) <= 700:
         for room_id in room_ids:
             base_client.send_text(room_id, "", "提醒现在的美元汇率情况低于700：\n" + rsp)
@@ -65,8 +67,8 @@ def send_daily_notice(room_id):
     base_client.send_text(room_id, '', '早上好☀️家人萌~')
     moyu_res = base_client.send_img(moyu_dir, room_id)
     zao_bao_res = base_client.send_img(zao_bao_dir, room_id)
-    print(f"send_image: {moyu_dir}, result: {moyu_res}")
-    print(f"send_image: {moyu_dir}, result: {zao_bao_res}")
+    LOG.info(f"send_image: {moyu_dir}, result: {moyu_res}")
+    LOG.info(f"send_image: {moyu_dir}, result: {zao_bao_res}")
 
 
 def notice_moyu_schedule():
@@ -74,6 +76,12 @@ def notice_moyu_schedule():
     for room_id in room_ids:
         send_daily_notice(room_id)
     return True
+
+
+def notice_test():
+    for test_room_id in test_room_ids:
+        base_client.send_text(test_room_id, "", "test")
+        LOG.info("notice_test success")
 
 
 def notice_card_schedule():
@@ -105,7 +113,7 @@ def download_moyu_file():
     file_url = 'https://moyu.qqsuu.cn/'
     # 使用urllib.request库下载文件并保存到指定的位置
     urllib.request.urlretrieve(file_url, full_file_path)
-    print(f'{local_filename} 已下载到 {download_directory}')
+    LOG.info(f'{local_filename} 已下载到 {download_directory}')
 
 
 def download_zao_bao_file():
@@ -128,7 +136,7 @@ def download_zao_bao_file():
     # 保存到指定的位置
     with open(full_file_path, 'wb') as file:
         file.write(response.content)
-    print(f'{local_filename} 已下载到 {download_directory}')
+    LOG.info(f'{local_filename} 已下载到 {download_directory}')
 
 
 def async_download_file():
