@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime
 
 import requests
@@ -9,6 +10,7 @@ from configuration import Config
 class TrigTaskHandler:
     def __init__(self):
         config = Config()
+        self.LOG = logging.getLogger("TrigTaskHandler")
         self.allowUser = config.GITHUB.get("allow_user", [])
         self.token: str = config.GITHUB.get("token")
         self.card_user: dict = config.CARD.get("card_user", {})
@@ -84,8 +86,7 @@ class TrigTaskHandler:
 
         return results
 
-    @staticmethod
-    def _query_cafeteria_card_record(wix):
+    def _query_cafeteria_card_record(self, wix):
         try:
             # 读取次数记录
             with open("cardRecord.json", "r") as file:
@@ -104,9 +105,11 @@ class TrigTaskHandler:
             recent_swipes = [r for r in swipe_records if r["cardNumber"] == wix][-10:]
             recent_swipes.reverse()
             result += f"\n最近的刷卡记录:\n" + "\n".join([f"{r['currentTime']}" for r in recent_swipes])
-        except FileNotFoundError:
+        except FileNotFoundError as e:
+            self.LOG.error("查询失败, 记录文件不存在", e)
             result = "查询失败, 记录文件不存在"
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            self.LOG.error("查询失败, 记录文件格式错误", e)
             result = "查询失败, 记录文件格式错误"
         except KeyError:
             result = "查询失败, 卡号不存在"
