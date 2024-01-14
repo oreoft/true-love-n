@@ -1,8 +1,8 @@
-import flask
-from flask import Flask
+from flask import Flask, g, request
 
 import base_client
 import msg_router
+import time
 from configuration import Config
 from models.wx_msg import WxMsgServer
 
@@ -22,11 +22,11 @@ def ping():
 
 @app.route('/send-msg', methods=['post'])
 def send_msg():
-    app.logger.info("推送消息收到请求, req: %s", flask.request.json)
-    if flask.request.json.get('token') in http_config.get("token", []):
-        send_receiver = flask.request.json.get('sendReceiver')
-        at_receiver = flask.request.json.get('atReceiver')
-        content = flask.request.json.get('content')
+    app.logger.info("推送消息收到请求, req: %s", request.json)
+    if request.json.get('token') in http_config.get("token", []):
+        send_receiver = request.json.get('sendReceiver')
+        at_receiver = request.json.get('atReceiver')
+        content = request.json.get('content')
         receiver_map = http_config.get("receiver_map", [])
         # 判断是否合法发送人
         if (not receiver_map.get(send_receiver)) or not content:
@@ -43,14 +43,27 @@ def send_msg():
 
 @app.route('/get-chat', methods=['post'])
 def get_chat():
-    app.logger.info("聊天消息收到请求, req: %s", flask.request.json)
+    app.logger.info("聊天消息收到请求, req: %s", request.json)
     # 进行消息路由
     try:
-        result = msg_router.router_msg(WxMsgServer(flask.request.json))
+        result = msg_router.router_msg(WxMsgServer(request.json))
         return {"code": 0, "message": "success", "data": result}
     except Exception as e:
         app.logger.error("聊天消息处理失败", e)
         return {"code": 105, "message": str(e.args), "data": None}
+
+
+@app.before_request
+def before_request_logging():
+    g.start_time = time.time()
+    app.logger.info("Request:[%s], req:[%s]", request.url, request.get_data(as_text=True))
+
+
+@app.after_request
+def after_request_logging(response):
+    cost = (time.time() - g.start_time) * 1000
+    app.logger.info(f"Response:[cost:%.0fms], res:[%s]:", cost, response.get_data(as_text=True))
+    return response
 
 
 def enable_http():

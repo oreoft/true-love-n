@@ -18,7 +18,7 @@ class ChatMsgHandler:
     def get_answer(self, question: str, wxid: str, sender: str) -> str:
         if self.chatbot:
             return self.chatbot.get_answer(question, wxid, sender)
-        self.LOG.info("self.chatbot为空, 但是调用get_answer方法")
+        self.LOG.info("self.chatbot配置为空, 但是调用了get_answer方法")
         return ""
 
 

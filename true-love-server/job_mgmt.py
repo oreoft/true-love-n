@@ -66,7 +66,7 @@ class Job(object):
             schedule.every(1).days.at(t).do(task, *args, **kwargs)
 
     def async_enable_jobs(self):
-        Thread(target=self.enable_jobs, name="enableJobs").start()
+        Thread(target=self.enable_jobs, name="enableJobs", daemon=True).start()
 
     @staticmethod
     def enable_jobs() -> None:
@@ -91,5 +91,6 @@ job.on_every_time("22:00", job_process.notice_card_schedule)
 if __name__ == "__main__":
     def print_str(s):
         print(s)
+
     job.on_every_seconds(1, job_process.notice_library_schedule)
     job.enable_jobs()

@@ -29,10 +29,12 @@ class Config:
     def _load_config() -> dict:
         pwd = os.path.dirname(os.path.abspath(__file__))
         config_path = f"{pwd}/config.yaml"
-        print("_load_config 刷新配置")
+        print("_load_config 开始刷新配置")
         # 如果这里有问题, 直接不让服务启动
         with open(config_path, "r") as fp:
-            return yaml.safe_load(fp)
+            updated_config = yaml.safe_load(fp)
+        print("_load_config 刷新配置成功: [%s]", updated_config)
+        return updated_config
 
     def reload(self) -> None:
         yconfig = self._load_config()

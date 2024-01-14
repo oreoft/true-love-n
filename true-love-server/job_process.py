@@ -1,7 +1,9 @@
 import concurrent
+import functools
 import logging
 import os
 import re
+import time
 import urllib.request
 from concurrent import futures
 from datetime import datetime
@@ -21,6 +23,23 @@ test_room_ids: list = config.get("test")
 LOG = logging.getLogger("JobProcess")
 
 
+def log_function_execution(func):
+    """装饰器：在函数执行前后打印信息，并记录执行时间。"""
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        LOG.info("开始执行job:[%s]", func.__name__)
+
+        result = func(*args, **kwargs)
+
+        LOG.info("job:[%s]执行完毕，cost:[%s]ms", func.__name__, (time.time() - start_time) * 1000)
+        return result
+
+    return wrapper
+
+
+@log_function_execution
 def notice_mei_yuan():
     room_ids: list = config.get("notice_mei_yuan")
     rsp = trig_search_handler.run("查询美元汇率")
@@ -32,6 +51,7 @@ def notice_mei_yuan():
     return True
 
 
+@log_function_execution
 def notice_library_schedule():
     room_ids: list = config.get("notice_library_schedule")
     rsp = trig_search_handler.run("查询图书馆时间")
@@ -46,6 +66,7 @@ def notice_library_schedule():
     return True
 
 
+@log_function_execution
 def notice_ao_yuan_schedule():
     room_ids: list = config.get("notice_ao_yuan_schedule")
     rsp = trig_search_handler.run("查询澳币汇率")
@@ -58,6 +79,7 @@ def notice_ao_yuan_schedule():
     return True
 
 
+@log_function_execution
 def send_daily_notice(room_id):
     moyu_dir = os.path.dirname(os.path.abspath(__file__)) + '/moyu-jpg/' + datetime.now().strftime(
         '%m-%d-%Y') + '.jpg'
@@ -71,6 +93,7 @@ def send_daily_notice(room_id):
     LOG.info(f"send_image: {moyu_dir}, result: {zao_bao_res}")
 
 
+@log_function_execution
 def notice_moyu_schedule():
     room_ids: list = config.get("notice_moyu_schedule")
     for room_id in room_ids:
@@ -78,12 +101,14 @@ def notice_moyu_schedule():
     return True
 
 
+@log_function_execution
 def notice_test():
     for test_room_id in test_room_ids:
         base_client.send_text(test_room_id, "", "test")
         LOG.info("notice_test success")
 
 
+@log_function_execution
 def notice_card_schedule():
     room_ids: list = config.get("notice_card_schedule")
 
@@ -99,6 +124,7 @@ def notice_card_schedule():
     return True
 
 
+@log_function_execution
 def download_moyu_file():
     # 获取当前脚本所在的目录，即项目目录
     project_directory = os.path.dirname(os.path.abspath(__file__))
@@ -117,6 +143,7 @@ def download_moyu_file():
     LOG.info(f'{local_filename} 已下载到 {download_directory}')
 
 
+@log_function_execution
 def download_zao_bao_file():
     # 获取当前脚本所在的目录，即项目目录
     project_directory = os.path.dirname(os.path.abspath(__file__))
@@ -140,9 +167,11 @@ def download_zao_bao_file():
     LOG.info(f'{local_filename} 已下载到 {download_directory}')
 
 
+@log_function_execution
 def async_download_file():
     executor.submit(download_zao_bao_file)
 
 
+@log_function_execution
 def async_download_moyu_file():
     executor.submit(download_moyu_file)

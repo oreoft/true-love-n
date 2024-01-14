@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 
 import requests
 
@@ -13,7 +14,6 @@ LOG = logging.getLogger("BaseClient")
 
 
 def send_text(send_receiver, at_receiver, content):
-    LOG.info("send_text start..., content:%s, send_receiver:%s", content, send_receiver)
     payload = json.dumps({
         "sendReceiver": send_receiver,
         "atReceiver": at_receiver,
@@ -23,7 +23,10 @@ def send_text(send_receiver, at_receiver, content):
         'Content-Type': 'application/json'
     }
     try:
-        requests.request("POST", text_url, headers=headers, data=payload, timeout=(2, 60))
+        start_time = time.time()
+        LOG.info("开始请求base推送内容, req:[%s]", payload)
+        res = requests.request("POST", text_url, headers=headers, data=payload, timeout=(2, 60))
+        LOG.info("请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res)
     except Exception as e:
         LOG.info("send_text 失败", e)
     return ""
@@ -39,7 +42,10 @@ def send_img(path, send_receiver):
     }
 
     try:
-        requests.request("POST", text_img, headers=headers, data=payload, timeout=(2, 60))
+        start_time = time.time()
+        LOG.info("开始请求base推送内容, req:[%s]", payload)
+        res = requests.request("POST", text_img, headers=headers, data=payload, timeout=(2, 60))
+        LOG.info("请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res)
     except Exception as e:
         LOG.info("send_img 失败", e)
     return ""
