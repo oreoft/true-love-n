@@ -7,8 +7,8 @@ from configuration import Config
 
 config = Config()
 host = config.BASE_SERVER["host"]
-text_url = f"{host}/send-text"
-text_img = f"{host}/send-img"
+text_url = f"{host}/send/text"
+text_img = f"{host}/send/img"
 LOG = logging.getLogger("BaseClient")
 
 
