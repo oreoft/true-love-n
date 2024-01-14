@@ -4,6 +4,7 @@ import logging
 import time
 from datetime import datetime
 
+import httpx
 import openai
 
 from configuration import Config
@@ -19,11 +20,11 @@ class ChatGPT(ChatBot):
 
         self.config = Config().LLM_BOT
         # 自己搭建或第三方代理的接口
-        openai.api_base = self.config.get("api")
+        openai.base_url = self.config.get("api")
         # 代理
         proxy = self.config.get("proxy")
         if proxy:
-            openai.proxy = {"http": proxy, "https": proxy}
+            openai.http_client = httpx.Client(proxies=proxy)
         self.conversation_list = {}
         self.system_content_msg = {"role": "system", "content": self.config.get("prompt")}
         self.system_content_msg2 = {"role": "system", "content": self.config.get("prompt2")}
