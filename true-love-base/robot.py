@@ -29,14 +29,14 @@ class Robot:
                     msg = wcf.get_msg()
                     # 微信官方消息不回
                     if msg.sender == 'weixin':
-                        return None
+                        continue
                     self.LOG.info(msg)
                     # 进行消息转发回复
                     if msg.from_group() and msg.is_at("wxid_ii1pon2s4t4h22"):
                         self.send_text_msg(self.forward_msg(msg), msg.roomid, msg.sender)
                     elif msg.from_group():
                         # 如果是群消息 但是没有艾特, 直接返回
-                        return None
+                        continue
                     else:
                         self.send_text_msg(self.forward_msg(msg), msg.sender)
                 except Empty:
