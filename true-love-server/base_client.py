@@ -13,6 +13,7 @@ LOG = logging.getLogger("BaseClient")
 
 
 def send_text(send_receiver, at_receiver, content):
+    LOG.info("send_text start..., content:%s, send_receiver:%s", content, send_receiver)
     payload = json.dumps({
         "sendReceiver": send_receiver,
         "atReceiver": at_receiver,

@@ -16,7 +16,7 @@ class TrigSearchHandler:
             return self.search_aoyuan()
         if '图书馆时间' in question:
             return self.library_schedule()
-        if 'gym时间' in question:
+        if any(e in question for e in ['gym时间', '健身房时间']):
             return self.gym_schedule()
         return '该查询任务无法找到'
 
@@ -157,7 +157,8 @@ class TrigSearchHandler:
             'x-maps-diversion-context-bin': 'CAI='
         }
         try:
-            response = requests.request("GET", url, headers=headers, data={})
+            from configuration import Config
+            response = requests.request("GET", url, headers=headers, data={}, proxies=Config().LLM_BOT.get("proxy"))
             json_str = response.text
             data = json.loads(json_str[4:])
             hours = data[0][1][0][14][203][1]

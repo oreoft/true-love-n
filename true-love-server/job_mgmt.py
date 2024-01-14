@@ -91,5 +91,5 @@ job.on_every_time("22:00", job_process.notice_card_schedule)
 if __name__ == "__main__":
     def print_str(s):
         print(s)
-    job.on_every_seconds(1, job_process.notice_test)
+    job.on_every_seconds(1, job_process.notice_library_schedule)
     job.enable_jobs()
