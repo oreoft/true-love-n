@@ -17,7 +17,9 @@ if not os.path.exists(logs_dir):
 
 class Config(object):
     def __init__(self) -> None:
-        self.reload()
+        self.config = self._load_config()
+        self.set_logging()
+        self.master_wix = self.config["master_wix"]
 
     @staticmethod
     def _load_config() -> dict:
@@ -26,5 +28,5 @@ class Config(object):
             config = yaml.safe_load(fp)
         return config
 
-    def reload(self) -> None:
-        logging.config.dictConfig(self._load_config()["logging"])
+    def set_logging(self) -> None:
+        logging.config.dictConfig(self.config["logging"])

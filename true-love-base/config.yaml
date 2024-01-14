@@ -1,3 +1,5 @@
+master_wix: "wxid_tqn5yglpe9gj21"
+
 logging:
   version: 1
   disable_existing_loggers: False
@@ -36,4 +38,4 @@ logging:
 
   root:
     level: INFO
-    handlers: [console, info_file_handler, error_file_handler]
+    handlers: [ console, info_file_handler, error_file_handler ]

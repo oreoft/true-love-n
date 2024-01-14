@@ -1,7 +1,8 @@
+import time
 from threading import Thread
 
 import flask
-from flask import Flask
+from flask import Flask, g, request
 
 from robot import Robot
 
@@ -60,15 +61,24 @@ def get_all():
     pass
 
 
+@app.before_request
+def before_request_logging():
+    g.start_time = time.time()
+    app.logger.info("Request:[%s], req:[%s]", request.url, request.get_data(as_text=True))
+
+
+@app.after_request
+def after_request_logging(response):
+    cost = (time.time() - g.start_time) * 1000
+    app.logger.info(f"Response:[cost:%.0fms], res:[%s]:", cost, response.get_data(as_text=True))
+    return response
+
+
 def enable_http(robot: Robot):
     # 启动服务
     global robot_g
     robot_g = robot
-    try:
-        Thread(target=app.run, name="ListenHttp", kwargs={"host": "0.0.0.0"}, daemon=True).start()
-    except Exception as e:
-        app.logger.erro("enable_http 发生致命错误", e)
-        raise
+    Thread(target=app.run, name="ListenHttp", kwargs={"host": "0.0.0.0"}, daemon=True).start()
 
 
 if __name__ == '__main__':

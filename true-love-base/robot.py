@@ -30,12 +30,12 @@ class Robot:
                     # 微信官方消息不回
                     if msg.sender == 'weixin':
                         continue
-                    self.LOG.info(msg)
+                    self.LOG.info("监听到消息:[%s]", msg)
                     # 进行消息转发回复
-                    if msg.from_group() and msg.is_at("wxid_ii1pon2s4t4h22"):
+                    if msg.from_group() and wcf.self_wxid:
                         self.send_text_msg(self.forward_msg(msg), msg.roomid, msg.sender)
                     elif msg.from_group():
-                        # 如果是群消息 但是没有艾特, 直接返回
+                        # 如果是群消息 但是没有艾特, 直接过
                         continue
                     else:
                         self.send_text_msg(self.forward_msg(msg), msg.sender)
@@ -45,7 +45,7 @@ class Robot:
                     self.LOG.error(f"Receiving message error: {e}")
 
         self.wcf.enable_receiving_msg()
-        Thread(target=inner_process_msg, name="GetMessage", args=(self.wcf,)).start()
+        Thread(target=inner_process_msg, name="GetMessage", args=(self.wcf,), daemon=True).start()
 
     def send_img_msg(self, path: str, receiver: str) -> int:
         """发送图片，非线程安全
@@ -75,10 +75,10 @@ class Robot:
 
         # {msg}{ats} 表示要发送的消息内容后面紧跟@，例如 北京天气情况为：xxx @张三，微信规定需这样写，否则@不生效
         if ats == "":
-            self.LOG.info(f"To {receiver}: {msg}")
+            self.LOG.info(f"给:[{receiver}], 发送:[{msg}]")
             self.wcf.send_text(f"{msg}", receiver, at_list)
         else:
-            self.LOG.info(f"To {receiver}: {ats}\r{msg}")
+            self.LOG.info(f"给:[{receiver}], 发送:[{ats}\r{msg}]")
             self.wcf.send_text(f"{ats}\n\n{msg}", receiver, at_list)
 
     def get_all_contacts(self) -> dict:
