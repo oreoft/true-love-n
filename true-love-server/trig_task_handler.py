@@ -48,6 +48,7 @@ class TrigTaskHandler:
         method_to_call = getattr(job_process, method_name, None)
         if method_to_call:
             method_to_call()
+            return "执行成功"
         else:
             result = f"Method {method_name} not found."
             LOG.info(result)
