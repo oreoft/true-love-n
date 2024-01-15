@@ -92,5 +92,5 @@ if __name__ == "__main__":
     def print_str(s):
         print(s)
 
-    job.on_every_seconds(1, job_process.notice_library_schedule)
+    job.on_every_seconds(10, job_process.async_download_moyu_file)
     job.enable_jobs()

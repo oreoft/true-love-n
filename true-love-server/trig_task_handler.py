@@ -4,13 +4,15 @@ from datetime import datetime
 
 import requests
 
+import job_process
 from configuration import Config
+
+LOG = logging.getLogger("TrigTaskHandler")
 
 
 class TrigTaskHandler:
     def __init__(self):
         config = Config()
-        self.LOG = logging.getLogger("TrigTaskHandler")
         self.allowUser = config.GITHUB.get("allow_user", [])
         self.token: str = config.GITHUB.get("token")
         self.card_user: dict = config.CARD.get("card_user", {})
@@ -36,7 +38,20 @@ class TrigTaskHandler:
             if sender not in self.allowUser:
                 return "该执行任务您没有执行权限哦"
             return self.reload_config()
+        if 'job_process-' in question:
+            return self.do_job_process(question)
         return '该执行任务无法找到'
+
+    @staticmethod
+    def do_job_process(question: str) -> str:
+        method_name = question.split("-")[1]
+        method_to_call = getattr(job_process, method_name, None)
+        if method_to_call:
+            method_to_call()
+        else:
+            result = f"Method {method_name} not found."
+            LOG.info(result)
+            return result
 
     def run_ovlerlc_deploy(self, num: int) -> str:
         url = f"https://api.github.com/repos/oreoft/overlc-backend-n/actions/workflows/ci-prod-publish{num}.yml/dispatches"
@@ -49,7 +64,7 @@ class TrigTaskHandler:
             'Authorization': f'token {self.token}',
             'Content-Type': 'application/json'
         }
-        print(requests.request("POST", url, headers=headers, data=payload))
+        LOG.info(requests.request("POST", url, headers=headers, data=payload))
         return "命令发送成功, 请等待部署平台结果"
 
     @staticmethod
@@ -106,10 +121,10 @@ class TrigTaskHandler:
             recent_swipes.reverse()
             result += f"\n最近的刷卡记录:\n" + "\n".join([f"{r['currentTime']}" for r in recent_swipes])
         except FileNotFoundError as e:
-            self.LOG.error("查询失败, 记录文件不存在", e)
+            LOG.error("查询失败, 记录文件不存在", e)
             result = "查询失败, 记录文件不存在"
         except json.JSONDecodeError as e:
-            self.LOG.error("查询失败, 记录文件格式错误", e)
+            LOG.error("查询失败, 记录文件格式错误", e)
             result = "查询失败, 记录文件格式错误"
         except KeyError:
             result = "查询失败, 卡号不存在"
@@ -165,3 +180,7 @@ class TrigTaskHandler:
     def reload_config():
         Config().reload()
         return "success"
+
+
+if __name__ == "__main__":
+    TrigTaskHandler().run("执行job_process-notice_library_schedule", "")

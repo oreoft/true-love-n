@@ -6,3 +6,11 @@
 /.idea
 /true-love-server/cardSwipeRecords.json
 /true-love-server/cardRecord.json
+/true-love-server/moyu-jpg/
+/true-love-server/models/
+.DS_Store
+true-love-base/.wcf.lock
+true-love-base/.idea/modules.xml
+true-love-base/.idea/**
+true-love-base/__pycache__/**
+true-love-server/__pycache__/**
