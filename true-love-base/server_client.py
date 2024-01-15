@@ -45,7 +45,7 @@ def get_chat(req: WxMsg):
         start_time = time.time()
         LOG.info("开始请求server获取内容, req:[%s]", payload)
         response = requests.request("POST", text_url, headers=headers, data=payload, timeout=(2, 60))
-        LOG.info("接收到server返回值, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000)
+        LOG.info("接收到server返回值, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, response)
         # 检查HTTP响应状态
         response.raise_for_status()
 
