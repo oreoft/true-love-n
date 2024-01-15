@@ -82,13 +82,13 @@ def notice_ao_yuan_schedule():
 @log_function_execution
 def send_daily_notice(room_id):
     moyu_dir = os.path.dirname(os.path.abspath(__file__)) + '/moyu-jpg/' + datetime.now().strftime(
-        '%m-%d-%Y') + '.jpg'.replace("/mnt", "c:")
+        '%m-%d-%Y') + '.jpg'
     zao_bao_dir = os.path.dirname(os.path.abspath(__file__)) + '/zaobao-jpg/' + datetime.now().strftime(
-        '%m-%d-%Y') + '.jpg'.replace("/mnt", "c:")
+        '%m-%d-%Y') + '.jpg'
 
     base_client.send_text(room_id, '', '早上好☀️家人萌~')
-    moyu_res = base_client.send_img(moyu_dir, room_id)
-    zao_bao_res = base_client.send_img(zao_bao_dir, room_id)
+    moyu_res = base_client.send_img(moyu_dir.replace("/mnt/c", "/c:"), room_id)
+    zao_bao_res = base_client.send_img(zao_bao_dir.replace("/mnt/c", "/c:"), room_id)
     LOG.info(f"send_image: {moyu_dir}, result: {moyu_res}")
     LOG.info(f"send_image: {moyu_dir}, result: {zao_bao_res}")
 
