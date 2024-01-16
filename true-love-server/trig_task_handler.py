@@ -4,7 +4,6 @@ from datetime import datetime
 
 import requests
 
-import job_process
 from configuration import Config
 
 LOG = logging.getLogger("TrigTaskHandler")
@@ -45,6 +44,7 @@ class TrigTaskHandler:
     @staticmethod
     def do_job_process(question: str) -> str:
         method_name = question.split("-")[1]
+        import job_process
         method_to_call = getattr(job_process, method_name, None)
         if method_to_call:
             method_to_call()

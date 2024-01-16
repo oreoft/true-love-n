@@ -33,7 +33,7 @@ class Config:
         # 如果这里有问题, 直接不让服务启动
         with open(config_path, "r") as fp:
             updated_config = yaml.safe_load(fp)
-        print("_load_config 刷新配置成功: [%s]", updated_config)
+        print("_load_config 刷新配置成功: ", updated_config)
         return updated_config
 
     def reload(self) -> None:

@@ -2,6 +2,7 @@ import logging
 import re
 
 from models.wx_msg import WxMsgServer
+from trig_remainder_handler import TrigRemainderHandler
 from trig_search_handler import TrigSearchHandler
 from trig_task_handler import TrigTaskHandler
 
@@ -30,6 +31,11 @@ class MsgHandler:
             self.LOG.info(f"收到:{msg.sender}, 执行任务:{q}")
             return TrigTaskHandler().run(q, msg.sender)
 
+        # 如果是提醒任务
+        if q.startswith('提醒'):
+            self.LOG.info(f"收到:{msg.sender}, 提醒任务:{q}")
+            return TrigRemainderHandler().router(q, (msg.roomid if msg.from_group() else msg.sender), msg.sender)
+
         # 如果聊天没开
         from chat_msg_handler import ChatMsgHandler
         handler = ChatMsgHandler()
@@ -40,3 +46,16 @@ class MsgHandler:
         # 其他默认是聊天消息
         else:
             return handler.get_answer(q, (msg.roomid if msg.from_group() else msg.sender), msg.sender)
+
+
+if __name__ == "__main__":
+    handler = MsgHandler()
+    while True:
+        q = input(">>> ")
+        msg = {
+            "sender": "123",
+            "roomid": "123",
+            "content": q,
+            "_is_group": False
+        }
+        print(handler.handler_msg(WxMsgServer(msg)))
