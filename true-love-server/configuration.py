@@ -8,7 +8,7 @@ import yaml
 
 # 设置日志文件夹的路径
 logs_dir = "logs"
-
+LOG = logging.getLogger("Configuration")
 # 检查logs文件夹是否存在
 if not os.path.exists(logs_dir):
     # 如果不存在，则创建该文件夹
@@ -29,11 +29,11 @@ class Config:
     def _load_config() -> dict:
         pwd = os.path.dirname(os.path.abspath(__file__))
         config_path = f"{pwd}/config.yaml"
-        print("_load_config 开始刷新配置")
+        LOG.log("_load_config 开始刷新配置")
         # 如果这里有问题, 直接不让服务启动
         with open(config_path, "r") as fp:
             updated_config = yaml.safe_load(fp)
-        print("_load_config 刷新配置成功: ", updated_config)
+        LOG.info("_load_config 刷新配置成功: [%s]", updated_config)
         return updated_config
 
     def reload(self) -> None:

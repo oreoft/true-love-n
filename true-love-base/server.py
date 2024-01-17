@@ -64,13 +64,13 @@ def get_all():
 @app.before_request
 def before_request_logging():
     g.start_time = time.time()
-    app.logger.info("Request:[%s], req:[%s]", request.url, request.get_data(as_text=True))
+    app.logger.info("收到server请求, Request:[%s], req:[%s]", request.url, request.get_data(as_text=True))
 
 
 @app.after_request
 def after_request_logging(response):
     cost = (time.time() - g.start_time) * 1000
-    app.logger.info(f"Response:[cost:%.0fms], res:[%s]:", cost, response.get_data(as_text=True))
+    app.logger.info(f"server请求处理完毕, Response:[cost:%.0fms], res:[%s]:", cost, response.get_data(as_text=True))
     return response
 
 
