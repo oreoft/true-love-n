@@ -2,8 +2,8 @@ import json
 import logging
 import time
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
+import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
 from pyunit_time import Time
 
@@ -40,7 +40,8 @@ class TrigRemainderHandler:
         current_time = datetime.now().astimezone()
         # 如果用户是utc, 那么当前时间变成uat+8时间
         if at in config.REMAINDER.get("utc+8", []):
-            current_time = current_time.astimezone(ZoneInfo("Asia/Shanghai"))
+            tz = pytz.timezone('Asia/Shanghai')
+            current_time = current_time.astimezone(tz)
         # 那当前时间 解析出下次提醒时间
         parsed_list = Time(current_time).parse(question + '0秒')
         self.LOG.info("执行提醒时间解析, 得到结果:[%s]", parsed_list)
