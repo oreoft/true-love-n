@@ -48,3 +48,4 @@ class Config:
             self.HTTP = yconfig.get("http")
             self.BASE_SERVER: dict = yconfig.get("base_server")
             self.CARD: dict = yconfig.get("card", {})
+            self.REMAINDER: dict = yconfig.get("remainder", {})
