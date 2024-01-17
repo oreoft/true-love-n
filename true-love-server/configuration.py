@@ -31,7 +31,7 @@ class Config:
         config_path = f"{pwd}/config.yaml"
         LOG.info("_load_config 开始刷新配置")
         # 如果这里有问题, 直接不让服务启动
-        with open(config_path, "r") as fp:
+        with open(config_path, "r", encoding='utf-8') as fp:
             updated_config = yaml.safe_load(fp)
         LOG.info("_load_config 刷新配置成功: [%s]", updated_config)
         return updated_config

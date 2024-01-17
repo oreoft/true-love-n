@@ -24,7 +24,7 @@ class Config(object):
     @staticmethod
     def _load_config() -> dict:
         pwd = os.path.dirname(os.path.abspath(__file__))
-        with open(f"{pwd}/config.yaml", "rb") as fp:
+        with open(f"{pwd}/config.yaml", "rb", encoding='utf-8') as fp:
             config = yaml.safe_load(fp)
         return config
 
