@@ -9,6 +9,11 @@ import base_client
 
 TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
+# 创建后台调度器
+scheduler = BackgroundScheduler()
+# 启动调度器
+scheduler.start()
+
 
 class TrigRemainderHandler:
     """ 提醒今天晚上七点记得把护照放包里
@@ -17,10 +22,6 @@ class TrigRemainderHandler:
     """
 
     def __init__(self):
-        # 创建后台调度器
-        self.scheduler = BackgroundScheduler()
-        # 启动调度器
-        self.scheduler.start()
         self.LOG = logging.getLogger("TrigRemainderHandler")
 
     def router(self, question: str, sender, at):
@@ -28,7 +29,7 @@ class TrigRemainderHandler:
             return self.get_reminder_by_send(at)
         if question.startswith("提醒删除"):
             return self.remove_reminder_by_id(question.replace("提醒删除", ""))
-        return self.run(question, sender, at);
+        return self.run(question, sender, at)
 
     def run(self, question, sender, at) -> str:
         parsed_list = Time().parse(question + '0秒')
@@ -42,8 +43,8 @@ class TrigRemainderHandler:
             if datetime.now() > reminder_time:
                 self.LOG.warning("用户设定的提醒时间 小于当前时间")
                 raise ValueError
-            self.scheduler.add_job(self.send_reminder, 'date', run_date=reminder_time, args=[question, sender, at],
-                                   name=f"{at}-{question}")
+            scheduler.add_job(self.send_reminder, 'date', run_date=reminder_time, args=[question, sender, at],
+                              name=f"{at}-{question}")
         except Exception as e:
             self.LOG.error("执行提醒时间失败", e)
             return "设置提醒失败, 请重新检查表述是否包含有效时间"
@@ -54,7 +55,7 @@ class TrigRemainderHandler:
         base_client.send_text(sender, at, content)
 
     def get_reminder_by_send(self, sender):
-        jobs = self.scheduler.get_jobs()
+        jobs = scheduler.get_jobs()
         result = []
         for job in jobs:
             wix_job = job.name.split("-")
@@ -63,7 +64,7 @@ class TrigRemainderHandler:
         print(result)
 
     def remove_reminder_by_id(self, id):
-        jobs = self.scheduler.get_jobs()
+        jobs = scheduler.get_jobs()
         for job in jobs:
             wix_job = job.name.split("-")
             if id == job.id:
