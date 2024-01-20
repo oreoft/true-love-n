@@ -74,8 +74,14 @@ def notice_ao_yuan_schedule():
     msg = "早上好☀️宝宝，\n\n"
     if rsp != "": msg = msg + "今日澳币汇率情况：\n" + rsp + "\n\n"
     if rsp != "": msg = msg + "今日美元汇率情况：\n" + rsp2
+    moyu_dir = os.path.dirname(os.path.abspath(__file__)) + '/moyu-jpg/' + datetime.now().strftime(
+        '%m-%d-%Y') + '.jpg'
+    zao_bao_dir = os.path.dirname(os.path.abspath(__file__)) + '/zaobao-jpg/' + datetime.now().strftime(
+    '%m-%d-%Y') + '.jpg'
     for room_id in room_ids:
         base_client.send_text(room_id, "", msg)
+        base_client.send_img(moyu_dir.replace("/mnt/c", "c:").replace('/', '\\'), room_id)
+        base_client.send_img(zao_bao_dir.replace("/mnt/c", "c:").replace('/', '\\'), room_id)
     return True
 
 
