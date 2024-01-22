@@ -27,7 +27,10 @@ class Robot:
             while wcf.is_receiving_msg():
                 try:
                     msg = wcf.get_msg()
-                    # 微信官方消息不回
+                    # 引用消息返回
+                    if msg.type == 49:
+                        self.LOG.info("直接返回引用消息:[%s]", msg)
+                        self.send_text_msg("啊哦~引用内容我暂时看不懂哦, 不如你把内容复制出来给我看看呢", msg.roomid, msg.sender)
                     if msg.sender == 'weixin':
                         continue
                     self.LOG.info("监听到消息:[%s]", msg)
