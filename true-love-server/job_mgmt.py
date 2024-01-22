@@ -82,10 +82,15 @@ daytime_list = ["10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "
 job = Job()
 job.on_every_time(daytime_list, job_process.notice_mei_yuan)
 job.on_every_time("07:00", job_process.notice_library_schedule)
+
 job.on_every_time("18:00", job_process.async_download_file)
 job.on_every_time("18:02", job_process.async_download_moyu_file)
 job.on_every_time("18:08", job_process.notice_ao_yuan_schedule)
+
+job.on_every_time("20:00", job_process.async_download_file)
+job.on_every_time("20:02", job_process.async_download_moyu_file)
 job.on_every_time("20:05", job_process.notice_moyu_schedule)
+
 job.on_every_time("22:00", job_process.notice_card_schedule)
 
 if __name__ == "__main__":
