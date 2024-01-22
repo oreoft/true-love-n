@@ -8,6 +8,10 @@ config = Config()
 def router_msg(msg: WxMsgServer) -> str:
     # 群聊消息
     msg_handler = MsgHandler()
+    # 引用消息
+    if msg.type == 49:
+        return "啊哦~引用内容我暂时看不懂哦, 不如你把内容复制出来给我看看呢"
+
     if msg.from_group():
         # 如果不是全放的话, 不在配置的响应的群列表里，忽略
         if not config.GROUPS.get("all_allow") and msg.roomid not in config.GROUPS.get("allow_list", []):
