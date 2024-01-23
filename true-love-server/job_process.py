@@ -74,26 +74,24 @@ def notice_ao_yuan_schedule():
     msg = "早上好☀️宝宝，\n\n"
     if rsp != "": msg = msg + "今日澳币汇率情况：\n" + rsp + "\n\n"
     if rsp != "": msg = msg + "今日美元汇率情况：\n" + rsp2
-    moyu_dir = os.path.dirname(os.path.abspath(__file__)) + '/moyu-jpg/' + datetime.now().strftime(
-        '%m-%d-%Y') + '.jpg'
+    moyu_dir = "https://api.vvhan.com/api/moyu"
     zao_bao_dir = os.path.dirname(os.path.abspath(__file__)) + '/zaobao-jpg/' + datetime.now().strftime(
-    '%m-%d-%Y') + '.jpg'
+        '%m-%d-%Y') + '.jpg'
     for room_id in room_ids:
         base_client.send_text(room_id, "", msg)
-        base_client.send_img(moyu_dir.replace("/mnt/c", "c:").replace('/', '\\'), room_id)
+        base_client.send_img(moyu_dir, room_id)
         base_client.send_img(zao_bao_dir.replace("/mnt/c", "c:").replace('/', '\\'), room_id)
     return True
 
 
 @log_function_execution
 def send_daily_notice(room_id):
-    moyu_dir = os.path.dirname(os.path.abspath(__file__)) + '/moyu-jpg/' + datetime.now().strftime(
-        '%m-%d-%Y') + '.jpg'
+    moyu_dir = "https://api.vvhan.com/api/moyu"
     zao_bao_dir = os.path.dirname(os.path.abspath(__file__)) + '/zaobao-jpg/' + datetime.now().strftime(
         '%m-%d-%Y') + '.jpg'
 
     base_client.send_text(room_id, '', '早上好☀️家人萌~')
-    moyu_res = base_client.send_img(moyu_dir.replace("/mnt/c", "c:").replace('/', '\\'), room_id)
+    moyu_res = base_client.send_img(moyu_dir, room_id)
     zao_bao_res = base_client.send_img(zao_bao_dir.replace("/mnt/c", "c:").replace('/', '\\'), room_id)
     LOG.info(f"send_image: {moyu_dir}, result: {moyu_res}")
     LOG.info(f"send_image: {moyu_dir}, result: {zao_bao_res}")
@@ -174,7 +172,7 @@ def download_zao_bao_file():
 
 
 @log_function_execution
-def async_download_file():
+def async_download_zao_bao_file():
     executor.submit(download_zao_bao_file)
 
 
