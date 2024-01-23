@@ -80,7 +80,7 @@ daytime_list = ["10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "
                 "15:30", "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30",
                 "21:00", "21:30", "22:00"]
 job = Job()
-job.on_every_time(daytime_list, job_process.notice_mei_yuan)
+# job.on_every_time(daytime_list, job_process.notice_mei_yuan)
 job.on_every_time("07:00", job_process.notice_library_schedule)
 
 job.on_every_time("18:00", job_process.async_download_zao_bao_file)
