@@ -86,8 +86,8 @@ class TrigTaskHandler:
                 else:
                     result = "无效的卡号或次数不足"
 
-                # 筛选特定卡号的最近 10 条记录
-                recent_swipes = [r for r in swipe_records if r["cardNumber"] == wix][-10:]
+                # 筛选特定卡号的最近 5 条记录
+                recent_swipes = [r for r in swipe_records if r["cardNumber"] == wix][-5:]
                 recent_swipes.reverse()
                 result += f"\n最近的刷卡记录:\n" + "\n".join([f"{r['currentTime']}" for r in recent_swipes])
 
