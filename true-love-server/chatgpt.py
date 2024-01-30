@@ -43,7 +43,8 @@ class ChatGPT(ChatBot):
         real_key = cases.get(self.count % 3, self.config.get("key1"))
         real_model = "gpt-3.5-turbo"
         # 如果是有权限访问gpt4的，直接走gpt4
-        if sender in self.config.get("gpt4") and ('gpt4' in question or 'GPT4' in question):
+        # if sender in self.config.get("gpt4") and ('gpt4' in question or 'GPT4' in question):
+        if sender in self.config.get("gpt4"):
             real_key = self.config.get("key2")
             real_model = "gpt-4"
         openai.api_key = real_key
