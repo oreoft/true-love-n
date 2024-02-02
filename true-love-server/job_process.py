@@ -79,7 +79,7 @@ def notice_ao_yuan_schedule():
         '%m-%d-%Y') + '.jpg'
     for room_id in room_ids:
         base_client.send_text(room_id, "", msg)
-        base_client.send_img(moyu_dir, room_id)
+        # base_client.send_img(moyu_dir, room_id)
         base_client.send_img(zao_bao_dir.replace("/mnt/c", "c:").replace('/', '\\'), room_id)
     return True
 
@@ -91,9 +91,9 @@ def send_daily_notice(room_id):
         '%m-%d-%Y') + '.jpg'
 
     base_client.send_text(room_id, '', '早上好☀️家人萌~')
-    moyu_res = base_client.send_img(moyu_dir, room_id)
+    # moyu_res = base_client.send_img(moyu_dir, room_id)
     zao_bao_res = base_client.send_img(zao_bao_dir.replace("/mnt/c", "c:").replace('/', '\\'), room_id)
-    LOG.info(f"send_image: {moyu_dir}, result: {moyu_res}")
+    # LOG.info(f"send_image: {moyu_dir}, result: {moyu_res}")
     LOG.info(f"send_image: {moyu_dir}, result: {zao_bao_res}")
 
 
