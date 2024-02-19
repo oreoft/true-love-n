@@ -46,7 +46,7 @@ class ChatGPT(ChatBot):
         # if sender in self.config.get("gpt4") and ('gpt4' in question or 'GPT4' in question):
         if sender in self.config.get("gpt4"):
             real_key = self.config.get("key2")
-            real_model = "gpt-4"
+            real_model = "gpt-4-0125-preview"
         openai.api_key = real_key
         rsp = ''
         start_time = time.time()
