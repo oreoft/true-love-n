@@ -85,12 +85,12 @@ def notice_ao_yuan_schedule():
 
 
 @log_function_execution
-def send_daily_notice(room_id):
+def send_daily_notice(room_id, content='早上好☀️家人萌~'):
     moyu_dir = "https://api.vvhan.com/api/moyu"
     zao_bao_dir = os.path.dirname(os.path.abspath(__file__)) + '/zaobao-jpg/' + datetime.now().strftime(
         '%m-%d-%Y') + '.jpg'
 
-    base_client.send_text(room_id, '', '早上好☀️家人萌~')
+    base_client.send_text(room_id, '', content)
     moyu_res = base_client.send_img(moyu_dir, room_id)
     zao_bao_res = base_client.send_img(zao_bao_dir.replace("/mnt/c", "c:").replace('/', '\\'), room_id)
     LOG.info(f"send_image: {moyu_dir}, result: {moyu_res}")
@@ -102,6 +102,13 @@ def notice_moyu_schedule():
     room_ids: list = config.get("notice_moyu_schedule")
     for room_id in room_ids:
         send_daily_notice(room_id)
+    return True
+
+@log_function_execution
+def notice_usa_moyu_schedule():
+    room_ids: list = config.get("notice_usa_moyu_schedule", [])
+    for room_id in room_ids:
+        send_daily_notice(room_id, "晚上好☀️友友们~, \n现在国内太阳已经升起, 多赢阿美莉卡一天")
     return True
 
 

@@ -86,6 +86,7 @@ job.on_every_time("07:00", job_process.notice_library_schedule)
 job.on_every_time("18:00", job_process.async_download_zao_bao_file)
 # job.on_every_time("18:02", job_process.async_download_moyu_file)
 job.on_every_time("18:08", job_process.notice_ao_yuan_schedule)
+job.on_every_time("18:09", job_process.notice_usa_moyu_schedule)
 
 job.on_every_time("20:00", job_process.async_download_zao_bao_file)
 # job.on_every_time("20:02", job_process.async_download_moyu_file)
