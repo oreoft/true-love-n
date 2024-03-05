@@ -31,6 +31,41 @@ class ChatGPT(ChatBot):
         # 轮训负载key的计数器
         self.count = 0
 
+    def send_chatgpt(self, real_model, wxid):
+        rsp = ''
+        try:
+            # 发送请求
+            ret = openai.chat.completions.create(
+                model=real_model,
+                messages=self.conversation_list[wxid],
+                temperature=0.2,
+                stream=True
+            )
+            # 获取stream查询
+            for stream_res in ret:
+                if stream_res.choices[0].delta.content:
+                    rsp += stream_res.choices[0].delta.content.replace('\n\n', '\n')
+            self._update_message(wxid, rsp, "assistant")
+            # 如果等待30s内拿到结果, 那么直接回复这个结果
+            # 如果30s没有拿到结果, 那么回复请等待, 正在生成
+            # 等数据拿到以后, 回调通知艾特, 返回结果, 如果失败那么也通知
+        except openai.AuthenticationError as e1:
+            rsp = "OpenAI API 认证失败，请联系纯路人"
+        except openai.APIConnectionError as e2:
+            rsp = "啊哦~，可能内容太长搬运超时，再试试捏"
+        except openai.Timeout as e3:
+            rsp = "啊哦~，可能内容太长搬运超时，再试试捏"
+        except openai.RateLimitError as e4:
+            rsp = "你们问的太快了，回答不过来啦，得再问一遍哦"
+        except openai.APIError as e5:
+            rsp = "OpenAI 返回了一个错误, 稍后再试试捏"
+            self.LOG.error(str(e5))
+        except Exception as e0:
+            rsp = "发生未知错误, 稍后再试试捏"
+            self.LOG.error(str(e0))
+        return rsp
+
+
     def get_answer(self, question: str, wxid: str, sender: str) -> str:
         # 走chatgpt wxid或者roomid,个人时为微信id，群消息时为群id
         self._update_message(wxid, question.replace("debug", "", 1), "user")
@@ -47,35 +82,11 @@ class ChatGPT(ChatBot):
         if sender in self.config.get("gpt4"):
             real_key = self.config.get("key2")
             real_model = "gpt-4-0125-preview"
+        real_model = "gpt-4-0125-preview"
         openai.api_key = real_key
-        rsp = ''
         start_time = time.time()
         self.LOG.info("开始发送给chatgpt， 其中real_key: %s, real_model: %s", real_key[-4:], real_model)
-        try:
-            ret = openai.chat.completions.create(
-                model=real_model,
-                messages=self.conversation_list[wxid],
-                temperature=0.2
-            )
-            rsp = ret.choices[0].message.content
-            rsp = rsp[2:] if rsp.startswith("\n\n") else rsp
-            rsp = rsp.replace("\n\n", "\n")
-            self._update_message(wxid, rsp, "assistant")
-        except openai.AuthenticationError as e1:
-            rsp = "OpenAI API 认证失败，请联系纯路人"
-        except openai.APIConnectionError as e2:
-            rsp = "啊哦~，可能内容太长搬运超时，再试试捏"
-        except openai.Timeout as e3:
-            rsp = "啊哦~，可能内容太长搬运超时，再试试捏"
-        except openai.RateLimitError as e4:
-            rsp = "你们问的太快了，回答不过来啦，得再问一遍哦"
-        except openai.APIError as e5:
-            rsp = "OpenAI 返回了一个错误, 稍后再试试捏"
-            self.LOG.error(str(e5))
-        except Exception as e0:
-            rsp = "发生未知错误, 稍后再试试捏"
-            self.LOG.error(str(e0))
-
+        rsp = self.send_chatgpt(real_model, wxid)
         end_time = time.time()
         cost = round(end_time - start_time, 2)
         self.LOG.info("chat回答时间为：%s 秒", cost)
