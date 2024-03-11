@@ -211,7 +211,7 @@ class TrigTaskHandler:
         conn.close()
 
         # 这里继续你的逻辑，比如发起请求等
-        response = requests.get(f'http://mc-fahao.someget.work/mc-1fahao?token={self.token}&device_id={device_id}')
+        response = requests.get(f'http://mc-fahao.someget.work/mc-fahao?token={self.token}&device_id={device_id}')
         if response.status_code == 200:
             return response.text
         else:
