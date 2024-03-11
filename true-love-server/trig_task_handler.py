@@ -1,5 +1,6 @@
 import json
 import logging
+import sqlite3
 from datetime import datetime
 
 import requests
@@ -40,7 +41,7 @@ class TrigTaskHandler:
         if 'job_process-' in question:
             return self.do_job_process(question)
         if '发号' in question:
-            return self.mc_fa_hao(question)
+            return self.mc_fa_hao(question, sender)
         return '该执行任务无法找到'
 
     @staticmethod
@@ -184,11 +185,33 @@ class TrigTaskHandler:
         Config().reload()
         return "success"
 
-    def mc_fa_hao(self, question):
-        if len(question.split(":")) < 2:
-            return "需要带上设备id, 否则无法在你的设备完成登陆, 格式: 执行发号:xxx, 其中xxx为你的设备id"
-        device_id = question.split(":")[1].strip()
-        response = requests.get(f'http://mc-fahao.someget.work/mc-fahao?token={self.token}&device_id={device_id}')
+    def mc_fa_hao(self, question, sender):
+        device_id = None
+        if ":" in question:
+            device_id = question.split(":")[1].strip()
+
+        conn = sqlite3.connect('mc_devices.db')
+        cursor = conn.cursor()
+
+        if device_id:
+            # 如果提供了device_id，更新或插入记录
+            cursor.execute('REPLACE INTO mc_devices (sender, device_id) VALUES (?, ?)', (sender, device_id))
+            conn.commit()
+        else:
+            # 尝试从数据库获取device_id
+            cursor.execute('SELECT device_id FROM mc_devices WHERE sender = ?', (sender,))
+            row = cursor.fetchone()
+            if row:
+                device_id = row[0]
+            else:
+                # 如果没有找到记录，并且没有提供device_id
+                conn.close()
+                return "首次使用, 需要带上设备id, 否则无法在你的设备完成登陆, 格式: 执行发号:xxx, 其中xxx为你的设备id"
+
+        conn.close()
+
+        # 这里继续你的逻辑，比如发起请求等
+        response = requests.get(f'http://mc-fahao.someget.work/mc-1fahao?token={self.token}&device_id={device_id}')
         if response.status_code == 200:
             return response.text
         else:
@@ -196,4 +219,4 @@ class TrigTaskHandler:
 
 
 if __name__ == "__main__":
-    print(TrigTaskHandler().run("执行发号", ""))
+    print(TrigTaskHandler().run("执行发号", "123"))

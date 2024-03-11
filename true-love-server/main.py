@@ -31,4 +31,6 @@ def main():
 
 if __name__ == '__main__':
     config = Config()
+    import db_engine
+    db_engine.create_db_and_table()
     main()
