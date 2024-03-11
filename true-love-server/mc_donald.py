@@ -1,14 +1,12 @@
 import json
-import os
 import random
 import string
 
 import requests
 
 url = "https://us-prod.api.mcd.com/exp/v2/customer/registration"
-# 设置代理
-os.environ['HTTP_PROXY'] = "http://your_proxy_address:port"
-os.environ['HTTPS_PROXY'] = "https://your_proxy_address:port"
+
+
 def generate_random_number_uuid(length=8):
     # 生成一个指定长度的随机数字字符串
     # 每次生成的数字范围是0到9
@@ -104,9 +102,7 @@ def send_mail():
             {"subscriptionId": "30", "optInStatus": "Y"}
         ]
     }
-    from configuration import Config
-    proxy = Config().LLM_BOT.get("proxy")
-    response = requests.post(url, headers=headers, data=json.dumps(data), proxies={"http": proxy, "https": proxy})
+    response = requests.post(url, headers=headers, data=json.dumps(data))
     if response.status_code == 200 and response.json().get('status', {}).get('type') == 'Success':
         return True
     return False
@@ -132,9 +128,7 @@ auth_data = {
 
 def get_token():
     # 第一步：调用认证接口获取token
-    from configuration import Config
-    proxy = Config().LLM_BOT.get("proxy")
-    auth_response = requests.post(auth_url, headers=auth_headers, data=auth_data, proxies={"http": proxy, "https": proxy})
+    auth_response = requests.post(auth_url, headers=auth_headers, data=auth_data)
     auth_response_json = auth_response.json()
 
     # 从响应中提取token
