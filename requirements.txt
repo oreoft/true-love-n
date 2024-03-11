@@ -9,3 +9,6 @@ httpx~=0.24.1
 bs4~=0.0.1
 APScheduler~=3.10.4
 gunicorn~=21.2.0
+google-auth-oauthlib==1.2.0
+google==3.0.0
+
