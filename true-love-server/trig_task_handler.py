@@ -40,7 +40,7 @@ class TrigTaskHandler:
         if 'job_process-' in question:
             return self.do_job_process(question)
         if '发号' in question:
-            return self.mc_fa_hao()
+            return self.mc_fa_hao(question)
         return '该执行任务无法找到'
 
     @staticmethod
@@ -184,13 +184,15 @@ class TrigTaskHandler:
         Config().reload()
         return "success"
 
-    @staticmethod
-    def mc_fa_hao():
-        response = requests.get('http://mc-fahao.someget.work/mc-fahao')
+    def mc_fa_hao(self, question):
+        if len(question.split(":")) < 2:
+            return "需要带上设备id, 否则无法在你的设备完成登陆, 格式: 执行发号:xxx, 其中xxx为你的设备id"
+        device_id = question.split("-")[1].strip()
+        response = requests.get(f'http://mc-fahao.someget.work/mc-fahao?token={self.token}&device_id={device_id}')
         if response.status_code == 200:
             return response.text
         else:
-            return "骚瑞, 发号遇到错误, 请重试或者请手动注册"
+            return "骚瑞, 发号遇到错误, 请重试或者暂时手动注册"
 
 
 if __name__ == "__main__":
