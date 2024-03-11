@@ -1,12 +1,10 @@
 import json
 import logging
-import time
 from datetime import datetime
 
 import requests
 
 from configuration import Config
-from find_gmail_verify import find_verify_email_link
 
 LOG = logging.getLogger("TrigTaskHandler")
 
@@ -188,20 +186,12 @@ class TrigTaskHandler:
 
     @staticmethod
     def mc_fa_hao():
-        # 然后发送邮件
-        count = 10
-        from mc_donald import send_mail
-        result = send_mail()
-        while result and count >= 0:
-            # 然后轮训邮件
-            link = find_verify_email_link()
-            if link:
-                return f"发号成功,请打开下面链接唤起mc客户端 \n {link}"
-            else:
-                count -= 1
-                time.sleep(5)
-                continue
-        return "骚瑞, 发号遇到错误, 请重试或者请手动注册"
+        response = requests.get('http://mc-fahao.someget.work/mc-fahao')
+        if response.status_code == 200:
+            return response.text
+        else:
+            return "骚瑞, 发号遇到错误, 请重试或者请手动注册"
+
 
 if __name__ == "__main__":
     print(TrigTaskHandler().run("执行发号", ""))
