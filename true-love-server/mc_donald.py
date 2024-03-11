@@ -1,11 +1,14 @@
 import json
+import os
 import random
 import string
 
 import requests
 
 url = "https://us-prod.api.mcd.com/exp/v2/customer/registration"
-
+# 设置代理
+os.environ['HTTP_PROXY'] = "http://your_proxy_address:port"
+os.environ['HTTPS_PROXY'] = "https://your_proxy_address:port"
 def generate_random_number_uuid(length=8):
     # 生成一个指定长度的随机数字字符串
     # 每次生成的数字范围是0到9
