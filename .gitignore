@@ -15,3 +15,5 @@ true-love-base/.idea/modules.xml
 true-love-base/.idea/**
 true-love-base/__pycache__/**
 **/__pycache__/**
+credentials.json
+token.pickle

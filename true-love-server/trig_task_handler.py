@@ -1,10 +1,12 @@
 import json
 import logging
+import time
 from datetime import datetime
 
 import requests
 
 from configuration import Config
+from find_gmail_verify import find_verify_email_link
 
 LOG = logging.getLogger("TrigTaskHandler")
 
@@ -39,6 +41,8 @@ class TrigTaskHandler:
             return self.reload_config()
         if 'job_process-' in question:
             return self.do_job_process(question)
+        if '发号' in question:
+            return self.mc_fa_hao()
         return '该执行任务无法找到'
 
     @staticmethod
@@ -182,6 +186,22 @@ class TrigTaskHandler:
         Config().reload()
         return "success"
 
+    @staticmethod
+    def mc_fa_hao():
+        # 然后发送邮件
+        count = 10
+        from mc_donald import send_mail
+        result = send_mail()
+        while result and count >= 0:
+            # 然后轮训邮件
+            link = find_verify_email_link()
+            if link:
+                return f"发号成功,请打开下面链接唤起mc客户端 \n {link}"
+            else:
+                count -= 1
+                time.sleep(5)
+                continue
+        return "骚瑞, 发号遇到错误, 请重试或者请手动注册"
 
 if __name__ == "__main__":
-    TrigTaskHandler().run("执行job_process-notice_library_schedule", "")
+    print(TrigTaskHandler().run("执行发号", ""))
