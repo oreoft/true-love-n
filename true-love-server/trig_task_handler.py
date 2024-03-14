@@ -40,10 +40,10 @@ class TrigTaskHandler:
             return self.reload_config()
         if 'job_process-' in question:
             return self.do_job_process(question)
-        if '发号' in question or '取号' in question:
-            return self.mc_fa_hao(question, sender)
         if '发号2' in question or '取号2' in question:
             return self.mc_fa_hao2(question, sender)
+        if '发号' in question or '取号' in question:
+            return self.mc_fa_hao(question, sender)
         if '销号' in question:
             return self.mc_xiao_hao(question)
         return '该执行任务无法找到'
