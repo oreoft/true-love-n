@@ -209,7 +209,7 @@ class TrigTaskHandler:
             return "请输入要释放的mc账户prefix, 格式: 执行发号:xxx, 其中xxx为你的设备id"
         # 进行销号
         response = requests.get(
-            f'http://mc-fahao.someget.work/mc-xiaohao?token={self.token}&account_id={account_prefix}')
+            f'http://mc-fahao.someget.work/mc-xiaohao?token={self.token}&account_prefix={account_prefix}')
         if response.status_code == 200:
             return response.text
         else:
