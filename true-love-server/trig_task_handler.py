@@ -46,6 +46,8 @@ class TrigTaskHandler:
             return self.mc_fa_hao(question, sender)
         if '销号' in question:
             return self.mc_xiao_hao(question)
+        if '查号' in question:
+            return self.mc_cha_hao()
         return '该执行任务无法找到'
 
     @staticmethod
@@ -214,6 +216,14 @@ class TrigTaskHandler:
             return response.text
         else:
             return "骚瑞, 销号遇到错误, 请重试"
+
+    def mc_cha_hao(self):
+        response = requests.get(
+            f'http://mc-fahao.someget.work/mc-chahao?token={self.token}')
+        if response.status_code == 200:
+            return response.text
+        else:
+            return "骚瑞, 查号遇到错误, 请重试"
 
     def mc_fa_hao2(self, question, sender):
         device_id = self.get_device_id(question, sender)
