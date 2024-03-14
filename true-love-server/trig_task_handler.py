@@ -40,8 +40,12 @@ class TrigTaskHandler:
             return self.reload_config()
         if 'job_process-' in question:
             return self.do_job_process(question)
-        if '发号' in question:
+        if '发号' in question or '取号' in question:
             return self.mc_fa_hao(question, sender)
+        if '发号2' in question or '取号2' in question:
+            return self.mc_fa_hao2(question, sender)
+        if '销号' in question:
+            return self.mc_xiao_hao(question)
         return '该执行任务无法找到'
 
     @staticmethod
@@ -186,13 +190,50 @@ class TrigTaskHandler:
         return "success"
 
     def mc_fa_hao(self, question, sender):
+        device_id = self.get_device_id(question, sender)
+        if '-' not in device_id:
+            return device_id
+
+        # 这里进行发号
+        response = requests.get(f'http://mc-fahao.someget.work/mc-fahao?token={self.token}&device_id={device_id}')
+        if response.status_code == 200:
+            return response.text
+        else:
+            return "骚瑞, 发号遇到错误, 请重试或者暂时手动注册"
+
+    def mc_xiao_hao(self, question):
+        account_prefix = None
+        if ":" in question:
+            account_prefix = question.split(":")[1].strip()
+        if not account_prefix:
+            return "请输入要释放的mc账户prefix, 格式: 执行发号:xxx, 其中xxx为你的设备id"
+        # 进行销号
+        response = requests.get(
+            f'http://mc-fahao.someget.work/mc-xiaohao?token={self.token}&account_id={account_prefix}')
+        if response.status_code == 200:
+            return response.text
+        else:
+            return "骚瑞, 销号遇到错误, 请重试"
+
+    def mc_fa_hao2(self, question, sender):
+        device_id = self.get_device_id(question, sender)
+        if '-' not in device_id:
+            return device_id
+        # 进行拿1500积分的号
+        response = requests.get(f'http://mc-fahao.someget.work/mc-fahao2?token={self.token}&device_id={device_id}')
+        if response.status_code == 200:
+            return response.text
+        else:
+            return "骚瑞, 发号遇到错误, 请重试或者暂时手动注册"
+
+    @staticmethod
+    def get_device_id(question, sender):
         device_id = None
         if ":" in question:
             device_id = question.split(":")[1].strip()
 
         conn = sqlite3.connect('mc_devices.db')
         cursor = conn.cursor()
-
         if device_id:
             # 如果提供了device_id，更新或插入记录
             cursor.execute('REPLACE INTO mc_devices (sender, device_id) VALUES (?, ?)', (sender, device_id))
@@ -207,15 +248,8 @@ class TrigTaskHandler:
                 # 如果没有找到记录，并且没有提供device_id
                 conn.close()
                 return "首次使用, 需要带上设备id, 否则无法在你的设备完成登陆, 格式: 执行发号:xxx, 其中xxx为你的设备id"
-
         conn.close()
-
-        # 这里继续你的逻辑，比如发起请求等
-        response = requests.get(f'http://mc-fahao.someget.work/mc-fahao?token={self.token}&device_id={device_id}')
-        if response.status_code == 200:
-            return response.text
-        else:
-            return "骚瑞, 发号遇到错误, 请重试或者暂时手动注册"
+        return device_id
 
 
 if __name__ == "__main__":
