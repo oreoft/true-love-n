@@ -82,7 +82,7 @@ class ChatGPT(ChatBot):
         if sender in self.config.get("gpt4"):
             real_key = self.config.get("key2")
             real_model = "gpt-4-0125-preview"
-        real_model = "gpt-4-0125-preview"
+        real_model = "gpt-4-turbo"
         openai.api_key = real_key
         start_time = time.time()
         self.LOG.info("开始发送给chatgpt， 其中real_key: %s, real_model: %s", real_key[-4:], real_model)
