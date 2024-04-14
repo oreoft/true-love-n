@@ -28,8 +28,29 @@ class ChatGPT(ChatBot):
         self.conversation_list = {}
         self.system_content_msg = {"role": "system", "content": self.config.get("prompt")}
         self.system_content_msg2 = {"role": "system", "content": self.config.get("prompt2")}
+        self.system_content_msg3 = {"role": "system", "content": self.config.get("prompt3")}
         # 轮训负载key的计数器
         self.count = 0
+
+    def send_xun_wen(self, content):
+        rsp = ''
+        try:
+            openai.api_key = self.config.get("key3")
+            # 发送请求
+            ret = openai.chat.completions.create(
+                model="gpt-4-turbo",
+                messages=[self.system_content_msg3, {"role": "user", "content": content}],
+                temperature=0.2,
+                stream=True
+            )
+            # 获取stream查询
+            for stream_res in ret:
+                if stream_res.choices[0].delta.content:
+                    rsp += stream_res.choices[0].delta.content.replace('\n\n', '\n')
+        except Exception as e0:
+            rsp = "An unknown error has occurred. Try again later."
+            self.LOG.error(str(e0))
+        return rsp
 
     def send_chatgpt(self, real_model, wxid):
         rsp = ''
@@ -64,7 +85,6 @@ class ChatGPT(ChatBot):
             rsp = "发生未知错误, 稍后再试试捏"
             self.LOG.error(str(e0))
         return rsp
-
 
     def get_answer(self, question: str, wxid: str, sender: str) -> str:
         # 走chatgpt wxid或者roomid,个人时为微信id，群消息时为群id
