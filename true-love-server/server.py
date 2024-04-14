@@ -1,8 +1,9 @@
+import time
+
 from flask import Flask, g, request
 
 import base_client
 import msg_router
-import time
 from configuration import Config
 from models.wx_msg import WxMsgServer
 
@@ -44,6 +45,9 @@ def send_msg():
 @app.route('/get-chat', methods=['post'])
 def get_chat():
     app.logger.info("聊天消息收到请求, req: %s", request.json)
+    # 鉴权判断
+    if request.json.get('token') not in http_config.get("token", []):
+        return {"code": 103, "message": "failed token check", "data": None}
     # 进行消息路由
     try:
         result = msg_router.router_msg(WxMsgServer(request.json))

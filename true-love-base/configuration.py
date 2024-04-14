@@ -20,6 +20,7 @@ class Config(object):
         self.config = self._load_config()
         self.set_logging()
         self.master_wix = self.config["master_wix"]
+        self.http_token = self.config["http_token"]
 
     @staticmethod
     def _load_config() -> dict:

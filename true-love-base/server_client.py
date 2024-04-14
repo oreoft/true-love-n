@@ -5,6 +5,10 @@ import time
 import requests
 from wcferry import WxMsg
 
+from configuration import Config
+
+config = Config()
+
 # 熔断器状态
 circuit_breaker = {
     "fail_count": 0,
@@ -19,6 +23,7 @@ LOG = logging.getLogger("ServerClient")
 def get_chat(req: WxMsg):
     try:
         payload = json.dumps({
+            "token": config.http_token,
             "_is_self": req._is_self,
             "_is_group": req._is_group,
             "type": req.type,
