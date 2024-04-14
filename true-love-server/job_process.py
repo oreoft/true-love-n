@@ -48,6 +48,7 @@ def notice_mei_yuan():
     if len(numbers) > 2 and float(numbers[2]) <= 700:
         for room_id in room_ids:
             base_client.send_text(room_id, "", "提醒现在的美元汇率情况低于700：\n" + rsp)
+            time.sleep(5)
     return True
 
 
@@ -63,6 +64,7 @@ def notice_library_schedule():
     if rsp2 != "": msg = msg + "今日汇率情况：\n" + rsp2
     for room_id in room_ids:
         base_client.send_text(room_id, "", msg)
+        time.sleep(5)
     return True
 
 
@@ -81,6 +83,7 @@ def notice_ao_yuan_schedule():
         base_client.send_text(room_id, "", msg)
         base_client.send_img(moyu_dir, room_id)
         base_client.send_img(zao_bao_dir.replace("/mnt/c", "c:").replace('/', '\\'), room_id)
+        time.sleep(5)
     return True
 
 
@@ -102,6 +105,7 @@ def notice_moyu_schedule():
     room_ids: list = config.get("notice_moyu_schedule")
     for room_id in room_ids:
         send_daily_notice(room_id)
+        time.sleep(5)
     return True
 
 @log_function_execution
@@ -109,6 +113,7 @@ def notice_usa_moyu_schedule():
     room_ids: list = config.get("notice_usa_moyu_schedule", [])
     for room_id in room_ids:
         send_daily_notice(room_id, "晚上好☀️友友们~, \n现在国内太阳已经升起, 多赢阿美莉卡一天")
+        time.sleep(5)
     return True
 
 
