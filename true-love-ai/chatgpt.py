@@ -8,18 +8,19 @@ import httpx
 from openai import OpenAI
 
 from configuration import Config
-from msg_handler import ChatBot
 
 name = "chatgpt"
 
 
-class ChatGPT(ChatBot):
+class ChatGPT:
 
     def __init__(self) -> None:
         self.LOG = logging.getLogger("MsgHandler")
 
         self.config = Config().LLM_BOT
-        self.openai = OpenAI(timeout=40, api_key=self.config.get("key3"))
+        # 自己搭建或第三方代理的接口
+        self.openai = OpenAI(timeout=30, api_key=self.config.get("key3"))
+        self.openai.base_url = self.config.get("api")
         # 代理
         proxy = self.config.get("proxy")
         if proxy:
@@ -30,6 +31,10 @@ class ChatGPT(ChatBot):
         self.system_content_msg3 = {"role": "system", "content": self.config.get("prompt3")}
         # 轮训负载key的计数器
         self.count = 0
+
+    def get_xun_wen(self, question):
+        method_name = question.split("-")[1]
+        return self.send_xun_wen(method_name)
 
     def send_xun_wen(self, content):
         rsp = ''
