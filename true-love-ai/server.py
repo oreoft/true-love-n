@@ -1,11 +1,13 @@
 import time
 
 from flask import Flask, g, request
+from flask_cors import CORS
 
 from chat_msg_handler import ChatMsgHandler
 from configuration import Config
 
 app = Flask(__name__)
+CORS(app)
 http_config: dict = Config().HTTP
 handler = ChatMsgHandler()
 
@@ -33,6 +35,22 @@ def get_chat():
     except Exception as e:
         app.logger.error("llm处理失败", e)
         return {"code": 105, "message": str(e.args), "data": None}
+
+
+@app.route('/api/dream/community/list', methods=['post'])
+def community_list():
+    import requests
+    import json
+    url = "https://v2-0-2---dreamorebackend-vsy7hiaoca-uc.a.run.app/api/dream/community/list"
+    payload = json.dumps({
+        "sort_criteria": request.json.get('sort_criteria'),
+        "last_doc_id": request.json.get('last_doc_id')
+    })
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    response = requests.request("POST", url, headers=headers, data=payload)
+    return response.json()
 
 
 @app.before_request
