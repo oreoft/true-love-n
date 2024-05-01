@@ -48,8 +48,6 @@ class TrigTaskHandler:
             return self.mc_xiao_hao(question)
         if '查号' in question:
             return self.mc_cha_hao()
-        if '询问-' in question:
-            return self.xun_wen(question)
         return '该执行任务无法找到'
 
     @staticmethod
@@ -226,11 +224,6 @@ class TrigTaskHandler:
             return response.text
         else:
             return "骚瑞, 查号遇到错误, 请重试"
-
-    def xun_wen(self, question):
-        method_name = question.split("-")[1]
-        import chatgpt
-        return chatgpt.ChatGPT().send_xun_wen(method_name)
 
     def mc_fa_hao2(self, question, sender):
         device_id = self.get_device_id(question, sender)

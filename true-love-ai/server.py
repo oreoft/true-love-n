@@ -30,7 +30,9 @@ def get_chat():
         return {"code": 103, "message": "failed token check", "data": None}
     # 进行消息路由
     try:
-        result = handler.get_answer(request.json.get('content'), "wxid_d9m1pewt13dr22", "wxid_d9m1pewt13dr22")
+        result = handler.get_answer(request.json.get('content'),
+                                    request.json.get('wxid', ''),
+                                    request.json.get('sender', ''))
         return {"code": 0, "message": "success", "data": result}
     except Exception as e:
         app.logger.error("llm处理失败", e)

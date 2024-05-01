@@ -46,6 +46,7 @@ class Config:
             self.LLM_BOT: dict = yconfig.get(self.ENABLE_BOT, None)
             self.GITHUB: dict = yconfig.get("github", {})
             self.HTTP = yconfig.get("http")
+            self.HTTP_TOKEN: dict = yconfig.get("http_token")
             self.BASE_SERVER: dict = yconfig.get("base_server")
             self.CARD: dict = yconfig.get("card", {})
             self.REMAINDER: dict = yconfig.get("remainder", {})

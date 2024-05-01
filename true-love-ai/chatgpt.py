@@ -77,8 +77,6 @@ class ChatGPT:
         return rsp
 
     def get_answer(self, question: str, wxid: str, sender: str) -> str:
-        # 走chatgpt wxid或者roomid,个人时为微信id，群消息时为群id
-        self._update_message(wxid, question.replace("debug", "", 1), "user")
         self.count += 1
         cases = {
             0: self.config.get("key1"),
@@ -88,10 +86,9 @@ class ChatGPT:
         real_key = cases.get(self.count % 3, self.config.get("key1"))
         real_model = "gpt-3.5-turbo"
         # 如果是有权限访问gpt4的，直接走gpt4
-        # if sender in self.config.get("gpt4") and ('gpt4' in question or 'GPT4' in question):
         if sender in self.config.get("gpt4"):
             real_key = self.config.get("key2")
-            real_model = "gpt-4-0125-preview"
+            real_model = "gpt-4-turbo"
         real_model = "gpt-4-turbo"
         self.openai.api_key = real_key
         start_time = time.time()
@@ -126,7 +123,7 @@ class ChatGPT:
             if cont["content"].startswith(time_mk):
                 cont["content"] = time_mk + now_time
 
-        # 只存储10条记录，超过滚动清除
+        # 只存储5条记录，超过滚动清除
         i = len(self.conversation_list[wxid])
         if i > 5:
             self.LOG.info("滚动清除微信记录：%s", wxid)
