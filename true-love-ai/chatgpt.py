@@ -77,6 +77,7 @@ class ChatGPT:
         return rsp
 
     def get_answer(self, question: str, wxid: str, sender: str) -> str:
+        self._update_message(wxid, question.replace("debug", "", 1), "user")
         self.count += 1
         cases = {
             0: self.config.get("key1"),
