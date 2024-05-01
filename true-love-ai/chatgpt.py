@@ -73,7 +73,7 @@ class ChatGPT:
             self._update_message(wxid, rsp, "assistant")
         except Exception as e0:
             rsp = "发生未知错误, 稍后再试试捏"
-            self.LOG.error(str(e0))
+            self.LOG.error('调用北美ai服务发生错误, msg:', e0)
         return rsp
 
     def get_answer(self, question: str, wxid: str, sender: str) -> str:
@@ -126,7 +126,7 @@ class ChatGPT:
         # 只存储5条记录，超过滚动清除
         i = len(self.conversation_list[wxid])
         if i > 5:
-            self.LOG.info("滚动清除微信记录：%s", wxid)
+            self.LOG.info("滚动清除聊天记录：%s", wxid)
             # 删除多余的记录，倒着删，且跳过第一个的系统消息
             del self.conversation_list[wxid][1]
 
