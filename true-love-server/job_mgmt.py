@@ -92,7 +92,7 @@ job.on_every_time("20:00", job_process.async_download_zao_bao_file)
 # job.on_every_time("20:02", job_process.async_download_moyu_file)
 job.on_every_time("20:05", job_process.notice_moyu_schedule)
 
-job.on_every_time("22:00", job_process.notice_card_schedule)
+# job.on_every_time("22:00", job_process.notice_card_schedule)
 
 if __name__ == "__main__":
     def print_str(s):
