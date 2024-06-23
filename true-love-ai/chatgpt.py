@@ -166,11 +166,14 @@ class ChatGPT:
             self.LOG.info(f"ds.img cost:[{(time.time() - start_time) * 1000}ms]")
             if response.status_code == 200:
                 return {"img": response.json()['image'], "prompt": image_prompt}
+            else:
+                raise ValueError
         except requests.Timeout:
             self.LOG.error(f"generate_image_with_sd timeout")
+            raise
         except Exception:
             self.LOG.exception(f"generate_image_with_sd error")
-        return ""
+            raise
 
 
 if __name__ == "__main__":
