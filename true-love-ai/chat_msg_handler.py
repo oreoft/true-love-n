@@ -23,6 +23,10 @@ class ChatMsgHandler:
         self.LOG.info("self.chatbot配置为空, 但是调用了get_answer方法")
         return ""
 
+    def get_img(self, question: str, wxid: str, sender: str) -> str:
+        self.chatbot.get_img(question)
+        self.LOG.info("self.chatbot配置为空, 但是调用了get_img方法")
+        return ""
 
 if __name__ == "__main__":
     print(ChatMsgHandler().get_answer("你好", "13", "3"))

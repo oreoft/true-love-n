@@ -38,6 +38,21 @@ def get_chat():
         app.logger.error("llm处理失败", e)
         return {"code": 105, "message": str(e.args), "data": None}
 
+@app.route('/gen-img', methods=['post'])
+def get_chat():
+    app.logger.info("gen-img消息收到请求, req: %s", request.json)
+    # 鉴权判断
+    if request.json.get('token') not in http_config.get("token", []):
+        return {"code": 103, "message": "failed token check", "data": None}
+    # 进行消息路由
+    try:
+        result = handler.get_img(request.json.get('content'),
+                                    request.json.get('wxid', ''),
+                                    request.json.get('sender', ''))
+        return {"code": 0, "message": "success", "data": result}
+    except Exception as e:
+        app.logger.error("gen-img处理失败", e)
+        return {"code": 105, "message": str(e.args), "data": None}
 
 @app.route('/api/dream/community/list', methods=['post'])
 def community_list():

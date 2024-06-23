@@ -5,11 +5,13 @@ import time
 from datetime import datetime
 
 import httpx
+import requests
 from openai import OpenAI
 
 from configuration import Config
 
 name = "chatgpt"
+sd_url = "https://api.stability.ai/v2beta/stable-image/generate/core"
 
 
 class ChatGPT:
@@ -33,17 +35,17 @@ class ChatGPT:
         self.count = 0
 
     def get_xun_wen(self, question):
-        method_name = question.split("-")[1]
-        return self.send_xun_wen(method_name)
+        content = question.split("-")[1]
+        return self.send_gpt_by_message([self.system_content_msg3, {"role": "user", "content": content}])
 
-    def send_xun_wen(self, content):
+    def send_gpt_by_message(self, messages):
         rsp = ''
         try:
             self.openai.api_key = self.config.get("key3")
             # 发送请求
             ret = self.openai.chat.completions.create(
                 model="gpt-4-turbo",
-                messages=[self.system_content_msg3, {"role": "user", "content": content}],
+                messages=messages,
                 temperature=0.2,
                 stream=True
             )
@@ -131,6 +133,45 @@ class ChatGPT:
             # 删除多余的记录，倒着删，且跳过第一个的系统消息
             del self.conversation_list[wxid][1]
 
+    def get_img(self, content):
+        # First get the image prompt
+        image_prompt = ""
+        try:
+            start_time = time.time()
+            self.LOG.info("ds.img.prompt start")
+            image_prompt = self.send_gpt_by_message(messages=[
+                {"role": "system", "content": self.config.get("prompt4")},
+                {"role": "system", "content": content}
+            ])
+            self.LOG.info(f"ds.prompt cost:[{(time.time() - start_time) * 1000}ms]")
+        except Exception:
+            self.LOG.exception(f"generate_prompt error")
+
+        # Re-generate the image based on the prompt
+        try:
+            start_time = time.time()
+            self.LOG.info("ds.img start")
+            response = requests.post(sd_url,
+                                     headers={
+                                         "authorization": f"Bearer {Config().PLATFORM_KEY['sd']}",
+                                         "accept": "application/json; type=image/"
+                                     },
+                                     files={"none": ''},
+                                     data={
+                                         "prompt": image_prompt,
+                                         "output_format": "png",
+                                         "aspect_ratio": "1:1"
+                                     },
+                                     )
+            self.LOG.info(f"ds.img cost:[{(time.time() - start_time) * 1000}ms]")
+            if response.status_code == 200:
+                return {"img": response.json()['image'], "prompt": image_prompt}
+        except requests.Timeout:
+            self.LOG.error(f"generate_image_with_sd timeout")
+        except Exception:
+            self.LOG.exception(f"generate_image_with_sd error")
+        return ""
+
 
 if __name__ == "__main__":
     LOG = logging.getLogger("chatgpt")
@@ -144,7 +185,7 @@ if __name__ == "__main__":
         q = input(">>> ")
         try:
             time_start = datetime.now()  # 记录开始时间
-            LOG.info(chat.get_answer(q, "wxid_tqn5yglpe9gj21", "wxid_tqn5yglpe9gj21"))
+            LOG.info(chat.get_img(q))
             time_end = datetime.now()  # 记录结束时间
             LOG.info(f"{round((time_end - time_start).total_seconds(), 2)}s")  # 计算的时间差为程序的执行时间，单位为秒/s
         except Exception as e:
