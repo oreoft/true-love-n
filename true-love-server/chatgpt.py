@@ -91,7 +91,20 @@ class ChatGPT(ChatBot):
     def gen_img(self, question: str, wxid: str, sender: str) -> str:
         start_time = time.time()
         # 这里异步调用方法
-        asyncio.create_task(self.async_gen_img(question, sender, start_time, wxid))
+        # 尝试获取当前事件循环
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # 创建一个新的事件循环
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        if loop.is_running():
+            # 如果事件循环正在运行，创建并安排一个任务，但不等待它
+            loop.create_task(self.async_gen_img(question, sender, start_time, wxid))
+        else:
+            print("不在事件循环里面,启用run_until_complete同步")
+            loop.run_until_complete(self.async_gen_img(question, sender, start_time, wxid))
         # 这里先固定回复
         return "🚀您的作品将在1~10分钟左右完成，请耐心等待"
 
