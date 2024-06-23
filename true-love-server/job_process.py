@@ -105,7 +105,7 @@ def notice_moyu_schedule():
     room_ids: list = config.get("notice_moyu_schedule")
     for room_id in room_ids:
         send_daily_notice(room_id)
-        time.sleep(5)
+        time.sleep(30)
     return True
 
 @log_function_execution
@@ -113,7 +113,7 @@ def notice_usa_moyu_schedule():
     room_ids: list = config.get("notice_usa_moyu_schedule", [])
     for room_id in room_ids:
         send_daily_notice(room_id, "晚上好☀️友友们~, \n现在国内太阳已经升起, 多赢阿美莉卡一天")
-        time.sleep(5)
+        time.sleep(30)
     return True
 
 

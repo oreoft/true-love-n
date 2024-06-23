@@ -43,6 +43,11 @@ class MsgHandler:
         if not handler.chatbot:
             return "你@我干嘛？"
 
+        # 如果是生图
+        if q.startswith('生成') and '图片' in q:
+            self.LOG.info(f"收到:{msg.sender}, 生成图片:{q}")
+            return handler.gen_img(q, (msg.roomid if msg.from_group() else msg.sender), msg.sender)
+
         # 其他默认是聊天消息
         else:
             return handler.get_answer(q, (msg.roomid if msg.from_group() else msg.sender), msg.sender)
