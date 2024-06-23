@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 import asyncio
+import base64
 import json
 import logging
 import os
@@ -16,13 +17,11 @@ from msg_handler import ChatBot
 name = "chatgpt"
 
 
-def get_file_path():
+def get_file_path(sender):
     project_directory = os.path.dirname(os.path.abspath(__file__))
     download_directory = project_directory + '/sd-jpg/'
-    # 获取当前日期并将其格式化为所需的字符串
-    current_date = datetime.now().strftime('%m-%d-%Y')
-    # 构建文件名，例如：10-20-2023.jpg
-    local_filename = f'{current_date}.jpg'
+    # 构建唯一文件名
+    local_filename = f'{sender}-{str(time.time())}.jpg'
     # 构建完整的文件路径
     return os.path.join(download_directory, local_filename)
 
@@ -108,14 +107,14 @@ class ChatGPT(ChatBot):
         end_time = time.time()
         cost = round(end_time - start_time, 2)
         self.LOG.info("sd回答时间为：%s 秒", cost)
-        res_text = f"🎨绘画完成! \n prompt: {json.load(rsp).get('prompt')}"
+        res_text = f"🎨绘画完成! \n prompt: {rsp.get('prompt')}"
         base_client.send_text(wxid, sender, res_text)
 
         # 获取当前脚本所在的目录，即项目目录
-        file_path = get_file_path()
+        file_path = get_file_path(sender)
         # 将解码后的图像数据写入文件
         with open(file_path, "wb") as file:
-            file.write(json.load(rsp).get('img_url'))
+            file.write(base64.b64decode(rsp.get('img')))
         base_client.send_img(file_path, wxid)
 
 
