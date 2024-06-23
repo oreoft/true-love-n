@@ -39,7 +39,7 @@ def get_chat():
         return {"code": 105, "message": str(e.args), "data": None}
 
 @app.route('/gen-img', methods=['post'])
-def get_chat():
+def gen_img():
     app.logger.info("gen-img消息收到请求, req: %s", request.json)
     # 鉴权判断
     if request.json.get('token') not in http_config.get("token", []):
