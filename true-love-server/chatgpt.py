@@ -1,14 +1,15 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 import base64
+import concurrent
 import json
 import logging
 import os
 import time
+from concurrent import futures
 from datetime import datetime
 
 import requests
-from tornado import concurrent
 
 import base_client
 from configuration import Config
