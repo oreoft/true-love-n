@@ -13,6 +13,24 @@ from configuration import Config
 name = "chatgpt"
 sd_url = "https://api.stability.ai/v2beta/stable-image/generate/core"
 
+type_answer_call = [
+    {"name": "type_answer",
+     "description": "type_answer",
+     "parameters": {
+         "type": "object",
+         "properties": {
+             "type": {
+                 "type": "string",
+                 "description": "the type of question, if user want you to generate images please return gen-img, if it is a normal chat to return chat,"
+             },
+             "answer": {
+                 "type": "string",
+                 "description": "Here is your answer, please put your answer in this field"
+             },
+         },
+         "required": ["type", "answer"]
+     }
+     }]
 
 class ChatGPT:
 
@@ -66,12 +84,14 @@ class ChatGPT:
                 model=real_model,
                 messages=self.conversation_list[wxid],
                 temperature=0.2,
+                function_call={"name": "type_answer"},
+                functions=type_answer_call,
                 stream=True
             )
             # 获取stream查询
             for stream_res in ret:
-                if stream_res.choices[0].delta.content:
-                    rsp += stream_res.choices[0].delta.content.replace('\n\n', '\n')
+                if stream_res.choices[0].delta.function_call:
+                    rsp += stream_res.choices[0].delta.function_call.arguments.replace('\n\n', '\n')
             self._update_message(wxid, rsp, "assistant")
         except Exception as e0:
             rsp = "发生未知错误, 稍后再试试捏"
@@ -128,7 +148,7 @@ class ChatGPT:
 
         # 只存储5条记录，超过滚动清除
         i = len(self.conversation_list[wxid])
-        if i > 5:
+        if i > 10:
             self.LOG.info("滚动清除聊天记录：%s", wxid)
             # 删除多余的记录，倒着删，且跳过第一个的系统消息
             del self.conversation_list[wxid][1]
@@ -188,7 +208,7 @@ if __name__ == "__main__":
         q = input(">>> ")
         try:
             time_start = datetime.now()  # 记录开始时间
-            LOG.info(chat.get_img(q))
+            LOG.info(chat.get_answer(q, "", ""))
             time_end = datetime.now()  # 记录结束时间
             LOG.info(f"{round((time_end - time_start).total_seconds(), 2)}s")  # 计算的时间差为程序的执行时间，单位为秒/s
         except Exception as e:

@@ -88,7 +88,7 @@ def enable_http():
     if not http_config:
         return
     # 启动服务
-    app.run(port=http_config.get("port", "8088"), host=http_config.get("host", "0.0.0.0"))
+    app.run(port=http_config.get("port", "8088"), host=http_config.get("host", "0.0.0.0"), threaded=True)
 
 
 if __name__ == '__main__':

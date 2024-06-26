@@ -78,7 +78,7 @@ def enable_http(robot: Robot):
     # 启动服务
     global robot_g
     robot_g = robot
-    Thread(target=app.run, name="ListenHttp", kwargs={"host": "0.0.0.0"}, daemon=True).start()
+    Thread(target=app.run, name="ListenHttp", kwargs={"host": "0.0.0.0", "threaded": True}, daemon=True).start()
 
 
 if __name__ == '__main__':
