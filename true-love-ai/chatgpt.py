@@ -1,5 +1,6 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
+import json
 import logging
 import time
 from datetime import datetime
@@ -121,7 +122,9 @@ class ChatGPT:
         cost = round(end_time - start_time, 2)
         self.LOG.info("chat回答时间为：%s 秒", cost)
         if question.startswith('debug'):
-            return rsp + '\n\n' + '(cost: ' + str(cost) + 's, use: ' + real_key[-4:] + ', model: ' + real_model + ')'
+            resp_object = json.loads(rsp)
+            resp_object['debug'] = f"(aiCost: {cost}s, isCost: $s use: {real_key[-4:]}, model: {real_model})"
+            return json.dumps(resp_object)
         else:
             return rsp
 

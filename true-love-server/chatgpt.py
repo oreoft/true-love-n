@@ -88,13 +88,15 @@ class ChatGPT(ChatBot):
         rsp = self.send_chatgpt(question, wxid, sender)
         # 判断gpt分析的结果
         result = json.loads(rsp)
+        end_time = time.time()
+        cost = round(end_time - start_time, 2)
+        self.LOG.info("chat回答时间为：%s 秒", cost)
         if 'type' in result and result['type'] == 'gen-img':
             return self.gen_img(f"user_input:{question}, supplementary:{result['answer']}", wxid, sender)
         if 'answer' in result:
             rsp = result['answer']
-        end_time = time.time()
-        cost = round(end_time - start_time, 2)
-        self.LOG.info("chat回答时间为：%s 秒", cost)
+        if 'debug' in result:
+            rsp = rsp + '\n\n' + str(result['debug']).replace('$', str(cost))
         return rsp
 
     def gen_img(self, question: str, wxid: str, sender: str) -> str:
