@@ -51,7 +51,7 @@ def get_chat():
     # 进行消息路由
     try:
         result = msg_router.router_msg(WxMsgServer(request.json))
-        return {"code": 0, "message": "success", "data": result if result else None}
+        return {"code": 0, "message": "success", "data": result}
     except Exception as e:
         app.logger.error("聊天消息处理失败", e)
         return {"code": 105, "message": str(e.args), "data": None}

@@ -64,6 +64,10 @@ class Robot:
         :param receiver: 接收人wxid或者群id
         :param at_list: 要@的wxid, @所有人的wxid为：nofity@all
         """
+
+        # 发送内容为空, 直接过滤
+        if msg == "":
+            return
         # msg 中需要有 @ 名单中一样数量的 @
         ats = ""
         if at_list:
