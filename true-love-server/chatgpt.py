@@ -82,7 +82,7 @@ class ChatGPT(ChatBot):
             rsp = '发生未知错误, 稍后再试试捏'
         return rsp
 
-    def get_answer(self, question: str, wxid: str, sender: str) -> str:
+    def get_answer(self, question: str, wxid: str, sender: str):
         start_time = time.time()
         self.LOG.info("开始发送给chatgpt")
         rsp = self.send_chatgpt(question, wxid, sender)
@@ -97,7 +97,7 @@ class ChatGPT(ChatBot):
             rsp = result['answer']
         if 'debug' in result:
             rsp = rsp + '\n\n' + str(result['debug']).replace('$', str(cost))
-        return rsp
+        base_client.send_text(wxid, sender, rsp)
 
     def async_get_answer(self, question: str, wxid: str, sender: str) -> str:
         # 这里异步调用方法
