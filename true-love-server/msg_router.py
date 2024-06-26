@@ -1,4 +1,3 @@
-import json
 import logging
 
 from configuration import Config
@@ -15,7 +14,7 @@ def router_msg(msg: WxMsgServer) -> str:
     msg_handler = MsgHandler()
     # 引用消息
     if msg.type == 49:
-        LOG.info(f"收到消息体msg:{json.dumps(msg)}, msg.content:{msg.content}")
+        LOG.info(f"收到消息体msg:{msg}, msg.content:{msg.content}")
         return "啊哦~引用内容我暂时看不懂哦, 不如你把内容复制出来给我看看呢"
 
     if msg.from_group():
