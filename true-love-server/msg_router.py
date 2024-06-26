@@ -17,7 +17,7 @@ def router_msg(msg: WxMsgServer) -> str:
         if not config.GROUPS.get("all_allow") and msg.roomid not in config.GROUPS.get("allow_list", []):
             return ""
         # 被@ 才处理
-        if msg.is_at(config.BASE_SERVER.get("self_wxid", "")):
+        if msg.is_at(config.BASE_SERVER.get("self_wxid", "")) or '@真爱粉' in msg.content:
             return msg_handler.handler_msg(msg)
         # 如果没有被at 忽略
         return ""
