@@ -89,7 +89,7 @@ class ChatGPT(ChatBot):
         # 判断gpt分析的结果
         result = json.loads(rsp)
         if 'type' in result and result['type'] == 'gen-img':
-            self.gen_img(f"user_input:{question}, supplementary:{result['answer']}", wxid, sender)
+            return self.gen_img(f"user_input:{question}, supplementary:{result['answer']}", wxid, sender)
         if 'answer' in result:
             rsp = result['answer']
         end_time = time.time()
