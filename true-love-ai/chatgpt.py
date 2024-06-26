@@ -11,7 +11,7 @@ from openai import OpenAI
 from configuration import Config
 
 name = "chatgpt"
-sd_url = "https://api.stability.ai/v2beta/stable-image/generate/core"
+sd_url = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
 
 type_answer_call = [
     {"name": "type_answer",
