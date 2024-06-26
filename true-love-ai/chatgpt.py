@@ -123,7 +123,7 @@ class ChatGPT:
         self.LOG.info("chat回答时间为：%s 秒", cost)
         if question.startswith('debug'):
             resp_object = json.loads(rsp)
-            resp_object['debug'] = f"(aiCost: {cost}s, isCost: $s use: {real_key[-4:]}, model: {real_model})"
+            resp_object['debug'] = f"(aiCost: {cost}s, ioCost: $s, use: {real_key[-4:]}, model: {real_model})"
             return json.dumps(resp_object)
         else:
             return rsp
