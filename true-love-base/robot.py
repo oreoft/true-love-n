@@ -27,7 +27,7 @@ class Robot:
             while wcf.is_receiving_msg():
                 try:
                     msg = wcf.get_msg()
-                    if msg.sender == 'weixin':
+                    if 'weixin' in msg.sender:
                         continue
                     self.LOG.info("监听到消息:[%s]", msg)
                     # 进行消息转发回复

@@ -17,13 +17,13 @@ class ChatMsgHandler:
 
     def get_answer(self, question: str, wxid: str, sender: str) -> str:
         if self.chatbot:
-            return self.chatbot.get_answer(question, wxid, sender)
+            return self.chatbot.async_get_answer(question, wxid, sender)
         self.LOG.info("self.chatbot配置为空, 但是调用了get_answer方法")
         return ""
 
     def gen_img(self, question: str, wxid: str, sender: str) -> str:
         if self.chatbot:
-            return self.chatbot.gen_img(question, wxid, sender)
+            return self.chatbot.async_gen_img(question, wxid, sender)
         self.LOG.info("self.chatbot配置为空, 但是调用了gen_img方法")
         return ""
 

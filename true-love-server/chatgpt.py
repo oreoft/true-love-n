@@ -15,7 +15,7 @@ import base_client
 from configuration import Config
 from msg_handler import ChatBot
 
-executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
+executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 
 name = "chatgpt"
 
@@ -92,20 +92,26 @@ class ChatGPT(ChatBot):
         cost = round(end_time - start_time, 2)
         self.LOG.info("chat回答时间为：%s 秒", cost)
         if 'type' in result and result['type'] == 'gen-img':
-            return self.gen_img(f"user_input:{question}, supplementary:{result['answer']}", wxid, sender)
+            return self.async_gen_img(f"user_input:{question}, supplementary:{result['answer']}", wxid, sender)
         if 'answer' in result:
             rsp = result['answer']
         if 'debug' in result:
             rsp = rsp + '\n\n' + str(result['debug']).replace('$', str(cost))
         return rsp
 
-    def gen_img(self, question: str, wxid: str, sender: str) -> str:
+    def async_get_answer(self, question: str, wxid: str, sender: str) -> str:
         # 这里异步调用方法
-        executor.submit(self.async_gen_img, question, sender, wxid)
+        executor.submit(self.get_answer, question, wxid, sender)
+        # 这里先固定回复
+        return ""
+
+    def async_gen_img(self, question: str, wxid: str, sender: str) -> str:
+        # 这里异步调用方法
+        executor.submit(self.gen_img, question, wxid, sender)
         # 这里先固定回复
         return "🚀您的作品将在1~10分钟左右完成，请耐心等待"
 
-    def async_gen_img(self, question, sender, wxid):
+    def gen_img(self, question, wxid, sender):
         start_time = time.time()
         self.LOG.info("开始发送给sd生图")
         rsp = self.send_sd(question, wxid, sender)
