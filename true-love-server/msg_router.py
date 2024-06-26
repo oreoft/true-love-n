@@ -27,7 +27,7 @@ def router_msg(msg: WxMsgServer) -> str:
                     not msg.is_at(config.BASE_SERVER.get("self_wxid", "")) and '@真爱粉' not in msg.content):
                 return ""
             msg.content = f"{title}, quoted content:{content}"
-            msg_handler.handler_msg(msg)
+            return msg_handler.handler_msg(msg)
         return "啊哦~引用内容我暂时看不懂哦, 不如你把内容复制出来给我看看呢"
 
     if msg.from_group():
