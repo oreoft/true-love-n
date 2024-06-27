@@ -190,6 +190,7 @@ class ChatGPT:
             if response.status_code == 200:
                 return {"img": response.json()['image'], "prompt": image_prompt}
             else:
+                self.LOG.error(f"generate_image_with_sd not 200, result:{response.json()}")
                 raise ValueError
         except requests.Timeout:
             self.LOG.error(f"generate_image_with_sd timeout")

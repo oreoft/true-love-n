@@ -118,6 +118,10 @@ class ChatGPT(ChatBot):
         end_time = time.time()
         cost = round(end_time - start_time, 2)
         self.LOG.info("sd回答时间为：%s 秒", cost)
+        if 'prompt' not in rsp:
+            base_client.send_text(wxid, sender, rsp)
+            return
+
         res_text = f"🎨绘画完成! \nprompt: {rsp.get('prompt')}"
         base_client.send_text(wxid, sender, res_text)
 
