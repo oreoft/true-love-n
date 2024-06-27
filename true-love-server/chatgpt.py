@@ -109,7 +109,8 @@ class ChatGPT(ChatBot):
         # 这里异步调用方法
         executor.submit(self.gen_img, question, wxid, sender)
         # 这里先固定回复
-        return "🚀您的作品将在1~10分钟左右完成，请耐心等待"
+        base_client.send_text(wxid, sender, "🚀您的作品将在1~10分钟左右完成，请耐心等待")
+        return ""
 
     def gen_img(self, question, wxid, sender):
         start_time = time.time()
