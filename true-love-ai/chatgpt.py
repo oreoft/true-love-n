@@ -191,7 +191,7 @@ class ChatGPT:
                 return {"img": response.json()['image'], "prompt": image_prompt}
             else:
                 self.LOG.error(f"generate_image_with_sd not 200, result:{response.json()}")
-                raise ValueError
+                raise ValueError("生成失败! 内容太不堪入目啦~")
         except requests.Timeout:
             self.LOG.error(f"generate_image_with_sd timeout")
             raise

@@ -52,7 +52,7 @@ def gen_img():
         return {"code": 0, "message": "success", "data": result}
     except Exception as e:
         app.logger.error("gen-img处理失败", e)
-        return {"code": 105, "message": str(e.args), "data": None}
+        return {"code": 105, "message": e.args[0], "data": None}
 
 @app.route('/api/dream/community/list', methods=['post'])
 def community_list():
