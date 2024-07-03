@@ -1,9 +1,11 @@
+import base64
 import json
 import logging
+import os
 import time
 
 import requests
-from wcferry import WxMsg
+from wcferry import WxMsg, Wcf
 
 from configuration import Config
 
@@ -20,8 +22,14 @@ text_url = f"{host}/get-chat"
 LOG = logging.getLogger("ServerClient")
 
 
-def get_chat(req: WxMsg):
+def get_chat(req: WxMsg, wcf: Wcf):
     try:
+        base64_string = ""
+        # 如果引用类型并且里面有图片, 把图片下载然后base64传过去
+        if req.type == 49 and "<img " in req.content:
+            save_img_dir = os.path.dirname(os.path.abspath(__file__)) + '/save-img'
+            base64_string = image_to_base64(wcf.download_image(req.id, req.extra, save_img_dir))
+        # 构建传输对象
         payload = json.dumps({
             "token": config.http_token,
             "_is_self": req._is_self,
@@ -35,7 +43,8 @@ def get_chat(req: WxMsg):
             "roomid": req.roomid,
             "content": req.content,
             "thumb": req.thumb,
-            "extra": req.extra
+            "extra": req.extra,
+            "img_data": base64_string
         })
         headers = {
             'Content-Type': 'application/json'
@@ -69,6 +78,18 @@ def get_chat(req: WxMsg):
         LOG.error("get_chat 发生错误", e)
         return get_error_msg()
 
+
+def image_to_base64(image_path):
+    """
+    将图片文件转换为Base64编码的字符串。
+
+    :param image_path: 图片文件的路径
+    :return: Base64编码的字符串
+    """
+    with open(image_path, "rb") as image_file:
+        # 读取文件内容
+        encoded_string = base64.b64encode(image_file.read())
+        return encoded_string.decode('utf-8')
 
 def get_error_msg():
     # 更新熔断器状态

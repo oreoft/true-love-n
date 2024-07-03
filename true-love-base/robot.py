@@ -20,7 +20,7 @@ class Robot:
 
     def forward_msg(self, msg: WxMsg) -> str:
         # 这里进行转发消息
-        return server_client.get_chat(msg)
+        return server_client.get_chat(msg, self.wcf)
 
     def enable_receiving_msg(self) -> None:
         def inner_process_msg(wcf: Wcf):
