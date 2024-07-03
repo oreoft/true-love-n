@@ -89,10 +89,13 @@ def image_to_base64(image_path):
     :param image_path: 图片文件的路径
     :return: Base64编码的字符串
     """
-    with open(image_path, "rb") as image_file:
-        # 读取文件内容
-        encoded_string = base64.b64encode(image_file.read())
-        return encoded_string.decode('utf-8')
+    if image_path:
+        with open(image_path, "rb") as image_file:
+            # 读取文件内容
+            encoded_string = base64.b64encode(image_file.read())
+            return encoded_string.decode('utf-8')
+    return ""
+
 
 def get_error_msg():
     # 更新熔断器状态
