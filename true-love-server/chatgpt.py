@@ -13,18 +13,18 @@ import requests
 
 import base_client
 from configuration import Config
-from msg_handler import ChatBot
+from msg_handler import ChatBot, local_trace
 
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 
 name = "chatgpt"
 
 
-def get_file_path(sender):
+def get_file_path():
     project_directory = os.path.dirname(os.path.abspath(__file__))
     download_directory = project_directory + '/sd-jpg/'
     # 构建唯一文件名
-    local_filename = f'{sender}-{str(time.time())}.jpg'
+    local_filename = f'{local_trace.get(str(time.time()))}.jpg'
     # 构建完整的文件路径
     return os.path.join(download_directory, local_filename)
 
@@ -122,7 +122,7 @@ class ChatGPT(ChatBot):
         base_client.send_text(wxid, sender, "🚀您的作品将在1~10分钟左右完成，请耐心等待")
         return ""
 
-    def gen_img(self, question, wxid, sender, img_path):
+    def gen_img(self, question, wxid, sender, img_path=''):
         start_time = time.time()
         self.LOG.info(f"开始发送给sd生图, img_path={img_path[:10]}")
         rsp = self.send_sd(question, wxid, sender, img_path)
@@ -137,7 +137,7 @@ class ChatGPT(ChatBot):
         base_client.send_text(wxid, sender, res_text)
 
         # 获取当前脚本所在的目录，即项目目录
-        file_path = get_file_path(sender)
+        file_path = get_file_path()
         # 将解码后的图像数据写入文件
         with open(file_path, "wb") as file:
             file.write(base64.b64decode(rsp.get('img')))
