@@ -166,7 +166,8 @@ class ChatGPT:
             start_time = time.time()
             self.LOG.info("ds.img.prompt start")
             image_prompt = self.send_gpt_by_message(messages=[
-                {"role": "system", "content": self.config.get("prompt4")},
+                {"role": "system",
+                 "content": self.config.get("prompt5") if img_path else self.config.get("prompt4")},
                 {"role": "system", "content": content}
             ])
             self.LOG.info(f"ds.prompt cost:[{(time.time() - start_time) * 1000}ms]")
@@ -175,11 +176,6 @@ class ChatGPT:
 
         # Re-generate the image based on the prompt
         try:
-            # 将Base64编码的字符串解码为二进制数据
-            img_data = base64.b64decode(img_path)
-
-            # 使用BytesIO创建一个读取二进制数据的文件对象
-            img_file = BytesIO(img_data)
             start_time = time.time()
             self.LOG.info("ds.img start")
             response = requests.post(
@@ -189,7 +185,7 @@ class ChatGPT:
                     "accept": "application/json; type=image/"
                 },
                 files={
-                    "image": ("image.png", img_file, "image/png")
+                    "image": BytesIO(base64.b64decode(img_path))
                 },
                 data={
                     "prompt": image_prompt,
