@@ -31,7 +31,7 @@ def get_chat(req: WxMsg, wcf: Wcf):
             LOG.info("req.id:%s", req.id)
             LOG.info("req.extra:%s", req.extra)
             LOG.info("save_img_dir:%s", save_img_dir)
-            base64_string = image_to_base64(wcf.download_image(id=req.id, extra=req.extra, dir=save_img_dir, timeout=5))
+            base64_string = image_to_base64(wcf.download_image(id=req.id, extra=req.extra, dir=save_img_dir, timeout=60))
         # 构建传输对象
         payload = json.dumps({
             "token": config.http_token,
