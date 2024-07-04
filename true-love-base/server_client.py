@@ -27,7 +27,7 @@ def get_chat(req: WxMsg, wcf: Wcf):
         base64_string = ""
         # 如果引用类型并且里面有图片, 把图片下载然后base64传过去
         if req.type == 49 and "<type>3</type>" in req.content:
-            save_img_dir = os.path.dirname(os.path.abspath(__file__)) + '/save-img'
+            save_img_dir = os.path.dirname(os.path.abspath(__file__)) + '\\save-img'
             LOG.info("req.id:%s", req.id)
             LOG.info("req.extra:%s", req.extra)
             LOG.info("save_img_dir:%s", save_img_dir)
