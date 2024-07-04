@@ -77,6 +77,7 @@ class ChatGPT(ChatBot):
             # 发送请求
             response = requests.post(url, headers=headers, data=json.dumps(data))
             self.LOG.info(response.json())
+            self.LOG.info(response.text)
             # 获取结果
             rsp = response.json().get('data') or response.json().get('message')
         except Exception as e0:
