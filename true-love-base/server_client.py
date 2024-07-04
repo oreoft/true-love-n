@@ -37,8 +37,8 @@ def get_chat(req: WxMsg, wcf: Wcf):
             pattern = r"<svrid>(\d+)</svrid>"
             # 使用正则表达式搜索
             match = re.search(pattern, req.content)
-            LOG.info("match:%", match)
-            LOG.info("match.group(1):%", match.group(1))
+            LOG.info("match:%s", match)
+            LOG.info("match.group(1):%s", match.group(1))
             LOG.info("extra:%s", CACHE.get(match.group(1)))
             if match and CACHE.get(match.group(1)):
                 base64_string = image_to_base64(
