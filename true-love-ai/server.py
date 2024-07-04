@@ -38,9 +38,10 @@ def get_chat():
         app.logger.error("llm处理失败", e)
         return {"code": 105, "message": str(e.args), "data": None}
 
+
 @app.route('/gen-img', methods=['post'])
 def gen_img():
-    app.logger.info("gen-img消息收到请求, req: %s", request.json)
+    app.logger.info("gen-img消息收到请求, req: %s", str(request.json)[:200])
     # 鉴权判断
     if request.json.get('token') not in http_config.get("token", []):
         return {"code": 103, "message": "failed token check", "data": None}
@@ -48,12 +49,13 @@ def gen_img():
     try:
         result = handler.get_img(request.json.get('content'),
                                  request.json.get('img_path'),
-                                    request.json.get('wxid', ''),
-                                    request.json.get('sender', ''))
+                                 request.json.get('wxid', ''),
+                                 request.json.get('sender', ''))
         return {"code": 0, "message": "success", "data": result}
     except Exception as e:
         app.logger.error("gen-img处理失败", e)
         return {"code": 105, "message": e.args[0], "data": None}
+
 
 @app.route('/api/dream/community/list', methods=['post'])
 def community_list():
@@ -80,7 +82,7 @@ def before_request_logging():
 @app.after_request
 def after_request_logging(response):
     cost = (time.time() - g.start_time) * 1000
-    app.logger.info(f"Response:[cost:%.0fms], res:[%s]:", cost, response.get_data(as_text=True))
+    app.logger.info(f"Response:[cost:%.0fms], res:[%s]:", cost, response.get_data(as_text=True)[:200])
     return response
 
 
