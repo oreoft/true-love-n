@@ -33,10 +33,22 @@ def get_chat(req: WxMsg, wcf: Wcf):
             pattern = r"<svrid>(\d+)</svrid>"
             # 使用正则表达式搜索
             match = re.search(pattern, req.content)
-            source_id = int(match.group(1))
-            if match and CACHE.get(source_id):
-                img_path = wcf.download_image(id=int(source_id), extra=CACHE.get(source_id), dir=save_img_dir,
-                                              timeout=5)
+            if match:
+                source_id = int(match.group(1))
+                # 构建预期的图片路径
+                expected_img_path = os.path.join(save_img_dir, f"{source_id}.jpg")
+                # 检查图片是否已存在
+                if os.path.exists(expected_img_path):
+                    LOG.info(f"文件已存在: {expected_img_path}")
+                    img_path = expected_img_path
+                else:
+                    # 文件不存在，执行下载逻辑
+                    if CACHE.get(source_id):
+                        img_path = wcf.download_image(id=source_id, extra=CACHE.get(source_id), dir=save_img_dir,
+                                                      timeout=5)
+                        LOG.info(f"文件已下载到: {img_path}")
+                    else:
+                        LOG.info("CACHE.get(source_id) is not exist")
         # 构建传输对象
         payload = json.dumps({
             "token": config.http_token,
