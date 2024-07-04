@@ -42,8 +42,8 @@ def get_chat(req: WxMsg, wcf: Wcf):
             LOG.info("match.group(1):%s", source_id)
             LOG.info("extra:%s", CACHE.get(source_id))
             if match and CACHE.get(source_id):
-                img_path = wcf.download_image(id=int(source_id), extra=CACHE.get(source_id), dir=save_img_dir,
-                                              timeout=5)
+                img_path = wcf.download_image(wcf.download_image(id=int(source_id), extra=CACHE.get(source_id), dir=save_img_dir,
+                                              timeout=5))
                 LOG.info("base64_string:%{}", img_path)
         # 构建传输对象
         payload = json.dumps({

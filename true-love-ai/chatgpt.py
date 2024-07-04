@@ -1,9 +1,11 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
+import base64
 import json
 import logging
 import time
 from datetime import datetime
+from io import BytesIO
 
 import httpx
 import requests
@@ -182,7 +184,7 @@ class ChatGPT:
                     "accept": "application/json; type=image/"
                 },
                 files={
-                    "image": open(img_path, "rb")
+                    "image": BytesIO(base64.b64decode(img_path))
                 },
                 data={
                     "prompt": image_prompt,
