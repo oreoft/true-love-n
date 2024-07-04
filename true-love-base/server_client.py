@@ -28,7 +28,7 @@ def get_chat(req: WxMsg, wcf: Wcf):
     try:
         img_path = ""
         # 如果引用类型并且里面有图片, 把图片下载然后base64传过去
-        if req.type == 49 and "<type>3</type>" in req.content:
+        if req.type == 49 and "<type>3</type>" in req.content or "<type>57</type>" in req.content:
             save_img_dir = os.path.dirname(os.path.abspath(__file__)) + '\\save-img'
             pattern = r"<svrid>(\d+)</svrid>"
             # 使用正则表达式搜索
