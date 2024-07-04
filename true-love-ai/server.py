@@ -76,7 +76,7 @@ def community_list():
 @app.before_request
 def before_request_logging():
     g.start_time = time.time()
-    app.logger.info("Request:[%s], req:[%s]", request.url, request.get_data(as_text=True))
+    app.logger.info("Request:[%s], req:[%s]", request.url, request.get_data(as_text=True)[:200])
 
 
 @app.after_request

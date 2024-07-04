@@ -124,7 +124,7 @@ class ChatGPT(ChatBot):
 
     def gen_img(self, question, wxid, sender, img_path):
         start_time = time.time()
-        self.LOG.info("开始发送给sd生图")
+        self.LOG.info(f"开始发送给sd生图, img_path={img_path[:10]}")
         rsp = self.send_sd(question, wxid, sender, img_path)
         end_time = time.time()
         cost = round(end_time - start_time, 2)

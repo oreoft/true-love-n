@@ -195,7 +195,7 @@ class ChatGPT:
             )
             self.LOG.info(f"ds.img cost:[{(time.time() - start_time) * 1000}ms]")
             if response.status_code == 200:
-                return {"img": response.json()['image'], "prompt": image_prompt}
+                return {"prompt": image_prompt, "img": response.json()['image']}
             else:
                 self.LOG.error(f"generate_image_with_sd not 200, result:{response.json()}")
                 raise ValueError("生成失败! 内容太不堪入目啦~")
