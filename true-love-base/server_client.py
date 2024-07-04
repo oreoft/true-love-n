@@ -38,13 +38,9 @@ def get_chat(req: WxMsg, wcf: Wcf):
             # 使用正则表达式搜索
             match = re.search(pattern, req.content)
             source_id = int(match.group(1))
-            LOG.info("match:%s", match)
-            LOG.info("match.group(1):%s", source_id)
-            LOG.info("extra:%s", CACHE.get(source_id))
             if match and CACHE.get(source_id):
                 img_path = image_to_base64(
                     wcf.download_image(id=int(source_id), extra=CACHE.get(source_id), dir=save_img_dir, timeout=5))
-                LOG.info("base64_string:%{}", img_path)
         # 构建传输对象
         payload = json.dumps({
             "token": config.http_token,
