@@ -29,7 +29,7 @@ def get_chat(req: WxMsg, wcf: Wcf):
     try:
         # 先把所有图片消息都缓存一下地址
         if req.type == 3:
-            CACHE.put(req.id, req.extra)
+            CACHE.put(int(req.id), req.extra)
         base64_string = ""
         # 如果引用类型并且里面有图片, 把图片下载然后base64传过去
         if req.type == 49 and "<type>3</type>" in req.content:
@@ -37,12 +37,13 @@ def get_chat(req: WxMsg, wcf: Wcf):
             pattern = r"<svrid>(\d+)</svrid>"
             # 使用正则表达式搜索
             match = re.search(pattern, req.content)
+            source_id = int(match.group(1))
             LOG.info("match:%s", match)
-            LOG.info("match.group(1):%s", match.group(1))
-            LOG.info("extra:%s", CACHE.get(match.group(1)))
-            if match and CACHE.get(match.group(1)):
+            LOG.info("match.group(1):%s", source_id)
+            LOG.info("extra:%s", CACHE.get(source_id))
+            if match and CACHE.get(source_id):
                 base64_string = image_to_base64(
-                    wcf.download_image(id=int(match.group(1)), extra=CACHE.get(match.group(1)), dir=save_img_dir,
+                    wcf.download_image(id=int(source_id), extra=CACHE.get(source_id), dir=save_img_dir,
                                        timeout=5))
                 LOG.info("base64_string:%{}", base64_string)
         # 构建传输对象
