@@ -1,7 +1,7 @@
-import contextvars
 import logging
 import re
 
+import context_vars
 from models.wx_msg import WxMsgServer
 from trig_remainder_handler import TrigRemainderHandler
 from trig_search_handler import TrigSearchHandler
@@ -13,10 +13,6 @@ class ChatBot:
     def get_answer(self, question: str, wxid: str, sender: str) -> str:
         pass
 
-
-local_trace = contextvars.ContextVar('trace_id')
-
-
 class MsgHandler:
 
     def __init__(self):
@@ -24,7 +20,7 @@ class MsgHandler:
 
     def handler_msg(self, msg: WxMsgServer) -> str:
         q: str = re.sub(r"@.*?[\u2005|\s]", "", msg.content).strip()
-        local_trace.set(msg.id)
+        context_vars.local_msg_id.set(msg.id)
         # 如果是查询任务
         if q.startswith('查询'):
             self.LOG.info(f"收到:{msg.sender}, 查询任务:{q}")

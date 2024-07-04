@@ -12,8 +12,9 @@ from datetime import datetime
 import requests
 
 import base_client
+import context_vars
 from configuration import Config
-from msg_handler import ChatBot, local_trace
+from msg_handler import ChatBot
 
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 
@@ -24,7 +25,7 @@ def get_file_path():
     project_directory = os.path.dirname(os.path.abspath(__file__))
     download_directory = project_directory + '/sd-jpg/'
     # 构建唯一文件名
-    local_filename = f'{local_trace.get(str(time.time()))}.jpg'
+    local_filename = f'{context_vars.local_msg_id.get(str(time.time()))}.jpg'
     # 构建完整的文件路径
     return os.path.join(download_directory, local_filename)
 
