@@ -25,7 +25,7 @@ class ChatMsgHandler:
 
     def get_img(self, question: str, img_path: str, wxid: str, sender: str) -> str:
         if self.chatbot:
-            return img_path if self.chatbot.get_img_by_img(question, img_path) else self.chatbot.get_img(question)
+            return self.chatbot.get_img_by_img(question, img_path) if img_path else self.chatbot.get_img(question)
         self.LOG.info("self.chatbot配置为空, 但是调用了get_img方法")
         raise ValueError
 
