@@ -21,11 +21,11 @@ executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 name = "chatgpt"
 
 
-def get_file_path():
+def get_file_path(msg_id):
     project_directory = os.path.dirname(os.path.abspath(__file__))
     download_directory = project_directory + '/sd-jpg/'
     # 构建唯一文件名
-    local_filename = f'{context_vars.local_msg_id.get(str(time.time()))}.jpg'
+    local_filename = f'{msg_id if msg_id else str(time.time())}.jpg'
     # 构建完整的文件路径
     return os.path.join(download_directory, local_filename)
 
@@ -111,19 +111,19 @@ class ChatGPT(ChatBot):
 
     def async_gen_img(self, question: str, wxid: str, sender: str) -> str:
         # 这里异步调用方法
-        executor.submit(self.gen_img, question, wxid, sender, '')
+        executor.submit(self.gen_img, question, wxid, sender, '', context_vars.local_msg_id.get(''))
         # 这里先固定回复
         base_client.send_text(wxid, sender, "🚀您的作品将在1~10分钟左右完成，请耐心等待")
         return ""
 
     def async_gen_img_by_img(self, question: str, img_path: str, wxid: str, sender: str) -> str:
         # 这里异步调用方法
-        executor.submit(self.gen_img, question, wxid, sender, img_path)
+        executor.submit(self.gen_img, question, wxid, sender, img_path, context_vars.local_msg_id.get(''))
         # 这里先固定回复
         base_client.send_text(wxid, sender, "🚀您的作品将在1~10分钟左右完成，请耐心等待")
         return ""
 
-    def gen_img(self, question, wxid, sender, img_path=''):
+    def gen_img(self, question, wxid, sender, img_path='', msg_id=''):
         start_time = time.time()
         self.LOG.info(f"开始发送给sd生图, img_path={img_path[:10]}")
         rsp = self.send_sd(question, wxid, sender, img_path)
@@ -138,7 +138,7 @@ class ChatGPT(ChatBot):
         base_client.send_text(wxid, sender, res_text)
 
         # 获取当前脚本所在的目录，即项目目录
-        file_path = get_file_path()
+        file_path = get_file_path(msg_id)
         # 将解码后的图像数据写入文件
         with open(file_path, "wb") as file:
             file.write(base64.b64decode(rsp.get('img')))
