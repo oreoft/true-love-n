@@ -1,4 +1,3 @@
-import base64
 import json
 import logging
 import os
@@ -39,8 +38,8 @@ def get_chat(req: WxMsg, wcf: Wcf):
             match = re.search(pattern, req.content)
             source_id = int(match.group(1))
             if match and CACHE.get(source_id):
-                img_path = image_to_base64(
-                    wcf.download_image(id=int(source_id), extra=CACHE.get(source_id), dir=save_img_dir, timeout=5))
+                img_path = wcf.download_image(id=int(source_id), extra=CACHE.get(source_id), dir=save_img_dir,
+                                              timeout=5)
         # 构建传输对象
         payload = json.dumps({
             "token": config.http_token,
@@ -89,21 +88,6 @@ def get_chat(req: WxMsg, wcf: Wcf):
     except Exception as e:
         LOG.error("get_chat 发生错误", e)
         return get_error_msg()
-
-
-def image_to_base64(image_path):
-    """
-    将图片文件转换为Base64编码的字符串。
-
-    :param image_path: 图片文件的路径
-    :return: Base64编码的字符串
-    """
-    if image_path:
-        with open(image_path, "rb") as image_file:
-            # 读取文件内容
-            encoded_string = base64.b64encode(image_file.read())
-            return encoded_string.decode('utf-8')
-    return ""
 
 
 def get_error_msg():

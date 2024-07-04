@@ -67,7 +67,7 @@ class ChatGPT(ChatBot):
                 "content": question,
                 'wxid': wxid,
                 "sender": sender,
-                "img_path": img_path,
+                "img_path": image_to_base64(img_path),
             }
 
             # 请求配置
@@ -142,6 +142,21 @@ class ChatGPT(ChatBot):
         with open(file_path, "wb") as file:
             file.write(base64.b64decode(rsp.get('img')))
         base_client.send_img(file_path, wxid)
+
+
+def image_to_base64(image_path):
+    """
+    将图片文件转换为Base64编码的字符串。
+
+    :param image_path: 图片文件的路径
+    :return: Base64编码的字符串
+    """
+    if image_path:
+        with open(image_path, "rb") as image_file:
+            # 读取文件内容
+            encoded_string = base64.b64encode(image_file.read())
+            return encoded_string.decode('utf-8')
+    return ""
 
 
 if __name__ == "__main__":
