@@ -2,9 +2,19 @@ from collections import OrderedDict
 
 
 class ImgMsgCache:
-    def __init__(self, capacity=500):
-        self.cache = OrderedDict()
-        self.capacity = capacity
+    _instance = None
+
+    def __new__(cls, capacity=500):
+        if cls._instance is None:
+            cls._instance = super(ImgMsgCache, cls).__new__(cls)
+            cls._instance.__init_once(capacity)
+        return cls._instance
+
+    def __init_once(self, capacity):
+        if not hasattr(self, 'initialized'):  # 防止重复初始化
+            self.cache = OrderedDict()
+            self.capacity = capacity
+            self.initialized = True
 
     def get(self, key):
         """

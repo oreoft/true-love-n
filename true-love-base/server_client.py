@@ -26,9 +26,6 @@ CACHE = ImgMsgCache()
 
 def get_chat(req: WxMsg, wcf: Wcf):
     try:
-        # 先把所有图片消息都缓存一下地址
-        if req.type == 3:
-            CACHE.put(int(req.id), req.extra)
         img_path = ""
         # 如果引用类型并且里面有图片, 把图片下载然后base64传过去
         if req.type == 49 and "<type>3</type>" in req.content:
