@@ -175,6 +175,11 @@ class ChatGPT:
 
         # Re-generate the image based on the prompt
         try:
+            # 将Base64编码的字符串解码为二进制数据
+            img_data = base64.b64decode(img_path)
+
+            # 使用BytesIO创建一个读取二进制数据的文件对象
+            img_file = BytesIO(img_data)
             start_time = time.time()
             self.LOG.info("ds.img start")
             response = requests.post(
@@ -184,7 +189,7 @@ class ChatGPT:
                     "accept": "application/json; type=image/"
                 },
                 files={
-                    "image": BytesIO(base64.b64decode(img_path))
+                    "image": ("image.png", img_file, "image/png")
                 },
                 data={
                     "prompt": image_prompt,
