@@ -59,7 +59,7 @@ class ChatGPT(ChatBot):
             rsp = '发生未知错误, 稍后再试试捏'
         return rsp
 
-    def send_sd(self, question, wxid, sender):
+    def send_sd(self, question, wxid, sender, img_path):
         try:
             # 准备数据
             data = {
@@ -67,6 +67,7 @@ class ChatGPT(ChatBot):
                 "content": question,
                 'wxid': wxid,
                 "sender": sender,
+                "img_path": img_path,
             }
 
             # 请求配置
@@ -107,15 +108,22 @@ class ChatGPT(ChatBot):
 
     def async_gen_img(self, question: str, wxid: str, sender: str) -> str:
         # 这里异步调用方法
-        executor.submit(self.gen_img, question, wxid, sender)
+        executor.submit(self.gen_img, question, wxid, sender, '')
         # 这里先固定回复
         base_client.send_text(wxid, sender, "🚀您的作品将在1~10分钟左右完成，请耐心等待")
         return ""
 
-    def gen_img(self, question, wxid, sender):
+    def async_gen_img_by_img(self, question: str, img_path: str, wxid: str, sender: str) -> str:
+        # 这里异步调用方法
+        executor.submit(self.gen_img, question, wxid, sender, img_path)
+        # 这里先固定回复
+        base_client.send_text(wxid, sender, "🚀您的作品将在1~10分钟左右完成，请耐心等待")
+        return ""
+
+    def gen_img(self, question, wxid, sender, img_path):
         start_time = time.time()
         self.LOG.info("开始发送给sd生图")
-        rsp = self.send_sd(question, wxid, sender)
+        rsp = self.send_sd(question, wxid, sender, img_path)
         end_time = time.time()
         cost = round(end_time - start_time, 2)
         self.LOG.info("sd回答时间为：%s 秒", cost)

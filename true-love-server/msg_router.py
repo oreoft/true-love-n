@@ -20,6 +20,11 @@ def router_msg(msg: WxMsgServer) -> str:
         content_search = re.search(r'<content>(.*?)</content>', msg.content, re.DOTALL)
         content = content_search.group(1) if content_search else ""
 
+        # 如果是引用消息, 然后图片数据不为空,送去图生图
+        if msg.img_path and title != "":
+            msg.content = f"{title}"
+            return msg_handler.handler_msg(msg)
+
         # 保证提取的由内容
         if title != "" and content != "" and '?xml' not in content:
             # 如果是群,但是没有艾特

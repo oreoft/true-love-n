@@ -30,6 +30,7 @@ class WxMsgServer:
         self.content = msg.get("content")
         self.thumb = msg.get("thumb")
         self.extra = msg.get("extra")
+        self.img_path = msg.get("img_path")
 
     def __str__(self) -> str:
         s = f"{'自己发的:' if self._is_self else ''}"

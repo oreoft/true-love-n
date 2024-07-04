@@ -13,6 +13,7 @@ from configuration import Config
 
 name = "chatgpt"
 sd_url = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
+sd_gen_url = "https://api.stability.ai/v2beta/stable-image/control/structure"
 
 type_answer_call = [
     {"name": "type_answer",
@@ -155,6 +156,52 @@ class ChatGPT:
             self.LOG.info("滚动清除聊天记录：%s", wxid)
             # 删除多余的记录，倒着删，且跳过第一个的系统消息
             del self.conversation_list[wxid][1]
+
+    def get_img_by_img(self, content, img_path):
+        # First get the image prompt
+        image_prompt = ""
+        try:
+            start_time = time.time()
+            self.LOG.info("ds.img.prompt start")
+            image_prompt = self.send_gpt_by_message(messages=[
+                {"role": "system", "content": self.config.get("prompt4")},
+                {"role": "system", "content": content}
+            ])
+            self.LOG.info(f"ds.prompt cost:[{(time.time() - start_time) * 1000}ms]")
+        except Exception:
+            self.LOG.exception(f"generate_prompt error")
+
+        # Re-generate the image based on the prompt
+        try:
+            start_time = time.time()
+            self.LOG.info("ds.img start")
+            response = requests.post(
+                sd_gen_url,
+                headers={
+                    "authorization": f"Bearer {Config().PLATFORM_KEY['sd']}",
+                    "accept": "application/json; type=image/"
+                },
+                files={
+                    "image": open(img_path, "rb")
+                },
+                data={
+                    "prompt": image_prompt,
+                    "control_strength": 0.7,
+                    "output_format": "png"
+                },
+            )
+            self.LOG.info(f"ds.img cost:[{(time.time() - start_time) * 1000}ms]")
+            if response.status_code == 200:
+                return {"img": response.json()['image'], "prompt": image_prompt}
+            else:
+                self.LOG.error(f"generate_image_with_sd not 200, result:{response.json()}")
+                raise ValueError("生成失败! 内容太不堪入目啦~")
+        except requests.Timeout:
+            self.LOG.error(f"generate_image_with_sd timeout")
+            raise
+        except Exception:
+            self.LOG.exception(f"generate_image_with_sd error")
+            raise
 
     def get_img(self, content):
         # First get the image prompt

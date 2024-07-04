@@ -23,11 +23,12 @@ class ChatMsgHandler:
         self.LOG.info("self.chatbot配置为空, 但是调用了get_answer方法")
         return ""
 
-    def get_img(self, question: str, wxid: str, sender: str) -> str:
+    def get_img(self, question: str, img_path: str, wxid: str, sender: str) -> str:
         if self.chatbot:
-            return self.chatbot.get_img(question)
+            return img_path if self.chatbot.get_img_by_img(question, img_path) else self.chatbot.get_img(question)
         self.LOG.info("self.chatbot配置为空, 但是调用了get_img方法")
         raise ValueError
 
+
 if __name__ == "__main__":
-    print(ChatMsgHandler().get_answer("你好", "13", "3"))
+    print(ChatMsgHandler().get_img("帮我换一种分割", "/Users/oreoft/IdeaProjects/my/true-love-n/true-love-base/save-img/2656311720071700_.pic.jpg", "3", ''))

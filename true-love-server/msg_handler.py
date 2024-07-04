@@ -43,6 +43,11 @@ class MsgHandler:
         if not handler.chatbot:
             return "你@我干嘛？"
 
+        # 如果传来了数据,那么去图生图
+        if msg.img_path:
+            self.LOG.info(f"收到图片, 要求转换图片:{q}")
+            return handler.gen_img_by_img(q, msg.img_path, (msg.roomid if msg.from_group() else msg.sender), msg.sender)
+
         # 如果是生图
         if q.startswith('生成') and '片' in q:
             self.LOG.info(f"收到:{msg.sender}, 生成图片:{q}")

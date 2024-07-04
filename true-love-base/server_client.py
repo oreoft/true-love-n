@@ -30,7 +30,7 @@ def get_chat(req: WxMsg, wcf: Wcf):
         # 先把所有图片消息都缓存一下地址
         if req.type == 3:
             CACHE.put(int(req.id), req.extra)
-        base64_string = ""
+        img_path = ""
         # 如果引用类型并且里面有图片, 把图片下载然后base64传过去
         if req.type == 49 and "<type>3</type>" in req.content:
             save_img_dir = os.path.dirname(os.path.abspath(__file__)) + '\\save-img'
@@ -42,10 +42,9 @@ def get_chat(req: WxMsg, wcf: Wcf):
             LOG.info("match.group(1):%s", source_id)
             LOG.info("extra:%s", CACHE.get(source_id))
             if match and CACHE.get(source_id):
-                base64_string = image_to_base64(
-                    wcf.download_image(id=int(source_id), extra=CACHE.get(source_id), dir=save_img_dir,
-                                       timeout=5))
-                LOG.info("base64_string:%{}", base64_string)
+                img_path = wcf.download_image(id=int(source_id), extra=CACHE.get(source_id), dir=save_img_dir,
+                                              timeout=5)
+                LOG.info("base64_string:%{}", img_path)
         # 构建传输对象
         payload = json.dumps({
             "token": config.http_token,
@@ -61,7 +60,7 @@ def get_chat(req: WxMsg, wcf: Wcf):
             "content": req.content,
             "thumb": req.thumb,
             "extra": req.extra,
-            "img_data": base64_string
+            "img_path": img_path
         })
         headers = {
             'Content-Type': 'application/json'

@@ -47,6 +47,7 @@ def gen_img():
     # 进行消息路由
     try:
         result = handler.get_img(request.json.get('content'),
+                                 request.json.get('img_path'),
                                     request.json.get('wxid', ''),
                                     request.json.get('sender', ''))
         return {"code": 0, "message": "success", "data": result}
