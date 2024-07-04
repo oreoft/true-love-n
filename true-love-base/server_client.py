@@ -2,8 +2,8 @@ import base64
 import json
 import logging
 import os
+import re
 import time
-from typing import re
 
 import requests
 from wcferry import WxMsg, Wcf
@@ -41,7 +41,7 @@ def get_chat(req: WxMsg, wcf: Wcf):
                 LOG.info("match:%", match)
                 LOG.info("extra:%s", CACHE)
                 base64_string = image_to_base64(
-                    wcf.download_image(id=match.group(1), extra=CACHE.get(match.group(1)), dir=save_img_dir,
+                    wcf.download_image(id=int(match.group(1)), extra=CACHE.get(match.group(1)), dir=save_img_dir,
                                        timeout=5))
                 LOG.info("base64_string:%{}", base64_string)
         # 构建传输对象
@@ -74,7 +74,7 @@ def get_chat(req: WxMsg, wcf: Wcf):
         start_time = time.time()
         LOG.info("开始请求server获取内容, req:[%s]", payload)
         response = requests.request("POST", text_url, headers=headers, data=payload, timeout=(2, 60))
-        LOG.info("接收到server返回值, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, response)
+        LOG.info("接收到server返回值, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, response.json())
         # 检查HTTP响应状态
         response.raise_for_status()
 
