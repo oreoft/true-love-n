@@ -22,7 +22,7 @@ def router_msg(msg: WxMsgServer) -> str:
 
         # 如果是引用消息, 然后图片数据不为空,送去图生图
         if msg.img_path and title != "":
-            msg.content = f"{title}"
+            msg.content = re.sub(r"@.*?[\u2005|\s]", "", title).strip()
             return msg_handler.handler_msg(msg)
 
         # 保证提取的由内容
