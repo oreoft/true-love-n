@@ -3,11 +3,13 @@ import json
 import logging
 import os
 import time
+from typing import re
 
 import requests
 from wcferry import WxMsg, Wcf
 
 from configuration import Config
+from img_cache import ImgMsgCache
 
 config = Config()
 
@@ -20,18 +22,28 @@ circuit_breaker = {
 host = "http://localhost:8088"
 text_url = f"{host}/get-chat"
 LOG = logging.getLogger("ServerClient")
+CACHE = ImgMsgCache()
 
 
 def get_chat(req: WxMsg, wcf: Wcf):
     try:
+        # 先把所有图片消息都缓存一下地址
+        if req.type == 3:
+            CACHE.put(req.id, req.extra)
         base64_string = ""
         # 如果引用类型并且里面有图片, 把图片下载然后base64传过去
         if req.type == 49 and "<type>3</type>" in req.content:
             save_img_dir = os.path.dirname(os.path.abspath(__file__)) + '\\save-img'
-            LOG.info("req.id:%s", req.id)
-            LOG.info("req.extra:%s", req.extra)
-            LOG.info("save_img_dir:%s", save_img_dir)
-            base64_string = image_to_base64(wcf.download_image(id=req.id, extra=req.extra, dir=save_img_dir, timeout=60))
+            pattern = r"<svrid>(\d+)</svrid>"
+            # 使用正则表达式搜索
+            match = re.search(pattern, req.content)
+            if match and CACHE.get(match.group(1)):
+                LOG.info("match:%", match)
+                LOG.info("extra:%s", CACHE)
+                base64_string = image_to_base64(
+                    wcf.download_image(id=match.group(1), extra=CACHE.get(match.group(1)), dir=save_img_dir,
+                                       timeout=5))
+                LOG.info("base64_string:%{}", base64_string)
         # 构建传输对象
         payload = json.dumps({
             "token": config.http_token,
