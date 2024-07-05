@@ -15,7 +15,15 @@ from configuration import Config
 
 name = "chatgpt"
 sd_url = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
-sd_gen_url = "https://api.stability.ai/v2beta/stable-image/edit/inpaint"
+sd_gen_url = "https://api.stability.ai/v2beta/stable-image/control/structure"
+sd_erase_url = "https://api.stability.ai/v2beta/stable-image/edit/erase"
+sd_replace_url = "https://api.stability.ai/v2beta/stable-image/edit/search-and-replace"
+sd_remove_background_url = "https://api.stability.ai/v2beta/stable-image/edit/remove-background"
+sd_url_map = {'gen_by_img': sd_gen_url,
+              'erase_img': sd_erase_url,
+              'replace_img': sd_replace_url,
+              'remove_background_img': sd_remove_background_url
+              }
 
 type_answer_call = [
     {"name": "type_answer",
@@ -35,6 +43,28 @@ type_answer_call = [
          "required": ["type", "answer"]
      }
      }]
+
+img_type_answer_call = [
+    {"name": "img_type_answer_call",
+     "description": "img_type_answer_call",
+     "parameters": {
+         "type": "object",
+         "properties": {
+             "type": {
+                 "type": "string",
+                 "description": "Based on the user description, determine which of the following types it belongs to: generate image (gen_by_img), "
+                                "erase object from image (erase_img), replace object in image (replace_img), remove image background (remove_background_img). "
+                                "Please provide the type."
+             },
+             "answer": {
+                 "type": "string",
+                 "description": "Here is your answer, please put your answer in this field"
+             },
+         },
+         "required": ["type", "answer"]
+     }
+     }]
+
 
 class ChatGPT:
 
@@ -60,7 +90,7 @@ class ChatGPT:
         content = question.split("-")[1]
         return self.send_gpt_by_message([self.system_content_msg3, {"role": "user", "content": content}])
 
-    def send_gpt_by_message(self, messages):
+    def send_gpt_by_message(self, messages, function_call=None, functions=None):
         rsp = ''
         try:
             self.openai.api_key = self.config.get("key3")
@@ -69,12 +99,18 @@ class ChatGPT:
                 model="gpt-4-turbo",
                 messages=messages,
                 temperature=0.2,
+                function_call=function_call,
+                functions=functions,
                 stream=True
             )
             # 获取stream查询
             for stream_res in ret:
-                if stream_res.choices[0].delta.content:
-                    rsp += stream_res.choices[0].delta.content.replace('\n\n', '\n')
+                if functions:
+                    if stream_res.choices[0].delta.function_call:
+                        rsp += stream_res.choices[0].delta.function_call.arguments.replace('\n\n', '\n')
+                else:
+                    if stream_res.choices[0].delta.content:
+                        rsp += stream_res.choices[0].delta.content.replace('\n\n', '\n')
         except Exception as e0:
             rsp = "An unknown error has occurred. Try again later."
             self.LOG.error(str(e0))
@@ -161,16 +197,20 @@ class ChatGPT:
 
     def get_img_by_img(self, content, img_path):
         # First get the image prompt
-        image_prompt = ""
+        image_prompt = {}
         try:
             start_time = time.time()
             self.LOG.info("ds.img.prompt start")
-            image_prompt = self.send_gpt_by_message(messages=[
-                {"role": "system",
-                 "content": self.config.get("prompt5") if img_path else self.config.get("prompt4")},
-                {"role": "system", "content": content}
-            ])
-            self.LOG.info(f"ds.prompt cost:[{(time.time() - start_time) * 1000}ms]")
+            image_prompt = self.send_gpt_by_message(
+                messages=[
+                    {"role": "system",
+                     "content": self.config.get("prompt5") if img_path else self.config.get("prompt4")},
+                    {"role": "system", "content": content}],
+                function_call={"name": "img_type_answer_call"},
+                functions=img_type_answer_call,
+            )
+            image_prompt = json.loads(image_prompt)
+            self.LOG.info(f"ds.prompt cost:[{(time.time() - start_time) * 1000}ms] result:{image_prompt}")
         except Exception:
             self.LOG.exception(f"generate_prompt error")
 
@@ -179,7 +219,7 @@ class ChatGPT:
             start_time = time.time()
             self.LOG.info("ds.img start")
             response = requests.post(
-                sd_gen_url,
+                sd_url_map.get(image_prompt["type"], sd_url),
                 headers={
                     "authorization": f"Bearer {Config().PLATFORM_KEY['sd']}",
                     "accept": "application/json; type=image/"
@@ -188,7 +228,7 @@ class ChatGPT:
                     "image": BytesIO(base64.b64decode(img_path))
                 },
                 data={
-                    "prompt": image_prompt,
+                    "prompt": image_prompt["answer"],
                     "control_strength": 0.7,
                     "output_format": "png"
                 },

@@ -31,4 +31,4 @@ class ChatMsgHandler:
 
 
 if __name__ == "__main__":
-    print(ChatMsgHandler().get_img("帮我换一种分割", "/Users/oreoft/IdeaProjects/my/true-love-n/true-love-base/save-img/2656311720071700_.pic.jpg", "3", ''))
+    print(ChatMsgHandler().get_img("帮我换一种分割", ChatMsgHandler().get_img("生成一张图片", '', "3", ''), "3", ''))
