@@ -46,6 +46,7 @@ def get_chat(req: WxMsg, wcf: Wcf):
                     if CACHE.get(source_id):
                         img_path = wcf.download_image(id=source_id, extra=CACHE.get(source_id), dir=save_img_dir,
                                                       timeout=5)
+                        LOG.info(f'orc:{wcf.get_ocr_result(CACHE.get(source_id))}')
                         LOG.info(f"文件已下载到: {img_path}")
                     else:
                         LOG.info("CACHE.get(source_id) is not exist")
