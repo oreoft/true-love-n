@@ -229,6 +229,7 @@ class ChatGPT:
                 },
                 data={
                     "prompt": image_prompt["answer"],
+                    "search_prompt": image_prompt["answer"],
                     "control_strength": 0.7,
                     "output_format": "png"
                 },
