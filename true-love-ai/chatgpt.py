@@ -15,7 +15,7 @@ from configuration import Config
 
 name = "chatgpt"
 sd_url = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
-sd_gen_url = "https://api.stability.ai/v2beta/stable-image/edit/outpaint"
+sd_gen_url = "https://api.stability.ai/v2beta/stable-image/edit/inpaint"
 
 type_answer_call = [
     {"name": "type_answer",
