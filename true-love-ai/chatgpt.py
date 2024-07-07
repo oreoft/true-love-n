@@ -14,6 +14,7 @@ from openai import OpenAI
 from configuration import Config
 
 name = "chatgpt"
+openai_model = "gpt-4o"
 sd_url = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
 sd_gen_url = "https://api.stability.ai/v2beta/stable-image/control/structure"
 sd_erase_url = "https://api.stability.ai/v2beta/stable-image/edit/erase"
@@ -69,22 +70,27 @@ img_type_answer_call = [
 class ChatGPT:
 
     def __init__(self) -> None:
-        self.LOG = logging.getLogger("MsgHandler")
-
+        self.LOG = logging.getLogger("ChatGPT")
         self.config = Config().LLM_BOT
-        # 自己搭建或第三方代理的接口
-        self.openai = OpenAI(timeout=30, api_key=self.config.get("key3"))
-        self.openai.base_url = self.config.get("api")
-        # 代理
+        # openai池子
+        self.openai_pool = [
+            OpenAI(timeout=30, api_key=self.config.get("key1")),
+            OpenAI(timeout=30, api_key=self.config.get("key2")),
+            OpenAI(timeout=30, api_key=self.config.get("key3")),
+        ]
+        # 轮训负载openai池子的计数器
+        self.count = 0
+        # 是否有代理代理
         proxy = self.config.get("proxy")
         if proxy:
-            self.openai.http_client = httpx.Client(proxies=proxy)
+            for value in self.openai_pool:
+                value.http_client = httpx.Client(proxies=proxy)
+        # 对话历史容器
         self.conversation_list = {}
+        # 提示词加载
         self.system_content_msg = {"role": "system", "content": self.config.get("prompt")}
         self.system_content_msg2 = {"role": "system", "content": self.config.get("prompt2")}
         self.system_content_msg3 = {"role": "system", "content": self.config.get("prompt3")}
-        # 轮训负载key的计数器
-        self.count = 0
 
     def get_xun_wen(self, question):
         content = question.split("-")[1]
@@ -93,10 +99,10 @@ class ChatGPT:
     def send_gpt_by_message(self, messages, function_call=None, functions=None):
         rsp = ''
         try:
-            self.openai.api_key = self.config.get("key3")
+
             # 发送请求
-            ret = self.openai.chat.completions.create(
-                model="gpt-4-turbo",
+            ret = self.train_openai_client().chat.completions.create(
+                model=openai_model,
                 messages=messages,
                 temperature=0.2,
                 function_call=function_call,
@@ -116,11 +122,11 @@ class ChatGPT:
             self.LOG.error(str(e0))
         return rsp
 
-    def send_chatgpt(self, real_model, wxid):
+    def send_chatgpt(self, real_model, wxid, openai_client):
         rsp = ''
         try:
             # 发送请求
-            ret = self.openai.chat.completions.create(
+            ret = openai_client.chat.completions.create(
                 model=real_model,
                 messages=self.conversation_list[wxid],
                 temperature=0.2,
@@ -140,29 +146,17 @@ class ChatGPT:
 
     def get_answer(self, question: str, wxid: str, sender: str) -> str:
         self._update_message(wxid, question.replace("debug", "", 1), "user")
-        self.count += 1
-        cases = {
-            0: self.config.get("key1"),
-            1: self.config.get("key2"),
-            2: self.config.get("key3"),
-        }
-        real_key = cases.get(self.count % 3, self.config.get("key1"))
-        real_model = "gpt-3.5-turbo"
-        # 如果是有权限访问gpt4的，直接走gpt4
-        if sender in self.config.get("gpt4"):
-            real_key = self.config.get("key2")
-            real_model = "gpt-4-turbo"
-        real_model = "gpt-4-turbo"
-        self.openai.api_key = real_key
+        openai_client = self.train_openai_client()
         start_time = time.time()
-        self.LOG.info("开始发送给chatgpt， 其中real_key: %s, real_model: %s", real_key[-4:], real_model)
-        rsp = self.send_chatgpt(real_model, wxid)
+        self.LOG.info("开始发送给chatgpt， 其中real_key: %s, real_model: %s", openai_client.api_key[-4:], openai_model)
+        rsp = self.send_chatgpt(openai_model, wxid, openai_client)
         end_time = time.time()
         cost = round(end_time - start_time, 2)
         self.LOG.info("chat回答时间为：%s 秒", cost)
         if question.startswith('debug'):
             resp_object = json.loads(rsp)
-            resp_object['debug'] = f"(aiCost: {cost}s, ioCost: $s, use: {real_key[-4:]}, model: {real_model})"
+            resp_object[
+                'debug'] = f"(aiCost: {cost}s, ioCost: $s, use: {openai_client.api_key[-4:]}, model: {openai_model})"
             return json.dumps(resp_object)
         else:
             return rsp
@@ -289,6 +283,10 @@ class ChatGPT:
         except Exception:
             self.LOG.exception(f"generate_image_with_sd error")
             raise
+
+    def train_openai_client(self):
+        self.count += 1
+        return self.openai_pool[self.count % 3]
 
 
 if __name__ == "__main__":
