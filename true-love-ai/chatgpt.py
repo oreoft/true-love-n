@@ -3,9 +3,11 @@
 import base64
 import json
 import logging
+import subprocess
 import time
 from datetime import datetime
 from io import BytesIO
+from urllib.parse import quote_plus
 
 import httpx
 import requests
@@ -15,6 +17,8 @@ from configuration import Config
 
 name = "chatgpt"
 openai_model = "gpt-4o"
+baidu_curl = ("curl --location 'https://www.baidu.com/s?wd=%s&tn=json' "
+              "--header 'User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1'")
 sd_url = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
 sd_gen_url = "https://api.stability.ai/v2beta/stable-image/control/structure"
 sd_erase_url = "https://api.stability.ai/v2beta/stable-image/edit/erase"
@@ -34,11 +38,18 @@ type_answer_call = [
          "properties": {
              "type": {
                  "type": "string",
-                 "description": "the type of question, if user want you to generate images please return gen-img, if it is a normal chat to return chat,"
+                 "description": "the type of question, "
+                                "if user wants you to generate images please return the 'gen-img', "
+                                "if it is a normal chat to return the 'chat', "
+                                "if the content requires online search You search in context first "
+                                "and if there is no information, please return the 'search'"
              },
              "answer": {
                  "type": "string",
-                 "description": "Here is your answer, please put your answer in this field"
+                 "description": "the answer of content, "
+                                "if type is chat, please put your answer in this field"
+                                "if type is gen-img, This can be empty"
+                                "if type is search, please put the content to be searched in this field"
              },
          },
          "required": ["type", "answer"]
@@ -53,8 +64,11 @@ img_type_answer_call = [
          "properties": {
              "type": {
                  "type": "string",
-                 "description": "Based on the user description, determine which of the following types it belongs to: generate image (gen_by_img), "
-                                "erase object from image (erase_img), replace object in image (replace_img), remove image background (remove_background_img). "
+                 "description": "Based on the user description, determine which of the following types it belongs to: "
+                                "generate image (gen_by_img), "
+                                "erase object from image (erase_img), "
+                                "replace object in image (replace_img), "
+                                "remove image background (remove_background_img). "
                                 "Please provide the type."
              },
              "answer": {
@@ -91,6 +105,8 @@ class ChatGPT:
         self.system_content_msg = {"role": "system", "content": self.config.get("prompt")}
         self.system_content_msg2 = {"role": "system", "content": self.config.get("prompt2")}
         self.system_content_msg3 = {"role": "system", "content": self.config.get("prompt3")}
+        self.system_content_msg4 = {"role": "system", "content": self.config.get("prompt4")}
+        self.system_content_msg5 = {"role": "system", "content": self.config.get("prompt5")}
 
     def get_xun_wen(self, question):
         content = question.split("-")[1]
@@ -126,6 +142,7 @@ class ChatGPT:
         rsp = ''
         try:
             # 发送请求
+            question = self.conversation_list[wxid][-1]
             ret = openai_client.chat.completions.create(
                 model=real_model,
                 messages=self.conversation_list[wxid],
@@ -138,10 +155,37 @@ class ChatGPT:
             for stream_res in ret:
                 if stream_res.choices[0].delta.function_call:
                     rsp += stream_res.choices[0].delta.function_call.arguments.replace('\n\n', '\n')
+            result = json.loads(rsp)
+            self.LOG.info(f"openai result :{result}")
+            if result['type'] == 'search':
+                rsp = ''
+                # 先去百度获取数据
+                send_curl = baidu_curl % quote_plus(result['answer'])
+                self.LOG.info(f"need go to baidu search: {result['answer']}, curl:{send_curl}")
+                baidu_response = subprocess.run(send_curl, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                                text=True)
+                # 获取命令输出
+                baidu_entry = json.loads(baidu_response.stdout)['feed']['entry']
+                # 存储结果
+                self._update_message(wxid, "The reference for this answer:" + json.dumps(baidu_entry), "assistant")
+                # 然后再拿结果去问chatgpt
+                self._update_message(wxid, question['content'], "user")
+                ret = openai_client.chat.completions.create(
+                    model=real_model,
+                    messages=self.conversation_list[wxid],
+                    temperature=0.2,
+                    stream=True
+                )
+                # 获取stream查询
+                for stream_res in ret:
+                    if stream_res.choices[0].delta.content:
+                        rsp += stream_res.choices[0].delta.content.replace('\n\n', '\n')
+                rsp = json.dumps({"type": "chat", "answer": rsp})
+                self.LOG.info(f"openai+baidu:{rsp}")
             self._update_message(wxid, rsp, "assistant")
         except Exception as e0:
-            rsp = "发生未知错误, 稍后再试试捏"
-            self.LOG.error('调用北美ai服务发生错误, msg:', e0)
+            rsp = json.dumps({"type": "chat", "answer": "发生未知错误, 稍后再试试捏"})
+            self.LOG.exception('调用北美ai服务发生错误, msg: %s', e0)
         return rsp
 
     def get_answer(self, question: str, wxid: str, sender: str) -> str:
@@ -161,33 +205,26 @@ class ChatGPT:
         else:
             return rsp
 
-    def _update_message(self, wxid: str, question: str, role: str) -> None:
-        now_time = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        time_mk = "当需要回答时间时请直接参考回复:"
+    def _update_message(self, wxid: str, aq: str, role: str) -> None:
+        time_mk = f"当需要回答时间时请直接参考回复(请注意这是美国中部时间, 另外别人问你是否可以联网你需要说我已经接入谷歌搜索, 知识库最新消息是当前时间): {str(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}"
         # 初始化聊天记录,组装系统信息
         if wxid not in self.conversation_list.keys():
-            question_ = [
+            self.conversation_list[wxid] = [
                 self.system_content_msg if wxid not in self.config.get("gpt4") else self.system_content_msg2,
-                {"role": "system", "content": "" + time_mk + now_time}
+                {"role": "system", "content": time_mk}
             ]
-            self.conversation_list[wxid] = question_
 
         # 当前问题
-        content_question_ = {"role": role, "content": question}
+        content_question_ = {"role": role, "content": aq}
         self.conversation_list[wxid].append(content_question_)
 
-        for cont in self.conversation_list[wxid]:
-            if cont["role"] != "system":
-                continue
-            if cont["content"].startswith(time_mk):
-                cont["content"] = time_mk + now_time
-
-        # 只存储5条记录，超过滚动清除
-        i = len(self.conversation_list[wxid])
-        if i > 10:
+        # 刷新当前时间
+        self.conversation_list[wxid][1] = {"role": "system", "content": time_mk}
+        # 只存储10条记录，超过滚动清除
+        if len(self.conversation_list[wxid]) > 10:
             self.LOG.info("滚动清除聊天记录：%s", wxid)
-            # 删除多余的记录，倒着删，且跳过第一个的系统消息
-            del self.conversation_list[wxid][1]
+            # 删除多余的记录，倒着删，且跳过第二个的系统消息
+            del self.conversation_list[wxid][2]
 
     def get_img_by_img(self, content, img_path):
         # First get the image prompt
@@ -197,9 +234,9 @@ class ChatGPT:
             self.LOG.info("ds.img.prompt start")
             image_prompt = self.send_gpt_by_message(
                 messages=[
-                    {"role": "system",
-                     "content": self.config.get("prompt5") if img_path else self.config.get("prompt4")},
-                    {"role": "system", "content": content}],
+                    self.system_content_msg5 if img_path else self.system_content_msg4,
+                    {"role": "user", "content": content}
+                ],
                 function_call={"name": "img_type_answer_call"},
                 functions=img_type_answer_call,
             )
@@ -249,7 +286,7 @@ class ChatGPT:
             self.LOG.info("ds.img.prompt start")
             image_prompt = self.send_gpt_by_message(messages=[
                 {"role": "system", "content": self.config.get("prompt4")},
-                {"role": "system", "content": content}
+                {"role": "user", "content": content}
             ])
             self.LOG.info(f"ds.prompt cost:[{(time.time() - start_time) * 1000}ms]")
         except Exception:
