@@ -193,7 +193,8 @@ class ChatGPT:
                 for stream_res in ret:
                     if stream_res.choices[0].delta.content:
                         rsp += stream_res.choices[0].delta.content.replace('\n\n', '\n')
-                rsp = json.dumps({"type": "chat", "answer": rsp})
+                search_tail = f"\n- - - - - - - - - - - -\n🔎 谷歌搜索：{result['answer']}"
+                rsp = json.dumps({"type": "chat", "answer": rsp + search_tail})
                 self.LOG.info(f"openai+baidu:{rsp}")
             self._update_message(wxid, rsp, "assistant")
         except Exception as e0:
