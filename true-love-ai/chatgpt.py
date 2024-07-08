@@ -174,7 +174,8 @@ class ChatGPT:
                     if 'abs' in entry and 'url' in entry
                 ]
                 # 存储结果
-                self._update_message(wxid, "The reference for this answer:" + json.dumps(reference_list), "assistant")
+                self._update_message(wxid, "The reference and source_url for this answer:" + json.dumps(reference_list),
+                                     "assistant")
                 # 然后再拿结果去问chatgpt
                 self._update_message(wxid, question['content'], "user")
                 ret = openai_client.chat.completions.create(
