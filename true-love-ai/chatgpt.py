@@ -49,7 +49,7 @@ type_answer_call = [
                  "description": "the answer of content, "
                                 "if type is chat, please put your answer in this field"
                                 "if type is gen-img, This can be empty"
-                                "if type is search, please put the content to be searched in this field"
+                                "if type is search, 请在此字段中返回要搜索的内容关键词, 必须是中文"
              },
          },
          "required": ["type", "answer"]
@@ -180,7 +180,7 @@ class ChatGPT:
                                "content": "下面你的回答必须结合上下文,因为上下文都是联网查询的,尤其是来源和参考链接，"
                                           "所以相当于你可以联网获取信息, "
                                           "另外如果你不知道回答，请不要不要胡说. "
-                                          "如果用户要求链接请你把最相关的参考链接给出"}
+                                          "如果用户要求文章或者链接请你把最相关的参考链接给出"}
                 # 然后再拿结果去问chatgpt
                 self._update_message(wxid, question['content'], "user")
                 ret = openai_client.chat.completions.create(
