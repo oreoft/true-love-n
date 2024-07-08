@@ -16,7 +16,7 @@ from openai import OpenAI
 from configuration import Config
 
 name = "chatgpt"
-openai_model = "gpt-4o"
+openai_model = "gpt-4-turbo"
 baidu_curl = ("curl --location 'https://www.baidu.com/s?wd=%s&tn=json' "
               "--header 'User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1'")
 sd_url = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
