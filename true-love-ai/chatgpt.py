@@ -177,7 +177,9 @@ class ChatGPT:
                 self._update_message(wxid, "针对这个回答, 参考信息和来源链接如下:" + json.dumps(reference_list),
                                      "assistant")
                 temp_prompt = {"role": "system",
-                               "content": "下面你的回答必须结合上下文, 尤其是来源和参考链接，如果你不知道回答，请不要不要胡说. "
+                               "content": "下面你的回答必须结合上下文,因为上下文都是联网查询的,尤其是来源和参考链接，"
+                                          "所以相当于你可以联网获取信息, "
+                                          "另外如果你不知道回答，请不要不要胡说. "
                                           "如果用户要求链接请你把最相关的参考链接给出"}
                 # 然后再拿结果去问chatgpt
                 self._update_message(wxid, question['content'], "user")
