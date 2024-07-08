@@ -182,7 +182,7 @@ class ChatGPT:
                 self._update_message(wxid, question['content'], "user")
                 ret = openai_client.chat.completions.create(
                     model=real_model,
-                    messages=self.conversation_list[wxid] + temp_prompt,
+                    messages=self.conversation_list[wxid] + [temp_prompt],
                     temperature=0.2,
                     stream=True
                 )
