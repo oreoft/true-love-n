@@ -5,9 +5,9 @@ on:
     branches: [ "master" ]
 
 env:
-  SERVER_IP: ${{ secrets.PROXY_HOST }}       
-  SERVER_USER: root              
-  SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}         
+  SERVER_IP: ${{ secrets.PROXY_HOST }}
+  SERVER_USER: root
+  SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
 
 permissions:
   contents: read
@@ -20,23 +20,22 @@ jobs:
     environment: production
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Setup SSH and Run Commands
-      uses: webfactory/ssh-agent@v0.5.3
-      with:
-        port: ${{ secrets.SER1_PROXY_PORT }}
-        ssh-private-key: ${{ secrets[env.SERVER_SSH_KEY] }}
+      - name: Setup SSH and Run Commands
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets[env.SERVER_SSH_KEY] }}
 
-    - name: Execute Commands Over SSH
-      run: |
-        ssh -o StrictHostKeyChecking=no ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} << 'EOF'
-          cd /root/true-love-n/true-love-ai
-          git pull
-          systemctl restart true-love-ai
-        EOF
-          - name: Notify - Backup Success
+      - name: Execute Commands Over SSH
+        run: |
+          ssh -o StrictHostKeyChecking=no -p YOUR_PORT_NUMBER ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} << 'EOF'
+            cd /root/true-love-n/true-love-ai
+            git pull
+            systemctl restart true-love-ai
+          EOF
+      - name: Notify - Backup Success
         if: success()
         run: |
           curl --location ${{ secrets.TURE_LOVE_URL_PATH }} \
