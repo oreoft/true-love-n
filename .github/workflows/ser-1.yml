@@ -1,0 +1,50 @@
+name: Deploy to Server via SSH
+
+on:
+  push:
+    branches: [ "master" ]
+
+env:
+  SERVER_IP: ${{ secrets.PROXY_HOST }}       
+  SERVER_USER: root              
+  SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}         
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup SSH and Run Commands
+      uses: webfactory/ssh-agent@v0.5.3
+      with:
+        port: ${{ secrets.SER1_PROXY_PORT }}
+        ssh-private-key: ${{ secrets[env.SERVER_SSH_KEY] }}
+
+    - name: Execute Commands Over SSH
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} << 'EOF'
+          cd /root/true-love-n/true-love-ai
+          git pull
+          systemctl restart true-love-ai
+        EOF
+          - name: Notify - Backup Success
+        if: success()
+        run: |
+          curl --location ${{ secrets.TURE_LOVE_URL_PATH }} \
+          --header 'Content-Type: application/json' \
+          --data '{
+            "token": "${{ secrets.TURE_LOVE_TOKEN }}",
+            "sendReceiver": "master",
+            "atReceiver": "",
+            "content": "真爱粉ai模块已经成功重启"
+          }'
+
