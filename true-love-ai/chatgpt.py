@@ -165,9 +165,12 @@ class ChatGPT:
                 baidu_response = subprocess.run(send_curl, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                                 text=True)
                 # 获取命令输出
-                baidu_entry = json.loads(baidu_response.stdout)['feed']['entry']
+                # 使用json.loads解析响应体
+                data = json.loads(baidu_response.stdout)
+                # 使用列表推导式从每个entry中提取abs字段的值
+                abs_list = [entry['abs'] for entry in data['feed']['entry']]
                 # 存储结果
-                self._update_message(wxid, "The reference for this answer:" + json.dumps(baidu_entry), "assistant")
+                self._update_message(wxid, "The reference for this answer:" + json.dumps(abs_list), "assistant")
                 # 然后再拿结果去问chatgpt
                 self._update_message(wxid, question['content'], "user")
                 ret = openai_client.chat.completions.create(
