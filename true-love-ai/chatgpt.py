@@ -176,11 +176,13 @@ class ChatGPT:
                 # 存储结果
                 self._update_message(wxid, "The reference and source_url for this answer:" + json.dumps(reference_list),
                                      "assistant")
+                temp_prompt = {"role": "system",
+                               "content": "Next your answer must be refer to context, if you can't answer it,  don't talk nonsense"}
                 # 然后再拿结果去问chatgpt
                 self._update_message(wxid, question['content'], "user")
                 ret = openai_client.chat.completions.create(
                     model=real_model,
-                    messages=self.conversation_list[wxid],
+                    messages=self.conversation_list[wxid] + temp_prompt,
                     temperature=0.2,
                     stream=True
                 )
