@@ -4,7 +4,7 @@ from collections import OrderedDict
 class ImgMsgCache:
     _instance = None
 
-    def __new__(cls, capacity=500):
+    def __new__(cls, capacity=10000):
         if cls._instance is None:
             cls._instance = super(ImgMsgCache, cls).__new__(cls)
             cls._instance.__init_once(capacity)
