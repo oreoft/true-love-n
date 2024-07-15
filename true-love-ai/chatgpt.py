@@ -312,7 +312,7 @@ class ChatGPT:
                     "prompt": image_prompt["answer"],
                     "search_prompt": image_prompt["answer"],
                     "control_strength": 0.7,
-                    "output_format": "png"
+                    "output_format": "webp"
                 },
             )
             self.LOG.info(f"ds.img cost:[{(time.time() - start_time) * 1000}ms]")
@@ -354,7 +354,7 @@ class ChatGPT:
                                      files={"none": ''},
                                      data={
                                          "prompt": image_prompt,
-                                         "output_format": "png",
+                                         "output_format": "webp",
                                          "aspect_ratio": "1:1"
                                      },
                                      )
