@@ -24,7 +24,7 @@ def send_text(send_receiver, at_receiver, content):
     }
     try:
         start_time = time.time()
-        LOG.info("开始请求base推送内容, req:[%s]", payload)
+        LOG.info("开始请求base推送text内容, req:[%s]", payload)
         res = requests.request("POST", text_url, headers=headers, data=payload, timeout=(2, 60))
         # 检查HTTP响应状态
         res.raise_for_status()
@@ -45,7 +45,7 @@ def send_img(path, send_receiver):
 
     try:
         start_time = time.time()
-        LOG.info("开始请求base推送内容, req:[%s]", payload)
+        LOG.info("开始请求base推送img内容, req:[%s]", payload[:200])
         res = requests.request("POST", text_img, headers=headers, data=payload, timeout=(2, 60))
         LOG.info("请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
     except Exception as e:
