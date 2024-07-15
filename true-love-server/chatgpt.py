@@ -175,7 +175,7 @@ class ChatGPT(ChatBot):
     def gen_analyze(self, question, wxid, sender, img_path=''):
         start_time = time.time()
         self.LOG.info(f"开始发送给gen_analyze分析, img_path={img_path[:10]}")
-        rsp = self.send_sd(question, wxid, sender, img_path)
+        rsp = self.send_analyze(question, wxid, sender, img_path)
         end_time = time.time()
         cost = round(end_time - start_time, 2)
         self.LOG.info("gen_analyze回答时间为：%s 秒", cost)
