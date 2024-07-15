@@ -57,6 +57,24 @@ def gen_img():
         return {"code": 105, "message": e.args[0], "data": None}
 
 
+@app.route('/get-analyze', methods=['post'])
+def gen_img():
+    app.logger.info("get-analyze消息收到请求, req: %s", str(request.json)[:200])
+    # 鉴权判断
+    if request.json.get('token') not in http_config.get("token", []):
+        return {"code": 103, "message": "failed token check", "data": None}
+    # 进行消息路由
+    try:
+        result = handler.get_analyze(request.json.get('content'),
+                                     request.json.get('img_path'),
+                                     request.json.get('wxid', ''),
+                                     request.json.get('sender', ''))
+        return {"code": 0, "message": "success", "data": result}
+    except Exception as e:
+        app.logger.error("get-analyze处理失败", e)
+        return {"code": 105, "message": e.args[0], "data": None}
+
+
 @app.route('/api/dream/community/list', methods=['post'])
 def community_list():
     import requests

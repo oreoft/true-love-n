@@ -81,6 +81,18 @@ img_type_answer_call = [
      }]
 
 
+def fetch_stream(ret, is_f=False):
+    rsp = ''
+    for stream_res in ret:
+        if is_f:
+            if stream_res.choices[0].delta.function_call:
+                rsp += stream_res.choices[0].delta.function_call.arguments.replace('\n\n', '\n')
+        else:
+            if stream_res.choices[0].delta.content:
+                rsp += stream_res.choices[0].delta.content.replace('\n\n', '\n')
+    return rsp
+
+
 class ChatGPT:
 
     def __init__(self) -> None:
@@ -107,13 +119,13 @@ class ChatGPT:
         self.system_content_msg3 = {"role": "system", "content": self.config.get("prompt3")}
         self.system_content_msg4 = {"role": "system", "content": self.config.get("prompt4")}
         self.system_content_msg5 = {"role": "system", "content": self.config.get("prompt5")}
+        self.system_content_msg6 = {"role": "system", "content": self.config.get("prompt6")}
 
     def get_xun_wen(self, question):
         content = question.split("-")[1]
         return self.send_gpt_by_message([self.system_content_msg3, {"role": "user", "content": content}])
 
     def send_gpt_by_message(self, messages, function_call=None, functions=None):
-        rsp = ''
         try:
 
             # 发送请求
@@ -126,20 +138,13 @@ class ChatGPT:
                 stream=True
             )
             # 获取stream查询
-            for stream_res in ret:
-                if functions:
-                    if stream_res.choices[0].delta.function_call:
-                        rsp += stream_res.choices[0].delta.function_call.arguments.replace('\n\n', '\n')
-                else:
-                    if stream_res.choices[0].delta.content:
-                        rsp += stream_res.choices[0].delta.content.replace('\n\n', '\n')
+            rsp = fetch_stream(ret, functions)
         except Exception as e0:
             rsp = "An unknown error has occurred. Try again later."
             self.LOG.error(str(e0))
         return rsp
 
     def send_chatgpt(self, real_model, wxid, openai_client):
-        rsp = ''
         try:
             # 发送请求
             question = self.conversation_list[wxid][-1]
@@ -152,9 +157,7 @@ class ChatGPT:
                 stream=True
             )
             # 获取stream查询
-            for stream_res in ret:
-                if stream_res.choices[0].delta.function_call:
-                    rsp += stream_res.choices[0].delta.function_call.arguments.replace('\n\n', '\n')
+            rsp = fetch_stream(ret, True)
             result = json.loads(rsp)
             self.LOG.info(f"openai result :{result}")
             if result['type'] == 'search':
@@ -190,10 +193,8 @@ class ChatGPT:
                     stream=True
                 )
                 # 获取stream查询
-                for stream_res in ret:
-                    if stream_res.choices[0].delta.content:
-                        rsp += stream_res.choices[0].delta.content.replace('\n\n', '\n')
-                search_tail = f"\n- - - - - - - - - - - -\n\n🕵 谷歌搜索：{result['answer']}"
+                rsp = fetch_stream(ret)
+                search_tail = f"\n- - - - - - - - - - - -\n\n🕵 🐾💩搜索：{result['answer']}"
                 rsp = json.dumps({"type": "chat", "answer": rsp + search_tail})
                 self.LOG.info(f"openai+baidu:{rsp}")
             self._update_message(wxid, rsp, "assistant")
@@ -239,6 +240,35 @@ class ChatGPT:
             self.LOG.info("滚动清除聊天记录：%s", wxid)
             # 删除多余的记录，倒着删，且跳过第二个的系统消息
             del self.conversation_list[wxid][2]
+
+    def get_analyze_by_img(self, content, img_path):
+        rsp = ''
+        try:
+            start_time = time.time()
+            self.LOG.info("get_analyze_by_img start")
+            ret = self.train_openai_client().chat.completions.create(
+                model='gpt-4o',
+                messages=[
+                    self.system_content_msg6,
+                    {"role": "user", "content": [
+                        {"type": "text", "text": content},
+                        {"type": "image_url", "image_url": {
+                            "url": f"data:image/png;base64,{img_path}"}
+                         }
+                    ]}
+                ],
+                temperature=0.2,
+                stream=True
+            )
+            self.LOG.info(f"get_analyze_by_img cost:[{(time.time() - start_time) * 1000}ms]")
+            # 获取stream查询
+            return fetch_stream(ret)
+        except requests.Timeout:
+            self.LOG.error(f"get_analyze_by_img timeout")
+            raise
+        except Exception:
+            self.LOG.exception(f"get_analyze_by_img error")
+            raise
 
     def get_img_by_img(self, content, img_path):
         # First get the image prompt
