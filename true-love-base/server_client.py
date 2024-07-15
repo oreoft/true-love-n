@@ -29,7 +29,8 @@ def get_chat(req: WxMsg):
             if chat.type == ContentType.image:
                 img_path = chat.content
                 LOG.info(f"文件已下载到: {img_path}")
-            LOG.info(f"refer type but files skip, type:{chat.type}, path:{chat.content}")
+            else:
+                LOG.info(f"refer type but files skip, type:{chat.type}, path:{chat.content}")
         # 构建传输对象
         payload = json.dumps({
             "token": config.http_token,
