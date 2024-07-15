@@ -37,4 +37,4 @@ class ChatMsgHandler:
 
 
 if __name__ == "__main__":
-    print(ChatMsgHandler().get_img("帮我换一种分割", ChatMsgHandler().get_img("生成一张图片", '', "3", ''), "3", ''))
+    print(ChatMsgHandler().get_answer("帮我换一种分割", ChatMsgHandler().get_img("生成一张图片", '', "3", ''), "3"))

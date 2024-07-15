@@ -39,20 +39,19 @@ type_answer_call = [
              "type": {
                  "type": "string",
                  "description": "the type of question, "
-                                "if user wants you to generate images please return the 'gen-img', "
-                                "if user wants you to modify please return the 'modify-img', "
-                                "if user wants you to analyze images please return the 'analyze-img', "
-                                "if it is a normal chat to return the 'chat', "
+                                "if user wants you to generate images, please return the 'gen-img', "
+                                "if user wants you to modify images, please return the 'modify-img', "
+                                "if user wants you to analyze images, please return the 'analyze-img', "
+                                "if it is a normal chat, please return the 'chat', "
                                 "if the content requires online search You search in context first "
                                 "and if there is no information, please return the 'search'"
              },
              "answer": {
                  "type": "string",
                  "description": "the answer of content, "
-                                "if type is chat, please put your answer in this field"
-                                "if type is analyze-img, 请帮忙润色用户的文本内容, 用于制作prompt发送给llm"
-                                "if type is gen-img, This can be empty"
-                                "if type is search, 请在此字段中返回要搜索的内容关键词, 必须是中文"
+                                "if type is chat, please put your answer in this field, "
+                                "if type is search, 请在此字段中返回要搜索的内容关键词, 必须是中文, "
+                                "如果其他类型, This can be empty, "
              },
          },
          "required": ["type", "answer"]
@@ -197,7 +196,7 @@ class ChatGPT:
                 )
                 # 获取stream查询
                 rsp = fetch_stream(ret)
-                search_tail = f"\n- - - - - - - - - - - -\n\n🕵 🐾💩搜索：{result['answer']}"
+                search_tail = f"\n- - - - - - - - - - - -\n\n🐾💩🕵：{result['answer']}"
                 rsp = json.dumps({"type": "chat", "answer": rsp + search_tail})
                 self.LOG.info(f"openai+baidu:{rsp}")
             self._update_message(wxid, rsp, "assistant")
