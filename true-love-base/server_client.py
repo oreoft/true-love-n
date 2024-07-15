@@ -18,7 +18,6 @@ circuit_breaker = {
 host = "http://localhost:8088"
 text_url = f"{host}/get-chat"
 LOG = logging.getLogger("ServerClient")
-wcf_u = WcfUtils()
 
 
 def get_chat(req: WxMsg):
@@ -26,7 +25,7 @@ def get_chat(req: WxMsg):
         img_path = ""
         # 如果引用类型并且里面有图片, 把图片下载然后base64传过去
         if req.type == 49:
-            chat = wcf_u.get_refer_content(req)
+            chat = WcfUtils().get_refer_content(req)
             if chat.type == ContentType.image:
                 img_path = chat.content
                 LOG.info(f"文件已下载到: {img_path}")
