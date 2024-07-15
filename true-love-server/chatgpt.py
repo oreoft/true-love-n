@@ -121,6 +121,8 @@ class ChatGPT(ChatBot):
             return self.async_gen_img(f"user_input:{question}, supplementary:{result['answer']}", wxid, sender)
         if 'type' in result and result['type'] == 'analyze-img':
             return result
+        if 'type' in result and result['type'] == 'modify-img':
+            return result
         if 'answer' in result:
             rsp = result['answer']
         if 'debug' in result:

@@ -40,6 +40,7 @@ type_answer_call = [
                  "type": "string",
                  "description": "the type of question, "
                                 "if user wants you to generate images please return the 'gen-img', "
+                                "if user wants you to modify please return the 'modify-img', "
                                 "if user wants you to analyze images please return the 'analyze-img', "
                                 "if it is a normal chat to return the 'chat', "
                                 "if the content requires online search You search in context first "
