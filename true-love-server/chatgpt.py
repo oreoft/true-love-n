@@ -108,7 +108,7 @@ class ChatGPT(ChatBot):
             rsp = '发生未知错误, 稍后再试试捏'
         return rsp
 
-    def get_answer(self, question: str, wxid: str, sender: str):
+    def get_answer_type(self, question: str, wxid: str, sender: str):
         start_time = time.time()
         self.LOG.info("开始发送给chatgpt")
         rsp = self.send_chatgpt(question, wxid, sender)
@@ -117,16 +117,18 @@ class ChatGPT(ChatBot):
         end_time = time.time()
         cost = round(end_time - start_time, 2)
         self.LOG.info("chat回答时间为：%s 秒", cost)
+        result["ioCost"] = cost
+        return result
+
+    def get_answer(self, question: str, wxid: str, sender: str):
+        rsp = ''
+        result = self.get_answer_type(question, wxid, sender)
         if 'type' in result and result['type'] == 'gen-img':
             return self.async_gen_img(f"user_input:{question}, supplementary:{result['answer']}", wxid, sender)
-        if 'type' in result and result['type'] == 'analyze-img':
-            return result
-        if 'type' in result and result['type'] == 'modify-img':
-            return result
         if 'answer' in result:
             rsp = result['answer']
         if 'debug' in result:
-            rsp = rsp + '\n\n' + str(result['debug']).replace('$', str(cost))
+            rsp = rsp + '\n\n' + str(result['debug']).replace('$', str(result['ioCost']))
         base_client.send_text(wxid, sender, rsp)
 
     def async_get_answer(self, question: str, wxid: str, sender: str) -> str:
@@ -143,7 +145,7 @@ class ChatGPT(ChatBot):
         return ""
 
     def async_gen_img_by_img(self, question: str, img_path: str, wxid: str, sender: str) -> str:
-        result = self.get_answer(question, wxid, sender)
+        result = self.get_answer_type(question, wxid, sender)
         if 'type' in result and result['type'] == 'analyze-img':
             executor.submit(self.gen_analyze, question, wxid, sender, img_path)
             base_client.send_text(wxid, sender, "🔍让我仔细瞧瞧，请耐心等待")

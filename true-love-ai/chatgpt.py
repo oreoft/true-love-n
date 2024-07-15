@@ -50,7 +50,7 @@ type_answer_call = [
                  "type": "string",
                  "description": "the answer of content, "
                                 "if type is chat, please put your answer in this field"
-                                "if type is analyze-img, 请帮忙润色用户的内容,以便于更好的分析内容"
+                                "if type is analyze-img, 请帮忙润色用户的文本内容, 用于制作prompt发送给llm"
                                 "if type is gen-img, This can be empty"
                                 "if type is search, 请在此字段中返回要搜索的内容关键词, 必须是中文"
              },
