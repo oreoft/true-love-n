@@ -31,7 +31,7 @@ class ChatMsgHandler:
 
     def get_analyze(self, question: str, img_path: str, wxid: str, sender: str) -> str:
         if self.chatbot:
-            return self.chatbot.get_analyze_by_img(question, img_path) if img_path else self.chatbot.get_img(question)
+            return self.chatbot.get_analyze_by_img(question)
         self.LOG.info("self.chatbot配置为空, 但是调用了get_analyze方法")
         raise ValueError
 

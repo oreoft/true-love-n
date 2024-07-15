@@ -58,7 +58,7 @@ def gen_img():
 
 
 @app.route('/get-analyze', methods=['post'])
-def gen_img():
+def get_analyze():
     app.logger.info("get-analyze消息收到请求, req: %s", str(request.json)[:200])
     # 鉴权判断
     if request.json.get('token') not in http_config.get("token", []):
