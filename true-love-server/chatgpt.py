@@ -84,6 +84,30 @@ class ChatGPT(ChatBot):
             rsp = '发生未知错误, 稍后再试试捏'
         return rsp
 
+    def send_analyze(self, question, wxid, sender, img_path):
+        try:
+            # 准备数据
+            data = {
+                "token": self.token,
+                "content": question,
+                'wxid': wxid,
+                "sender": sender,
+                "img_path": image_to_base64(img_path),
+            }
+
+            # 请求配置
+            url = 'http://notice.someget.work/get-analyze'
+            headers = {'Content-Type': 'application/json'}
+
+            # 发送请求
+            response = requests.post(url, headers=headers, data=json.dumps(data))
+            # 获取结果
+            rsp = response.json().get('data') or response.json().get('message')
+        except Exception as e0:
+            self.LOG.error("发送到send_analyze出错", e0)
+            rsp = '发生未知错误, 稍后再试试捏'
+        return rsp
+
     def get_answer(self, question: str, wxid: str, sender: str):
         start_time = time.time()
         self.LOG.info("开始发送给chatgpt")
@@ -95,6 +119,8 @@ class ChatGPT(ChatBot):
         self.LOG.info("chat回答时间为：%s 秒", cost)
         if 'type' in result and result['type'] == 'gen-img':
             return self.async_gen_img(f"user_input:{question}, supplementary:{result['answer']}", wxid, sender)
+        if 'type' in result and result['type'] == 'analyze-img':
+            return result
         if 'answer' in result:
             rsp = result['answer']
         if 'debug' in result:
@@ -115,6 +141,10 @@ class ChatGPT(ChatBot):
         return ""
 
     def async_gen_img_by_img(self, question: str, img_path: str, wxid: str, sender: str) -> str:
+        if self.get_answer(question, wxid, sender)['type'] == 'analyze-img':
+            executor.submit(self.gen_analyze, question, wxid, sender, img_path)
+            base_client.send_text(wxid, sender, "🔍让我仔细瞧瞧，请耐心等待")
+            return ""
         # 这里异步调用方法
         executor.submit(self.gen_img, question, wxid, sender, img_path, context_vars.local_msg_id.get(''))
         # 这里先固定回复
@@ -141,6 +171,15 @@ class ChatGPT(ChatBot):
         with open(file_path, "wb") as file:
             file.write(base64.b64decode(rsp.get('img')))
         base_client.send_img(file_path, wxid)
+
+    def gen_analyze(self, question, wxid, sender, img_path=''):
+        start_time = time.time()
+        self.LOG.info(f"开始发送给gen_analyze分析, img_path={img_path[:10]}")
+        rsp = self.send_sd(question, wxid, sender, img_path)
+        end_time = time.time()
+        cost = round(end_time - start_time, 2)
+        self.LOG.info("gen_analyze回答时间为：%s 秒", cost)
+        base_client.send_text(wxid, sender, rsp)
 
 
 def image_to_base64(image_path):
