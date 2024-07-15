@@ -54,6 +54,7 @@ type_answer_call = [
                  "type": "string",
                  "description": "the answer of content, "
                                 "if type is chat, please put your answer in this field, "
+                                "if type is gen-img, Please combine the context to give the descriptive words needed to generate the image."
                                 "if type is search, 请在此字段中返回要搜索的内容关键词, 必须是中文, "
                                 "如果其他类型, This can be empty, "
              },
