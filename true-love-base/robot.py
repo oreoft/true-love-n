@@ -7,9 +7,6 @@ from threading import Thread
 from wcferry import Wcf, WxMsg
 
 import server_client
-from img_cache import ImgMsgCache
-
-CACHE = ImgMsgCache()
 
 
 class Robot:
@@ -23,7 +20,7 @@ class Robot:
 
     def forward_msg(self, msg: WxMsg) -> str:
         # 这里进行转发消息
-        return server_client.get_chat(msg, self.wcf)
+        return server_client.get_chat(msg)
 
     def enable_receiving_msg(self) -> None:
         def inner_process_msg(wcf: Wcf):
@@ -33,9 +30,6 @@ class Robot:
                     if 'weixin' in msg.sender:
                         continue
                     self.LOG.info("监听到消息:[%s]", msg)
-                    # 先把所有图片消息都缓存一下地址
-                    if msg.type == 3:
-                        CACHE.put(int(msg.id), msg.extra)
                     # 进行消息转发回复
                     if msg.from_group() and (msg.is_at(wcf.self_wxid) or '@真爱粉' in msg.content):
                         self.send_text_msg(self.forward_msg(msg), msg.roomid, msg.sender)

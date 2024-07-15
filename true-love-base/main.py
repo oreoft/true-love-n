@@ -6,6 +6,7 @@ from wcferry import Wcf
 import server
 from configuration import Config
 from robot import Robot
+from wcf_utils import WcfUtils
 
 config = Config()
 
@@ -30,6 +31,8 @@ def main():
     robot.enable_receiving_msg()
     # 启动http服务
     server.enable_http(robot)
+    # 加载小助手
+    WcfUtils(wcf)
     # 让服务保持不关闭
     while True:
         time.sleep(1)

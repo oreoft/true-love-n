@@ -1,14 +1,11 @@
 import json
-import logging
-import os
-import re
 import time
 
 import requests
-from wcferry import WxMsg, Wcf
 
 from configuration import Config
-from img_cache import ImgMsgCache
+from wcf_utils import *
+from wcf_utils import WcfUtils
 
 config = Config()
 
@@ -21,35 +18,19 @@ circuit_breaker = {
 host = "http://localhost:8088"
 text_url = f"{host}/get-chat"
 LOG = logging.getLogger("ServerClient")
-CACHE = ImgMsgCache()
+wcf_u = WcfUtils()
 
 
-def get_chat(req: WxMsg, wcf: Wcf):
+def get_chat(req: WxMsg):
     try:
         img_path = ""
         # 如果引用类型并且里面有图片, 把图片下载然后base64传过去
-        if req.type == 49 and "<type>3</type>" in req.content or "<type>57</type>" in req.content:
-            save_img_dir = os.path.dirname(os.path.abspath(__file__)) + '\\save-img'
-            pattern = r"<svrid>(\d+)</svrid>"
-            # 使用正则表达式搜索
-            match = re.search(pattern, req.content)
-            if match:
-                source_id = int(match.group(1))
-                # 构建预期的图片路径
-                expected_img_path = os.path.join(save_img_dir, f"{source_id}.jpg")
-                # 检查图片是否已存在
-                if os.path.exists(expected_img_path):
-                    LOG.info(f"文件已存在: {expected_img_path}")
-                    img_path = expected_img_path
-                else:
-                    # 文件不存在，执行下载逻辑
-                    if CACHE.get(source_id):
-                        img_path = wcf.download_image(id=source_id, extra=CACHE.get(source_id), dir=save_img_dir,
-                                                      timeout=5)
-                        LOG.info(f'orc:{wcf.get_ocr_result(CACHE.get(source_id))}')
-                        LOG.info(f"文件已下载到: {img_path}")
-                    else:
-                        LOG.info("CACHE.get(source_id) is not exist")
+        if req.type == 49:
+            chat = wcf_u.get_refer_content(req)
+            if chat.type == ContentType.image:
+                img_path = chat.content
+                LOG.info(f"文件已下载到: {img_path}")
+            LOG.info(f"refer type but files skip, type:{chat.type}, path:{chat.content}")
         # 构建传输对象
         payload = json.dumps({
             "token": config.http_token,
@@ -109,8 +90,3 @@ def get_error_msg():
         return "啊哦~，可能内容太长搬运超时，再试试捏"
 
     return "啊哦~, 服务正在重新调整，请稍后重试再试"
-
-
-if __name__ == "__main__":
-    while True:
-        print(get_chat({}))
