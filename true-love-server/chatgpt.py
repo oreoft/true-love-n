@@ -145,7 +145,7 @@ class ChatGPT(ChatBot):
         return ""
 
     def async_gen_img_by_img(self, question: str, img_path: str, wxid: str, sender: str) -> str:
-        result = self.get_answer_type(question, wxid, sender)
+        result = self.get_answer_type(question + "[carry-img]", wxid, sender)
         if 'type' in result and result['type'] == 'analyze-img':
             executor.submit(self.gen_analyze, question, wxid, sender, img_path)
             base_client.send_text(wxid, sender, "🔍让我仔细瞧瞧，请耐心等待")

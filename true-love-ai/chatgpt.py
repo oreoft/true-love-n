@@ -41,10 +41,14 @@ type_answer_call = [
                  "description": "the type of question, "
                                 "if user wants you to generate images, please return the 'gen-img', "
                                 "if user wants you to modify images, please return the 'modify-img', "
-                                "if user wants you to analyze images, please return the 'analyze-img', "
+                                "if user wants you to analyze images "
+                                "or question contains [carry-img] and need you to comment on the images, "
+                                "please return the 'analyze-img', "
                                 "if it is a normal chat, please return the 'chat', "
                                 "if the content requires online search You search in context first "
-                                "and if there is no information, please return the 'search'"
+                                "and if there is no information, please return the 'search', "
+                                "If the user question contains [carry-img] please don't return 'chat' and 'search', "
+                                "please match the user question with the type of img."
              },
              "answer": {
                  "type": "string",
