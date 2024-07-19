@@ -27,10 +27,10 @@ class WxMsgServer:
         self.xml = msg.get("xml")
         self.sender = msg.get("sender")
         self.roomid = msg.get("roomid")
-        self.content = msg.get("content")
+        self.content: str = msg.get("content")
         self.thumb = msg.get("thumb")
         self.extra = msg.get("extra")
-        self.img_path = msg.get("img_path")
+        self.refer_chat = msg.get("refer_chat")
 
     def __str__(self) -> str:
         s = f"{'自己发的:' if self._is_self else ''}"

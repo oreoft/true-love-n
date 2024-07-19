@@ -107,6 +107,21 @@ class WcfUtils:
         else:
             return None
 
+    @staticmethod
+    def get_msg_text(msg: WxMsg) -> str:
+        """ 返回消息的文字部分, 没有则返回空字符串"""
+        if msg.type == 1:
+            return msg.content
+        elif msg.type == 49:  # 引用
+            content = ET.fromstring(msg.content)
+            title = content.find('appmsg/title')
+            if title is not None:
+                return title.text
+            else:
+                return ""
+        else:
+            return ""
+
     def get_refer_content(self, msg: WxMsg) -> ChatMsg:
         """返回被引用的内容, 如果没有返回None
         Args:
@@ -290,7 +305,8 @@ class WcfUtils:
             return dl_file
         return None
 
-    def downloaded_image(self, main_name: str) -> str:
+    @staticmethod
+    def downloaded_image(main_name: str) -> str:
         """ 如果图片已经下载，返回路径。否则返回 None"""
 
         tmp = get_path(TEMP_DIR)

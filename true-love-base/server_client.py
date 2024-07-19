@@ -22,15 +22,9 @@ LOG = logging.getLogger("ServerClient")
 
 def get_chat(req: WxMsg):
     try:
-        img_path = ""
-        # 如果引用类型并且里面有图片, 把图片下载然后base64传过去
-        if req.type == 49:
-            chat = WcfUtils().get_refer_content(req)
-            if chat.type == ContentType.image:
-                img_path = chat.content
-                LOG.info(f"文件已下载到: {img_path}")
-            else:
-                LOG.info(f"refer type but files skip, type:{chat.type}, path:{chat.content}")
+        refer_chat = WcfUtils().get_refer_content(req)
+        text_msg = WcfUtils().get_msg_text(req).strip()
+        LOG.info(f"获取refer内容为: {refer_chat}")
         # 构建传输对象
         payload = json.dumps({
             "token": config.http_token,
@@ -43,10 +37,10 @@ def get_chat(req: WxMsg):
             "xml": req.xml,
             "sender": req.sender,
             "roomid": req.roomid,
-            "content": req.content,
+            "content": text_msg,
             "thumb": req.thumb,
             "extra": req.extra,
-            "img_path": img_path
+            "refer_chat": refer_chat
         })
         headers = {
             'Content-Type': 'application/json'

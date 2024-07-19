@@ -31,7 +31,8 @@ class Robot:
                         continue
                     self.LOG.info("监听到消息:[%s]", msg)
                     # 进行消息转发回复
-                    if msg.from_group() and (msg.is_at(wcf.self_wxid) or '@真爱粉' in msg.content):
+                    if msg.from_group() and (
+                            msg.is_at(wcf.self_wxid) or '@真爱粉' in msg.content or 'zaf' in msg.content):
                         self.send_text_msg(self.forward_msg(msg), msg.roomid, msg.sender)
                     elif msg.from_group():
                         # 如果是群消息 但是没有艾特, 直接过
