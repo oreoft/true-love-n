@@ -52,12 +52,14 @@ class MsgHandler:
         if msg.refer_chat and msg.refer_chat['type'] == 1:
             q = f"{q}, quoted content:{msg.refer_chat['content']}"
             return handler.get_answer(q, (msg.roomid if msg.from_group() else msg.sender), msg.sender)
+        if msg.refer_chat:
+            return "啊哦~ 现在这个类型引用我还看不懂, 不如你把内容复制出来给我看看呢"
 
         # 如果是文本消息
         if msg.type == 1:
             return handler.get_answer(q, (msg.roomid if msg.from_group() else msg.sender), msg.sender)
         # 其他引用类型 都说不支持
-        return "啊哦~ 现在这个类型引用我还看不懂, 不如你把内容复制出来给我看看呢"
+        return "啊哦~ 现在这个消息暂时我还看不懂, 但我会持续学习的~"
 
 
 if __name__ == "__main__":
