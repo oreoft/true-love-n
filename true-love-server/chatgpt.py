@@ -56,7 +56,7 @@ class ChatGPT(ChatBot):
             headers = {'Content-Type': 'application/json'}
 
             # 发送请求
-            response = requests.post(url, headers=headers, data=json.dumps(data, ensure_ascii=False))
+            response = requests.post(url, headers=headers, data=json.dumps(data))
 
             # 获取结果
             rsp = response.json().get('data') or response.json().get('message')
@@ -81,7 +81,7 @@ class ChatGPT(ChatBot):
             headers = {'Content-Type': 'application/json'}
 
             # 发送请求
-            response = requests.post(url, headers=headers, data=json.dumps(data, ensure_ascii=False))
+            response = requests.post(url, headers=headers, data=json.dumps(data))
             # 获取结果
             rsp = response.json().get('data') or response.json().get('message')
         except Exception as e0:
@@ -105,7 +105,7 @@ class ChatGPT(ChatBot):
             headers = {'Content-Type': 'application/json'}
 
             # 发送请求
-            response = requests.post(url, headers=headers, data=json.dumps(data, ensure_ascii=False))
+            response = requests.post(url, headers=headers, data=json.dumps(data))
             # 获取结果
             rsp = response.json().get('data') or response.json().get('message')
         except Exception as e0:
