@@ -14,7 +14,6 @@ import requests
 import base_client
 import context_vars
 from configuration import Config
-from msg_handler import ChatBot
 
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 
@@ -28,6 +27,12 @@ def get_file_path(msg_id):
     local_filename = f'{msg_id if msg_id else str(time.time())}.jpg'
     # 构建完整的文件路径
     return os.path.join(download_directory, local_filename)
+
+
+# 抽象接口
+class ChatBot:
+    def get_answer(self, question: str, wxid: str, sender: str) -> str:
+        pass
 
 
 class ChatGPT(ChatBot):

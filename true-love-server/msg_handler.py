@@ -10,12 +10,6 @@ from trig_task_handler import TrigTaskHandler
 handler = ChatMsgHandler()
 
 
-# 抽象接口
-class ChatBot:
-    def get_answer(self, question: str, wxid: str, sender: str) -> str:
-        pass
-
-
 class MsgHandler:
 
     def __init__(self):
