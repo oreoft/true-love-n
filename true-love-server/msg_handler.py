@@ -48,8 +48,8 @@ class MsgHandler:
             self.LOG.info(f"收到:{msg.sender}, 生成图片:{q}")
             return handler.gen_img(q, (msg.roomid if msg.from_group() else msg.sender), msg.sender)
 
-        # 如果是引用文本消息, 那么拼接一下引用的内容
-        if msg.refer_chat and msg.refer_chat['type'] == 1:
+        # 如果是引用文本或者链接消息, 那么拼接一下引用的内容
+        if msg.refer_chat and msg.refer_chat['type'] in [1, 4, 5]:
             q = f"{q}, quoted content:{msg.refer_chat['content']}"
             return handler.get_answer(q, (msg.roomid if msg.from_group() else msg.sender), msg.sender)
         if msg.refer_chat:
