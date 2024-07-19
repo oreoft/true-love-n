@@ -268,7 +268,7 @@ class ChatGPT:
                 temperature=0.2,
                 stream=True
             )
-            cost = (time.time() - start_time) * 1000
+            cost = round(time.time() - start_time, 2)
             self.LOG.info(f"get_analyze_by_img cost:[{cost}ms]")
             # 获取stream查询
             result = fetch_stream(ret)
