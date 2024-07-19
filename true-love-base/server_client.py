@@ -32,14 +32,14 @@ def get_chat(req: WxMsg):
             "_is_group": req._is_group,
             "type": req.type,
             "id": req.id,
-            "ts": req.ts,
-            "sign": req.sign,
-            "xml": req.xml,
+            # "ts": req.ts,
+            # "sign": req.sign,
+            # "xml": req.xml,
             "sender": req.sender,
             "roomid": req.roomid,
             "content": text_msg,
-            "thumb": req.thumb,
-            "extra": req.extra,
+            # "thumb": req.thumb,
+            # "extra": req.extra,
             "refer_chat": refer_chat.to_dict() if refer_chat else None
         })
         headers = {
