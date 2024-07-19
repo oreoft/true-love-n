@@ -6,6 +6,7 @@ import sys
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
 from wcferry import WxMsg
 
@@ -65,6 +66,13 @@ class ChatMsg:
         """
         self.type = type
         self.content = content
+
+    def to_dict(self) -> dict[str, Any]:
+        """ 将对象转换为可序列化的字典 """
+        return {
+            'type': self.type.value,
+            'content': self.content
+        }
 
 
 class WcfUtils:
