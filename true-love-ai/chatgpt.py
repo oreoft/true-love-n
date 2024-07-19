@@ -16,7 +16,7 @@ from openai import OpenAI
 from configuration import Config
 
 name = "chatgpt"
-openai_model = "gpt-4-turbo"
+openai_model = "gpt-4o"
 baidu_curl = ("curl --location 'https://www.baidu.com/s?wd=%s&tn=json' "
               "--header 'User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1'")
 sd_url = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
@@ -188,7 +188,7 @@ class ChatGPT:
                                      "assistant")
                 temp_prompt = {"role": "system",
                                "content": "下面你的回答必须结合上下文,因为上下文都是联网查询的,尤其是来源和参考链接，"
-                                          "所以相当于你可以联网获取信息, 所以不允许说你不可以联网"
+                                          "所以相当于你可以联网获取信息, 所以不允许说你不能联网"
                                           "另外如果你不知道回答，请不要不要胡说. "
                                           "如果用户要求文章或者链接请你把最相关的参考链接给出(参考链接必须在上下文出现过)"}
                 # 然后再拿结果去问chatgpt
@@ -248,8 +248,9 @@ class ChatGPT:
             # 删除多余的记录，倒着删，且跳过第二个的系统消息
             del self.conversation_list[wxid][2]
 
-    def get_analyze_by_img(self, content, img_path):
-        rsp = ''
+    def get_analyze_by_img(self, content, img_path, wxid):
+        self._update_message(wxid, content.replace("debug", "", 1), "user")
+        openai_client = self.train_openai_client()
         try:
             start_time = time.time()
             self.LOG.info("get_analyze_by_img start")
@@ -267,9 +268,15 @@ class ChatGPT:
                 temperature=0.2,
                 stream=True
             )
-            self.LOG.info(f"get_analyze_by_img cost:[{(time.time() - start_time) * 1000}ms]")
+            cost = (time.time() - start_time) * 1000
+            self.LOG.info(f"get_analyze_by_img cost:[{cost}ms]")
             # 获取stream查询
-            return fetch_stream(ret)
+            result = fetch_stream(ret)
+            # 更新返回值
+            self._update_message(wxid, result, "assistant")
+            if content.startswith('debug'):
+                result = '\n\n' + f"aiCost: {cost}s, use: {openai_client.api_key[-4:]}, model: {openai_model})"
+            return result
         except requests.Timeout:
             self.LOG.error(f"get_analyze_by_img timeout")
             raise
