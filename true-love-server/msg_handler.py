@@ -38,7 +38,7 @@ class MsgHandler:
             return "你@我干嘛？"
 
         # 如果图片引用类型, 把图片和内容送去大模型, 看是分析还是图生图
-        if msg.refer_chat and msg.refer_chat.type == 3:
+        if msg.refer_chat and msg.refer_chat['type'] == 3:
             self.LOG.info(f"收到引用图片, 现在需要去大模型判断分析还是生图:{q}")
             return handler.gen_img_by_img(q, msg.refer_chat.content, (msg.roomid if msg.from_group() else msg.sender),
                                           msg.sender)
@@ -49,7 +49,7 @@ class MsgHandler:
             return handler.gen_img(q, (msg.roomid if msg.from_group() else msg.sender), msg.sender)
 
         # 如果是引用文本消息, 那么拼接一下引用的内容
-        if msg.refer_chat and msg.refer_chat.type == 1:
+        if msg.refer_chat and msg.refer_chat['type'] == 1:
             q = f"{q}, quoted content:{msg.refer_chat.content}"
 
         # 如果是文本消息
