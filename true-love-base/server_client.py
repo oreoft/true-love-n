@@ -34,7 +34,7 @@ def get_chat(req: WxMsg):
             "id": req.id,
             # "ts": req.ts,
             # "sign": req.sign,
-            # "xml": req.xml,
+            "xml": req.xml,
             "sender": req.sender,
             "roomid": req.roomid,
             "content": text_msg,
