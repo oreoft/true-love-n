@@ -275,7 +275,7 @@ class ChatGPT:
             # 更新返回值
             self._update_message(wxid, result, "assistant")
             if content.startswith('debug'):
-                result = '\n\n' + f"aiCost: {cost}s, use: {openai_client.api_key[-4:]}, model: {openai_model})"
+                result = result + '\n\n' + f"aiCost: {cost}s, use: {openai_client.api_key[-4:]}, model: {openai_model})"
             return result
         except requests.Timeout:
             self.LOG.error(f"get_analyze_by_img timeout")
