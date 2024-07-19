@@ -72,7 +72,7 @@ class TrigSearchHandler:
         if len(data) <= 0:
             return '运单未揽收或寄件时间超过3个月，请稍后再试试捏'
         else:
-            return json.dumps(data, indent=4, ensure_ascii=False)
+            return json.dumps(data, indent=4)
 
     def search_meiyuan(self) -> str:
         url = "https://srh.bankofchina.com/search/whpj/search_cn.jsp"

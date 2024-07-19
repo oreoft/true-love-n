@@ -18,7 +18,7 @@ def send_text(send_receiver, at_receiver, content):
         "sendReceiver": send_receiver,
         "atReceiver": at_receiver,
         "content": content
-    }, ensure_ascii=False)
+    })
     headers = {
         'Content-Type': 'application/json'
     }

@@ -38,7 +38,7 @@ def send_img(path, send_receiver):
     payload = json.dumps({
         "path": path,
         "sendReceiver": send_receiver,
-    }, ensure_ascii=False)
+    })
     headers = {
         'Content-Type': 'application/json'
     }

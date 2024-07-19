@@ -83,7 +83,7 @@ def community_list():
     payload = json.dumps({
         "sort_criteria": request.json.get('sort_criteria'),
         "last_doc_id": request.json.get('last_doc_id')
-    }, ensure_ascii=False)
+    })
     headers = {
         'Content-Type': 'application/json'
     }

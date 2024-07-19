@@ -72,7 +72,7 @@ class TrigRemainderHandler:
             wix_job = job.name.split("-")
             if sender == wix_job[0]:
                 result.append(f"{wix_job[1]}-[{job.next_run_time}]-{job.id}")
-        return json.dumps(result, indent=4, ensure_ascii=False)
+        return json.dumps(result, indent=4)
 
     def remove_reminder_by_id(self, id):
         jobs = scheduler.get_jobs()
