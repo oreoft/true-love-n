@@ -68,7 +68,7 @@ class TrigTaskHandler:
 
         payload = json.dumps({
             "ref": "master"
-        })
+        }, ensure_ascii=False)
         headers = {
             'Accept': 'application/vnd.github.v3+json',
             'Authorization': f'token {self.token}',
@@ -151,7 +151,7 @@ class TrigTaskHandler:
             else:
                 result = "刷卡失败, 无效的卡号或次数不足"
             with open("cardRecord.json", "w") as file:
-                json.dump(record, file)
+                json.dump(record, file, ensure_ascii=False)
         except FileNotFoundError:
             result = "刷卡失败, 记录文件不存在"
         except json.JSONDecodeError:
@@ -184,7 +184,7 @@ class TrigTaskHandler:
 
         # 将更新后的记录写回文件
         with open("cardSwipeRecords.json", "w") as file:
-            json.dump(records, file, indent=4)
+            json.dump(records, file, indent=4, ensure_ascii=False)
 
     @staticmethod
     def reload_config():

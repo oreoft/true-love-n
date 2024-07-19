@@ -184,7 +184,7 @@ class ChatGPT:
                     if 'abs' in entry and 'url' in entry
                 ]
                 # 存储结果
-                self._update_message(wxid, "针对这个回答, 参考信息和来源链接如下:" + json.dumps(reference_list),
+                self._update_message(wxid, "针对这个回答, 参考信息和来源链接如下:" + json.dumps(reference_list, ensure_ascii=False),
                                      "assistant")
                 temp_prompt = {"role": "system",
                                "content": "下面你的回答必须结合上下文,因为上下文都是联网查询的,尤其是来源和参考链接，"
@@ -202,11 +202,11 @@ class ChatGPT:
                 # 获取stream查询
                 rsp = fetch_stream(ret)
                 search_tail = f"\n- - - - - - - - - - - -\n\n🐾💩🕵：{result['answer']}"
-                rsp = json.dumps({"type": "chat", "answer": rsp + search_tail})
+                rsp = json.dumps({"type": "chat", "answer": rsp + search_tail}, ensure_ascii=False)
                 self.LOG.info(f"openai+baidu:{rsp}")
             self._update_message(wxid, rsp, "assistant")
         except Exception as e0:
-            rsp = json.dumps({"type": "chat", "answer": "发生未知错误, 稍后再试试捏"})
+            rsp = json.dumps({"type": "chat", "answer": "发生未知错误, 稍后再试试捏"}, ensure_ascii=False)
             self.LOG.exception('调用北美ai服务发生错误, msg: %s', e0)
         return rsp
 
@@ -223,7 +223,7 @@ class ChatGPT:
             resp_object = json.loads(rsp)
             resp_object[
                 'debug'] = f"(aiCost: {cost}s, ioCost: $s, use: {openai_client.api_key[-4:]}, model: {openai_model})"
-            return json.dumps(resp_object)
+            return json.dumps(resp_object, ensure_ascii=False)
         else:
             return rsp
 
