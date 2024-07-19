@@ -296,5 +296,5 @@ class WcfUtils:
         tmp = get_path(TEMP_DIR)
         for file in tmp.iterdir():
             if file.is_file() and file.name.startswith(f"{main_name}."):
-                return os.path.join(tmp, file.name)
+                return str(file.resolve())
         return None
