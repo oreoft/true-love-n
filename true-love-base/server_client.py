@@ -40,7 +40,7 @@ def get_chat(req: WxMsg):
             "content": text_msg,
             "thumb": req.thumb,
             "extra": req.extra,
-            "refer_chat": refer_chat
+            "refer_chat": refer_chat.to_dict()
         })
         headers = {
             'Content-Type': 'application/json'
