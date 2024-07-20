@@ -86,10 +86,10 @@ class MsgHandler:
         try:
             import requests
             request_url = "https://r.jina.ai/" + url
-            headers = {'Content-Type': 'application/json'}
+            headers = {'Accept': 'application/json'}
             response = requests.get(url=request_url, headers=headers)
             response_data = response.json()
-            return response_data['content']
+            return response_data['data']['content']
         except Exception:
             logging.exception(f"crawl_content error, url{url}")
             return ""
