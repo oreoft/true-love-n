@@ -52,6 +52,9 @@ class MsgHandler:
 
         # 如果是引用文本或者链接消息, 那么拼接一下引用的内容
         if msg.refer_chat and msg.refer_chat['type'] in [1, 4, 5]:
+            # 文本消息, 去爬虫一下链接
+            if msg.refer_chat['type'] in [4, 5]:
+                msg.refer_chat['content']['content'] = self.crawl_content(msg.refer_chat['content']['url'])
             q = f"{q}, quoted content:{msg.refer_chat['content']}"
             return handler.get_answer(q, (msg.roomid if msg.from_group() else msg.sender), msg.sender)
         # 如果引用语音消息, 那么去asr一下
@@ -73,6 +76,20 @@ class MsgHandler:
                                       msg.sender)
         # 其他类型
         return "啊哦~ 现在这个消息暂时我还看不懂, 但我会持续学习的~"
+
+    @staticmethod
+    def crawl_content(url):
+        if url == "" or url is None:
+            return ""
+        try:
+            import requests
+            request_url = "https://r.jina.ai/" + url
+            response = requests.get(request_url)
+            response_data = response.json()
+            return response_data['content']
+        except Exception:
+            logging.exception(f"crawl_content error, url{url}")
+            return ""
 
 
 if __name__ == "__main__":

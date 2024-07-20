@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import pathlib
@@ -182,17 +183,17 @@ class WcfUtils:
                 refer_content_xml = ET.fromstring(refermsg_xml.find('content').text)
                 content_type = int(refer_content_xml.find('appmsg/type').text)
                 if content_type in [4, 5]:  # 链接或公众号文章
-                    texts = []
+                    texts = {}
                     title = refer_content_xml.find('appmsg/title')
                     if title is not None:
-                        texts.append(f"标题: {title.text}")
+                        texts['title'] = title.text
                     des = refer_content_xml.find('appmsg/des')
                     if des is not None:
-                        texts.append(f"描述: {des.text}")
+                        texts['des'] = des.text
                     url = refer_content_xml.find('appmsg/url')
                     if url is not None:
-                        texts.append(f"URL: {url.text}")
-                    text = '\n'.join(texts)
+                        texts['url'] = url.text
+                    text = json.dumps(texts)
                     return ChatMsg(ContentType.link, text)
 
                 elif content_type == 6:  # 文件
