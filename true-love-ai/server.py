@@ -75,22 +75,6 @@ def get_analyze():
         return {"code": 105, "message": e.args[0], "data": None}
 
 
-@app.route('/api/dream/community/list', methods=['post'])
-def community_list():
-    import requests
-    import json
-    url = "https://v2-0-2---dreamorebackend-vsy7hiaoca-uc.a.run.app/api/dream/community/list"
-    payload = json.dumps({
-        "sort_criteria": request.json.get('sort_criteria'),
-        "last_doc_id": request.json.get('last_doc_id')
-    })
-    headers = {
-        'Content-Type': 'application/json'
-    }
-    response = requests.request("POST", url, headers=headers, data=payload)
-    return response.json()
-
-
 @app.before_request
 def before_request_logging():
     g.start_time = time.time()

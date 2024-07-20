@@ -1,6 +1,7 @@
 import logging
 
 import context_vars
+from asr_utils import do_asr
 from chat_msg_handler import ChatMsgHandler
 from models.wx_msg import WxMsgServer
 from trig_remainder_handler import TrigRemainderHandler
@@ -40,7 +41,8 @@ class MsgHandler:
         # 如果图片引用类型, 把图片和内容送去大模型, 看是分析还是图生图
         if msg.refer_chat and msg.refer_chat['type'] == 3:
             self.LOG.info(f"收到引用图片, 现在需要去大模型判断分析还是生图:{q}")
-            return handler.gen_img_by_img(q, msg.refer_chat['content'], (msg.roomid if msg.from_group() else msg.sender),
+            return handler.gen_img_by_img(q, msg.refer_chat['content'],
+                                          (msg.roomid if msg.from_group() else msg.sender),
                                           msg.sender)
 
         # 如果提示词生图, 直接去生图
@@ -58,6 +60,11 @@ class MsgHandler:
         # 如果是文本消息
         if msg.type == 1:
             return handler.get_answer(q, (msg.roomid if msg.from_group() else msg.sender), msg.sender)
+
+        # 如果是语音消息, 那么去asr一下
+        if msg.type == 34:
+            return handler.get_answer(do_asr(msg.refer_chat.content), (msg.roomid if msg.from_group() else msg.sender),
+                                      msg.sender)
         # 其他引用类型 都说不支持
         return "啊哦~ 现在这个消息暂时我还看不懂, 但我会持续学习的~"
 

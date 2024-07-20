@@ -105,19 +105,20 @@ class ChatGPT:
     def __init__(self) -> None:
         self.LOG = logging.getLogger("ChatGPT")
         self.config = Config().LLM_BOT
-        # openai池子
-        self.openai_pool = [
-            OpenAI(timeout=30, api_key=self.config.get("key1")),
-            OpenAI(timeout=30, api_key=self.config.get("key2")),
-            OpenAI(timeout=30, api_key=self.config.get("key3")),
-        ]
-        # 轮训负载openai池子的计数器
-        self.count = 0
         # 是否有代理代理
         proxy = self.config.get("proxy")
         if proxy:
-            for value in self.openai_pool:
-                value.http_client = httpx.Client(proxies=proxy)
+            http_client = httpx.Client(proxies=proxy)
+        else:
+            http_client = httpx.Client()
+        # openai池子
+        self.openai_pool = [
+            OpenAI(timeout=30, api_key=self.config.get("key1"), http_client=http_client),
+            OpenAI(timeout=30, api_key=self.config.get("key2"), http_client=http_client),
+            OpenAI(timeout=30, api_key=self.config.get("key3"), http_client=http_client),
+        ]
+        # 轮训负载openai池子的计数器
+        self.count = 0
         # 对话历史容器
         self.conversation_list = {}
         # 提示词加载
@@ -280,7 +281,7 @@ class ChatGPT:
         except requests.Timeout:
             self.LOG.error(f"get_analyze_by_img timeout")
             raise
-        except Exception:
+        except Exception as e:
             self.LOG.exception(f"get_analyze_by_img error")
             raise
 

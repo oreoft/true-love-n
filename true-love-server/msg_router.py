@@ -18,18 +18,17 @@ def router_msg(msg: WxMsgServer) -> str:
         # 如果没有被at 忽略
         return ""
 
-    # 好友请求
+    # 好友请求 忽略
     if msg.type == 37:
-        pass
-        # self.autoAcceptFriendRequest(msg)
+        return ""
 
-    # 系统信息
-    elif msg.type == 10000:
-        pass
-        # self.sayHiToNewFriend(msg)
+    # 系统信息 忽略
+    if msg.type == 10000:
+        return ""
 
     # 走到这里大概率是私聊消息, 没在配置都忽略
     if not config.PRIVATES.get("all_allow") and msg.roomid not in config.PRIVATES.get("allow_list", []):
         return ""
-    # 默认走消息处理
+
+    # 默认走消息处理, 林会处理所有类型的消息
     return msg_handler.handler_msg(msg)
