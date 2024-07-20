@@ -56,7 +56,8 @@ class MsgHandler:
             return handler.get_answer(q, (msg.roomid if msg.from_group() else msg.sender), msg.sender)
         # 如果引用语音消息, 那么去asr一下
         if msg.refer_chat and msg.refer_chat['type'] in [34]:
-            return handler.get_answer(do_asr(msg.refer_chat.content), (msg.roomid if msg.from_group() else msg.sender),
+            q = f"{q}, quoted content:{do_asr(msg.refer_chat['content'])}"
+            return handler.get_answer(q, (msg.roomid if msg.from_group() else msg.sender),
                                       msg.sender)
         # 其他引用类型说不支持
         if msg.refer_chat:
