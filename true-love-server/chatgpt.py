@@ -62,7 +62,7 @@ class ChatGPT(ChatBot):
             rsp = response.json().get('data') or response.json().get('message')
         except Exception as e0:
             self.LOG.error("发送到chatgpt出错", e0)
-            rsp = {"type": "chat", "answer": "发生未知错误, 稍后再试试捏"}
+            rsp = {"type": "chat", "answer": "ai服务正在发版, 稍后再试试捏"}
         return rsp
 
     def send_sd(self, question, wxid, sender, img_path):

@@ -170,19 +170,7 @@ class ChatGPT:
             if result['type'] == 'search':
                 rsp = ''
                 # 先去百度获取数据
-                send_curl = baidu_curl % quote_plus(result['answer'])
-                self.LOG.info(f"need go to baidu search: {result['answer']}, curl:{send_curl}")
-                baidu_response = subprocess.run(send_curl, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                                text=True)
-                # 获取命令输出
-                # 使用json.loads解析响应体
-                data = json.loads(baidu_response.stdout)
-                # 使用列表推导式从每个entry中提取字段的值
-                reference_list = [
-                    {"content": entry['abs'], "source_url": entry['url']}
-                    for entry in data['feed']['entry']
-                    if 'abs' in entry and 'url' in entry
-                ]
+                reference_list = self.fetch_refer_baidu(result)
                 # 存储结果
                 self._update_message(wxid, "针对这个回答, 参考信息和来源链接如下:" + json.dumps(reference_list),
                                      "assistant")
@@ -209,6 +197,26 @@ class ChatGPT:
             rsp = json.dumps({"type": "chat", "answer": "发生未知错误, 稍后再试试捏"})
             self.LOG.exception('调用北美ai服务发生错误, msg: %s', e0)
         return rsp
+
+    def fetch_refer_baidu(self, result):
+        reference_list = []
+        try:
+            send_curl = baidu_curl % quote_plus(result['answer'])
+            self.LOG.info(f"need go to baidu search: {result['answer']}, curl:{send_curl}")
+            baidu_response = subprocess.run(send_curl, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                            text=True)
+            # 获取命令输出
+            # 使用json.loads解析响应体
+            data = json.loads(baidu_response.stdout)
+            # 使用列表推导式从每个entry中提取字段的值
+            reference_list = [
+                {"content": entry['abs'], "source_url": entry['url']}
+                for entry in data['feed']['entry']
+                if 'abs' in entry and 'url' in entry
+            ]
+        except Exception:
+            logging.exception(f"fetch_refer_baidu error, result:{result}")
+        return reference_list
 
     def get_answer(self, question: str, wxid: str, sender: str) -> str:
         self._update_message(wxid, question.replace("debug", "", 1), "user")
