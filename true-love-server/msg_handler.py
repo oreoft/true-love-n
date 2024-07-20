@@ -55,7 +55,7 @@ class MsgHandler:
         if msg.refer_chat and msg.refer_chat['type'] in [1, 4, 5]:
             # 文本消息, 去爬虫一下链接
             if msg.refer_chat['type'] in [4, 5]:
-                msg.refer_chat['content'] = json.dumps(msg.refer_chat['content'])
+                msg.refer_chat['content'] = json.loads(msg.refer_chat['content'])
                 msg.refer_chat['content']['content'] = self.crawl_content(msg.refer_chat['content']['url'])
             q = f"{q}, quoted content:{msg.refer_chat['content']}"
             return handler.get_answer(q, (msg.roomid if msg.from_group() else msg.sender), msg.sender)
