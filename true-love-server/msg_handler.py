@@ -86,7 +86,8 @@ class MsgHandler:
         try:
             import requests
             request_url = "https://r.jina.ai/" + url
-            response = requests.get(request_url)
+            headers = {'Content-Type': 'application/json'}
+            response = requests.get(url=request_url, headers=headers)
             response_data = response.json()
             return response_data['content']
         except Exception:
