@@ -115,20 +115,18 @@ class WcfUtils:
         else:
             return None
 
-    @staticmethod
-    def get_msg_text(msg: WxMsg) -> str:
+    def get_msg_text(self, msg: WxMsg) -> str:
         """ 返回消息的文字部分, 没有则返回空字符串"""
         if msg.type == 1:
             return msg.content
-        elif msg.type == 49:  # 引用
+        if msg.type == 34:
+            audio_file = self.wcf.get_audio_msg(msg.id, temp_dir())
+            return audio_file
+        if msg.type == 49:  # 引用
             content = ET.fromstring(msg.content)
             title = content.find('appmsg/title')
-            if title is not None:
-                return title.text
-            else:
-                return ""
-        else:
-            return ""
+            return title.text if title is not None else ""
+        return ""
 
     def get_refer_content(self, msg: WxMsg) -> ChatMsg:
         """返回被引用的内容, 如果没有返回None
