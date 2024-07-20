@@ -86,13 +86,13 @@ class MsgHandler:
         try:
             import requests
             request_url = "https://r.jina.ai/" + url
-            headers = {'Accept': 'application/json'}
+            headers = {'Accept': 'application/json', 'User-Agent': 'PostmanRuntime/7.40.0'}
             response = requests.get(url=request_url, headers=headers)
             response_data = response.json()
             return response_data['data']['content']
         except Exception:
-            logging.exception(f"crawl_content error, url{url}")
-            return ""
+            logging.exception(f"crawl_content error, url:{url}")
+            return '内容解析失败'
 
 
 if __name__ == "__main__":
