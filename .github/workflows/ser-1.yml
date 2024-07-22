@@ -67,7 +67,6 @@ jobs:
             fi
             echo "Killing existing Python process with PID: $PID"
             kill $PID
-            echo "Killing existing Python process with PID: $PID"
             nohup python main.py &
             echo "Python application restarted"
             exit
