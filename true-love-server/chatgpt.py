@@ -5,6 +5,7 @@ import concurrent
 import json
 import logging
 import os
+import random
 import time
 from concurrent import futures
 from datetime import datetime
@@ -126,7 +127,11 @@ class ChatGPT(ChatBot):
         return result
 
     def get_answer(self, question: str, wxid: str, sender: str):
-        rsp = ''
+        # 处理固定返回的情况
+        rsp = process_ban(sender)
+        if rsp != '':
+            base_client.send_text(wxid, sender, rsp)
+        # 开始走ai
         result = self.get_answer_type(question, wxid, sender)
         if 'type' in result and result['type'] == 'gen-img':
             return self.async_gen_img(f"user_input:{question}, supplementary:{result['answer']}", wxid, sender)
@@ -205,6 +210,24 @@ def image_to_base64(image_path):
             encoded_string = base64.b64encode(image_file.read())
             return encoded_string.decode('utf-8')
     return ""
+
+
+def process_ban(sender):
+    if sender == 'Dante516':
+        advice_list = [
+            "大野猫,我们应该尊重这个群体,避免发送任何令人反感的言论。",
+            "大野猫哥,那种言语可能会冒犯或伤害他人,希望你能三思而行。",
+            "我理解每个人都有自己的私密空间,但请不要在公共场合发这种内容。",
+            "作为群友,我建议你寻求专业的心理咨询,释放内心的压力。",
+            "让我们共同维护这个群体的和谐氛围,互相尊重。",
+            "这种言语可能会给人一种性骚扰的感觉,我希望大野猫哥你能改正。",
+            "我相信大野猫是一个善良的人,只是暂时失去了分寸。",
+            "用文字表达想法时,请三思而后行,避免伤害他人。",
+            "作为朋友,我愿意倾听你的烦恼,但请不要以这种方式发泄。",
+            "让我们携手共创一个积极向上、互相尊重的良好环境。"
+        ]
+        return random.choice(advice_list)
+    return ''
 
 
 if __name__ == "__main__":
