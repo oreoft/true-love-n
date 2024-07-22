@@ -57,7 +57,7 @@ jobs:
             kill $PID
             sleep 5
             nohup python main.py &
-            echo "Python application restarted."
+            echo "Python application restarted"
           EOF
       - name: Notify - Backup Success
         if: success()
