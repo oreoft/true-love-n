@@ -57,7 +57,14 @@ jobs:
           user: ${{ secrets.SERVER_M8S_USER }}
           pass: ${{ secrets.SSH_PASSWORD }}
           run: |
-            ls
+            cd /c/Users/admin/Desktop/true-love-n/true-love-server
+            git pull
+            PID=$(ps -ef | grep 'python' | awk '{print $2}')
+            echo "Killing existing Python process with PID: $PID"
+            kill $PID
+            sleep 5
+            nohup python main.py &
+            echo "Python application restarted "
 
       - name: Notify - server Success
         if: success()
