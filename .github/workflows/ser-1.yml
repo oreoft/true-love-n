@@ -54,10 +54,10 @@ jobs:
 
       - name: Execute server Commands Over SSH
         run: |
-          sshpass -e ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_LOCAL_M8S_PORT }} '${{ secrets.SERVER_M8S_USER }}@${{ secrets.SERVER_LOCAL_IP }}' << 'EOF'
-            ls
-            where ps
-            echo "test success"
+          sshpass -e ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_LOCAL_M8S_PORT }} ${{ secrets.SERVER_M8S_USER }}@${{ secrets.SERVER_LOCAL_IP }} << 'EOF'
+            cd /root/true-love-n/true-love-ai
+            git pull
+            systemctl restart true-love-ai
           EOF
 
       - name: Notify - server Success
