@@ -28,7 +28,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
-      - name: Execute Commands Over SSH
+      - name: Execute ai Commands Over SSH
         run: |
           ssh -o StrictHostKeyChecking=no -p ${{ secrets.SER1_PROXY_PORT }} ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} << 'EOF'
             cd /root/true-love-n/true-love-ai
@@ -45,4 +45,28 @@ jobs:
             "sendReceiver": "master",
             "atReceiver": "",
             "content": "真爱粉ai模块已经成功重启"
+          }'
+
+      - name: Execute server Commands Over SSH
+        run: |
+          ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_LOCAL_M8S_PORT }} ${{ env.SERVER_M8S_USER }}@${{ env.SERVER_LOCAL_IP }} << 'EOF'
+            cd /c/Users/admin/Desktop/true-love-n/true-love-server
+            git pull
+            PID=$(ps -ef | grep 'python' | awk '{print $2}')
+            echo "Killing existing Python process with PID: $PID"
+            kill $PID
+            sleep 5
+            nohup python main.py &
+            echo "Python application restarted. PID: $(cat tl-server.pid)"
+          EOF
+      - name: Notify - Backup Success
+        if: success()
+        run: |
+          curl --location ${{ secrets.TURE_LOVE_URL_PATH }} \
+          --header 'Content-Type: application/json' \
+          --data '{
+            "token": "${{ secrets.TURE_LOVE_TOKEN }}",
+            "sendReceiver": "master",
+            "atReceiver": "",
+            "content": "真爱粉server模块已经成功重启"
           }'
