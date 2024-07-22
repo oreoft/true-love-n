@@ -69,6 +69,7 @@ jobs:
             kill $PID
             sleep 5
             nohup python main.py &
+            sleep 5
             echo "Python application restarted"
             exit
 
