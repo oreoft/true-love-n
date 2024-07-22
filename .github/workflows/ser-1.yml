@@ -56,8 +56,8 @@ jobs:
           port: ${{ secrets.SSH_LOCAL_M8S_PORT }}
           user: ${{ secrets.SERVER_M8S_USER }}
           pass: ${{ secrets.SSH_PASSWORD }}
-        run: |
-          ls
+          run: |
+            ls
 
       - name: Notify - server Success
         if: success()
