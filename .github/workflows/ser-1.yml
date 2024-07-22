@@ -8,6 +8,7 @@ env:
   SERVER_IP: ${{ secrets.PROXY_HOST }}
   SERVER_USER: root
   SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+  SSHPASS: ${{ secrets.SSH_PASSWORD }}
 
 permissions:
   contents: read
@@ -35,6 +36,7 @@ jobs:
             git pull
             systemctl restart true-love-ai
           EOF
+
       - name: Notify - ai Success
         if: success()
         run: |
@@ -52,11 +54,12 @@ jobs:
 
       - name: Execute server Commands Over SSH
         run: |
-          sshpass -p ${{ secrets.SSH_PASSWORD }} ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_LOCAL_M8S_PORT }} ${{ secrets.SERVER_M8S_USER }}@${{ secrets.SERVER_LOCAL_IP }} << 'EOF'
+          sshpass -e ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_LOCAL_M8S_PORT }} ${{ secrets.SERVER_M8S_USER }}@${{ secrets.SERVER_LOCAL_IP }} << 'EOF'
             ls
             where ps
-            echo "test success "
+            echo "test success"
           EOF
+
       - name: Notify - server Success
         if: success()
         run: |
