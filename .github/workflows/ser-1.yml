@@ -49,16 +49,15 @@ jobs:
             "content": "真爱粉ai模块已经成功重启"
           }'
 
-      - name: Install sshpass
-        run: sudo apt-get install -y sshpass
-
       - name: Execute server Commands Over SSH
+        uses: matheusvanzan/sshpass-action@v2
+        with:
+          host: ${{ secrets.SERVER_LOCAL_IP }}
+          port: ${{ secrets.SSH_LOCAL_M8S_PORT }}
+          user: ${{ secrets.SERVER_M8S_USER }}
+          pass: ${{ secrets.SSH_PASSWORD }}
         run: |
-          ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_LOCAL_M8S_PORT }} ${{ secrets.SERVER_M8S_USER }}@${{ secrets.SERVER_LOCAL_IP }} << 'EOF'
-            cd /root/true-love-n/true-love-ai
-            git pull
-            systemctl restart true-love-ai
-          EOF
+          ls
 
       - name: Notify - server Success
         if: success()
