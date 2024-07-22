@@ -53,14 +53,9 @@ jobs:
       - name: Execute server Commands Over SSH
         run: |
           sshpass -p ${{ secrets.SSH_PASSWORD }} ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_LOCAL_M8S_PORT }} ${{ secrets.SERVER_M8S_USER }}@${{ secrets.SERVER_LOCAL_IP }} << 'EOF'
-            cd /c/Users/admin/Desktop/true-love-n/true-love-server
-            git pull
-            PID=$(ps -ef | grep 'python' | awk '{print $2}')
-            echo "Killing existing Python process with PID: $PID"
-            kill $PID
-            sleep 5
-            nohup python main.py &
-            echo "Python application restarted "
+            ls
+            where ps
+            echo "test success "
           EOF
       - name: Notify - server Success
         if: success()
