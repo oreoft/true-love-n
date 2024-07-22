@@ -61,7 +61,7 @@ jobs:
             export PATH=$PATH:/c/application/Git/usr/bin
             cd /c/Users/admin/Desktop/true-love-n/true-love-server
             git pull
-            PID=$(ps -ef | grep 'python' | awk '{print $2}')
+            PID=$(ps -ef | grep 'python' | awk '{print \$2}') || PID=0
             echo "Killing existing Python process with PID: $PID"
             kill $PID
             sleep 5
