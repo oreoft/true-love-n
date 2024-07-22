@@ -35,7 +35,7 @@ jobs:
             git pull
             systemctl restart true-love-ai
           EOF
-      - name: Notify - Backup Success
+      - name: Notify - ai Success
         if: success()
         run: |
           curl --location ${{ secrets.TURE_LOVE_URL_PATH }} \
@@ -49,7 +49,7 @@ jobs:
 
       - name: Execute server Commands Over SSH
         run: |
-          ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_LOCAL_M8S_PORT }} ${{ env.SERVER_M8S_USER }}@${{ env.SERVER_LOCAL_IP }} << 'EOF'
+          ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_LOCAL_M8S_PORT }} ${{ secrets.SERVER_M8S_USER }}@${{ secrets.SERVER_LOCAL_IP }} << 'EOF'
             cd /c/Users/admin/Desktop/true-love-n/true-love-server
             git pull
             PID=$(ps -ef | grep 'python' | awk '{print $2}')
@@ -59,7 +59,7 @@ jobs:
             nohup python main.py &
             echo "Python application restarted"
           EOF
-      - name: Notify - Backup Success
+      - name: Notify - server Success
         if: success()
         run: |
           curl --location ${{ secrets.TURE_LOVE_URL_PATH }} \
