@@ -131,6 +131,7 @@ class ChatGPT(ChatBot):
         rsp = process_ban(sender)
         if rsp != '':
             base_client.send_text(wxid, sender, rsp)
+            return ''
         # 开始走ai
         result = self.get_answer_type(question, wxid, sender)
         if 'type' in result and result['type'] == 'gen-img':
