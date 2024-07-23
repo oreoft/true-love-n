@@ -48,37 +48,3 @@ jobs:
             "atReceiver": "",
             "content": "真爱粉ai模块已经成功重启"
           }'
-
-      - name: Execute server Commands Over SSH
-        uses: matheusvanzan/sshpass-action@v2
-        with:
-          host: ${{ secrets.SERVER_LOCAL_IP }}
-          port: ${{ secrets.SSH_LOCAL_M8S_PORT }}
-          user: ${{ secrets.SERVER_M8S_USER }}
-          pass: ${{ secrets.SSH_PASSWORD }}
-          run: |
-            bash
-            export PATH=$PATH:/c/application/Git/usr/bin
-            cd /c/Users/admin/Desktop/true-love-n/true-love-server
-            git pull
-            PID=$(ps -ef | grep 'python' | awk '{print $2}')
-            if [ -z "$PID" ]; then
-              PID=0
-            fi
-            echo "Killing existing Python process with PID: $PID"
-            kill $PID
-            nohup python main.py &
-            echo "Python application restarted"
-            exit
-
-      - name: Notify - server Success
-        if: success()
-        run: |
-          curl --location ${{ secrets.TURE_LOVE_URL_PATH }} \
-          --header 'Content-Type: application/json' \
-          --data '{
-            "token": "${{ secrets.TURE_LOVE_TOKEN }}",
-            "sendReceiver": "master",
-            "atReceiver": "",
-            "content": "真爱粉server模块已经成功重启"
-          }'
