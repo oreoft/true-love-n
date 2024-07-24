@@ -23,9 +23,9 @@ class ChatMsgHandler:
         self.LOG.info("self.chatbot配置为空, 但是调用了get_answer方法")
         return ""
 
-    def get_img(self, question: str, img_path: str, wxid: str, sender: str) -> str:
+    def get_img(self, question: str, img_data: str, wxid: str, sender: str) -> str:
         if self.chatbot:
-            return self.chatbot.get_img_by_img(question, img_path) if img_path else self.chatbot.get_img(question)
+            return self.chatbot.get_img_by_img(question, img_data) if img_data else self.chatbot.get_img(question)
         self.LOG.info("self.chatbot配置为空, 但是调用了get_img方法")
         raise ValueError
 
@@ -35,9 +35,9 @@ class ChatMsgHandler:
         self.LOG.info("self.chatbot配置为空, 但是调用了get_img_type方法")
         raise ValueError
 
-    def get_analyze(self, question: str, img_path: str, wxid: str, sender: str) -> str:
+    def get_analyze(self, question: str, img_data: str, wxid: str, sender: str) -> str:
         if self.chatbot:
-            return self.chatbot.get_analyze_by_img(question, img_path, wxid)
+            return self.chatbot.get_analyze_by_img(question, img_data, wxid)
         self.LOG.info("self.chatbot配置为空, 但是调用了get_analyze方法")
         raise ValueError
 

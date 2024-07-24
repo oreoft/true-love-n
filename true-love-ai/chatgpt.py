@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 import base64
+import gzip
 import json
 import logging
 import subprocess
@@ -253,7 +254,7 @@ class ChatGPT:
             # 删除多余的记录，倒着删，且跳过第二个的系统消息
             del self.conversation_list[wxid][2]
 
-    def get_analyze_by_img(self, content, img_path, wxid):
+    def get_analyze_by_img(self, content, img_data, wxid):
         self._update_message(wxid, content.replace("debug", "", 1), "user")
         openai_client = self.train_openai_client()
         try:
@@ -266,7 +267,7 @@ class ChatGPT:
                     {"role": "user", "content": [
                         {"type": "text", "text": content},
                         {"type": "image_url", "image_url": {
-                            "url": f"data:image/png;base64,{img_path}"}
+                            "url": f"data:image/png;base64,{img_data}"}
                          }
                     ]}
                 ],
@@ -306,7 +307,7 @@ class ChatGPT:
         except Exception:
             self.LOG.exception(f"generate_typeAndPrompt error")
 
-    def get_img_by_img(self, content, img_path):
+    def get_img_by_img(self, content, img_data):
         # First get the image prompt
         image_prompt = content
 
@@ -321,7 +322,7 @@ class ChatGPT:
                     "accept": "application/json; type=image/"
                 },
                 files={
-                    "image": BytesIO(base64.b64decode(img_path))
+                    "image": BytesIO(base64.b64decode(img_data))
                 },
                 data={
                     "prompt": image_prompt["answer"],
@@ -332,7 +333,7 @@ class ChatGPT:
             )
             self.LOG.info(f"ds.img cost:[{(time.time() - start_time) * 1000}ms]")
             if response.status_code == 200:
-                return {"prompt": image_prompt["answer"], "img": response.json()['image']}
+                return {"prompt": image_prompt["answer"], "img": gzip.decompress(response.json()['image'])}
             else:
                 self.LOG.error(f"generate_image_with_sd not 200, result:{response.json()}")
                 raise ValueError("生成失败! 内容太不堪入目啦~")
@@ -369,13 +370,13 @@ class ChatGPT:
                                      files={"none": ''},
                                      data={
                                          "prompt": image_prompt,
-                                         "output_format": "png",
+                                         "output_format": "jpeg",
                                          "aspect_ratio": "1:1"
                                      },
                                      )
             self.LOG.info(f"ds.img cost:[{(time.time() - start_time) * 1000}ms]")
             if response.status_code == 200:
-                return {"prompt": image_prompt, "img": response.json()['image']}
+                return {"prompt": image_prompt, "img": gzip.decompress(response.json()['image'])}
             else:
                 self.LOG.error(f"generate_image_with_sd not 200, result:{response.json()}")
                 raise ValueError("生成失败! 内容太不堪入目啦~")

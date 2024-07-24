@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import base64
 import concurrent
+import gzip
 import json
 import logging
 import os
@@ -74,7 +75,7 @@ class ChatGPT(ChatBot):
                 "content": question,
                 'wxid': wxid,
                 "sender": sender,
-                "img_path": image_to_base64(img_path),
+                "img_data": gzip.compress(bytes(image_to_base64(img_path), 'utf-8')),
             }
 
             # 请求配置
@@ -122,7 +123,7 @@ class ChatGPT(ChatBot):
                 "content": question,
                 'wxid': wxid,
                 "sender": sender,
-                "img_path": image_to_base64(img_path),
+                "img_data": gzip.compress(bytes(image_to_base64(img_path), 'utf-8')),
             }
 
             # 请求配置
@@ -209,7 +210,7 @@ class ChatGPT(ChatBot):
         file_path = get_file_path(msg_id)
         # 将解码后的图像数据写入文件
         with open(file_path, "wb") as file:
-            file.write(base64.b64decode(rsp.get('img')))
+            file.write(base64.b64decode(gzip.decompress(rsp.get('img')).decode('utf-8')))
         base_client.send_img(file_path, wxid)
 
     def gen_analyze(self, question, wxid, sender, img_path=''):
