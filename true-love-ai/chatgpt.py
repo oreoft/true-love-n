@@ -302,7 +302,6 @@ class ChatGPT:
                 function_call={"name": "img_type_answer_call"},
                 functions=img_type_answer_call,
             )
-            image_prompt = json.loads(image_prompt)
             self.LOG.info(f"ds.typeAndPrompt cost:[{(time.time() - start_time) * 1000}ms] result:{image_prompt}")
             return image_prompt
         except Exception:

@@ -104,9 +104,12 @@ class ChatGPT(ChatBot):
             headers = {'Content-Type': 'application/json'}
 
             # 发送请求
+            start_time = time.time()
+            self.LOG.info("开始发送给get_img_type")
             response = requests.post(url, headers=headers, data=json.dumps(data))
             # 获取结果
             rsp = response.json().get('data') or response.json().get('message')
+            self.LOG.info(f"get_answer_type回答时间为：{round(time.time() - start_time, 2)}s, result:{rsp}")
         except Exception as e0:
             self.LOG.error("发送到sd出错", e0)
             rsp = '发生未知错误, 稍后再试试捏'
