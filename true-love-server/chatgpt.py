@@ -23,9 +23,9 @@ name = "chatgpt"
 
 def get_file_path(msg_id):
     project_directory = os.path.dirname(os.path.abspath(__file__))
-    download_directory = project_directory + '/sd-jpg/'
+    download_directory = project_directory + '/sd-img/'
     # 构建唯一文件名
-    local_filename = f'{msg_id if msg_id else str(time.time())}.jpg'
+    local_filename = f'{msg_id if msg_id else str(time.time())}.png'
     # 构建完整的文件路径
     return os.path.join(download_directory, local_filename)
 
