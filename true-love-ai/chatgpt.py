@@ -369,7 +369,7 @@ class ChatGPT:
                                      files={"none": ''},
                                      data={
                                          "prompt": image_prompt,
-                                         "output_format": "jpeg",
+                                         "output_format": "png",
                                          "aspect_ratio": "1:1"
                                      },
                                      )
