@@ -309,7 +309,7 @@ class ChatGPT:
 
     def get_img_by_img(self, content, img_path):
         # First get the image prompt
-        image_prompt = json.loads(content)
+        image_prompt = content
 
         # Re-generate the image based on the prompt
         try:
