@@ -75,7 +75,7 @@ img_type_answer_call = [
              },
              "answer": {
                  "type": "string",
-                 "description": "Here is your answer, please put your answer in this field"
+                 "description": "Here is your translation and colorization answer, please put your answer in this field"
              },
          },
          "required": ["type", "answer"]
