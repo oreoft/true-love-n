@@ -289,13 +289,13 @@ class ChatGPT:
             self.LOG.exception(f"get_analyze_by_img error")
             raise
 
-    def get_img_type(self, content, not_img):
+    def get_img_type(self, content):
         try:
             start_time = time.time()
             self.LOG.info("ds.img.typeAndPrompt start")
             image_prompt = self.send_gpt_by_message(
                 messages=[
-                    self.system_content_msg4 if not_img else self.system_content_msg5,
+                    self.system_content_msg5,
                     {"role": "user", "content": content}
                 ],
                 function_call={"name": "img_type_answer_call"},
@@ -344,7 +344,18 @@ class ChatGPT:
             raise
 
     def get_img(self, content):
-        image_prompt = content
+        # First get the image prompt
+        image_prompt = ""
+        try:
+            start_time = time.time()
+            self.LOG.info("ds.img.prompt start")
+            image_prompt = self.send_gpt_by_message(messages=[
+                {"role": "system", "content": self.config.get("prompt4")},
+                {"role": "user", "content": content}
+            ])
+            self.LOG.info(f"ds.prompt cost:[{(time.time() - start_time) * 1000}ms]")
+        except Exception:
+            self.LOG.exception(f"generate_prompt error")
 
         # Re-generate the image based on the prompt
         try:

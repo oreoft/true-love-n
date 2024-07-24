@@ -65,7 +65,7 @@ def gen_img_type():
         return {"code": 103, "message": "failed token check", "data": None}
     # 进行消息路由
     try:
-        result = handler.get_img_type(request.json.get('content'), request.json.get('not_img'))
+        result = handler.get_img_type(request.json.get('content'))
         return {"code": 0, "message": "success", "data": result}
     except Exception as e:
         app.logger.error("get-img-type处理失败", e)

@@ -29,9 +29,9 @@ class ChatMsgHandler:
         self.LOG.info("self.chatbot配置为空, 但是调用了get_img方法")
         raise ValueError
 
-    def get_img_type(self, question: str, not_img) -> str:
+    def get_img_type(self, question: str) -> str:
         if self.chatbot:
-            return self.chatbot.get_img_type(question, not_img)
+            return self.chatbot.get_img_type(question)
         self.LOG.info("self.chatbot配置为空, 但是调用了get_img_type方法")
         raise ValueError
 

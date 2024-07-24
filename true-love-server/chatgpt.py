@@ -90,13 +90,12 @@ class ChatGPT(ChatBot):
             rsp = '发生未知错误, 稍后再试试捏'
         return rsp
 
-    def get_img_type(self, question, not_img):
+    def get_img_type(self, question):
         try:
             # 准备数据
             data = {
                 "token": self.token,
-                "content": question,
-                "not_img": not_img,
+                "content": question
             }
 
             # 请求配置
@@ -181,7 +180,7 @@ class ChatGPT(ChatBot):
         return ""
 
     def async_gen_img_by_img(self, question: str, img_path: str, wxid: str, sender: str) -> str:
-        result = json.loads(self.get_img_type(question, not img_path))
+        result = json.loads(self.get_img_type(question))
         if 'type' in result and result['type'] == 'analyze_img':
             executor.submit(self.gen_analyze, question, wxid, sender, img_path)
             base_client.send_text(wxid, sender, "🔍让我仔细瞧瞧，请耐心等待")
