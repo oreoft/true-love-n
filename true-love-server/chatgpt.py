@@ -90,6 +90,28 @@ class ChatGPT(ChatBot):
             rsp = '发生未知错误, 稍后再试试捏'
         return rsp
 
+    def get_img_type(self, question, not_img):
+        try:
+            # 准备数据
+            data = {
+                "token": self.token,
+                "content": question,
+                "not_img": not_img,
+            }
+
+            # 请求配置
+            url = 'http://notice.someget.work/get-img-type'
+            headers = {'Content-Type': 'application/json'}
+
+            # 发送请求
+            response = requests.post(url, headers=headers, data=json.dumps(data))
+            # 获取结果
+            rsp = response.json().get('data') or response.json().get('message')
+        except Exception as e0:
+            self.LOG.error("发送到sd出错", e0)
+            rsp = '发生未知错误, 稍后再试试捏'
+        return rsp
+
     def send_analyze(self, question, wxid, sender, img_path):
         try:
             # 准备数据
@@ -134,8 +156,6 @@ class ChatGPT(ChatBot):
             return ''
         # 开始走ai
         result = self.get_answer_type(question, wxid, sender)
-        if 'type' in result and result['type'] == 'gen-img':
-            return self.async_gen_img(f"user_input:{question}, supplementary:{result['answer']}", wxid, sender)
         if 'answer' in result:
             rsp = result['answer']
         if 'debug' in result:
@@ -156,13 +176,13 @@ class ChatGPT(ChatBot):
         return ""
 
     def async_gen_img_by_img(self, question: str, img_path: str, wxid: str, sender: str) -> str:
-        result = self.get_answer_type(question + "[carry-img]", wxid, sender)
+        result = json.loads(self.get_img_type(question, not img_path))
         if 'type' in result and result['type'] == 'analyze-img':
             executor.submit(self.gen_analyze, question, wxid, sender, img_path)
             base_client.send_text(wxid, sender, "🔍让我仔细瞧瞧，请耐心等待")
             return ""
-        # 这里异步调用方法
-        executor.submit(self.gen_img, question, wxid, sender, img_path, context_vars.local_msg_id.get(''))
+        # 其他都是改图
+        executor.submit(self.gen_img, result, wxid, sender, img_path, context_vars.local_msg_id.get(''))
         # 这里先固定回复
         base_client.send_text(wxid, sender, "🚀您的作品将在1~10分钟左右完成，请耐心等待")
         return ""

@@ -57,6 +57,21 @@ def gen_img():
         return {"code": 105, "message": e.args[0], "data": None}
 
 
+@app.route('/get-img-type', methods=['post'])
+def gen_img_type():
+    app.logger.info("get-img-type消息收到请求, req: %s", str(request.json)[:200])
+    # 鉴权判断
+    if request.json.get('token') not in http_config.get("token", []):
+        return {"code": 103, "message": "failed token check", "data": None}
+    # 进行消息路由
+    try:
+        result = handler.get_img_type(request.json.get('content'), request.json.get('not_img'))
+        return {"code": 0, "message": "success", "data": result}
+    except Exception as e:
+        app.logger.error("get-img-type处理失败", e)
+        return {"code": 105, "message": e.args[0], "data": None}
+
+
 @app.route('/get-analyze', methods=['post'])
 def get_analyze():
     app.logger.info("get-analyze消息收到请求, req: %s", str(request.json)[:200])

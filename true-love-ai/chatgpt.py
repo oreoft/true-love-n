@@ -39,22 +39,15 @@ type_answer_call = [
              "type": {
                  "type": "string",
                  "description": "the type of question, "
-                                "if user wants you to generate images, please return the 'gen-img', "
-                                "if user wants you to modify images, please return the 'modify-img', "
-                                "if user latest question  contains identical text [carry-img] and wants you to analyze images "
-                                "please return the 'analyze-img', when not included identical text [carry-img],Do not return this type"
                                 "if it is a normal chat, please return the 'chat', "
                                 "if the content requires online search You search in context first "
-                                "and if there is no information, please return the 'search', "
-                                "If the user question contains [carry-img] please don't return 'chat' and 'search', "
-                                "please match the user question with the type of img."
+                                "and if there is no information, please return the 'search'"
              },
              "answer": {
                  "type": "string",
                  "description": "the answer of content, "
-                                "if type is chat, please put your answer in this field, "
-                                "if type is gen-img, Please combine the context to give the descriptive words needed to generate the image."
-                                "if type is search, 请在此字段中返回要搜索的内容关键词, 必须是中文, "
+                                "if type is 'chat', please put your answer in this field, "
+                                "if type is 'search', 请在此字段中返回要搜索的内容关键词, 必须是中文, "
                                 "如果其他类型, This can be empty, "
              },
          },
@@ -74,12 +67,14 @@ img_type_answer_call = [
                                 "generate image (gen_by_img), "
                                 "erase object from image (erase_img), "
                                 "replace object in image (replace_img), "
+                                "analyzing or interpreting image (analyze_img), "
                                 "remove image background (remove_background_img). "
                                 "Please provide the type."
              },
              "answer": {
                  "type": "string",
-                 "description": "Here is your answer, please put your answer in this field"
+                 "description": "This is your answer, please fill in this field with the "
+                                "corresponding type of prompt to be processed"
              },
          },
          "required": ["type", "answer"]
@@ -293,24 +288,27 @@ class ChatGPT:
             self.LOG.exception(f"get_analyze_by_img error")
             raise
 
-    def get_img_by_img(self, content, img_path):
-        # First get the image prompt
-        image_prompt = {}
+    def get_img_type(self, content, not_img):
         try:
             start_time = time.time()
-            self.LOG.info("ds.img.prompt start")
+            self.LOG.info("ds.img.typeAndPrompt start")
             image_prompt = self.send_gpt_by_message(
                 messages=[
-                    self.system_content_msg5 if img_path else self.system_content_msg4,
+                    self.system_content_msg4 if not_img else self.system_content_msg5,
                     {"role": "user", "content": content}
                 ],
                 function_call={"name": "img_type_answer_call"},
                 functions=img_type_answer_call,
             )
             image_prompt = json.loads(image_prompt)
-            self.LOG.info(f"ds.prompt cost:[{(time.time() - start_time) * 1000}ms] result:{image_prompt}")
+            self.LOG.info(f"ds.typeAndPrompt cost:[{(time.time() - start_time) * 1000}ms] result:{image_prompt}")
+            return image_prompt
         except Exception:
-            self.LOG.exception(f"generate_prompt error")
+            self.LOG.exception(f"generate_typeAndPrompt error")
+
+    def get_img_by_img(self, content, img_path):
+        # First get the image prompt
+        image_prompt = json.loads(content)
 
         # Re-generate the image based on the prompt
         try:
