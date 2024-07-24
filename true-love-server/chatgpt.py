@@ -156,6 +156,8 @@ class ChatGPT(ChatBot):
             return ''
         # 开始走ai
         result = self.get_answer_type(question, wxid, sender)
+        if 'type' in result and result['type'] == 'gen-img':
+            return self.async_gen_img(f"user_input:{question}, supplementary:{result['answer']}", wxid, sender)
         if 'answer' in result:
             rsp = result['answer']
         if 'debug' in result:
