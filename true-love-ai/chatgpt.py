@@ -75,8 +75,7 @@ img_type_answer_call = [
              },
              "answer": {
                  "type": "string",
-                 "description": "This is your answer, please fill in this field with the "
-                                "corresponding type of prompt to be processed"
+                 "description": "Here is your answer, please put your answer in this field"
              },
          },
          "required": ["type", "answer"]
