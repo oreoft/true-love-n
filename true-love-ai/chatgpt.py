@@ -350,7 +350,7 @@ class ChatGPT:
             start_time = time.time()
             self.LOG.info("ds.img.prompt start")
             image_prompt = self.send_gpt_by_message(messages=[
-                {"role": "system", "content": self.config.get("prompt4")},
+                self.system_content_msg4,
                 {"role": "user", "content": content}
             ])
             self.LOG.info(f"ds.prompt cost:[{(time.time() - start_time) * 1000}ms]")
