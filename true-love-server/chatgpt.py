@@ -138,13 +138,13 @@ class ChatGPT(ChatBot):
 
     def get_answer_type(self, question: str, wxid: str, sender: str):
         start_time = time.time()
-        self.LOG.info("开始发送给chatgpt")
+        self.LOG.info("开始发送给get_answer_type")
         rsp = self.send_chatgpt(question, wxid, sender)
         # 判断gpt分析的结果
         result = json.loads(rsp)
         end_time = time.time()
         cost = round(end_time - start_time, 2)
-        self.LOG.info("chat回答时间为：%s 秒", cost)
+        self.LOG.info(f"get_answer_type回答时间为：{cost}s, result:{result}")
         result["ioCost"] = cost
         return result
 
