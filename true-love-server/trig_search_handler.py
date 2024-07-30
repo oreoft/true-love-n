@@ -129,7 +129,7 @@ class TrigSearchHandler:
             # 使用列表推导式和字符串格式化来生成所需的格式
             result = [
                 f"{item['startDate']} {item['startTime']}:00\n{item['matchName']} - {item['desc']}"
-                for item in schedule_list if item['desc'] and item['desc'] != '全部赛事'
+                for item in schedule_list if item['desc'] and item['desc'] != '全部比赛'
             ]
 
             # 将结果列表转换为单个字符串，每个条目之间用两个换行符分隔
