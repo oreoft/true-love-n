@@ -101,10 +101,19 @@ def send_daily_notice(room_id, content='早上好☀️家人萌~'):
 
 
 @log_function_execution
+def send_aoyun_notice(room_id):
+    aoyun_news = trig_search_handler.run("奥运赛事")
+    base_client.send_text(room_id, '', aoyun_news)
+    if aoyun_news:
+        base_client.send_text(room_id, '', trig_search_handler.run("奥运奖牌"))
+
+
+@log_function_execution
 def notice_moyu_schedule():
     room_ids: list = config.get("notice_moyu_schedule")
     for room_id in room_ids:
         send_daily_notice(room_id)
+        send_aoyun_notice(room_id)
         time.sleep(30)
     return True
 
@@ -191,3 +200,6 @@ def async_download_zao_bao_file():
 @log_function_execution
 def async_download_moyu_file():
     executor.submit(download_moyu_file)
+
+if __name__ == '__main__':
+    send_aoyun_notice("1")

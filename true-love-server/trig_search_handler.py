@@ -1,5 +1,6 @@
 import json
 import logging
+from datetime import datetime
 
 import requests
 from bs4 import BeautifulSoup
@@ -18,6 +19,10 @@ class TrigSearchHandler:
             return self.library_schedule()
         if any(e in question for e in ['gym时间', '健身房时间']):
             return self.gym_schedule()
+        if '奥运赛事' in question:
+            return self.search_aoyun_news()
+        if '奥运奖牌' in question:
+            return self.search_aoyun_medal()
         return '该查询任务无法找到'
 
     def library_schedule(self) -> str:
@@ -106,6 +111,56 @@ class TrigSearchHandler:
             4].strip() + ',\n现钞卖出价:' + arr[6].strip() + ',\n中行折算价:' + arr[8].strip() + ',\n发布时间:' + arr[
                   10].strip()
         return str
+
+    def search_aoyun_news(self) -> str:
+        res = ''
+        current_data = datetime.now().strftime('%Y-%m-%d')
+        game_news_urls = f"https://tiyu.baidu.com/al/major/schedule/list?date={current_data}&scheduleType=china&disciplineId=all&page=home&from=landing&isAsync=1"
+        response = requests.get(game_news_urls)
+        # 检查请求是否成功
+        if response.status_code == 200:
+            # 解析 JSON 数据
+            data = response.json()
+            if current_data not in [item['date'] for item in data['data']['select']['labels']]:
+                logging.info("奥运会已经结束, 数据不再返回")
+                return ""
+            # 提取赛事列表
+            schedule_list = data['data']['dateList'][0]['scheduleList']
+            # 使用列表推导式和字符串格式化来生成所需的格式
+            result = [
+                f"{item['startDate']} {item['startTime']}:00\n{item['matchName']} - {item['desc']}"
+                for item in schedule_list if item['desc']
+            ]
+
+            # 将结果列表转换为单个字符串，每个条目之间用两个换行符分隔
+            res = "今日巴黎奥运赛事速看:" + "\n\n" + "\n".join(result)
+        else:
+            logging.error(F"Failed to retrieve search_aoyun_news data: {response.text}")
+
+        return res
+
+    def search_aoyun_medal(self) -> str:
+        res = ''
+        game_news_urls = "https://tiyu.baidu.com/al/major/home?page=home&match=2024%E5%B9%B4%E5%B7%B4%E9%BB%8E%E5%A5%A5%E8%BF%90%E4%BC%9A&tab=%E5%A5%96%E7%89%8C%E6%A6%9C&&tab_type=single&request__node__params=1"
+        response = requests.get(game_news_urls)
+        # 检查请求是否成功
+        if response.status_code == 200:
+            # 解析 JSON 数据
+            data = response.json()
+            # 提取赛事列表
+            medalList = data['tplData']['data']['tabsList'][0]['data']['medalList'][0]
+            # 使用列表推导式和字符串格式化来生成所需的格式
+            result = [
+                f"{item['countryName']} - {item['gold']}金 {item['silver']}银 {item['bronze']}铜 共计{item['total']}"
+                for item in medalList
+            ]
+
+            # 将结果列表转换为单个字符串，每个条目之间用两个换行符分隔
+            res = f"奥运奖牌排行榜({data['tplData']['data']['tabsList'][0]['subTitle']}):" + "\n\n" + "\n".join(result)
+        else:
+            logging.error(F"Failed to retrieve search_aoyun_medal data: {response.text}")
+
+        return res
 
     def search_aoyuan(self) -> str:
         url = "https://srh.bankofchina.com/search/whpj/search_cn.jsp"
