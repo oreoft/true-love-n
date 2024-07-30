@@ -168,7 +168,7 @@ class ChatGPT:
                 rsp = ''
                 # 先去百度获取数据
                 reference_list = self.fetch_refer_baidu(result)
-                logging.info(f"fetch_refer_baidu, result one:{reference_list[0]}")
+                logging.info(f"fetch_refer_baidu, result one:{reference_list[0] if reference_list else {} }")
                 # 构建临时prompt
                 refer_prompt = {"role": "assistant",
                                 "content": f"针对这个回答, 参考信息和来源链接如下: {json.dumps(reference_list)}"}
