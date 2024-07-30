@@ -48,7 +48,8 @@ type_answer_call = [
                  "type": "string",
                  "description": "the answer of content, "
                                 "if type is 'chat', please put your answer in this field, "
-                                "if type is gen-img, Please combine the context to give the descriptive words needed to generate the image."
+                                "if type is 'gen-img', "
+                                "Please combine the context to give the descriptive words needed to generate the image."
                                 "if type is 'search', 请在此字段中返回要搜索的内容关键词, 必须是中文, "
                                 "如果其他类型, This can be empty, "
              },
@@ -167,20 +168,20 @@ class ChatGPT:
                 rsp = ''
                 # 先去百度获取数据
                 reference_list = self.fetch_refer_baidu(result)
-                # 存储结果
-                self._update_message(wxid, "针对这个回答, 参考信息和来源链接如下:" + json.dumps(reference_list),
-                                     "assistant")
+                logging.info(f"fetch_refer_baidu, result one:{reference_list[0]}")
+                # 构建临时prompt
+                refer_prompt = {"role": "assistant",
+                                "content": f"针对这个回答, 参考信息和来源链接如下: {json.dumps(reference_list)}"}
                 temp_prompt = {"role": "system",
-                               "content": "下面你的回答必须结合上下文,因为上下文都是联网查询的,尤其是来源和参考链接，"
+                               "content": "下面你的回答必须结合上下文,因为上下文都是联网查询的,尤其是assistant的来源和参考链接，"
                                           "所以相当于你可以联网获取信息, 所以不允许说你不能联网, "
-                                          "如果参考是一个空list, 你就说联网查询超时了, 引导用户再问一遍"
+                                          "如果assistant的参考是一个空list, 你就说联网查询超时了, 引导用户再问一遍"
                                           "另外如果你不知道回答，请不要不要胡说. "
                                           "如果用户要求文章或者链接请你把最相关的参考链接给出(参考链接必须在上下文出现过)"}
                 # 然后再拿结果去问chatgpt
-                self._update_message(wxid, question['content'], "user")
                 ret = openai_client.chat.completions.create(
                     model=real_model,
-                    messages=self.conversation_list[wxid] + [temp_prompt],
+                    messages=self.conversation_list[wxid] + [refer_prompt, temp_prompt, question],
                     temperature=0.2,
                     stream=True
                 )
