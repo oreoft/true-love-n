@@ -2,6 +2,7 @@ import json
 import logging
 from datetime import datetime
 
+import pytz
 import requests
 from bs4 import BeautifulSoup
 
@@ -114,14 +115,15 @@ class TrigSearchHandler:
 
     def search_aoyun_news(self) -> str:
         res = ''
-        current_data = datetime.now().strftime('%Y-%m-%d')
-        game_news_urls = f"https://tiyu.baidu.com/al/major/schedule/list?date={current_data}&scheduleType=china&disciplineId=all&page=home&from=landing&isAsync=1"
+        tz = pytz.timezone('Asia/Shanghai')
+        current_date = datetime.now(tz).strftime('%Y-%m-%d')
+        game_news_urls = f"https://tiyu.baidu.com/al/major/schedule/list?date={current_date}&scheduleType=china&disciplineId=all&page=home&from=landing&isAsync=1"
         response = requests.get(game_news_urls)
         # 检查请求是否成功
         if response.status_code == 200:
             # 解析 JSON 数据
             data = response.json()
-            if current_data not in [item['date'] for item in data['data']['select']['labels']]:
+            if current_date not in [item['date'] for item in data['data']['select']['labels']]:
                 logging.info("奥运会已经结束, 数据不再返回")
                 return ""
             # 提取赛事列表
