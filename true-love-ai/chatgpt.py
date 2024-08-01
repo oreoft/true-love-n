@@ -217,7 +217,7 @@ class ChatGPT:
         return reference_list
 
     def get_answer(self, question: str, wxid: str, sender: str) -> str:
-        self._update_message(wxid, question.replace("debug", "", 1), "user")
+        self._update_message(wxid, question.replace("debug", "", 1) if question else '你好', "user")
         openai_client = self.train_openai_client()
         start_time = time.time()
         self.LOG.info("开始发送给chatgpt， 其中real_key: %s, real_model: %s", openai_client.api_key[-4:], openai_model)
