@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 
 import context_vars
 from asr_utils import do_asr
@@ -89,7 +90,8 @@ class MsgHandler:
             headers = {'Accept': 'application/json', 'User-Agent': 'PostmanRuntime/7.40.0'}
             response = requests.get(url=request_url, headers=headers)
             response_data = response.json()
-            return response_data['data']['content']
+            return re.sub(r'\(http.*?\)', '', response_data['data']['content']).replace('[]', '').replace('\n\n',
+                                                                                                          '\n').strip()
         except Exception:
             logging.exception(f"crawl_content error, url:{url}")
             return '内容解析失败'
