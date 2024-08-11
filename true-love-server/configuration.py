@@ -51,3 +51,4 @@ class Config:
             self.CARD: dict = yconfig.get("card", {})
             self.REMAINDER: dict = yconfig.get("remainder", {})
             self.ASR: dict = yconfig.get("asr", {})
+            self.BROWSERLESS: str = yconfig.get("browserless", "")

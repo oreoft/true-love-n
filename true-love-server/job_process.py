@@ -8,6 +8,7 @@ import urllib.request
 from concurrent import futures
 from datetime import datetime
 
+import pytz
 import requests
 
 import base_client
@@ -89,15 +90,17 @@ def notice_ao_yuan_schedule():
 
 @log_function_execution
 def send_daily_notice(room_id, content='早上好☀️家人萌~'):
-    moyu_dir = "https://api.vvhan.com/api/moyu"
-    zao_bao_dir = os.path.dirname(os.path.abspath(__file__)) + '/zaobao-jpg/' + datetime.now().strftime(
-        '%m-%d-%Y') + '.jpg'
-
+    moyu_file_path = os.path.dirname(os.path.abspath(__file__)) + '/moyu-jpg/' + datetime.now().strftime(
+        '%m-%d-%Y') + '.jpg'.replace("/mnt/c", "c:").replace('/', '\\')
+    zao_bao_file_path = os.path.dirname(os.path.abspath(__file__)) + '/zaobao-jpg/' + datetime.now().strftime(
+        '%m-%d-%Y') + '.jpg'.replace("/mnt/c", "c:").replace('/', '\\')
     base_client.send_text(room_id, '', content)
-    moyu_res = base_client.send_img(moyu_dir, room_id)
-    zao_bao_res = base_client.send_img(zao_bao_dir.replace("/mnt/c", "c:").replace('/', '\\'), room_id)
-    LOG.info(f"send_image: {moyu_dir}, result: {moyu_res}")
-    LOG.info(f"send_image: {moyu_dir}, result: {zao_bao_res}")
+    if check_image_openable(moyu_file_path):
+        moyu_res = base_client.send_img(moyu_file_path, room_id)
+        LOG.info(f"send_image: {moyu_file_path}, result: {moyu_res}")
+    if check_image_openable(zao_bao_file_path):
+        zao_bao_res = base_client.send_img(zao_bao_file_path, room_id)
+        LOG.info(f"send_image: {moyu_file_path}, result: {zao_bao_res}")
 
 
 @log_function_execution
@@ -113,9 +116,9 @@ def notice_moyu_schedule():
     room_ids: list = config.get("notice_moyu_schedule")
     for room_id in room_ids:
         send_daily_notice(room_id)
-        send_aoyun_notice(room_id)
         time.sleep(30)
     return True
+
 
 @log_function_execution
 def notice_usa_moyu_schedule():
@@ -154,6 +157,9 @@ def download_moyu_file():
     # 获取当前脚本所在的目录，即项目目录
     project_directory = os.path.dirname(os.path.abspath(__file__))
     download_directory = project_directory + '/moyu-jpg/'
+    # 如果不存在，则创建该文件夹
+    if not os.path.exists(download_directory):
+        os.makedirs(download_directory)
     # 获取当前日期并将其格式化为所需的字符串
     current_date = datetime.now().strftime('%m-%d-%Y')
     # 构建文件名，例如：10-20-2023.jpg
@@ -161,7 +167,7 @@ def download_moyu_file():
     # 构建完整的文件路径
     full_file_path = os.path.join(download_directory, local_filename)
     # 指定要下载的文件的URL
-    file_url = 'https://api.vvhan.com/api/moyu'
+    file_url = get_moyu_url_by_wx()
     # file_url = 'https://dayu.qqsuu.cn/moyuribao/apis.php'
     # 使用urllib.request库下载文件并保存到指定的位置
     urllib.request.urlretrieve(file_url, full_file_path)
@@ -173,6 +179,9 @@ def download_zao_bao_file():
     # 获取当前脚本所在的目录，即项目目录
     project_directory = os.path.dirname(os.path.abspath(__file__))
     download_directory = project_directory + '/zaobao-jpg/'
+    # 如果不存在，则创建该文件夹
+    if not os.path.exists(download_directory):
+        os.makedirs(download_directory)
     # 获取当前日期并将其格式化为所需的字符串
     current_date = datetime.now().strftime('%m-%d-%Y')
     # 构建文件名，例如：10-20-2023.jpg
@@ -201,5 +210,95 @@ def async_download_zao_bao_file():
 def async_download_moyu_file():
     executor.submit(download_moyu_file)
 
+
+def get_moyu_url_by_wx():
+    import requests
+
+    from bs4 import BeautifulSoup
+    url = f'https://chrome.browserless.io/content?blockAds=true&stealth=true&slowMo=200&token={Config().BROWSERLESS}'
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    data = {
+        "url": "https://mp.weixin.qq.com/mp/appmsgalbum?action=getalbum&album_id=2190548434338807809"
+    }
+
+    # 发送 POST 请求
+    response = requests.post(url, json=data, headers=headers)
+
+    if response.status_code == 200:
+        # 使用 BeautifulSoup 解析 HTML
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # 查找所有的列表项
+        album_items = soup.find_all('li', class_='album__list-item')
+
+        # 遍历找到特定日期的链接
+        for item in album_items:
+            title = item.find('div', class_='album__item-title').text.strip()
+            if f"[摸鱼人日历]{get_current_date_utc8()}" in title:
+                link = item['data-link']
+                logging.info(f"article link: {link}")
+                result = send_to_jina(link)
+                logging.info(f"result link: {result}")
+                return result
+    else:
+        logging.error(f"download_moyu_file_by_wx Failed to fetch data. Status code:{response.status_code}")
+
+
+def send_to_jina(link):
+    jina_url = 'https://r.jina.ai/'
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36'}
+    response = requests.get(jina_url + link, headers=headers)
+
+    if response.status_code == 200:
+        # 解析 Markdown 文本
+        markdown_content = response.text
+        return extract_image_link(markdown_content, "今天你摸鱼了吗？")
+    else:
+        logging.error(f"send_to_jina Failed to fetch data from Jina. Status code:{response.status_code}")
+
+
+def extract_image_link(markdown_text, target_text):
+    # 使用正则表达式查找目标文本后的第一个图片链接
+    pattern = re.compile(rf'{re.escape(target_text)}.*?\!\[.*?\]\((.*?)\)', re.DOTALL)
+    match = pattern.search(markdown_text)
+    if match:
+        image_url = match.group(1)
+        logging.info(f"Image URL: {image_url}")
+        return image_url.replace('&tp=webp', '')
+    else:
+        logging.error("extract_image_link No image found after the target text.")
+
+
+def get_current_date_utc8():
+    # 设置时区为 UTC+8
+    tz = pytz.timezone('Asia/Shanghai')
+
+    # 获取当前时间，并转换为 UTC+8 时区
+    current_date_utc8 = datetime.now(tz)
+
+    # 格式化日期为 "08月10号" 的格式
+    formatted_date = current_date_utc8.strftime('%m月%d号')
+
+    return formatted_date
+
+
+def check_image_openable(image_path):
+    from PIL import Image
+    try:
+        # 尝试打开图片
+        with Image.open(image_path) as img:
+            # 尝试进行一些操作，如获取图片大小
+            img.verify()  # 这将验证文件的完整性，如果文件损坏将抛出异常
+            logging.info("Image is openable and appears to be valid.")
+            return True
+    except (IOError, SyntaxError) as e:
+        # 捕获异常，处理图片打不开或文件损坏的情况
+        logging.error(f"Cannot open image: {e}")
+        return False
+
+
 if __name__ == '__main__':
-    send_aoyun_notice("1")
+    download_moyu_file()

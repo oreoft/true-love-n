@@ -47,7 +47,9 @@ def send_img(path, send_receiver):
         start_time = time.time()
         LOG.info("开始请求base推送img内容, req:[%s]", payload[:200])
         res = requests.request("POST", text_img, headers=headers, data=payload, timeout=(2, 60))
-        LOG.info("请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
+        # 检查HTTP响应状态
+        res.raise_for_status()
+        LOG.info("send_img请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
     except Exception as e:
         LOG.info("send_img 失败", e)
     return ""
