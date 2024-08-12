@@ -83,6 +83,7 @@ job = Job()
 # job.on_every_time(daytime_list, job_process.notice_mei_yuan)
 job.on_every_time("07:00", job_process.notice_library_schedule)
 job.on_every_time("20:00", job_process.async_download_zao_bao_file)
+job.on_every_time("20:01", job_process.async_download_moyu_file)
 job.on_every_time("20:05", job_process.notice_moyu_schedule)
 job.on_every_time("20:08", job_process.notice_usa_moyu_schedule)
 
