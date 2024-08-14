@@ -11,13 +11,6 @@ from wcf_utils import WcfUtils
 config = Config()
 
 
-# 打开并读取XML文件
-def load_xml_as_string(file_path):
-    with open(file_path, 'r', encoding='utf-8') as file:
-        xml_string = file.read()
-    return xml_string
-
-
 def main():
     # 启动wcf
     wcf = Wcf(debug=True)
@@ -40,7 +33,6 @@ def main():
     server.enable_http(robot)
     # 加载小助手
     WcfUtils(wcf)
-    wcf.send_xml(config.master_wix, load_xml_as_string('music.xml'), 3)
     # 让服务保持不关闭
     while True:
         time.sleep(1)
