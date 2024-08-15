@@ -133,6 +133,7 @@ def do_asr(audio_file_path):
         logging.info(f"do_asr result success cost:{int(time.time() - start_time)} result:{result}")
         return result
     except Exception:
+        logging.exception("do_asr error")
         return "语言识别失败, 让用户再试一次"
 
 
