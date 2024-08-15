@@ -127,7 +127,7 @@ def do_asr(audio_file_path):
         task_info = upload_audio(audio_file_path)
         logging.info(f"do_asr submit success cost:{int(time.time() - start_time)} task:{task_info}")
         if task_info.get('Response').get('Error'):
-            return f"语言识别失败, 请让用户再试一次, 理由是: f{task_info.task_info.get('Response').get('Error').get('Message')}"
+            return f"语言识别失败, 请让用户再试一次, 理由是: f{task_info.get('Response').get('Error').get('Message')}"
         start_time = time.time()
         result = get_result(task_info.get('Response').get('Data').get('TaskId'))
         logging.info(f"do_asr result success cost:{int(time.time() - start_time)} result:{result}")
