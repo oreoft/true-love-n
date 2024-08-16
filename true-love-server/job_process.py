@@ -236,7 +236,7 @@ def get_moyu_url_by_wx():
         # 遍历找到特定日期的链接
         for item in album_items:
             title = item.find('div', class_='album__item-title').text.strip()
-            if f"[摸鱼人日历]{get_current_date_utc8()}" in title:
+            if f"[摸鱼人日历]{get_current_date_utc8()}" in title or f"[摸鱼人日历]{get_current_date_utc8().lstrip('0')}" in title:
                 link = item['data-link']
                 logging.info(f"article link: {link}")
                 result = send_to_jina(link)
