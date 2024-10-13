@@ -13,9 +13,11 @@ class TrigSearchHandler:
 
     def run(self, question: str) -> str:
         if '美元汇率' in question:
-            return self.search_meiyuan()
+            return self.search_currency('美元')
         if '澳币汇率' in question:
-            return self.search_aoyuan()
+            return self.search_currency('澳大利亚元')
+        if '日元汇率' in question:
+            return self.search_currency('日元')
         if '图书馆时间' in question:
             return self.library_schedule()
         if any(e in question for e in ['gym时间', '健身房时间']):
@@ -80,38 +82,58 @@ class TrigSearchHandler:
         else:
             return json.dumps(data, indent=4)
 
-    def search_meiyuan(self) -> str:
-        url = "https://srh.bankofchina.com/search/whpj/search_cn.jsp"
-        payload = 'erectDate=&nothing=&pjname=%E7%BE%8E%E5%85%83&head=head_620.js&bottom=bottom_591.js'
-        headers = {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Cookie': 'JSESSIONID=00001CdOkfmL1j6G9cXi9ak2N4F:-1',
-            'Origin': 'https://srh.bankofchina.com',
-            'Pragma': 'no-cache',
-            'Referer': 'https://srh.bankofchina.com/search/whpj/search_cn.jsp',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'same-origin',
-            'Sec-Fetch-User': '?1',
-            'Upgrade-Insecure-Requests': '1',
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36',
-            'sec-ch-ua': '"Chromium";v="116", "Not)A;Brand";v="24", "Google Chrome";v="116"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"macOS"'
-        }
+    def search_currency(self, currency) -> str:
+        result = ''
+        try:
+            url = "https://www.boc.cn/sourcedb/whpj"
+            payload = {}
+            headers = {
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                'Accept-Language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'Pragma': 'no-cache',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'Upgrade-Insecure-Requests': '1',
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+                'sec-ch-ua': '"Google Chrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"',
+                'sec-ch-ua-mobile': '?0',
+                'sec-ch-ua-platform': '"macOS"'
+            }
 
-        response = requests.request("POST", url, headers=headers, data=payload)
-        s = BeautifulSoup(response.text, features="html.parser").text
-        s1 = s.strip().split('美元')[2].strip().replace(' ', '')
-        arr = s1.split('\n')
-        str = '现汇买入价:' + arr[0].strip() + ',\n现钞买入价:' + arr[2].strip() + ',\n现汇卖出价:' + arr[
-            4].strip() + ',\n现钞卖出价:' + arr[6].strip() + ',\n中行折算价:' + arr[8].strip() + ',\n发布时间:' + arr[
-                  10].strip()
-        return str
+            response = requests.request("GET", url, headers=headers, data=payload)
+            response.encoding = response.apparent_encoding
+            table = BeautifulSoup(response.text, features="html.parser").find('table', {'align': 'left'})
+            # 检查表格是否存在
+            if table:
+                # 遍历表格行，查找美元的那一行
+                for row in table.find_all('tr'):
+                    cells = row.find_all('td')
+                    if len(cells) > 0 and currency in cells[0].text:
+                        currency_name = cells[0].text.strip()
+                        cash_buy = cells[1].text.strip()  # 现汇买入价
+                        note_buy = cells[2].text.strip()  # 现钞买入价
+                        cash_sell = cells[3].text.strip()  # 现汇卖出价
+                        note_sell = cells[4].text.strip()  # 现钞卖出价
+                        boc_rate = cells[5].text.strip()  # 中行折算价
+                        date = cells[6].text.strip()  # 发布日期
+                        time = cells[7].text.strip()  # 发布时间
+                        result = (
+                            f"货币名称: {currency_name},\n"
+                            f"现汇买入价: {cash_buy},\n"
+                            f"现钞买入价: {note_buy},\n"
+                            f"现汇卖出价: {cash_sell},\n"
+                            f"现钞卖出价: {note_sell},\n"
+                            f"中行折算价: {boc_rate},\n"
+                            f"发布日期: {date}"
+                        )
+                        break
+        except Exception as e:
+            self.LOG.error("search_meiyuan error", e)
+        return result
 
     def search_aoyun_news(self) -> str:
         res = ''
