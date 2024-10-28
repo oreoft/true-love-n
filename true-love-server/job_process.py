@@ -170,8 +170,11 @@ def download_moyu_file():
     file_url = get_moyu_url_by_wx()
     # file_url = 'https://dayu.qqsuu.cn/moyuribao/apis.php'
     # 使用urllib.request库下载文件并保存到指定的位置
-    urllib.request.urlretrieve(file_url, full_file_path)
-    LOG.info(f'{local_filename} 已下载到 {download_directory}')
+    if file_url:
+        urllib.request.urlretrieve(file_url, full_file_path)
+        LOG.info(f'{local_filename}已下载到 {download_directory}')
+    else:
+        LOG.error("未能获取到摸鱼文件的链接")
 
 
 @log_function_execution
@@ -215,16 +218,10 @@ def get_moyu_url_by_wx():
     import requests
 
     from bs4 import BeautifulSoup
-    url = f'https://chrome.browserless.io/content?blockAds=true&stealth=true&slowMo=200&token={Config().BROWSERLESS}'
-    headers = {
-        'Content-Type': 'application/json'
-    }
-    data = {
-        "url": "https://mp.weixin.qq.com/mp/appmsgalbum?action=getalbum&album_id=2190548434338807809"
-    }
 
+    url = "https://mp.weixin.qq.com/mp/appmsgalbum?action=getalbum&album_id=2190548434338807809"
     # 发送 POST 请求
-    response = requests.post(url, json=data, headers=headers)
+    response = requests.get(url)
 
     if response.status_code == 200:
         # 使用 BeautifulSoup 解析 HTML
