@@ -3,11 +3,15 @@
 
 import logging.config
 import os
+import sys
 
 import yaml
 
 # 设置日志文件夹的路径
 logs_dir = "logs"
+
+# 修改 sys.stdout 的编码为 utf-8
+sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf-8', buffering=1)
 
 # 检查logs文件夹是否存在
 if not os.path.exists(logs_dir):
