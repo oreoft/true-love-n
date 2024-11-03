@@ -94,6 +94,8 @@ def send_daily_notice(room_id, content='早上好☀️家人萌~'):
         '%m-%d-%Y') + '.jpg'.replace("/mnt/c", "c:").replace('/', '\\')
     zao_bao_file_path = os.path.dirname(os.path.abspath(__file__)) + '/zaobao-jpg/' + datetime.now().strftime(
         '%m-%d-%Y') + '.jpg'.replace("/mnt/c", "c:").replace('/', '\\')
+    r_resp = trig_search_handler.run("查询日元汇率")
+    if r_resp != "": content += "\n\n今日日元汇率情况：\n" + r_resp
     base_client.send_text(room_id, '', content)
     if check_image_openable(moyu_file_path):
         moyu_res = base_client.send_img(moyu_file_path, room_id)
