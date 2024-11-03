@@ -174,7 +174,7 @@ def download_moyu_file():
         urllib.request.urlretrieve(file_url, full_file_path)
         LOG.info(f'{local_filename}已下载到 {download_directory}')
     else:
-        LOG.error("未能获取到摸鱼文件的链接")
+        LOG.error(f"未能获取到摸鱼文件的链接 {download_directory}")
 
 
 @log_function_execution
@@ -258,6 +258,7 @@ def send_to_jina(link):
 
 
 def extract_image_link(markdown_text, target_text):
+    logging.info(f"Extracting image link of the markdown_text text: {markdown_text}")
     # 使用正则表达式查找目标文本后的第一个图片链接
     pattern = re.compile(rf'{re.escape(target_text)}.*?\!\[.*?\]\((.*?)\)', re.DOTALL)
     match = pattern.search(markdown_text)
@@ -271,7 +272,7 @@ def extract_image_link(markdown_text, target_text):
 
 def get_current_date_utc8():
     # 设置时区为 UTC+8
-    tz = pytz.timezone('Asia/Shanghai')
+    tz = pytz.timezone('America/Chicago')
 
     # 获取当前时间，并转换为 UTC+8 时区
     current_date_utc8 = datetime.now(tz)
