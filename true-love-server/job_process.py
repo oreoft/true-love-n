@@ -169,10 +169,19 @@ def download_moyu_file():
     # 构建完整的文件路径
     full_file_path = os.path.join(download_directory, local_filename)
     # 指定要下载的文件的URL
-    file_url = get_moyu_url_by_wx()
-    # file_url = 'https://dayu.qqsuu.cn/moyuribao/apis.php'
-    # 使用urllib.request库下载文件并保存到指定的位置
+    retry_count = 3
+    file_url = ''
+    for i in range(retry_count):
+        try:
+            # file_url = 'https://dayu.qqsuu.cn/moyuribao/apis.php'
+            file_url = get_moyu_url_by_wx()
+            if file_url:
+                break
+        except Exception as e:
+            LOG.error(f"download_moyu_file Failed to fetch data. Retry count:{i}, Error:{e}")
+            time.sleep(5)
     if file_url:
+        # 使用urllib.request库下载文件并保存到指定的位置
         urllib.request.urlretrieve(file_url, full_file_path)
         LOG.info(f'{local_filename}已下载到 {download_directory}')
     else:
@@ -260,7 +269,6 @@ def send_to_jina(link):
 
 
 def extract_image_link(markdown_text, target_text):
-    logging.info(f"Extracting image link of the markdown_text text: {markdown_text}")
     # 使用正则表达式查找目标文本后的第一个图片链接
     pattern = re.compile(rf'{re.escape(target_text)}.*?\!\[.*?\]\((.*?)\)', re.DOTALL)
     match = pattern.search(markdown_text)
