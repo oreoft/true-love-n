@@ -163,7 +163,7 @@ def download_moyu_file():
     if not os.path.exists(download_directory):
         os.makedirs(download_directory)
     # 获取当前日期并将其格式化为所需的字符串
-    current_date = datetime.now().strftime('%m-%d-%Y')
+    current_date = datetime.now(pytz.timezone('Asia/Shanghai')).strftime('%m-%d-%Y')
     # 构建文件名，例如：10-20-2023.jpg
     local_filename = f'{current_date}.jpg'
     # 构建完整的文件路径
