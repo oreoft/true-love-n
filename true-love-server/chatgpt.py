@@ -53,7 +53,7 @@ class ChatGPT(ChatBot):
             }
 
             # 请求配置
-            url = 'http://notice.someget.work/get-llm'
+            url = 'https://notice.someget.work/get-llm'
             headers = {'Content-Type': 'application/json'}
 
             # 发送请求
@@ -78,7 +78,7 @@ class ChatGPT(ChatBot):
             }
 
             # 请求配置
-            url = 'http://notice.someget.work/gen-img'
+            url = 'https://notice.someget.work/gen-img'
             headers = {'Content-Type': 'application/json'}
 
             # 发送请求
@@ -99,7 +99,7 @@ class ChatGPT(ChatBot):
             }
 
             # 请求配置
-            url = 'http://notice.someget.work/get-img-type'
+            url = 'https://notice.someget.work/get-img-type'
             headers = {'Content-Type': 'application/json'}
 
             # 发送请求
@@ -126,7 +126,7 @@ class ChatGPT(ChatBot):
             }
 
             # 请求配置
-            url = 'http://notice.someget.work/get-analyze'
+            url = 'https://notice.someget.work/get-analyze'
             headers = {'Content-Type': 'application/json'}
 
             # 发送请求
@@ -267,7 +267,7 @@ if __name__ == "__main__":
         q = input(">>> ")
         try:
             time_start = datetime.now()  # 记录开始时间
-            LOG.info(chat.gen_img(q, "", ""))
+            LOG.info(chat.get_answer(q, "", ""))
             time_end = datetime.now()  # 记录结束时间
             LOG.info(f"{round((time_end - time_start).total_seconds(), 2)}s")  # 计算的时间差为程序的执行时间，单位为秒/s
         except Exception as e:

@@ -197,7 +197,7 @@ class TrigTaskHandler:
             return device_id
 
         # 这里进行发号
-        response = requests.get(f'http://mc-fahao.someget.work/mc-fahao?token={self.token}&device_id={device_id}')
+        response = requests.get(f'https://mc-fahao.someget.work/mc-fahao?token={self.token}&device_id={device_id}')
         if response.status_code == 200:
             return response.text
         else:
@@ -211,7 +211,7 @@ class TrigTaskHandler:
             return "请输入要释放的mc账户prefix, 格式: 执行发号:xxx, 其中xxx为你的设备id"
         # 进行销号
         response = requests.get(
-            f'http://mc-fahao.someget.work/mc-xiaohao?token={self.token}&account_prefix={account_prefix}')
+            f'https://mc-fahao.someget.work/mc-xiaohao?token={self.token}&account_prefix={account_prefix}')
         if response.status_code == 200:
             return response.text
         else:
@@ -219,7 +219,7 @@ class TrigTaskHandler:
 
     def mc_cha_hao(self):
         response = requests.get(
-            f'http://mc-fahao.someget.work/mc-chahao?token={self.token}')
+            f'https://mc-fahao.someget.work/mc-chahao?token={self.token}')
         if response.status_code == 200:
             return response.text
         else:
@@ -230,7 +230,7 @@ class TrigTaskHandler:
         if '-' not in device_id:
             return device_id
         # 进行拿1500积分的号
-        response = requests.get(f'http://mc-fahao.someget.work/mc-fahao2?token={self.token}&device_id={device_id}')
+        response = requests.get(f'https://mc-fahao.someget.work/mc-fahao2?token={self.token}&device_id={device_id}')
         if response.status_code == 200:
             return response.text
         else:
