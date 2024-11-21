@@ -282,7 +282,7 @@ def extract_image_link(markdown_text, target_text):
 
 def get_current_date_utc8():
     # 设置时区为 UTC+8
-    tz = pytz.timezone('America/Chicago')
+    tz = pytz.timezone('Asia/Shanghai')
 
     # 获取当前时间，并转换为 UTC+8 时区
     current_date_utc8 = datetime.now(tz)
