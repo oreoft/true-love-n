@@ -15,13 +15,13 @@ class ChatMsgHandler:
         if config.ENABLE_BOT == chatgpt.name:
             self.chatbot = chatgpt.ChatGPT()
 
-    def get_answer(self, question: str, wxid: str, sender: str) -> str:
+    def get_answer(self, question: str, wxid: str, sender: str) -> dict:
         if '询问-' in question:
             return self.chatbot.get_xun_wen(question)
         if self.chatbot:
             return self.chatbot.get_answer(question, wxid, sender)
         self.LOG.info("self.chatbot配置为空, 但是调用了get_answer方法")
-        return ""
+        return {}
 
     def get_img(self, question: str, img_data: str, wxid: str, sender: str) -> str:
         if self.chatbot:

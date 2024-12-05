@@ -148,7 +148,7 @@ class ChatGPT:
             self.LOG.error(str(e0))
         return rsp
 
-    def send_chatgpt(self, real_model, wxid, openai_client):
+    def send_chatgpt(self, real_model, wxid, openai_client) -> dict:
         try:
             # 发送请求
             question = self.conversation_list[wxid][-1]
@@ -161,11 +161,10 @@ class ChatGPT:
                 stream=True
             )
             # 获取stream查询
-            rsp = fetch_stream(ret, True)
-            result = json.loads(rsp)
+            rsp = {}
+            result = json.loads(fetch_stream(ret, True))
             self.LOG.info(f"openai result :{result}")
             if result['type'] == 'search':
-                rsp = ''
                 # 先去百度获取数据
                 reference_list = self.fetch_refer_baidu(result)
                 logging.info(f"fetch_refer_baidu, result one:{reference_list[0] if reference_list else {} }")
@@ -216,7 +215,7 @@ class ChatGPT:
             logging.exception(f"fetch_refer_baidu error, result:{result}")
         return reference_list
 
-    def get_answer(self, question: str, wxid: str, sender: str) -> str:
+    def get_answer(self, question: str, wxid: str, sender: str) -> dict:
         self._update_message(wxid, question.replace("debug", "", 1) if question else '你好', "user")
         openai_client = self.train_openai_client()
         start_time = time.time()
