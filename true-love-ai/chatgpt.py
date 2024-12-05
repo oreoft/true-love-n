@@ -161,9 +161,9 @@ class ChatGPT:
                 stream=True
             )
             # 获取stream查询
-            rsp = {}
             rsp_str = fetch_stream(ret, True)
             result = json.loads(rsp_str)
+            rsp = result
             self.LOG.info(f"openai result :{result}")
             if result['type'] == 'search':
                 # 先去百度获取数据
