@@ -228,9 +228,7 @@ class ChatGPT:
         if question.startswith('debug'):
             rsp[
                 'debug'] = f"(aiCost: {cost}s, ioCost: $s, use: {openai_client.api_key[-4:]}, model: {openai_model})"
-            return json.dumps(rsp)
-        else:
-            return rsp
+        return rsp
 
     def _update_message(self, wxid: str, aq: str, role: str) -> None:
         time_mk = f"当需要回答时间时请直接参考回复(请注意这是美国中部时间, 另外别人问你是否可以联网你需要说我已经接入谷歌搜索, 知识库最新消息是当前时间): {str(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}"
