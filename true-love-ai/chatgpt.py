@@ -188,11 +188,11 @@ class ChatGPT:
                 # 获取stream查询
                 rsp = fetch_stream(ret)
                 search_tail = f"\n- - - - - - - - - - - -\n\n🐾💩🕵：{result['answer']}"
-                rsp = json.dumps({"type": "chat", "answer": rsp + search_tail})
+                rsp = {"type": "chat", "answer": rsp + search_tail}
                 self.LOG.info(f"openai+baidu:{rsp}")
             self._update_message(wxid, rsp, "assistant")
         except Exception as e0:
-            rsp = json.dumps({"type": "chat", "answer": "发生未知错误, 稍后再试试捏"})
+            rsp = {"type": "chat", "answer": "发生未知错误, 稍后再试试捏"}
             self.LOG.exception('调用北美ai服务发生错误, msg: %s', e0)
         return rsp
 
@@ -226,10 +226,9 @@ class ChatGPT:
         cost = round(end_time - start_time, 2)
         self.LOG.info("chat回答时间为：%s 秒", cost)
         if question.startswith('debug'):
-            resp_object = json.loads(rsp)
-            resp_object[
+            rsp[
                 'debug'] = f"(aiCost: {cost}s, ioCost: $s, use: {openai_client.api_key[-4:]}, model: {openai_model})"
-            return json.dumps(resp_object)
+            return json.dumps(rsp)
         else:
             return rsp
 

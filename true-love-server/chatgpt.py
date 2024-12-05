@@ -60,10 +60,12 @@ class ChatGPT(ChatBot):
             response = requests.post(url, headers=headers, data=json.dumps(data))
 
             # 获取结果
-            rsp = response.json().get('data') or response.json().get('message')
+            rsp = response.json().get('data')
+            if rsp == '':
+                raise Exception("rep 返回为空")
         except Exception as e0:
             self.LOG.error("发送到chatgpt出错", e0)
-            rsp = {"type": "chat", "answer": "ai服务正在发版, 稍后再试试捏"}
+            rsp = {"type": "chat", "answer": "ai服务可用性受影响, 稍后再试试捏"}
         return rsp
 
     def send_sd(self, question, wxid, sender, img_path):
@@ -141,13 +143,11 @@ class ChatGPT(ChatBot):
     def get_answer_type(self, question: str, wxid: str, sender: str):
         start_time = time.time()
         self.LOG.info("开始发送给get_answer_type")
-        rsp = self.send_chatgpt(question, wxid, sender)
-        # 判断gpt分析的结果
-        result = json.loads(rsp)
+        result = self.send_chatgpt(question, wxid, sender)
         end_time = time.time()
         cost = round(end_time - start_time, 2)
         self.LOG.info(f"get_answer_type回答时间为：{cost}s, result:{result}")
-        result["ioCost"] = cost
+        result["ioCost"] = str(cost)
         return result
 
     def get_answer(self, question: str, wxid: str, sender: str):
