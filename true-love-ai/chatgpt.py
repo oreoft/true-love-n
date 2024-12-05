@@ -162,7 +162,8 @@ class ChatGPT:
             )
             # 获取stream查询
             rsp = {}
-            result = json.loads(fetch_stream(ret, True))
+            rsp_str = fetch_stream(ret, True)
+            result = json.loads(rsp_str)
             self.LOG.info(f"openai result :{result}")
             if result['type'] == 'search':
                 # 先去百度获取数据
@@ -185,11 +186,11 @@ class ChatGPT:
                     stream=True
                 )
                 # 获取stream查询
-                rsp = fetch_stream(ret)
+                rsp_str = fetch_stream(ret)
                 search_tail = f"\n- - - - - - - - - - - -\n\n🐾💩🕵：{result['answer']}"
-                rsp = {"type": "chat", "answer": rsp + search_tail}
+                rsp = {"type": "chat", "answer": rsp_str + search_tail}
                 self.LOG.info(f"openai+baidu:{rsp}")
-            self._update_message(wxid, rsp, "assistant")
+            self._update_message(wxid, rsp_str, "assistant")
         except Exception as e0:
             rsp = {"type": "chat", "answer": "发生未知错误, 稍后再试试捏"}
             self.LOG.exception('调用北美ai服务发生错误, msg: %s', e0)
