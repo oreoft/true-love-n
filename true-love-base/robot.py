@@ -94,10 +94,10 @@ class Robot:
         return {contact["UserName"]: contact["NickName"] for contact in contacts}
 
     def get_contacts_by_room_id(self, room_id) -> dict:
-        """
-        获取联系人（包括好友、公众号、服务号、群成员……）
-        格式: {"wxid": "NickName"}
-        """
-        crs = self.wcf.query_sql("MicroMsg.db", f"SELECT RoomData FROM ChatRoom WHERE ChatRoomName = '{room_id}';")
-        logging.info(f"crs: {crs}")
-        return {"data": crs}
+        """获取群成员
+         Args:
+           roomid (str): 群的 id
+        Returns:
+           Dict: 群成员列表: {wxid1: 昵称1, wxid2: 昵称2, ...}
+         """
+        return self.wcf.get_chatroom_members(room_id)
