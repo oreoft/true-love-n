@@ -19,7 +19,7 @@ class TrigTaskHandler:
         self.token: str = config.GITHUB.get("token")
         self.card_user: dict = config.CARD.get("card_user", {})
 
-    def run(self, question: str, sender: str) -> str:
+    def run(self, question: str, sender: str, room_id: str) -> str:
         if 'prod1' in question:
             if sender not in self.allowUser:
                 return "该执行任务您没有执行权限哦"
@@ -51,7 +51,7 @@ class TrigTaskHandler:
         if '查号' in question:
             return self.mc_cha_hao()
         if '抽签' in question:
-            return self.chou_qian(sender)
+            return self.chou_qian(room_id)
         return '该执行任务无法找到'
 
     @staticmethod

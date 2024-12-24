@@ -70,7 +70,7 @@ def get_by_room_id(room_id) -> dict:
         # 检查HTTP响应状态
         res.raise_for_status()
         LOG.info("get_all请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
-        return res.json().data
+        return res.json()['data']
     except Exception as e:
         LOG.info("get_all 失败", e)
     return {}

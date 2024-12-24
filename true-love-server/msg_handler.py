@@ -29,7 +29,7 @@ class MsgHandler:
         # 如果是执行任务
         if q.startswith('$执行'):
             self.LOG.info(f"收到:{msg.sender}, 执行任务:{q}")
-            return TrigTaskHandler().run(q, msg.sender)
+            return TrigTaskHandler().run(q, msg.sender, msg.roomid)
 
         # 如果是提醒任务
         if q.startswith('$提醒'):
