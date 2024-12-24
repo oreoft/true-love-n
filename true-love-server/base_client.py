@@ -10,6 +10,7 @@ config = Config()
 host = config.BASE_SERVER["host"]
 text_url = f"{host}/send/text"
 text_img = f"{host}/send/img"
+get_all_url = f"{host}/get/all"
 LOG = logging.getLogger("BaseClient")
 
 
@@ -53,6 +54,20 @@ def send_img(path, send_receiver):
     except Exception as e:
         LOG.info("send_img 失败", e)
     return ""
+
+
+def get_all() -> dict:
+    try:
+        start_time = time.time()
+        LOG.info("开始请求get_all内容")
+        res = requests.request("GET", get_all_url, timeout=(2, 60))
+        # 检查HTTP响应状态
+        res.raise_for_status()
+        LOG.info("get_all请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
+        return res.json().data
+    except Exception as e:
+        LOG.info("get_all 失败", e)
+    return {}
 
 
 if __name__ == "__main__":
