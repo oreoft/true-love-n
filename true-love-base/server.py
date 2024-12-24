@@ -35,7 +35,6 @@ def send_text():
     robot_g.send_text_msg(content, send_receiver, at_receiver)
 
     return SUCCESS_RES
-    pass
 
 
 @app.route('/send/img', methods=['post'])
@@ -49,7 +48,6 @@ def send_img():
         return SEND_ERROR_RES
 
     return SUCCESS_RES
-    pass
 
 
 @app.route('/get/all', methods=['get'])
@@ -58,7 +56,14 @@ def get_all():
         return ROBOT_MISS_ERROR_RES
 
     return {"code": 0, "message": "success", "data": robot_g.allContacts}
-    pass
+
+
+@app.route('/get/by/room-id', methods=['post'])
+def get_contacts_by_room_id():
+    if robot_g is None:
+        return ROBOT_MISS_ERROR_RES
+    room_id = flask.request.json.get('room_id', '')
+    return {"code": 0, "message": "success", "data": robot_g.get_contacts_by_room_id(room_id)}
 
 
 @app.before_request

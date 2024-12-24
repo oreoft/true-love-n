@@ -51,7 +51,7 @@ class TrigTaskHandler:
         if '查号' in question:
             return self.mc_cha_hao()
         if '抽签' in question:
-            return self.chou_qian()
+            return self.chou_qian(sender)
         return '该执行任务无法找到'
 
     @staticmethod
@@ -230,8 +230,8 @@ class TrigTaskHandler:
             return "骚瑞, 查号遇到错误, 请重试"
 
     @staticmethod
-    def chou_qian():
-        all = base_client.get_all()
+    def chou_qian(room_id):
+        all = base_client.get_by_room_id(room_id)
         if not all:
             return "抽取失败, 本次幸运鹅是我自己, 嘿嘿"
         random_value = random.choice(list(all.values()))

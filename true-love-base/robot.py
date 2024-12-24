@@ -92,3 +92,12 @@ class Robot:
         """
         contacts = self.wcf.query_sql("MicroMsg.db", "SELECT UserName, NickName FROM Contact;")
         return {contact["UserName"]: contact["NickName"] for contact in contacts}
+
+    def get_contacts_by_room_id(self, room_id) -> dict:
+        """
+        获取联系人（包括好友、公众号、服务号、群成员……）
+        格式: {"wxid": "NickName"}
+        """
+        crs = self.wcf.query_sql("MicroMsg.db", f"SELECT RoomData FROM ChatRoom WHERE ChatRoomName = '{room_id}';")
+        logging.info(f"crs: {crs}")
+        return {"data": crs}

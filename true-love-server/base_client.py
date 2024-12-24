@@ -10,7 +10,7 @@ config = Config()
 host = config.BASE_SERVER["host"]
 text_url = f"{host}/send/text"
 text_img = f"{host}/send/img"
-get_all_url = f"{host}/get/all"
+get_by_room_id_url = f"{host}/get/by/room-id"
 LOG = logging.getLogger("BaseClient")
 
 
@@ -56,11 +56,17 @@ def send_img(path, send_receiver):
     return ""
 
 
-def get_all() -> dict:
+def get_by_room_id(room_id) -> dict:
+    payload = json.dumps({
+        "room_id": room_id,
+    })
+    headers = {
+        'Content-Type': 'application/json'
+    }
     try:
         start_time = time.time()
         LOG.info("开始请求get_all内容")
-        res = requests.request("GET", get_all_url, timeout=(2, 60))
+        res = requests.request("POST", get_by_room_id_url, headers=headers, data=payload, timeout=(2, 60))
         # 检查HTTP响应状态
         res.raise_for_status()
         LOG.info("get_all请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
