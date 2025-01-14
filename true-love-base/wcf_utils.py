@@ -4,6 +4,7 @@ import os
 import pathlib
 import re
 import sys
+import time
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from enum import Enum
@@ -74,6 +75,10 @@ class ChatMsg:
             'type': self.type.value,
             'content': self.content
         }
+
+    def __str__(self) -> str:
+        """ 返回对象的字符串表示形式 """
+        return f"ChatMsg(type={self.type.value}, content={self.content})"
 
 
 class WcfUtils:
@@ -160,6 +165,10 @@ class WcfUtils:
                     dl_file = self.get_image(refer_id, refer_extra)
                     if dl_file:
                         return ChatMsg(ContentType.image, dl_file)
+                    else:
+                        LOG.warning("无法获取dl_file, 消息id=%s", str(refer_id))
+                else:
+                    LOG.warning("无法获取refer_extra, 消息id=%s", str(refer_id))
                 LOG.warning("无法获取引用图片, 消息id=%s", str(refer_id))
                 return ChatMsg(ContentType.ERROR, None)
 
@@ -242,7 +251,6 @@ class WcfUtils:
         Args:
             msgid (str): WxMsg的id
             sample_extra (str): 同个微信号正常消息的extra
-
         Returns:
             str: 消息extra, 若无法获取返回None
         """
@@ -307,9 +315,36 @@ class WcfUtils:
             return dl_file
 
         # 若不存在，调用wcf下载图片
-        dl_file = self.wcf.download_image(msgid, extra, temp_dir())
+        dl_file = self.download_with_retries(msgid, extra, temp_dir())
         if dl_file:
             return dl_file
+        return None
+
+    def download_with_retries(self, msgid, extra, temp_dir, max_retries=3, delay=2):
+        """下载文件并重试指定次数
+
+        Args:
+            msgid: 消息ID
+            extra: 附加信息
+            temp_dir: 临时目录
+            max_retries: 最大重试次数
+            delay: 重试前的等待时间（秒）
+
+        Returns:
+            下载的文件路径或 None 如果下载失败
+        """
+        attempt = 0
+        dl_file = None
+
+        while attempt < max_retries:
+            dl_file = self.wcf.download_image(msgid, extra, temp_dir)
+            if dl_file:
+                return dl_file
+            attempt += 1
+            LOG.warning(f"下载失败，正在重试 {attempt}/{max_retries}...")
+            time.sleep(delay)
+
+        LOG.error("下载失败，所有重试均已失败")
         return None
 
     @staticmethod

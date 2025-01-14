@@ -1,6 +1,3 @@
-import json
-import time
-
 import requests
 
 from configuration import Config
@@ -24,7 +21,7 @@ def get_chat(req: WxMsg):
     try:
         refer_chat = WcfUtils().get_refer_content(req)
         text_msg = WcfUtils().get_msg_text(req).strip()
-        LOG.info(f"获取refer内容为: {refer_chat}")
+        LOG.info(f"获取refer内容为: {str(refer_chat)}")
         # 构建传输对象
         payload = json.dumps({
             "token": config.http_token,
