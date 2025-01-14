@@ -30,15 +30,15 @@ class Robot:
                     if 'weixin' in msg.sender:
                         continue
                     self.LOG.info("监听到消息:[%s]", msg)
-                    # 进行消息转发回复
+                    # 如果群消息,并且艾特,转发
                     if msg.from_group() and (
                             msg.is_at(wcf.self_wxid) or '@真爱粉' in msg.content or 'zaf' in msg.content):
                         self.send_text_msg(self.forward_msg(msg), msg.roomid, msg.sender)
-                    elif msg.from_group():
-                        # 如果是群消息 但是没有艾特, 直接过
+                    # 如果是群消息 但是没有艾特, 直接过
+                    if msg.from_group():
                         continue
-                    else:
-                        self.send_text_msg(self.forward_msg(msg), msg.sender)
+                    # 剩下的都是私聊消息, 默认全部转发
+                    self.send_text_msg(self.forward_msg(msg), msg.sender)
                 except Empty:
                     continue  # Empty message
                 except Exception as e:

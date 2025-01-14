@@ -121,13 +121,16 @@ class WcfUtils:
         else:
             return None
 
-    def get_msg_text(self, msg: WxMsg) -> str:
+    def get_msg_content(self, msg: WxMsg) -> str:
         """ 返回消息的文字部分, 没有则返回空字符串"""
         if msg.type == 1:
             return msg.content
         if msg.type == 34:
             audio_file = self.wcf.get_audio_msg(msg.id, temp_dir())
             return audio_file
+        if msg.type == 3:
+            img_file = self.get_image(msg.id, msg.extra)
+            return img_file
         if msg.type == 49:  # 引用
             content = ET.fromstring(msg.content)
             title = content.find('appmsg/title')

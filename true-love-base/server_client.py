@@ -20,7 +20,7 @@ LOG = logging.getLogger("ServerClient")
 def get_chat(req: WxMsg):
     try:
         refer_chat = WcfUtils().get_refer_content(req)
-        text_msg = WcfUtils().get_msg_text(req).strip()
+        content_msg = WcfUtils().get_msg_content(req).strip()
         LOG.info(f"获取refer内容为: {str(refer_chat)}")
         # 构建传输对象
         payload = json.dumps({
@@ -34,7 +34,7 @@ def get_chat(req: WxMsg):
             "xml": req.xml,
             "sender": req.sender,
             "roomid": req.roomid,
-            "content": text_msg,
+            "content": content_msg,
             # "thumb": req.thumb,
             # "extra": req.extra,
             "refer_chat": refer_chat.to_dict() if refer_chat else None

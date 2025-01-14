@@ -75,12 +75,24 @@ class MsgHandler:
         if msg.type == 1:
             return handler.get_answer(q, (msg.roomid if msg.from_group() else msg.sender), msg.sender)
 
+        # 如果是私聊,并且是图片, 直接进行分析
+        if msg.type == 3 and not msg.from_group():
+            return handler.gen_img_by_img('请分析图片或者回答图片内容', msg.refer_chat['content'],
+                                          (msg.roomid if msg.from_group() else msg.sender),
+                                          msg.sender)
+
         # 如果是语音消息, 那么去asr一下
         if msg.type == 34:
             return handler.get_answer(do_asr(msg.content), (msg.roomid if msg.from_group() else msg.sender),
                                       msg.sender)
         # 其他类型
         return "啊哦~ 现在这个消息暂时我还看不懂, 但我会持续学习的~"
+
+    @staticmethod
+    def is_pure_link(text):
+        # 正则表达式用于检测是否为URL
+        url_pattern = re.compile(r'^(https?://\S+)$')
+        return bool(url_pattern.match(text.strip()))
 
     @staticmethod
     def crawl_content(url):
