@@ -54,13 +54,16 @@ class MsgHandler:
 
         # 如果是引用文本或者链接消息, 那么拼接一下引用的内容
         if msg.refer_chat and msg.refer_chat['type'] in [1, 4, 5]:
-            # 文本消息, 去爬虫一下链接
+            #  默认文本消息
+            refer_text = msg.refer_chat['content']
+            url = self.extract_first_link(msg.refer_chat['content'])
+            # 如果是文本但是含链接
+            if msg.refer_chat['type'] in [1] and url is not None:
+                refer_text = self.crawl_content(url)
+            # 如果是链接, 去爬虫
             if msg.refer_chat['type'] in [4, 5]:
-                msg.refer_chat['content'] = json.loads(msg.refer_chat['content'])
-                msg.refer_chat['content']['content'] = self.crawl_content(msg.refer_chat['content']['url'])
-            if msg.refer_chat['type'] in [1]:
-                msg.refer_chat['content'] = self.extract_first_link(msg.refer_chat['content'])
-            q = f"{q}, quoted content:{msg.refer_chat['content']}"
+                refer_text = self.crawl_content(json.loads(msg.refer_chat['content']['url']))
+            q = f"{q}, quoted content:{refer_text}"
             LOG.info(f"收到引用文本, 现在get_answer:{q}")
             return handler.get_answer(q, (msg.roomid if msg.from_group() else msg.sender), msg.sender)
         # 如果引用语音消息或者附件为语音, 那么去asr一下
