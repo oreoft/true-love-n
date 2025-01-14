@@ -77,7 +77,7 @@ class MsgHandler:
 
         # 如果是私聊,并且是图片, 直接进行分析
         if msg.type == 3 and not msg.from_group():
-            return handler.gen_img_by_img('请分析图片或者回答图片内容', msg.refer_chat['content'],
+            return handler.gen_img_by_img('请分析图片或者回答图片内容', msg.content,
                                           (msg.roomid if msg.from_group() else msg.sender),
                                           msg.sender)
 
