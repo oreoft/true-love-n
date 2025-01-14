@@ -71,6 +71,12 @@ class MsgHandler:
         if msg.refer_chat:
             return "啊哦~ 现在这个类型引用我还看不懂, 不如你把内容复制出来给我看看呢"
 
+        # 如果是文本消息, 并且包含链接
+        url = self.extract_first_link(q)
+        if msg.type == 1 and url is not None:
+            q = f"{q}, quoted content:{self.crawl_content(url)}"
+            return handler.get_answer(q, (msg.roomid if msg.from_group() else msg.sender), msg.sender)
+
         # 如果是文本消息
         if msg.type == 1:
             return handler.get_answer(q, (msg.roomid if msg.from_group() else msg.sender), msg.sender)
@@ -89,10 +95,13 @@ class MsgHandler:
         return "啊哦~ 现在这个消息暂时我还看不懂, 但我会持续学习的~"
 
     @staticmethod
-    def is_pure_link(text):
-        # 正则表达式用于检测是否为URL
-        url_pattern = re.compile(r'^(https?://\S+)$')
-        return bool(url_pattern.match(text.strip()))
+    def extract_first_link(text):
+        # 正则表达式用于检测文本中的所有URL
+        url_pattern = re.compile(r'https?://[^\s]+')
+        match = url_pattern.search(text)
+        if match:
+            return match.group()  # 返回第一个匹配的链接
+        return None  # 如果没有匹配，返回 None
 
     @staticmethod
     def crawl_content(url):
