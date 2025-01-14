@@ -11,7 +11,7 @@ from trig_search_handler import TrigSearchHandler
 from trig_task_handler import TrigTaskHandler
 
 handler = ChatMsgHandler()
-
+LOG = logging.getLogger("MsgHandler")
 
 class MsgHandler:
 
@@ -61,6 +61,7 @@ class MsgHandler:
             if msg.refer_chat['type'] in [1]:
                 msg.refer_chat['content'] = self.extract_first_link(msg.refer_chat['content'])
             q = f"{q}, quoted content:{msg.refer_chat['content']}"
+            LOG.info(f"收到引用文本, 现在get_answer:{q}")
             return handler.get_answer(q, (msg.roomid if msg.from_group() else msg.sender), msg.sender)
         # 如果引用语音消息或者附件为语音, 那么去asr一下
         if msg.refer_chat and (msg.refer_chat['type'] in [34]
