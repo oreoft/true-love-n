@@ -58,6 +58,9 @@ class MsgHandler:
             if msg.refer_chat['type'] in [4, 5]:
                 msg.refer_chat['content'] = json.loads(msg.refer_chat['content'])
                 msg.refer_chat['content']['content'] = self.crawl_content(msg.refer_chat['content']['url'])
+            if msg.refer_chat['type'] in [1]:
+                msg.refer_chat['content'] = json.loads(msg.refer_chat['content'])
+                msg.refer_chat['content']['content'] = self.extract_first_link(msg.refer_chat['content'])
             q = f"{q}, quoted content:{msg.refer_chat['content']}"
             return handler.get_answer(q, (msg.roomid if msg.from_group() else msg.sender), msg.sender)
         # 如果引用语音消息或者附件为语音, 那么去asr一下
