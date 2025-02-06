@@ -261,7 +261,7 @@ class ChatGPT:
         self._update_message(wxid, question.replace("debug", "", 1) if question else '你好', "user")
         start_time = time.time()
         self.LOG.info("开始发送给chatgpt， 其中real_model: %s", openai_model)
-        rsp = self.send_chatgpt(claude_model, wxid)
+        rsp = self.send_chatgpt(openai_model, wxid)
         end_time = time.time()
         cost = round(end_time - start_time, 2)
         self.LOG.info("chat回答时间为：%s 秒", cost)
