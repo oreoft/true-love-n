@@ -9,14 +9,15 @@ from datetime import datetime
 from io import BytesIO
 from urllib.parse import quote_plus
 
-import httpx
 import requests
-from openai import OpenAI
+from litellm import Router
 
 from configuration import Config
 
 name = "chatgpt"
+openai_vision_model = "gpt-4o"
 openai_model = "gpt-4o"
+claude_model = "claude-3-5-sonnet-20241022"
 baidu_curl = ("curl --location 'https://www.baidu.com/s?wd=%s&tn=json' "
               "--header 'User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1'")
 sd_url = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
@@ -31,68 +32,93 @@ sd_url_map = {'gen_by_img': sd_gen_url,
               }
 
 type_answer_call = [
-    {"name": "type_answer",
-     "description": "type_answer",
-     "parameters": {
-         "type": "object",
-         "properties": {
-             "type": {
-                 "type": "string",
-                 "description": "the type of question, "
-                                "if user wants you to generate images, please return the 'gen-img', "
-                                "if it is a normal chat, please return the 'chat', "
-                                "if the content requires online search You search in context first "
-                                "and if there is no information, please return the 'search'"
-             },
-             "answer": {
-                 "type": "string",
-                 "description": "the answer of content, "
-                                "if type is 'chat', please put your answer in this field, "
-                                "if type is 'gen-img', "
-                                "Please combine the context to give the descriptive words needed to generate the image."
-                                "if type is 'search', 请在此字段中返回要搜索的内容关键词, 必须是中文, "
-                                "如果其他类型, This can be empty, "
-             },
-         },
-         "required": ["type", "answer"]
-     }
-     }]
+    {
+        "type": "function",
+        "function": {
+            "name": "type_answer",
+            "description": "type_answer",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "description": "the type of question, "
+                                       "if user wants you to generate images, please return the 'gen-img', "
+                                       "if it is a normal chat, please return the 'chat', "
+                                       "if the content requires online search You search in context first "
+                                       "and if there is no information, please return the 'search'"
+                    },
+                    "answer": {
+                        "type": "string",
+                        "description": "the answer of content, "
+                                       "if type is 'chat', please put your answer in this field, "
+                                       "if type is 'gen-img', "
+                                       "Please combine the context to give the descriptive words needed to generate the image."
+                                       "if type is 'search', 请在此字段中返回要搜索的内容关键词, 必须是中文, "
+                                       "如果其他类型, This can be empty, "
+                    },
+                },
+                "required": [
+                    "type",
+                    "answer"
+                ]
+            }
+        }
+    }
+]
 
 img_type_answer_call = [
-    {"name": "img_type_answer_call",
-     "description": "img_type_answer_call",
-     "parameters": {
-         "type": "object",
-         "properties": {
-             "type": {
-                 "type": "string",
-                 "description": "Based on the user description, determine which of the following types it belongs to: "
-                                "generate image (gen_by_img), "
-                                "erase object from image (erase_img), "
-                                "replace object in image (replace_img), "
-                                "analyzing or interpreting image (analyze_img), "
-                                "remove image background (remove_background_img). "
-                                "Please provide the type."
-             },
-             "answer": {
-                 "type": "string",
-                 "description": "Here is your translation and colorization answer, please put your answer in this field"
-             },
-         },
-         "required": ["type", "answer"]
-     }
-     }]
+    {
+        "type": "function",
+        "function": {
+            "name": "img_type_answer_call",
+            "description": "img_type_answer_call",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "description": "Based on the user description, determine which of the following types it belongs to: "
+                                       "generate image (gen_by_img), "
+                                       "erase object from image (erase_img), "
+                                       "replace object in image (replace_img), "
+                                       "analyzing or interpreting image (analyze_img), "
+                                       "remove image background (remove_background_img). "
+                                       "Please provide the type."
+                    },
+                    "answer": {
+                        "type": "string",
+                        "description": "Here is your translation and colorization answer, please put your answer in this field"
+                    },
+                },
+                "required": [
+                    "type",
+                    "answer"
+                ]
+            }
+        }
+    }
+]
 
 
 def fetch_stream(ret, is_f=False):
     rsp = ''
     for stream_res in ret:
-        if is_f:
-            if stream_res.choices[0].delta.function_call:
-                rsp += stream_res.choices[0].delta.function_call.arguments.replace('\n\n', '\n')
-        else:
-            if stream_res.choices[0].delta.content:
-                rsp += stream_res.choices[0].delta.content.replace('\n\n', '\n')
+        try:
+            if is_f:
+                # 处理函数/工具调用
+                if stream_res.choices[0].delta.tool_calls:
+                    tool_call = stream_res.choices[0].delta.tool_calls[0]
+                    if tool_call.function.arguments:
+                        rsp += tool_call.function.arguments.replace('\n\n', '\n')
+            else:
+                # 处理普通文本内容
+                if stream_res.choices[0].delta.content:
+                    rsp += stream_res.choices[0].delta.content.replace('\n\n', '\n')
+        except Exception as e:
+            print(f"Error processing stream response: {e}")
+            continue
+
     return rsp
 
 
@@ -101,20 +127,36 @@ class ChatGPT:
     def __init__(self) -> None:
         self.LOG = logging.getLogger("ChatGPT")
         self.config = Config().LLM_BOT
-        # 是否有代理代理
-        proxy = self.config.get("proxy")
-        if proxy:
-            http_client = httpx.Client(proxies=proxy)
-        else:
-            http_client = httpx.Client()
-        # openai池子
-        self.openai_pool = [
-            OpenAI(timeout=30, api_key=self.config.get("key1"), http_client=http_client),
-            OpenAI(timeout=30, api_key=self.config.get("key2"), http_client=http_client),
-            OpenAI(timeout=30, api_key=self.config.get("key3"), http_client=http_client),
-        ]
-        # 轮训负载openai池子的计数器
-        self.count = 0
+        self.router = Router(model_list=[
+            {
+                "model_name": openai_model,
+                "litellm_params": {
+                    "model": openai_model,
+                    "api_key": self.config.get('key1')
+                }
+            },
+            {
+                "model_name": openai_model,
+                "litellm_params": {
+                    "model": openai_model,
+                    "api_key": self.config.get('key2')
+                }
+            },
+            {
+                "model_name": openai_model,
+                "litellm_params": {
+                    "model": openai_model,
+                    "api_key": self.config.get('key3')
+                }
+            },
+            {
+                "model_name": claude_model,
+                "litellm_params": {
+                    "model": claude_model,
+                    "api_key": self.config.get('claude_key1')
+                }
+            }
+        ])
         # 对话历史容器
         self.conversation_list = {}
         # 提示词加载
@@ -131,14 +173,13 @@ class ChatGPT:
 
     def send_gpt_by_message(self, messages, function_call=None, functions=None):
         try:
-
             # 发送请求
-            ret = self.train_openai_client().chat.completions.create(
+            ret = self.router.completion(
                 model=openai_model,
                 messages=messages,
                 temperature=0.2,
-                function_call=function_call,
-                functions=functions,
+                tool_choice=function_call,
+                tools=functions,
                 stream=True
             )
             # 获取stream查询
@@ -148,16 +189,16 @@ class ChatGPT:
             self.LOG.error(str(e0))
         return rsp
 
-    def send_chatgpt(self, real_model, wxid, openai_client) -> dict:
+    def send_chatgpt(self, real_model, wxid) -> dict:
         try:
             # 发送请求
             question = self.conversation_list[wxid][-1]
-            ret = openai_client.chat.completions.create(
+            ret = self.router.completion(
                 model=real_model,
                 messages=self.conversation_list[wxid],
                 temperature=0.2,
-                function_call={"name": "type_answer"},
-                functions=type_answer_call,
+                tool_choice={"type": "function", "function": {"name": "type_answer"}},
+                tools=type_answer_call,
                 stream=True
             )
             # 获取stream查询
@@ -179,7 +220,7 @@ class ChatGPT:
                                           "另外如果你不知道回答，请不要不要胡说. "
                                           "如果用户要求文章或者链接请你把最相关的参考链接给出(参考链接必须在上下文出现过)"}
                 # 然后再拿结果去问chatgpt
-                ret = openai_client.chat.completions.create(
+                ret = self.router.completion(
                     model=real_model,
                     messages=self.conversation_list[wxid] + [refer_prompt, temp_prompt, question],
                     temperature=0.2,
@@ -218,20 +259,19 @@ class ChatGPT:
 
     def get_answer(self, question: str, wxid: str, sender: str) -> dict:
         self._update_message(wxid, question.replace("debug", "", 1) if question else '你好', "user")
-        openai_client = self.train_openai_client()
         start_time = time.time()
-        self.LOG.info("开始发送给chatgpt， 其中real_key: %s, real_model: %s", openai_client.api_key[-4:], openai_model)
-        rsp = self.send_chatgpt(openai_model, wxid, openai_client)
+        self.LOG.info("开始发送给chatgpt， 其中real_model: %s", openai_model)
+        rsp = self.send_chatgpt(claude_model, wxid)
         end_time = time.time()
         cost = round(end_time - start_time, 2)
         self.LOG.info("chat回答时间为：%s 秒", cost)
         if question.startswith('debug'):
             rsp[
-                'debug'] = f"(aiCost: {cost}s, ioCost: $s, use: {openai_client.api_key[-4:]}, model: {openai_model})"
+                'debug'] = f"(aiCost: {cost}s, ioCost: $s, model: {openai_model})"
         return rsp
 
     def _update_message(self, wxid: str, aq: str, role: str) -> None:
-        time_mk = f"当需要回答时间时请直接参考回复(请注意这是美国中部时间, 另外别人问你是否可以联网你需要说我已经接入谷歌搜索, 知识库最新消息是当前时间): {str(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}"
+        time_mk = f"当需要回答当前时间或者关于当前日期类问题, 请直接参考这个时间: {str(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}(请注意这是美国中部时间, 你可以告诉别人你使用的时区), 另外用户提升是否可以联网你需要说我已经接入谷歌搜索, 并且知识库最新消息是: {str(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}"
         # 初始化聊天记录,组装系统信息
         if wxid not in self.conversation_list.keys():
             self.conversation_list[wxid] = [
@@ -253,12 +293,11 @@ class ChatGPT:
 
     def get_analyze_by_img(self, content, img_data, wxid):
         self._update_message(wxid, content.replace("debug", "", 1), "user")
-        openai_client = self.train_openai_client()
         try:
             start_time = time.time()
             self.LOG.info("get_analyze_by_img start")
-            ret = self.train_openai_client().chat.completions.create(
-                model='gpt-4o',
+            ret = self.router.completion(
+                model=openai_vision_model,
                 messages=[
                     self.system_content_msg6,
                     {"role": "user", "content": [
@@ -278,7 +317,7 @@ class ChatGPT:
             # 更新返回值
             self._update_message(wxid, result, "assistant")
             if content.startswith('debug'):
-                result = result + '\n\n' + f"aiCost: {cost}s, use: {openai_client.api_key[-4:]}, model: {openai_model})"
+                result = result + '\n\n' + f"aiCost: {cost}s, use: {'12123'[-4:]}, model: {openai_model})"
             return result
         except requests.Timeout:
             self.LOG.error(f"get_analyze_by_img timeout")
@@ -296,7 +335,7 @@ class ChatGPT:
                     self.system_content_msg5,
                     {"role": "user", "content": content}
                 ],
-                function_call={"name": "img_type_answer_call"},
+                function_call={"type": "function", "function": {"name": "img_type_answer_call"}},
                 functions=img_type_answer_call,
             )
             self.LOG.info(f"ds.typeAndPrompt cost:[{(time.time() - start_time) * 1000}ms] result:{image_prompt}")
@@ -383,10 +422,6 @@ class ChatGPT:
         except Exception:
             self.LOG.exception(f"generate_image_with_sd error")
             raise
-
-    def train_openai_client(self):
-        self.count += 1
-        return self.openai_pool[self.count % 3]
 
 
 if __name__ == "__main__":
