@@ -9,6 +9,7 @@ from datetime import datetime
 from io import BytesIO
 from urllib.parse import quote_plus
 
+import litellm
 import requests
 from litellm import Router
 
@@ -18,6 +19,9 @@ name = "chatgpt"
 openai_vision_model = "gpt-4o"
 openai_model = "gpt-4o"
 claude_model = "claude-3-5-sonnet-20241022"
+ds_model = "deepseek/deepseek-reasoner"
+current_model = claude_model
+litellm.modify_params = True
 baidu_curl = ("curl --location 'https://www.baidu.com/s?wd=%s&tn=json' "
               "--header 'User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1'")
 sd_url = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
@@ -155,6 +159,13 @@ class ChatGPT:
                     "model": claude_model,
                     "api_key": self.config.get('claude_key1')
                 }
+            },
+            {
+                "model_name": ds_model,
+                "litellm_params": {
+                    "model": ds_model,
+                    "api_key": self.config.get('ds_key1')
+                }
             }
         ])
         # 对话历史容器
@@ -175,7 +186,7 @@ class ChatGPT:
         try:
             # 发送请求
             ret = self.router.completion(
-                model=openai_model,
+                model=current_model,
                 messages=messages,
                 temperature=0.2,
                 tool_choice=function_call,
@@ -260,14 +271,14 @@ class ChatGPT:
     def get_answer(self, question: str, wxid: str, sender: str) -> dict:
         self._update_message(wxid, question.replace("debug", "", 1) if question else '你好', "user")
         start_time = time.time()
-        self.LOG.info("开始发送给chatgpt， 其中real_model: %s", openai_model)
-        rsp = self.send_chatgpt(openai_model, wxid)
+        self.LOG.info("开始发送给chatgpt， 其中real_model: %s", current_model)
+        rsp = self.send_chatgpt(current_model, wxid)
         end_time = time.time()
         cost = round(end_time - start_time, 2)
         self.LOG.info("chat回答时间为：%s 秒", cost)
         if question.startswith('debug'):
             rsp[
-                'debug'] = f"(aiCost: {cost}s, ioCost: $s, model: {openai_model})"
+                'debug'] = f"(aiCost: {cost}s, ioCost: $s, model: {current_model})"
         return rsp
 
     def _update_message(self, wxid: str, aq: str, role: str) -> None:
@@ -317,7 +328,7 @@ class ChatGPT:
             # 更新返回值
             self._update_message(wxid, result, "assistant")
             if content.startswith('debug'):
-                result = result + '\n\n' + f"aiCost: {cost}s, use: {'12123'[-4:]}, model: {openai_model})"
+                result = result + '\n\n' + f"aiCost: {cost}s, use: {'12123'[-4:]}, model: {current_model})"
             return result
         except requests.Timeout:
             self.LOG.error(f"get_analyze_by_img timeout")
