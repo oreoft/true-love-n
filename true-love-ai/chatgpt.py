@@ -240,13 +240,26 @@ class ChatGPT:
                 # 获取stream查询
                 rsp_str = fetch_stream(ret)
                 search_tail = f"\n- - - - - - - - - - - -\n\n🐾💩🕵：{result['answer']}"
-                rsp = {"type": "chat", "answer": rsp_str + search_tail}
+                rsp = {"type": "chat", "answer": rsp_str + self.extract_answer(rsp_str)}
                 self.LOG.info(f"openai+baidu:{rsp}")
             self._update_message(wxid, rsp_str, "assistant")
         except Exception as e0:
             rsp = {"type": "chat", "answer": "发生未知错误, 稍后再试试捏"}
             self.LOG.exception('调用北美ai服务发生错误, msg: %s', e0)
         return rsp
+
+    @staticmethod
+    def extract_answer(rsp_str):
+        try:
+            # 尝试解析 JSON
+            data = json.loads(rsp_str)
+            # 检查是否有 'answer' 字段
+            if isinstance(data, dict) and 'answer' in data:
+                return data['answer']
+            else:
+                return rsp_str
+        except json.JSONDecodeError:
+            return rsp_str
 
     def fetch_refer_baidu(self, result):
         reference_list = []
