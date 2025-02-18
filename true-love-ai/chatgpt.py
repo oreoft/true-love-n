@@ -240,7 +240,7 @@ class ChatGPT:
                 # 获取stream查询
                 rsp_str = fetch_stream(ret)
                 search_tail = f"\n- - - - - - - - - - - -\n\n🐾💩🕵：{result['answer']}"
-                rsp = {"type": "chat", "answer": rsp_str + self.extract_answer(rsp_str)}
+                rsp = {"type": "chat", "answer": self.extract_answer(rsp_str) + search_tail}
                 self.LOG.info(f"openai+baidu:{rsp}")
             self._update_message(wxid, rsp_str, "assistant")
         except Exception as e0:
