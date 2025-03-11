@@ -230,7 +230,7 @@ def get_moyu_url_by_wx():
 
     from bs4 import BeautifulSoup
 
-    url = "https://mp.weixin.qq.com/mp/appmsgalbum?action=getalbum&album_id=2190548434338807809"
+    url = "https://mp.weixin.qq.com/mp/appmsgalbum?action=getalbum&album_id=3743225907507462153"
     # 发送 POST 请求
     response = requests.get(url)
 
@@ -255,29 +255,41 @@ def get_moyu_url_by_wx():
 
 
 def send_to_jina(link):
-    jina_url = 'https://r.jina.ai/'
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36'}
-    response = requests.get(jina_url + link, headers=headers)
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36'
+    }
+    response = requests.get(link, headers=headers)
 
     if response.status_code == 200:
-        # 解析 Markdown 文本
-        markdown_content = response.text
-        return extract_image_link(markdown_content, "今天你摸鱼了吗？")
+        # 使用BeautifulSoup解析HTML
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # 查找包含目标文本的元素
+        target_text = "今天你摸鱼了吗？"
+        found_target = False
+        
+        # 遍历所有元素
+        for element in soup.descendants:
+            # 如果是文本节点且包含目标文本
+            if isinstance(element, str) and target_text in element:
+                found_target = True
+                continue
+            
+            # 如果已经找到目标文本，查找下一个图片
+            if found_target and element.name == 'img' and element.get('data-src'):
+                image_url = element['data-src']
+                # 确保URL是完整的
+                if not image_url.startswith('http'):
+                    image_url = 'https:' + image_url
+                logging.info(f"Found image URL after target text: {image_url}")
+                return image_url
+        
+        logging.error("No suitable image found after target text in the article")
+        return None
     else:
-        logging.error(f"send_to_jina Failed to fetch data from Jina. Status code:{response.status_code}")
-
-
-def extract_image_link(markdown_text, target_text):
-    # 使用正则表达式查找目标文本后的第一个图片链接
-    pattern = re.compile(rf'{re.escape(target_text)}.*?\!\[.*?\]\((.*?)\)', re.DOTALL)
-    match = pattern.search(markdown_text)
-    if match:
-        image_url = match.group(1)
-        logging.info(f"Image URL: {image_url}")
-        return image_url.replace('&tp=webp', '')
-    else:
-        logging.error("extract_image_link No image found after the target text.")
+        logging.error(f"Failed to fetch data from WeChat article. Status code:{response.status_code}")
+        return None
 
 
 def get_current_date_utc8():
