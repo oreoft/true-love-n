@@ -204,7 +204,7 @@ def download_zao_bao_file():
     full_file_path = os.path.join(download_directory, local_filename)
 
     # 获取文件内容
-    url = "https://v2.alapi.cn/api/zaobao"
+    url = "https://v3.alapi.cn/api/zaobao"
     payload = "token=ODECJI71rCNDt6DO&format=image"
     headers = {'Content-Type': "application/x-www-form-urlencoded"}
     response = requests.request("POST", url, data=payload, headers=headers)
