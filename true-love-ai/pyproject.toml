@@ -1,0 +1,12 @@
+[project]
+name = "true-love-ai"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=3.1.2",
+    "flask-cors>=6.0.2",
+    "litellm>=1.80.9",
+    "pyyaml>=6.0.3",
+    "requests>=2.32.5",
+]

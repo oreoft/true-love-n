@@ -1,0 +1,15 @@
+[project]
+name = "true-love-server"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.12"
+dependencies = [
+    "apscheduler>=3.11.1",
+    "bs4>=0.0.2",
+    "flask>=3.1.2",
+    "pytz>=2025.2",
+    "pyunit-time>=2024.7.3",
+    "pyyaml>=6.0.3",
+    "requests>=2.32.5",
+    "schedule>=1.2.2",
+]
