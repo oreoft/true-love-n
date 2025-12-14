@@ -51,11 +51,18 @@ jobs:
             fi
             uv sync --locked
           
-            # 保证 Node.js 安装
+            # 保证 Node.js 安装 (使用 nvm，兼容所有 Linux)
+            export NVM_DIR="$HOME/.nvm"
+            if [ ! -d "$NVM_DIR" ]; then
+                echo "nvm not found, installing..."
+                curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+            fi
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             if ! command -v node >/dev/null 2>&1; then
-                echo "Node.js not found, installing..."
-                curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-                apt-get install -y nodejs
+                echo "Node.js not found, installing via nvm..."
+                nvm install 20
+                nvm use 20
+                nvm alias default 20
             else
                 echo "Node.js already installed: $(node -v)"
             fi
@@ -64,7 +71,7 @@ jobs:
             if ! command -v pm2 >/dev/null 2>&1; then
                 echo "pm2 not found, installing..."
                 npm install -g pm2
-                pm2 startup systemd
+                pm2 startup
             else
                 echo "pm2 already installed."
             fi
