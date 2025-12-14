@@ -35,47 +35,14 @@ jobs:
       - name: Execute ai Commands Over SSH
         run: |
           ssh -o StrictHostKeyChecking=no -p ${{ secrets.SER1_PROXY_PORT }} ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} << 'EOF'
+            set -e
             cd /root/true-love-n/true-love-ai
-            git pull
           
-            # 保证uv 安装
-            if ! command -v uv >/dev/null 2>&1; then
-                echo "uv not found, installing..."
-                curl -LsSf https://astral.sh/uv/install.sh | sh
-                if ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' ~/.bashrc; then
-                    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-                fi
-                export PATH="$HOME/.local/bin:$PATH"
-            else
-                echo "uv already installed."
-            fi
+            git pull
             uv sync --locked
           
-            # 保证 Node.js 安装 (使用 nvm，兼容所有 Linux)
-            export NVM_DIR="$HOME/.nvm"
-            if [ ! -d "$NVM_DIR" ]; then
-                echo "nvm not found, installing..."
-                curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-            fi
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            if ! command -v node >/dev/null 2>&1; then
-                echo "Node.js not found, installing via nvm..."
-                nvm install 20
-                nvm use 20
-                nvm alias default 20
-            else
-                echo "Node.js already installed: $(node -v)"
-            fi
-          
-            # 保证 pm2 安装
-            if ! command -v pm2 >/dev/null 2>&1; then
-                echo "pm2 not found, installing..."
-                npm install -g pm2
-                pm2 startup
-            else
-                echo "pm2 already installed."
-            fi
-            pm2 restart ecosystem.config.js --update-env && pm2 save
+            pm2 restart ecosystem.config.js --update-env
+            pm2 save
           EOF
 
       - name: Notify - ai Success
