@@ -1,0 +1,49 @@
+[Unit]
+Description=app true-love-server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Slice=app.slice
+
+# 过滤服务前缀
+# systemctl list-units 'app-*' --查看所有app开头的服务
+# systemctl status app.slice --查看所有slice分组状态
+# systemctl list-units | grep app --按照tag过滤
+
+# 首次部署（只需执行一次, 请手动执行）：
+# install -m 0644 app-tl-server.service /etc/systemd/system/app-tl-server.service
+# systemctl daemon-reload
+# systemctl enable app-tl-ai
+# systemctl start app-tl-ai
+# systemctl status app-tl-ai
+
+# === pm2: cwd ===
+WorkingDirectory=/root/true-love-n/true-love-server
+
+# === pm2: env ===
+Environment=APP_ENV=prod
+
+# === pm2: interpreter + script ===
+ExecStart=/root/true-love-n/true-love-server/.venv/bin/python main.py
+
+# === pm2: autorestart ===
+Restart=always
+RestartSec=2
+
+# === pm2: time + log_date_format ===
+# journald 自带时间戳（ISO-8601），比 pm2 稳
+StandardOutput=journal
+StandardError=journal
+
+# 建议指定运行用户
+User=root
+Group=root
+
+# 优雅退出
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

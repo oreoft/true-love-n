@@ -5,14 +5,13 @@ on:
     branches: [ "master" ]
     paths:
       - "true-love-ai/**"
-      - ".github/workflows/true-love-ai.yml"
+      - ".github/workflows/true-love-server.yml"
 
 env:
-  SERVER_IP: ${{ secrets.PROXY_HOST }}
-  SERVER_PORT: ${{ secrets.SER1_PROXY_PORT }}
-  SERVER_USER: root
+  SERVER_IP: ${{ secrets.M8S_PROXY_HOST }}
+  SERVER_PORT: ${{ secrets.M8S_PROXY_HOST }}
+  SERVER_USER: admin
   SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
-
 
 permissions:
   contents: read
