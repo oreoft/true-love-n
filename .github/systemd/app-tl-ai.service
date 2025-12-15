@@ -17,6 +17,7 @@ Slice=app.slice
 # systemctl daemon-reload
 # systemctl enable app-tl-ai
 # systemctl start app-tl-ai
+# systemctl status app-tl-ai
 
 # === pm2: cwd ===
 WorkingDirectory=/root/true-love-n/true-love-ai
