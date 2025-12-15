@@ -37,10 +37,23 @@ jobs:
           ssh -o StrictHostKeyChecking=no -p ${{ env.SERVER_PORT }} ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} << 'EOF'
             set -e
             cd /root/true-love-n/true-love-ai
-          
             git pull
+          
+            # 保证uv 安装
+            if ! command -v uv >/dev/null 2>&1; then
+                echo "uv not found, installing..."
+                curl -LsSf https://astral.sh/uv/install.sh | sh
+                if ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' ~/.bashrc; then
+                    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+                fi
+                export PATH="$HOME/.local/bin:$PATH"
+            else
+                echo "uv already installed."
+            fi
+            # 同步
             uv sync --locked
-            systemctl restart app-tl-ai
+            # 重启
+            systemctl restart app-tl-server
           EOF
 
       - name: Notify - ai Success

@@ -15,9 +15,9 @@ Slice=app.slice
 # 首次部署（只需执行一次, 请手动执行）：
 # install -m 0644 app-tl-server.service /etc/systemd/system/app-tl-server.service
 # systemctl daemon-reload
-# systemctl enable app-tl-ai
-# systemctl start app-tl-ai
-# systemctl status app-tl-ai
+# systemctl enable app-tl-server
+# systemctl start app-tl-server
+# systemctl status app-tl-server
 
 # === pm2: cwd ===
 WorkingDirectory=/root/true-love-n/true-love-server
