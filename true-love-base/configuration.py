@@ -25,6 +25,8 @@ class Config(object):
         self.set_logging()
         self.master_wix = self.config["master_wix"]
         self.http_token = self.config["http_token"]
+        # Optional: default chats to listen on startup
+        self.default_listen_chats: list[str] = self.config.get("default_listen_chats", [])
 
     @staticmethod
     def _load_config() -> dict:

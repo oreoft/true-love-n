@@ -1,10 +1,18 @@
 [project]
 name = "true-love-base"
-version = "0.1.0"
-description = "Add your description here"
-requires-python = ">=3.12"
+version = "0.2.0"
+description = "WeChat message processing service based on wxautox4"
+requires-python = "==3.12.*"
 dependencies = [
     "flask>=3.1.2",
     "pyyaml>=6.0.3",
     "requests>=2.32.5",
+    "wxautox4>=40.1.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "mypy>=1.0.0",
 ]

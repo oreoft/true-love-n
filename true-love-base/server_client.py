@@ -1,83 +1,123 @@
+# -*- coding: utf-8 -*-
+"""
+Server Client - 与后端 AI 服务通信
+
+负责将消息发送到后端服务处理，并返回回复。
+"""
+
+import logging
+import time
+from typing import Optional
+
 import requests
 
 from configuration import Config
-from wcf_utils import *
-from wcf_utils import WcfUtils
+from models.message import BaseMessage
+from models.api import ChatRequest, ChatResponse
 
 config = Config()
-
-# 熔断器状态
-circuit_breaker = {
-    "fail_count": 0,
-    "last_fail_time": 0
-}
-
-host = "http://localhost:8088"
-text_url = f"{host}/get-chat"
 LOG = logging.getLogger("ServerClient")
 
+# 服务端配置
+SERVER_HOST = "http://localhost:8088"
+CHAT_ENDPOINT = f"{SERVER_HOST}/get-chat"
 
-def get_chat(req: WxMsg):
+# 熔断器配置
+CIRCUIT_BREAKER = {
+    "fail_count": 0,
+    "last_fail_time": 0,
+    "threshold": 3,  # 失败阈值
+    "reset_timeout": 60,  # 重置超时（秒）
+}
+
+
+def _reset_circuit_breaker():
+    """重置熔断器状态"""
+    CIRCUIT_BREAKER["fail_count"] = 0
+    CIRCUIT_BREAKER["last_fail_time"] = 0
+
+
+def _record_failure():
+    """记录失败"""
+    CIRCUIT_BREAKER["fail_count"] += 1
+    CIRCUIT_BREAKER["last_fail_time"] = int(time.time())
+
+
+def _is_circuit_open() -> bool:
+    """检查熔断器是否打开"""
+    if CIRCUIT_BREAKER["fail_count"] < CIRCUIT_BREAKER["threshold"]:
+        return False
+    
+    # 检查是否超过重置时间
+    current_time = int(time.time())
+    if current_time - CIRCUIT_BREAKER["last_fail_time"] >= CIRCUIT_BREAKER["reset_timeout"]:
+        _reset_circuit_breaker()
+        return False
+    
+    return True
+
+
+def get_chat(msg: BaseMessage) -> str:
+    """
+    发送消息到服务端获取回复
+    
+    Args:
+        msg: 消息对象
+        
+    Returns:
+        服务端返回的回复内容
+    """
     try:
-        refer_chat = WcfUtils().get_refer_content(req)
-        content_msg = WcfUtils().get_msg_content(req).strip()
-        LOG.info(f"获取refer内容为: {str(refer_chat)}")
-        # 构建传输对象
-        payload = json.dumps({
-            "token": config.http_token,
-            "_is_self": req._is_self,
-            "_is_group": req._is_group,
-            "type": req.type,
-            "id": req.id,
-            # "ts": req.ts,
-            # "sign": req.sign,
-            "xml": req.xml,
-            "sender": req.sender,
-            "roomid": req.roomid,
-            "content": content_msg,
-            # "thumb": req.thumb,
-            # "extra": req.extra,
-            "refer_chat": refer_chat.to_dict() if refer_chat else None
-        })
-        headers = {
-            'Content-Type': 'application/json'
-        }
-
-        # 暂不检查熔断器, 只是做文案分流
-        # current_time = int(time.time())
-        # if circuit_breaker["fail_count"] >= 3 and current_time - circuit_breaker["last_fail_time"] < 60:
-        #     return "正在部署，请稍后重试"
-
+        # 构建请求
+        request = ChatRequest.from_message(msg, config.http_token)
+        payload = request.to_json()
+        
+        LOG.info(f"Sending to server: {payload[:200]}...")
+        
         # 发起请求
         start_time = time.time()
-        LOG.info("开始请求server获取内容, req:[%s]", payload)
-        response = requests.request("POST", text_url, headers=headers, data=payload, timeout=(2, 60))
-        LOG.info("接收到server返回值, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, response.json())
-        # 检查HTTP响应状态
+        response = requests.post(
+            CHAT_ENDPOINT,
+            headers={"Content-Type": "application/json"},
+            data=payload,
+            timeout=(2, 60),  # 连接超时2秒，读取超时60秒
+        )
+        
+        cost_ms = (time.time() - start_time) * 1000
+        LOG.info(f"Server response received, cost: {cost_ms:.0f}ms")
+        
+        # 检查 HTTP 状态
         response.raise_for_status()
-
+        
         # 解析响应
-        return_data = response.json()
-        if return_data.get("code") == 0:
-            # 成功返回 重置熔断器状态
-            circuit_breaker["fail_count"] = 0
-            circuit_breaker["last_fail_time"] = 0
-            return return_data.get("data")
+        resp_data = response.json()
+        chat_response = ChatResponse.from_dict(resp_data)
+        
+        if chat_response.is_success:
+            _reset_circuit_breaker()
+            return chat_response.data or ""
         else:
-            LOG.error("get_chat 返回值返回异常: %s", return_data)
-            return get_error_msg()
-
+            LOG.error(f"Server returned error: {resp_data}")
+            return _get_error_message()
+            
+    except requests.exceptions.Timeout:
+        LOG.error("Request timeout")
+        _record_failure()
+        return _get_error_message()
+        
+    except requests.exceptions.RequestException as e:
+        LOG.error(f"Request failed: {e}")
+        _record_failure()
+        return _get_error_message()
+        
     except Exception as e:
-        LOG.error("get_chat 发生错误", e)
-        return get_error_msg()
+        LOG.error(f"Unexpected error: {e}")
+        _record_failure()
+        return _get_error_message()
 
 
-def get_error_msg():
-    # 更新熔断器状态
-    circuit_breaker["fail_count"] += 1
-    circuit_breaker["last_fail_time"] = int(time.time())
-
-    if circuit_breaker["fail_count"] < 3:
-        return "啊哦~，可能内容太长搬运超时，再试试捏"
-
-    return "啊哦~, 服务正在重新调整，请稍后重试再试"
+def _get_error_message() -> str:
+    """获取错误提示消息"""
+    if CIRCUIT_BREAKER["fail_count"] < CIRCUIT_BREAKER["threshold"]:
+        return "Oops! Request timeout, please try again~"
+    return "Oops! Service is adjusting, please try again later~"

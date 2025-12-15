@@ -16,3 +16,5 @@ true-love-base/__pycache__/**
 **/__pycache__/**
 credentials.json
 token.pickle
+/true-love-base/axautox4x/
+*.iml
