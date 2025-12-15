@@ -67,4 +67,4 @@ jobs:
             "sendReceiver": "master",
             "atReceiver": "",
             "content": "真爱粉ai模块已经成功重启"
-          }'
+          }' || echo "通知发送失败，但部署成功"

@@ -1,4 +1,4 @@
-name: true-love-ai Deploy to ser1 via SSH
+name: true-love-server Deploy to m8s via SSH
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
 
 env:
   SERVER_IP: ${{ secrets.M8S_PROXY_HOST }}
-  SERVER_PORT: ${{ secrets.M8S_PROXY_HOST }}
+  SERVER_PORT: 2233
   SERVER_USER: admin
   SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
 
@@ -66,4 +66,4 @@ jobs:
             "sendReceiver": "master",
             "atReceiver": "",
             "content": "真爱粉ai模块已经成功重启"
-          }'
+          }' || echo "通知发送失败，但部署成功"
