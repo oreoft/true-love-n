@@ -18,7 +18,7 @@ def send_text(send_receiver, at_receiver, content):
         "sendReceiver": send_receiver,
         "atReceiver": at_receiver,
         "content": content
-    })
+    }, ensure_ascii=False)
     headers = {
         'Content-Type': 'application/json'
     }
@@ -30,7 +30,7 @@ def send_text(send_receiver, at_receiver, content):
         res.raise_for_status()
         LOG.info("请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
     except Exception as e:
-        LOG.info("send_text 失败", e)
+        LOG.info("send_text 失败: %s", e)
     return ""
 
 
