@@ -20,3 +20,4 @@ token.pickle
 *.iml
 /**/wxautox4x
 /**/wxauto_logs
+./**/listen_chats.json

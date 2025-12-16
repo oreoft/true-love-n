@@ -167,6 +167,12 @@ class WxAutoClient(WeChatClientProtocol):
         """开始消息监听（阻塞）"""
         try:
             LOG.info("Starting message listening...")
+            # 检查是否有监听器，如果没有则不调用 KeepRunning
+            # wxautox4x 的 KeepRunning 需要先调用 AddListenChat 初始化 _listener_stop_event
+            if not self._listeners:
+                LOG.warning("No listeners registered, KeepRunning() will not be called")
+                LOG.warning("Use API to add listeners first, then restart the service")
+                return
             self.wx.KeepRunning()
         except KeyboardInterrupt:
             LOG.info("Listening stopped by user")
