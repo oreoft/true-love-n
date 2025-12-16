@@ -27,5 +27,4 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/true_love_base"]
 
-# $env:UV_PROJECT_ENVIRONMENT="C:\Users\admin\.venvs\true-love-base"
-# $env:UV_VENV_PATH=$env:UV_PROJECT_ENVIRONMENT
+# $env:UV_PROJECT_ENVIRONMENT="C:\Users\admin\.venvs\true-love-base"; $env:UV_VENV_PATH=$env:UV_PROJECT_ENVIRONMENT

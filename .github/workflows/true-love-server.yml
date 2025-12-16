@@ -35,8 +35,8 @@ jobs:
       - name: Execute ai Commands Over SSH
         run: |
           ssh -o StrictHostKeyChecking=no -p ${{ env.SERVER_PORT }} ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} << 'EOF'
+            wsl -e bash -lc "
             set -e
-            wsl
             cd /root/true-love-n/true-love-ai
             git pull
           
@@ -54,7 +54,7 @@ jobs:
             # 同步
             uv sync --locked
             # 重启
-            systemctl restart app-tl-server
+            systemctl restart app-tl-server"
           EOF
 
       - name: Notify - ai Success
