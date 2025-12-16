@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "master" ]
     paths:
-      - "true-love-ai/**"
+      - "true-love-server/**"
       - ".github/workflows/true-love-server.yml"
 
 env:

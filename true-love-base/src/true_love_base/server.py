@@ -15,6 +15,7 @@ from flask import Flask, g, request, jsonify
 from waitress import serve
 
 from true_love_base.models.api import ApiResponse, ApiErrors
+from true_love_base.utils.path_resolver import resolve_path
 
 if TYPE_CHECKING:
     from true_love_base.services.robot import Robot
@@ -81,7 +82,7 @@ def send_img():
     
     Request Body:
         - sendReceiver: 接收者
-        - path: 图片路径
+        - path: 图片路径（可以是 Server 的相对路径，会自动在 true-love-server 目录下查找）
     """
     robot = get_robot()
     if robot is None:
@@ -94,7 +95,14 @@ def send_img():
     if not receiver or not path:
         return jsonify(ApiErrors.INVALID_PARAMS.to_dict())
     
-    success = robot.send_img_msg(path, receiver)
+    # 解析 Server 相对路径
+    try:
+        resolved_path = resolve_path(path)
+    except FileNotFoundError as e:
+        LOG.error(f"Failed to send image to [{receiver}]: {e}")
+        return jsonify(ApiErrors.SEND_FAILED.to_dict())
+    
+    success = robot.send_img_msg(resolved_path, receiver)
     
     if success:
         return jsonify(ApiResponse.success().to_dict())
@@ -108,7 +116,7 @@ def send_file():
     
     Request Body:
         - sendReceiver: 接收者
-        - path: 文件路径
+        - path: 文件路径（可以是 Server 的相对路径，会自动在 true-love-server 目录下查找）
     """
     robot = get_robot()
     if robot is None:
@@ -121,7 +129,14 @@ def send_file():
     if not receiver or not path:
         return jsonify(ApiErrors.INVALID_PARAMS.to_dict())
     
-    success = robot.send_file_msg(path, receiver)
+    # 解析 Server 相对路径
+    try:
+        resolved_path = resolve_path(path)
+    except FileNotFoundError as e:
+        LOG.error(f"Failed to send file to [{receiver}]: {e}")
+        return jsonify(ApiErrors.SEND_FAILED.to_dict())
+    
+    success = robot.send_file_msg(resolved_path, receiver)
     
     if success:
         return jsonify(ApiResponse.success().to_dict())
