@@ -41,8 +41,6 @@ class WxAutoClient(WeChatClientProtocol):
         try:
             self._wx = WeChat()
             self._running = True
-            # 存储群聊标记
-            self._group_chats: set[str] = set()
             LOG.info("WxAutoClient initialized successfully")
         except Exception as e:
             LOG.error(f"Failed to initialize WxAutoClient: {e}")
@@ -111,32 +109,31 @@ class WxAutoClient(WeChatClientProtocol):
     
     # ==================== 消息监听 ====================
     
-    def add_message_listener(self, chat_name: str, callback: MessageCallback, is_group: bool = False) -> bool:
+    def add_message_listener(self, chat_name: str, callback: MessageCallback) -> bool:
         """添加消息监听器"""
         try:
-            # 记录群聊标记
-            if is_group:
-                self._group_chats.add(chat_name)
-            
-            LOG.info(f"Registering listener for [{chat_name}], is_group={is_group}, group_chats={self._group_chats}")
+            LOG.info(f"Registering listener for [{chat_name}]")
             
             # 创建内部回调，转换消息格式
-            def internal_callback(raw_msg, chat):
+            def internal_callback(raw_msg):
                 try:
-                    # 使用记录的群聊标记
-                    chat_is_group = chat_name in self._group_chats
+                    # 运行时推断是否群聊：群聊时 sender 是群成员昵称，不等于 chat_name
+                    sender = getattr(raw_msg, 'sender', '')
+                    # 如果 sender 不为空且不等于 chat_name，则为群聊
+                    # 私聊时 sender 通常等于 chat_name 或为空
+                    is_group = bool(sender and sender != chat_name)
                     
-                    LOG.debug(f"Message callback: chat_name={chat_name}, chat_is_group={chat_is_group}")
+                    LOG.debug(f"Message callback: chat_name={chat_name}, sender={sender}, is_group={is_group}")
                     
                     # 转换消息
-                    message = self._converter.convert(raw_msg, chat_name, chat_is_group)
+                    message = self._converter.convert(raw_msg, chat_name, is_group)
                     
-                    # 检测是否@了自己（无论是否群聊都检测，以便调试）
+                    # 检测是否@了自己
                     if hasattr(raw_msg, 'content'):
                         content = str(getattr(raw_msg, 'content', ''))
                         self_name = self.get_self_name()
                         is_at = f"@{self_name}" in content or '@真爱粉' in content or 'zaf' in content.lower()
-                        if chat_is_group:
+                        if is_group:
                             message.is_at_me = is_at
                         LOG.debug(f"@ detection: content={content[:50]}, self_name={self_name}, is_at={is_at}")
                     
@@ -147,7 +144,7 @@ class WxAutoClient(WeChatClientProtocol):
             
             self.wx.AddListenChat(chat_name, internal_callback)
             self._listeners[chat_name] = callback
-            LOG.info(f"Added listener for [{chat_name}], is_group={is_group}")
+            LOG.info(f"Added listener for [{chat_name}]")
             return True
         except Exception as e:
             LOG.error(f"Failed to add listener for [{chat_name}]: {e}")

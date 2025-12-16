@@ -7,7 +7,7 @@ Robot - 消息处理机器人
 """
 
 import logging
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from true_love_base.core.client_protocol import WeChatClientProtocol
 from true_love_base.models.message import (
@@ -20,6 +20,9 @@ from true_love_base.models.message import (
 )
 from true_love_base.services import server_client
 
+if TYPE_CHECKING:
+    from true_love_base.services.listen_store import ListenStore
+
 
 class Robot:
     """
@@ -31,17 +34,19 @@ class Robot:
     - 消息发送
     """
     
-    def __init__(self, client: WeChatClientProtocol) -> None:
+    def __init__(self, client: WeChatClientProtocol, listen_store: "ListenStore") -> None:
         """
         初始化机器人
         
         Args:
             client: 微信客户端实例（实现 WeChatClientProtocol）
+            listen_store: 监听列表持久化管理器
         """
         self.client = client
         self.LOG = logging.getLogger("Robot")
         self.self_name = self.client.get_self_name()
         self._listening_chats: set[str] = set()
+        self._listen_store = listen_store
         
         self.LOG.info(f"Robot initialized, self_name: {self.self_name}")
     
@@ -93,13 +98,13 @@ class Robot:
         except Exception as e:
             self.LOG.error(f"Error processing message: {e}")
     
-    def add_listen_chat(self, chat_name: str, is_group: bool = False) -> bool:
+    def add_listen_chat(self, chat_name: str, persist: bool = True) -> bool:
         """
         添加监听的聊天对象
         
         Args:
             chat_name: 聊天对象名称（好友昵称或群名）
-            is_group: 是否群聊
+            persist: 是否持久化到文件（默认 True）
             
         Returns:
             是否添加成功
@@ -108,10 +113,13 @@ class Robot:
             self.LOG.warning(f"Already listening to [{chat_name}]")
             return True
         
-        success = self.client.add_message_listener(chat_name, self.on_message, is_group)
+        success = self.client.add_message_listener(chat_name, self.on_message)
         if success:
             self._listening_chats.add(chat_name)
-            self.LOG.info(f"Started listening to [{chat_name}], is_group={is_group}")
+            self.LOG.info(f"Started listening to [{chat_name}]")
+            # 持久化到文件
+            if persist:
+                self._listen_store.add(chat_name)
         return success
     
     def remove_listen_chat(self, chat_name: str) -> bool:
@@ -125,13 +133,33 @@ class Robot:
             是否移除成功
         """
         if chat_name not in self._listening_chats:
+            # 即使内存中没有，也尝试从持久化中删除
+            self._listen_store.remove(chat_name)
             return True
         
         success = self.client.remove_message_listener(chat_name)
         if success:
             self._listening_chats.discard(chat_name)
+            self._listen_store.remove(chat_name)
             self.LOG.info(f"Stopped listening to [{chat_name}]")
         return success
+    
+    def get_listen_chats(self) -> list[str]:
+        """
+        获取所有监听对象
+        
+        Returns:
+            监听对象名称列表
+        """
+        return list(self._listening_chats)
+    
+    def load_listen_chats(self) -> None:
+        """从持久化文件加载监听列表并开始监听"""
+        chats = self._listen_store.load()
+        self.LOG.info(f"Loading {len(chats)} listen chats from store")
+        for chat_name in chats:
+            # persist=False 避免重复写入
+            self.add_listen_chat(chat_name, persist=False)
     
     def start_listening(self) -> None:
         """

@@ -42,7 +42,6 @@ class Config:
             logging.config.dictConfig(yconfig.get("logging", {}))
             self.ENABLE_BOT: dict = yconfig["enable_bot"]
             self.LLM_BOT: dict = yconfig.get(self.ENABLE_BOT, None)
-            self.GITHUB: dict = yconfig.get("github", {})
             self.HTTP = yconfig.get("http")
             self.BASE_SERVER: dict = yconfig.get("base_server")
             self.PLATFORM_KEY: dict = yconfig["platform_key"]

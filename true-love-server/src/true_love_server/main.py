@@ -17,7 +17,7 @@ config = Config()
 
 def notice_master():
     # 启动的通知（使用昵称而非 wxid）
-    master = config.BASE_SERVER.get("master_name") or config.BASE_SERVER.get("master_wxid")
+    master = config.BASE_SERVER.get("master_name")
     base_client.send_text(master, "", "真爱粉server启动成功...")
 
     # 设置信号被杀的回调

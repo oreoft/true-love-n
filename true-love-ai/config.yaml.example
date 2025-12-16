@@ -33,7 +33,6 @@ platform_key:
 
 # GitHub integration
 github:
-  allow_user: []
   token: "github_pat_xxx"
 
 # Logging configuration

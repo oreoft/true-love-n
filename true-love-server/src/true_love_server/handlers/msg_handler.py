@@ -12,6 +12,7 @@ from ..core import local_msg_id
 from ..services import do_asr
 from ..models.chat_msg import ChatMsg, MsgType
 from .chat_msg_handler import ChatMsgHandler
+from .trig_manage_handler import TrigManageHandler
 from .trig_remainder_handler import TrigRemainderHandler
 from .trig_search_handler import TrigSearchHandler
 from .trig_task_handler import TrigTaskHandler
@@ -58,6 +59,11 @@ class MsgHandler:
             self.LOG.info(f"收到: {msg.sender}, 提醒任务: {q}")
             target = msg.chat_id if msg.from_group() else msg.sender
             return TrigRemainderHandler().router(q, target, msg.sender)
+
+        # 管理任务
+        if q.startswith('$管理'):
+            self.LOG.info(f"收到: {msg.sender}, 管理任务: {q}")
+            return TrigManageHandler().run(q, msg.sender)
 
         # ==================== AI 聊天处理 ====================
         

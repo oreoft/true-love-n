@@ -18,6 +18,9 @@ host = config.BASE_SERVER["host"]
 text_url = f"{host}/send/text"
 text_img = f"{host}/send/img"
 get_by_room_id_url = f"{host}/get/by/room-id"
+listen_list_url = f"{host}/listen/list"
+listen_add_url = f"{host}/listen/add"
+listen_remove_url = f"{host}/listen/remove"
 LOG = logging.getLogger("BaseClient")
 
 
@@ -81,3 +84,80 @@ def get_by_room_id(room_id) -> dict:
     except Exception as e:
         LOG.info("get_all 失败", e)
     return {}
+
+
+def get_listen_list() -> list | None:
+    """
+    获取所有监听对象列表
+    
+    Returns:
+        监听对象列表，失败返回 None
+    """
+    try:
+        start_time = time.time()
+        LOG.info("开始请求监听列表")
+        res = requests.get(listen_list_url, timeout=(2, 60))
+        res.raise_for_status()
+        LOG.info("get_listen_list请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
+        return res.json().get('data', [])
+    except Exception as e:
+        LOG.exception("get_listen_list 失败: %s", e)
+    return None
+
+
+def add_listen(chat_name: str) -> tuple[bool, str]:
+    """
+    添加监听对象
+    
+    Args:
+        chat_name: 要监听的聊天名称
+        
+    Returns:
+        (是否成功, 消息)
+    """
+    payload = json.dumps({
+        "chat_name": chat_name,
+    }, ensure_ascii=False)
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    try:
+        start_time = time.time()
+        LOG.info("开始添加监听: %s", chat_name)
+        res = requests.post(listen_add_url, headers=headers, data=payload, timeout=(2, 60))
+        res.raise_for_status()
+        result = res.json()
+        LOG.info("add_listen请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, result)
+        return True, result.get('msg', '成功')
+    except Exception as e:
+        LOG.exception("add_listen 失败: %s", e)
+    return False, str(e)
+
+
+def remove_listen(chat_name: str) -> tuple[bool, str]:
+    """
+    删除监听对象
+    
+    Args:
+        chat_name: 要删除的聊天名称
+        
+    Returns:
+        (是否成功, 消息)
+    """
+    payload = json.dumps({
+        "chat_name": chat_name,
+    }, ensure_ascii=False)
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    try:
+        start_time = time.time()
+        LOG.info("开始删除监听: %s", chat_name)
+        res = requests.post(listen_remove_url, headers=headers, data=payload, timeout=(2, 60))
+        res.raise_for_status()
+        result = res.json()
+        LOG.info("remove_listen请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, result)
+        return True, result.get('msg', '成功')
+    except Exception as e:
+        LOG.exception("remove_listen 失败: %s", e)
+    return False, str(e)

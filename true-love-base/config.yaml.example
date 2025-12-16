@@ -7,17 +7,13 @@ master_wix: "your_friend_nickname"
 # HTTP token for authentication with backend server
 http_token: "your_secret_token"
 
-# Chat listeners configuration (unified for both private chats and groups)
-# - name: friend nickname or group name (wxauto uses display name)
-# - is_group: true for groups, false for private chats
-#   (groups require @ mention to respond, private chats respond to all messages)
+# Chat listeners are stored in listen_chats.json (auto-created)
+# Manage via HTTP API:
+#   GET  /listen/list   - List all listeners
+#   POST /listen/add    - Add listener {"chat_name": "xxx"}
+#   POST /listen/remove - Remove listener {"chat_name": "xxx"}
 #
-# Example:
-# listen_chats:
-#   - name: "好友昵称"
-#     is_group: false
-#   - name: "群名称"
-#     is_group: true
+# Or manually edit listen_chats.json: ["好友昵称", "群名称"]
 
 # Logging configuration
 logging:

@@ -6,13 +6,12 @@ HTTP Server - HTTP 服务
 """
 
 import time
-
 from flask import Flask, g, request
 
-from .services import base_client
-from .handlers import router_msg, MsgHandler
 from .core import Config
+from .handlers import MsgHandler
 from .models import ChatMsg
+from .services import base_client
 
 msg_handler = MsgHandler()
 app = Flask(__name__)

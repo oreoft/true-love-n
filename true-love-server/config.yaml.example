@@ -51,13 +51,6 @@ remainder:
 
 # Chat bot configuration
 enable_bot: chatgpt
-chatgpt:
-  key1: "sk-xxx"
-  api: "https://api.openai.com/v1/"
-  proxy: "http://localhost:1087"
-  # NOTE: gpt4 list now uses NICKNAMES instead of wxid!
-  gpt4: []
-  prompt: "Your prompt here"
 
 # HTTP service configuration
 http:

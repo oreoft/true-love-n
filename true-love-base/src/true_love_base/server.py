@@ -165,6 +165,22 @@ def get_contacts_by_room_id():
     return jsonify(ApiResponse.success(members).to_dict())
 
 
+@app.route('/listen/list', methods=['GET'])
+def list_listen_chats():
+    """
+    获取所有监听对象
+    
+    Response:
+        - data: 监听对象名称列表
+    """
+    robot = get_robot()
+    if robot is None:
+        return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
+    
+    chats = robot.get_listen_chats()
+    return jsonify(ApiResponse.success(chats).to_dict())
+
+
 @app.route('/listen/add', methods=['POST'])
 def add_listen_chat():
     """
@@ -172,7 +188,6 @@ def add_listen_chat():
     
     Request Body:
         - chat_name: 聊天对象名称（好友昵称或群名）
-        - is_group: 是否群聊（可选，默认false）
     """
     robot = get_robot()
     if robot is None:
@@ -180,12 +195,11 @@ def add_listen_chat():
     
     data = request.json or {}
     chat_name = data.get('chat_name', '')
-    is_group = data.get('is_group', False)
     
     if not chat_name:
         return jsonify(ApiErrors.INVALID_PARAMS.to_dict())
     
-    success = robot.add_listen_chat(chat_name, is_group)
+    success = robot.add_listen_chat(chat_name)
     
     if success:
         return jsonify(ApiResponse.success().to_dict())

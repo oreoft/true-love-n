@@ -25,33 +25,27 @@ class Config(object):
         self.set_logging()
         self.master_wix = self.config["master_wix"]
         self.http_token = self.config["http_token"]
-        # 统一的监听配置（群聊和私聊不再区分）
-        # 格式: [{"name": "聊天对象名称", "is_group": bool}]
-        self.listen_chats: list[dict] = self.config.get("listen_chats", [])
+        
+        # 监听列表文件路径（与 config.yaml 同级目录）
+        self.listen_chats_file = self._get_listen_chats_file()
         
         # 日志确认配置加载
         LOG = logging.getLogger("Config")
         LOG.info(f"Config loaded: master_wix={self.master_wix}")
-        LOG.info(f"Config loaded: listen_chats={self.listen_chats}")
+        LOG.info(f"Config loaded: listen_chats_file={self.listen_chats_file}")
 
     @staticmethod
     def _load_config() -> dict:
-        pwd = os.path.dirname(os.path.abspath(__file__))
-        # 向上查找 config.yaml（兼容 src 结构）
-        config_paths = [
-            os.path.join(pwd, "config.yaml"),  # src/true_love_base/config.yaml
-            os.path.join(pwd, "..", "..", "config.yaml"),  # true-love-base/config.yaml
-            os.path.join(pwd, "..", "..", "..", "config.yaml"),  # 再向上一级
-        ]
-        
-        for config_path in config_paths:
-            config_path = os.path.normpath(config_path)
-            if os.path.exists(config_path):
-                with open(config_path, "rb") as fp:
-                    config = yaml.safe_load(fp)
-                return config
-        
-        raise FileNotFoundError(f"config.yaml not found in any of: {config_paths}")
+        # 从当前工作目录读取配置文件（需从 pyproject.toml 同级目录运行）
+        config_path = "config.yaml"
+        with open(config_path, "r", encoding='utf-8') as fp:
+            config = yaml.safe_load(fp)
+        return config
+
+    @staticmethod
+    def _get_listen_chats_file() -> str:
+        """获取监听列表文件路径（与 config.yaml 同级目录）"""
+        return "listen_chats.json"
 
     def set_logging(self) -> None:
         logging.config.dictConfig(self.config["logging"])

@@ -15,6 +15,7 @@ from threading import Thread
 from true_love_base.configuration import Config
 from true_love_base.adapters import WxAutoClient
 from true_love_base.services.robot import Robot
+from true_love_base.services.listen_store import ListenStore
 from true_love_base import server
 
 # 初始化配置（会设置日志）
@@ -36,8 +37,12 @@ def main():
         LOG.error(f"Failed to initialize WeChat client: {e}")
         sys.exit(1)
     
+    # 初始化监听列表持久化管理器
+    listen_store = ListenStore(config.listen_chats_file)
+    LOG.info(f"ListenStore initialized: {config.listen_chats_file}")
+    
     # 初始化机器人
-    robot = Robot(client)
+    robot = Robot(client, listen_store)
     
     # 设置信号处理
     def signal_handler(sig, frame):
@@ -63,17 +68,13 @@ def main():
     except Exception as e:
         LOG.warning(f"Failed to send startup notification: {e}")
     
-    # 添加配置的监听对象
-    if config.listen_chats:
-        LOG.info(f"Adding listeners from config: {config.listen_chats}")
-        for chat_config in config.listen_chats:
-            chat_name = chat_config.get("name")
-            is_group = chat_config.get("is_group", False)
-            LOG.info(f"  -> Adding [{chat_name}], is_group={is_group}")
-            if chat_name:
-                robot.add_listen_chat(chat_name, is_group=is_group)
+    # 从持久化文件加载监听列表
+    robot.load_listen_chats()
+    listen_count = len(robot.get_listen_chats())
+    if listen_count > 0:
+        LOG.info(f"Loaded {listen_count} listen chats from file")
     else:
-        LOG.warning("No listen_chats configured! Please check config.yaml")
+        LOG.warning("No listen_chats found! Use API to add listeners")
     
     LOG.info("True Love Base is ready!")
     LOG.info("Use HTTP API to add chat listeners:")
