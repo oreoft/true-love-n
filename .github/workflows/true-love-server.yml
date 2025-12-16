@@ -39,22 +39,24 @@ jobs:
           echo "SSH env ready"
           # 目标机是 Win11，SSH 进去默认是 PowerShell/CMD；应用在 WSL 里。
           # 用 wsl.exe 启动 WSL 的 bash，并通过 STDIN 喂入脚本，避免引号/$HOME/$PATH 在 PowerShell 中被展开。
-          ssh -o StrictHostKeyChecking=no -p "${{ env.SERVER_PORT }}" "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" "wsl.exe -e bash -s" <<'EOS'
+          ssh -o StrictHostKeyChecking=no -p "${{ env.SERVER_PORT }}" "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" "wsl.exe -u root -e bash -s" <<'EOS'
           set -euo pipefail
 
           cd /root/true-love-n/true-love-server
-          git pull
 
-          # 保证 uv 安装
+          # 确保 PATH 立刻可用（不要依赖 ~/.bashrc 在非交互 shell 自动加载）
+          export PATH="$HOME/.local/bin:$PATH"
+
+          # 保证 uv 安装（注意：如果 uv 已装但 PATH 没包含 ~/.local/bin，会被误判为 not found）
           if ! command -v uv >/dev/null 2>&1; then
             echo "uv not found, installing..."
             curl -LsSf https://astral.sh/uv/install.sh | sh
+            export PATH="$HOME/.local/bin:$PATH"
           else
             echo "uv already installed."
           fi
 
-          # 确保 PATH 立刻可用（不要依赖 ~/.bashrc 在非交互 shell 自动加载）
-          export PATH="$HOME/.local/bin:$PATH"
+          git pull
 
           # 同步
           uv sync --locked
