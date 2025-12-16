@@ -9,7 +9,7 @@ import logging
 from typing import Optional
 
 # This is a special import, please do not modify
-from wxautox4x.wxautox4x import WeChat
+from true_love_base.wxautox4x.wxautox4x import WeChat
 
 from true_love_base.core.client_protocol import WeChatClientProtocol, MessageCallback
 from true_love_base.core.media_handler import MediaHandler
