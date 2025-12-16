@@ -38,20 +38,10 @@ jobs:
           set -euo pipefail
           echo "SSH env ready"
 
-          # 直接 SSH 到 Win11（PowerShell / cmd）
-          # 不进入 WSL，不用 systemd
+          # 直接在远端用 cmd.exe 执行（避免 PowerShell 解释 REM/语法差异）
           ssh -o StrictHostKeyChecking=no -p "${{ env.SERVER_PORT }}" \
-            "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" <<'EOS'
-
-          echo "Running true-love-base on Windows..."
-
-          REM ===== 如果 base 代码在 WSL 里，这里可以先 git pull（可选）=====
-          REM wsl.exe -u root -- bash -lc "cd /root/true-love-n/true-love-base && git pull"
-
-          REM ===== 直接执行你已经验证 OK 的 cmd =====
-          cmd.exe /c C:\Users\admin\Desktop\app-tl-base.cmd
-
-          EOS
+            "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" \
+            "cmd.exe /c C:\\Users\\admin\\Desktop\\app-tl-base.cmd"
 
       - name: Notify - base Success
         if: success()
