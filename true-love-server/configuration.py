@@ -44,8 +44,12 @@ class Config:
         yconfig = self._load_config()
         if yconfig:
             logging.config.dictConfig(yconfig.get("logging", {}))
-            self.GROUPS: dict = yconfig["groups"]
-            self.PRIVATES: dict = yconfig["privates"]
+            # 注意：groups/privates 的 allow_list 已移至 base 端
+            # 这里保留是为了兼容 auto_notice 等功能
+            self.GROUPS: dict = yconfig.get("groups", {})
+            self.PRIVATES: dict = yconfig.get("privates", {})
+            # 也支持新的顶层 auto_notice 配置
+            self.AUTO_NOTICE: dict = yconfig.get("auto_notice", self.GROUPS.get("auto_notice", {}))
             self.ENABLE_BOT: dict = yconfig["enable_bot"]
             self.LLM_BOT: dict = yconfig.get(self.ENABLE_BOT, None)
             self.GITHUB: dict = yconfig.get("github", {})
@@ -56,3 +60,4 @@ class Config:
             self.REMAINDER: dict = yconfig.get("remainder", {})
             self.ASR: dict = yconfig.get("asr", {})
             self.BROWSERLESS: str = yconfig.get("browserless", "")
+            self.AI_SERVICE: dict = yconfig.get("ai_service", {})

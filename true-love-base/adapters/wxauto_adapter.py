@@ -8,7 +8,7 @@ WxAuto Adapter - wxautox4 SDK 适配器
 import logging
 from typing import Any, Callable, Optional
 
-from wxautox4 import WeChat
+from wxautox4x import WeChat
 
 from core.client_protocol import WeChatClientProtocol, MessageCallback
 from core.media_handler import MediaHandler

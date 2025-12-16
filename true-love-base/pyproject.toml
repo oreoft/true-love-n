@@ -16,3 +16,6 @@ dev = [
     "black>=23.0.0",
     "mypy>=1.0.0",
 ]
+
+# $env:UV_PROJECT_ENVIRONMENT="C:\Users\admin\.venvs\true-love-base"
+# $env:UV_VENV_PATH=$env:UV_PROJECT_ENVIRONMENT

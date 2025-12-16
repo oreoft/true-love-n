@@ -19,8 +19,9 @@ from trig_task_handler import TrigTaskHandler
 trig_search_handler = TrigSearchHandler()
 trig_task_handler = TrigTaskHandler()
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
-config = Config().GROUPS.get("auto_notice", {})
-test_room_ids: list = config.get("test")
+# 使用新的 AUTO_NOTICE 配置（兼容旧的 groups.auto_notice）
+config = Config().AUTO_NOTICE
+test_room_ids: list = config.get("test", [])
 LOG = logging.getLogger("JobProcess")
 
 

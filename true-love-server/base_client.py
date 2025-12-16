@@ -19,7 +19,7 @@ def send_text(send_receiver, at_receiver, content):
         "sendReceiver": send_receiver,
         "atReceiver": at_receiver,
         "content": content
-    })
+    }, ensure_ascii=False)
     headers = {
         'Content-Type': 'application/json'
     }
@@ -39,7 +39,7 @@ def send_img(path, send_receiver):
     payload = json.dumps({
         "path": path,
         "sendReceiver": send_receiver,
-    })
+    }, ensure_ascii=False)
     headers = {
         'Content-Type': 'application/json'
     }
@@ -59,7 +59,7 @@ def send_img(path, send_receiver):
 def get_by_room_id(room_id) -> dict:
     payload = json.dumps({
         "room_id": room_id,
-    })
+    }, ensure_ascii=False)
     headers = {
         'Content-Type': 'application/json'
     }

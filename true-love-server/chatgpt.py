@@ -40,7 +40,10 @@ class ChatGPT(ChatBot):
 
     def __init__(self) -> None:
         self.LOG = logging.getLogger("MsgHandler")
-        self.token: dict = Config().HTTP_TOKEN
+        config = Config()
+        self.token: dict = config.HTTP_TOKEN
+        # AI 服务地址（从配置文件读取）
+        self.ai_host: str = config.AI_SERVICE.get("host", "https://notice.someget.work")
 
     def send_chatgpt(self, question, wxid, sender):
         try:
@@ -53,7 +56,7 @@ class ChatGPT(ChatBot):
             }
 
             # 请求配置
-            url = 'https://notice.someget.work/get-llm'
+            url = f'{self.ai_host}/get-llm'
             headers = {'Content-Type': 'application/json'}
 
             # 发送请求
@@ -80,7 +83,7 @@ class ChatGPT(ChatBot):
             }
 
             # 请求配置
-            url = 'https://notice.someget.work/gen-img'
+            url = f'{self.ai_host}/gen-img'
             headers = {'Content-Type': 'application/json'}
 
             # 发送请求
@@ -101,7 +104,7 @@ class ChatGPT(ChatBot):
             }
 
             # 请求配置
-            url = 'https://notice.someget.work/get-img-type'
+            url = f'{self.ai_host}/get-img-type'
             headers = {'Content-Type': 'application/json'}
 
             # 发送请求
@@ -128,7 +131,7 @@ class ChatGPT(ChatBot):
             }
 
             # 请求配置
-            url = 'https://notice.someget.work/get-analyze'
+            url = f'{self.ai_host}/get-analyze'
             headers = {'Content-Type': 'application/json'}
 
             # 发送请求
@@ -153,8 +156,10 @@ class ChatGPT(ChatBot):
     def get_answer(self, question: str, wxid: str, sender: str):
         # 处理固定返回的情况
         rsp = process_ban(sender)
+        # 私聊时不@（wxid == sender 表示私聊）
+        at_user = sender if wxid != sender else ""
         if rsp != '':
-            base_client.send_text(wxid, sender, rsp)
+            base_client.send_text(wxid, at_user, rsp)
             return ''
         # 开始走ai
         result = self.get_answer_type(question, wxid, sender)
@@ -164,7 +169,7 @@ class ChatGPT(ChatBot):
             rsp = result['answer']
         if 'debug' in result:
             rsp = rsp + '\n\n' + str(result['debug']).replace('$', str(result['ioCost']))
-        base_client.send_text(wxid, sender, rsp)
+        base_client.send_text(wxid, at_user, rsp)
 
     def async_get_answer(self, question: str, wxid: str, sender: str) -> str:
         # 这里异步调用方法
@@ -175,23 +180,27 @@ class ChatGPT(ChatBot):
     def async_gen_img(self, question: str, wxid: str, sender: str) -> str:
         # 这里异步调用方法
         executor.submit(self.gen_img, question, wxid, sender, '', context_vars.local_msg_id.get(''))
-        # 这里先固定回复
-        base_client.send_text(wxid, sender, "🚀您的作品将在1~10分钟左右完成，请耐心等待")
+        # 私聊时不@
+        at_user = sender if wxid != sender else ""
+        base_client.send_text(wxid, at_user, "🚀您的作品将在1~10分钟左右完成，请耐心等待")
         return ""
 
     def async_gen_img_by_img(self, question: str, img_path: str, wxid: str, sender: str) -> str:
+        # 私聊时不@
+        at_user = sender if wxid != sender else ""
         result = json.loads(self.get_img_type(question))
         if 'type' in result and result['type'] == 'analyze_img':
             executor.submit(self.gen_analyze, question, wxid, sender, img_path)
-            base_client.send_text(wxid, sender, "🔍让我仔细瞧瞧，请耐心等待")
+            base_client.send_text(wxid, at_user, "🔍让我仔细瞧瞧，请耐心等待")
             return ""
         # 其他都是改图
         executor.submit(self.gen_img, result, wxid, sender, img_path, context_vars.local_msg_id.get(''))
-        # 这里先固定回复
-        base_client.send_text(wxid, sender, "🚀您的作品将在1~10分钟左右完成，请耐心等待")
+        base_client.send_text(wxid, at_user, "🚀您的作品将在1~10分钟左右完成，请耐心等待")
         return ""
 
     def gen_img(self, question, wxid, sender, img_path='', msg_id=''):
+        # 私聊时不@
+        at_user = sender if wxid != sender else ""
         start_time = time.time()
         self.LOG.info(f"开始发送给sd生图, img_path={img_path[:10]}")
         rsp = self.send_sd(question, wxid, sender, img_path)
@@ -199,11 +208,11 @@ class ChatGPT(ChatBot):
         cost = round(end_time - start_time, 2)
         self.LOG.info("sd回答时间为：%s 秒", cost)
         if 'prompt' not in rsp:
-            base_client.send_text(wxid, sender, rsp)
+            base_client.send_text(wxid, at_user, rsp)
             return
 
         res_text = f"🎨绘画完成! \nprompt: {rsp.get('prompt')}"
-        base_client.send_text(wxid, sender, res_text)
+        base_client.send_text(wxid, at_user, res_text)
 
         # 获取当前脚本所在的目录，即项目目录
         file_path = get_file_path(msg_id)
@@ -213,13 +222,15 @@ class ChatGPT(ChatBot):
         base_client.send_img(file_path, wxid)
 
     def gen_analyze(self, question, wxid, sender, img_path=''):
+        # 私聊时不@
+        at_user = sender if wxid != sender else ""
         start_time = time.time()
         self.LOG.info(f"开始发送给gen_analyze分析, img_path={img_path[:10]}")
         rsp = self.send_analyze(question, wxid, sender, img_path)
         end_time = time.time()
         cost = round(end_time - start_time, 2)
         self.LOG.info("gen_analyze回答时间为：%s 秒", cost)
-        base_client.send_text(wxid, sender, rsp)
+        base_client.send_text(wxid, at_user, rsp)
 
 
 def image_to_base64(image_path):

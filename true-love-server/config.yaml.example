@@ -27,20 +27,22 @@ asr:
   asr_secret_id: "your_asr_secret_id"
   asr_secret_key: "your_asr_secret_key"
 
-# Group settings (群设置)
-# NOTE: allow_list now uses GROUP NAMES instead of roomid!
-groups:
-  all_allow: true  # Set to false to enable allow_list
-  # Example: allow_list: ["委员会", "工作群", "朋友圈"]
-  allow_list: []
-  auto_notice: {}
+# =============================================================
+# NOTE: groups/privates allow_list settings have been REMOVED!
+# =============================================================
+# These settings are now controlled in true-love-base/config.yaml
+# via the `listen_chats` configuration.
+#
+# Base now handles:
+# - Which chats to listen to (via listen_chats)
+# - Whether a chat is group or private (is_group flag)
+# - When to respond (groups: only when @, private: always)
+#
+# Server only processes messages that base decides to forward.
+# =============================================================
 
-# Private chat settings (私聊设置)
-# NOTE: allow_list now uses NICKNAMES instead of wxid!
-privates:
-  all_allow: true  # Set to false to enable allow_list
-  # Example: allow_list: ["纯路人", "张三", "李四"]
-  allow_list: []
+# Auto notification settings (for scheduled notifications)
+auto_notice: {}
 
 # Reminder settings
 # NOTE: Uses NICKNAMES now!
