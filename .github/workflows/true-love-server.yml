@@ -1,4 +1,4 @@
-name: true-love-server Deploy to m8s via SSH
+name: true-love-server Deploy to m8s-wsl via SSH
 
 on:
   push:
