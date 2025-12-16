@@ -22,6 +22,7 @@ claude_model = "claude-3-5-sonnet-20241022"
 ds_model = "deepseek/deepseek-reasoner"
 current_model = openai_model
 litellm.modify_params = True
+litellm.drop_params = True
 baidu_curl = ("curl --location 'https://www.baidu.com/s?wd=%s&tn=json' "
               "--header 'User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1'")
 sd_url = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
@@ -188,7 +189,6 @@ class ChatGPT:
             ret = self.router.completion(
                 model=current_model,
                 messages=messages,
-                temperature=0.2,
                 tool_choice=function_call,
                 tools=functions,
                 stream=True
@@ -207,7 +207,6 @@ class ChatGPT:
             ret = self.router.completion(
                 model=real_model,
                 messages=self.conversation_list[wxid],
-                temperature=0.2,
                 tool_choice={"type": "function", "function": {"name": "type_answer"}},
                 tools=type_answer_call,
                 stream=True
@@ -234,7 +233,6 @@ class ChatGPT:
                 ret = self.router.completion(
                     model=real_model,
                     messages=self.conversation_list[wxid] + [refer_prompt, temp_prompt, question],
-                    temperature=0.2,
                     stream=True
                 )
                 # 获取stream查询
@@ -331,7 +329,6 @@ class ChatGPT:
                          }
                     ]}
                 ],
-                temperature=0.2,
                 stream=True
             )
             cost = round(time.time() - start_time, 2)
