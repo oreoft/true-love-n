@@ -16,11 +16,11 @@ from litellm import Router
 from configuration import Config
 
 name = "chatgpt"
-openai_vision_model = "gpt-4o"
-openai_model = "gpt-4o"
+openai_vision_model = "gpt-5.2"
+openai_model = "gpt-5.2"
 claude_model = "claude-3-5-sonnet-20241022"
 ds_model = "deepseek/deepseek-reasoner"
-current_model = claude_model
+current_model = openai_model
 litellm.modify_params = True
 baidu_curl = ("curl --location 'https://www.baidu.com/s?wd=%s&tn=json' "
               "--header 'User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1'")
