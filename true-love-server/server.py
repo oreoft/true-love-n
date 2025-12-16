@@ -5,7 +5,7 @@ from flask import Flask, g, request
 import base_client
 import msg_router
 from configuration import Config
-from models.wx_msg import WxMsgServer
+from models.chat_msg import ChatMsg
 
 app = Flask(__name__)
 http_config: dict = Config().HTTP
@@ -50,7 +50,7 @@ def get_chat():
         return {"code": 103, "message": "failed token check", "data": None}
     # 进行消息路由
     try:
-        result = msg_router.router_msg(WxMsgServer(request.json))
+        result = msg_router.router_msg(ChatMsg.from_dict(request.json))
         return {"code": 0, "message": "success", "data": result}
     except Exception as e:
         app.logger.error("聊天消息处理失败", e)

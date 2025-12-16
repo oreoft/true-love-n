@@ -1,34 +1,48 @@
+# -*- coding: utf-8 -*-
+"""
+Message Router - 消息路由
+
+根据消息类型和来源分发到对应的处理器。
+"""
+
 from configuration import Config
-from models.wx_msg import WxMsgServer
+from models.chat_msg import ChatMsg
 from msg_handler import MsgHandler
 
 config = Config()
 msg_handler = MsgHandler()
 
 
-def router_msg(msg: WxMsgServer) -> str:
-    # 如果是来自群的消息
+def router_msg(msg: ChatMsg) -> str:
+    """
+    消息路由
+    
+    Args:
+        msg: 聊天消息
+        
+    Returns:
+        回复内容
+    """
+    # 群消息处理
     if msg.from_group():
-        # 如果不是全放的话, 不在配置的响应的群列表里，忽略
-        if not config.GROUPS.get("all_allow") and msg.roomid not in config.GROUPS.get("allow_list", []):
-            return ""
-        # 被@ 才处理, 默认处理全部类型消息, 内部判断返回值
-        if msg.is_at(config.BASE_SERVER.get("self_wxid", "")) or '@真爱粉' in msg.content or 'zaf' in msg.content:
+        # 如果不是全部允许，检查是否在允许列表中（现在用群名而不是roomid）
+        if not config.GROUPS.get("all_allow"):
+            allow_list = config.GROUPS.get("allow_list", [])
+            if msg.chat_id not in allow_list:
+                return ""
+        
+        # 群消息需要被@才处理
+        if msg.is_at_me or '@真爱粉' in msg.content or 'zaf' in msg.content:
             return msg_handler.handler_msg(msg)
-        # 如果没有被at 忽略
+        
+        # 没有被@，忽略
         return ""
-
-    # 好友请求 忽略
-    if msg.type == 37:
-        return ""
-
-    # 系统信息 忽略
-    if msg.type == 10000:
-        return ""
-
-    # 走到这里大概率是私聊消息, 没在配置都忽略
-    if not config.PRIVATES.get("all_allow") and msg.roomid not in config.PRIVATES.get("allow_list", []):
-        return ""
-
-    # 默认走消息处理, 林会处理所有类型的消息
+    
+    # 私聊消息处理
+    if not config.PRIVATES.get("all_allow"):
+        allow_list = config.PRIVATES.get("allow_list", [])
+        if msg.chat_id not in allow_list and msg.sender not in allow_list:
+            return ""
+    
+    # 走消息处理
     return msg_handler.handler_msg(msg)

@@ -177,3 +177,4 @@ class MediaHandler:
             LOG.info(f"Cleaned up {deleted_count} old files")
         return deleted_count
 
+

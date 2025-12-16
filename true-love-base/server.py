@@ -170,6 +170,7 @@ def add_listen_chat():
     
     Request Body:
         - chat_name: 聊天对象名称（好友昵称或群名）
+        - is_group: 是否群聊（可选，默认false）
     """
     robot = get_robot()
     if robot is None:
@@ -177,11 +178,12 @@ def add_listen_chat():
     
     data = request.json or {}
     chat_name = data.get('chat_name', '')
+    is_group = data.get('is_group', False)
     
     if not chat_name:
         return jsonify(ApiErrors.INVALID_PARAMS.to_dict())
     
-    success = robot.add_listen_chat(chat_name)
+    success = robot.add_listen_chat(chat_name, is_group)
     
     if success:
         return jsonify(ApiResponse.success().to_dict())

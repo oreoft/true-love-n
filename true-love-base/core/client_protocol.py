@@ -92,13 +92,14 @@ class WeChatClientProtocol(ABC):
     # ==================== 消息监听 ====================
 
     @abstractmethod
-    def add_message_listener(self, chat_name: str, callback: MessageCallback) -> bool:
+    def add_message_listener(self, chat_name: str, callback: MessageCallback, is_group: bool = False) -> bool:
         """
         添加消息监听器
         
         Args:
             chat_name: 要监听的聊天对象（好友昵称或群名）
             callback: 消息回调函数
+            is_group: 是否群聊
             
         Returns:
             是否添加成功
@@ -171,4 +172,5 @@ class WeChatClientProtocol(ABC):
         清理资源，关闭连接
         """
         pass
+
 

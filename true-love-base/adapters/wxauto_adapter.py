@@ -7,7 +7,9 @@ WxAuto Adapter - wxautox4 SDK 适配器
 
 import logging
 from typing import Any, Callable, Optional
-from axautox4x.wxautox4x import WeChat
+
+from wxautox4 import WeChat
+
 from core.client_protocol import WeChatClientProtocol, MessageCallback
 from core.media_handler import MediaHandler
 from models.message import (
@@ -281,6 +283,8 @@ class WxAutoClient(WeChatClientProtocol):
         try:
             self._wx = WeChat()
             self._running = True
+            # 存储群聊标记
+            self._group_chats: set[str] = set()
             LOG.info("WxAutoClient initialized successfully")
         except Exception as e:
             LOG.error(f"Failed to initialize WxAutoClient: {e}")
@@ -349,20 +353,24 @@ class WxAutoClient(WeChatClientProtocol):
     
     # ==================== 消息监听 ====================
     
-    def add_message_listener(self, chat_name: str, callback: MessageCallback) -> bool:
+    def add_message_listener(self, chat_name: str, callback: MessageCallback, is_group: bool = False) -> bool:
         """添加消息监听器"""
         try:
+            # 记录群聊标记
+            if is_group:
+                self._group_chats.add(chat_name)
+            
             # 创建内部回调，转换消息格式
             def internal_callback(raw_msg, chat):
                 try:
-                    # 判断是否群聊（简单通过名称判断，可以优化）
-                    is_group = self._is_group_chat(chat_name)
+                    # 使用记录的群聊标记
+                    chat_is_group = chat_name in self._group_chats
                     
                     # 转换消息
-                    message = self._converter.convert(raw_msg, chat_name, is_group)
+                    message = self._converter.convert(raw_msg, chat_name, chat_is_group)
                     
                     # 检测是否@了自己
-                    if is_group and hasattr(raw_msg, 'content'):
+                    if chat_is_group and hasattr(raw_msg, 'content'):
                         content = str(getattr(raw_msg, 'content', ''))
                         self_name = self.get_self_name()
                         message.is_at_me = f"@{self_name}" in content or '@真爱粉' in content or 'zaf' in content
@@ -374,7 +382,7 @@ class WxAutoClient(WeChatClientProtocol):
             
             self.wx.AddListenChat(chat_name, internal_callback)
             self._listeners[chat_name] = callback
-            LOG.info(f"Added listener for [{chat_name}]")
+            LOG.info(f"Added listener for [{chat_name}], is_group={is_group}")
             return True
         except Exception as e:
             LOG.error(f"Failed to add listener for [{chat_name}]: {e}")
@@ -403,15 +411,6 @@ class WxAutoClient(WeChatClientProtocol):
         except Exception as e:
             LOG.error(f"Error in message listening: {e}")
     
-    def _is_group_chat(self, chat_name: str) -> bool:
-        """
-        判断是否群聊
-        
-        这是一个简单实现，实际可能需要通过其他方式判断
-        """
-        # wxautox4 可能提供了判断方法，这里先用简单逻辑
-        # 通常群聊名称更长，或者包含特定字符
-        return len(chat_name) > 10 or '群' in chat_name
     
     # ==================== 联系人管理 ====================
     
@@ -458,4 +457,5 @@ class WxAutoClient(WeChatClientProtocol):
             LOG.info("WxAutoClient cleaned up")
         except Exception as e:
             LOG.error(f"Error during cleanup: {e}")
+
 

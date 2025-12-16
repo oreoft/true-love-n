@@ -91,12 +91,13 @@ class Robot:
         except Exception as e:
             self.LOG.error(f"Error processing message: {e}")
     
-    def add_listen_chat(self, chat_name: str) -> bool:
+    def add_listen_chat(self, chat_name: str, is_group: bool = False) -> bool:
         """
         添加监听的聊天对象
         
         Args:
             chat_name: 聊天对象名称（好友昵称或群名）
+            is_group: 是否群聊
             
         Returns:
             是否添加成功
@@ -105,10 +106,10 @@ class Robot:
             self.LOG.warning(f"Already listening to [{chat_name}]")
             return True
         
-        success = self.client.add_message_listener(chat_name, self.on_message)
+        success = self.client.add_message_listener(chat_name, self.on_message, is_group)
         if success:
             self._listening_chats.add(chat_name)
-            self.LOG.info(f"Started listening to [{chat_name}]")
+            self.LOG.info(f"Started listening to [{chat_name}], is_group={is_group}")
         return success
     
     def remove_listen_chat(self, chat_name: str) -> bool:

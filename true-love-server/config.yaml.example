@@ -1,0 +1,115 @@
+# True Love Server Configuration Example
+# ============================================
+# 
+# IMPORTANT: Since wxautox4 uses UIAutomation (not hook),
+# all identifiers have changed from wxid to NICKNAMES!
+#
+# - sender: now is nickname (e.g., "纯路人") instead of wxid
+# - chat_id: now is nickname/group name (e.g., "委员会") instead of roomid
+#
+# Please update your config accordingly.
+
+# Base service address (base 服务地址)
+base_server:
+  host: "http://localhost:5000"
+  # Note: self_wxid is kept for backward compatibility but may not be needed
+  self_wxid: "wxid_xxx"  
+  master_wxid: "wxid_xxx"  # Your wxid for notifications
+  master_group: "xxx@chatroom"  # Master group roomid
+
+http_token: "your_secret_token"
+
+# ASR configuration (语音识别配置)
+asr:
+  secret_id: "your_secret_id"
+  secret_key: "your_secret_key"
+  asr_appid: 123456
+  asr_secret_id: "your_asr_secret_id"
+  asr_secret_key: "your_asr_secret_key"
+
+# Group settings (群设置)
+# NOTE: allow_list now uses GROUP NAMES instead of roomid!
+groups:
+  all_allow: true  # Set to false to enable allow_list
+  # Example: allow_list: ["委员会", "工作群", "朋友圈"]
+  allow_list: []
+  auto_notice: {}
+
+# Private chat settings (私聊设置)
+# NOTE: allow_list now uses NICKNAMES instead of wxid!
+privates:
+  all_allow: true  # Set to false to enable allow_list
+  # Example: allow_list: ["纯路人", "张三", "李四"]
+  allow_list: []
+
+# Reminder settings
+# NOTE: Uses NICKNAMES now!
+remainder:
+  utc+8: []
+
+# Chat bot configuration
+enable_bot: chatgpt
+chatgpt:
+  key1: "sk-xxx"
+  api: "https://api.openai.com/v1/"
+  proxy: "http://localhost:1087"
+  # NOTE: gpt4 list now uses NICKNAMES instead of wxid!
+  gpt4: []
+  prompt: "Your prompt here"
+
+# HTTP service configuration
+http:
+  host: "0.0.0.0"
+  port: 8088
+  token: ["your_token"]
+  # NOTE: receiver_map values now use GROUP NAMES / NICKNAMES!
+  # Example: receiver_map: {"alias": "群名称或昵称"}
+  receiver_map: {}
+
+# GitHub integration
+# NOTE: allow_user now uses NICKNAMES instead of wxid!
+github:
+  allow_user: []
+  token: "github_pat_xxx"
+
+# Card feature
+# NOTE: card_user values now use NICKNAMES instead of wxid!
+card:
+  card_user: {}
+
+# Logging configuration
+logging:
+  version: 1
+  disable_existing_loggers: False
+  formatters:
+    simple:
+      format: "%(asctime)s %(message)s"
+      datefmt: "%Y-%m-%d %H:%M:%S"
+    error:
+      format: "%(asctime)s %(name)s %(levelname)s %(filename)s::%(funcName)s[%(lineno)d]:%(message)s"
+  handlers:
+    console:
+      class: logging.StreamHandler
+      level: INFO
+      formatter: simple
+      stream: ext://sys.stdout
+    info_file_handler:
+      class: logging.handlers.RotatingFileHandler
+      level: INFO
+      formatter: simple
+      filename: logs/server_info.log
+      maxBytes: 10485760
+      backupCount: 20
+      encoding: utf8
+    error_file_handler:
+      class: logging.handlers.RotatingFileHandler
+      level: ERROR
+      formatter: error
+      filename: logs/server_error.log
+      maxBytes: 10485760
+      backupCount: 20
+      encoding: utf8
+  root:
+    level: INFO
+    handlers: [console, info_file_handler, error_file_handler]
+
