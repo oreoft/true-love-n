@@ -22,7 +22,7 @@ $ScriptLines = @(
     "Write-Host `"WorkDir: $WorkDir`" -ForegroundColor Gray"
     "Write-Host `"VenvPath: $VenvPath`" -ForegroundColor Gray"
     "Write-Host `"========================================`" -ForegroundColor Gray"
-    "git pull; uv sync --locked; uv run -m true_love_base"
+    "git pull; uv sync; uv run -m true_love_base"
 )
 $ScriptLines | Out-File -FilePath $RunnerScript -Encoding UTF8 -Force
 

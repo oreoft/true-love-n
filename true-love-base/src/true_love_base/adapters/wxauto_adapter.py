@@ -115,7 +115,8 @@ class WxAutoClient(WeChatClientProtocol):
             LOG.info(f"Registering listener for [{chat_name}]")
             
             # 创建内部回调，转换消息格式
-            def internal_callback(raw_msg):
+            # 注意：wxauto 回调签名是 (msg, chat)，必须接收两个参数
+            def internal_callback(raw_msg, chat):
                 try:
                     # 运行时推断是否群聊：群聊时 sender 是群成员昵称，不等于 chat_name
                     sender = getattr(raw_msg, 'sender', '')

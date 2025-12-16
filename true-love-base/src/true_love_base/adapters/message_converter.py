@@ -54,7 +54,6 @@ class WxAutoMessageConverter:
             # 获取消息类型
             msg_type = getattr(raw_msg, 'type', 'unknown')
             sender = getattr(raw_msg, 'sender', chat_name)
-            content = getattr(raw_msg, 'content', '')
             
             # 判断是否自己发送
             is_self = isinstance(raw_msg, SelfMessage) if hasattr(raw_msg, '__class__') else False
