@@ -26,7 +26,7 @@ WorkingDirectory=/root/true-love-n/true-love-ai
 Environment=APP_ENV=prod
 
 # === pm2: interpreter + script ===
-ExecStart=/root/true-love-n/true-love-ai/.venv/bin/python main.py
+ExecStart=/root/true-love-n/true-love-ai/.venv/bin/python -m true_love_ai
 
 # === pm2: autorestart ===
 Restart=always
