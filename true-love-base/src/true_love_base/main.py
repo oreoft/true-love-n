@@ -23,8 +23,40 @@ config = Config()
 LOG = logging.getLogger("Main")
 
 
+def disable_quick_edit():
+    """
+    禁用 Windows 控制台的 QuickEdit 模式
+    
+    QuickEdit 模式会导致用户点击控制台窗口时程序暂停，
+    直到按回车键才会继续执行，这会影响消息监听的稳定性。
+    """
+    if sys.platform != 'win32':
+        return
+    
+    try:
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        # 获取标准输入句柄 (STD_INPUT_HANDLE = -10)
+        handle = kernel32.GetStdHandle(-10)
+        # 获取当前控制台模式
+        mode = ctypes.c_ulong()
+        kernel32.GetConsoleMode(handle, ctypes.byref(mode))
+        # 禁用 QuickEdit 模式 (0x0040) 和插入模式 (0x0020)
+        # ENABLE_QUICK_EDIT_MODE = 0x0040
+        # ENABLE_INSERT_MODE = 0x0020
+        new_mode = mode.value & ~0x0040 & ~0x0020
+        kernel32.SetConsoleMode(handle, new_mode)
+        LOG.info("Disabled Windows console QuickEdit mode")
+    except Exception as e:
+        # 非 Windows 环境或没有控制台时忽略
+        LOG.debug(f"Could not disable QuickEdit mode: {e}")
+
+
 def main():
     """主函数"""
+    # 禁用 Windows 控制台 QuickEdit 模式，防止点击窗口导致程序暂停
+    disable_quick_edit()
+    
     LOG.info("=" * 50)
     LOG.info("True Love Base starting...")
     LOG.info("=" * 50)
