@@ -32,7 +32,7 @@ def disable_quick_edit():
     """
     if sys.platform != 'win32':
         return
-    
+
     try:
         import ctypes
         kernel32 = ctypes.windll.kernel32
@@ -56,11 +56,11 @@ def main():
     """主函数"""
     # 禁用 Windows 控制台 QuickEdit 模式，防止点击窗口导致程序暂停
     disable_quick_edit()
-    
+
     LOG.info("=" * 50)
     LOG.info("True Love Base starting...")
     LOG.info("=" * 50)
-    
+
     # 初始化微信客户端
     try:
         client = WxAutoClient()
@@ -68,14 +68,14 @@ def main():
     except Exception as e:
         LOG.error(f"Failed to initialize WeChat client: {e}")
         sys.exit(1)
-    
+
     # 初始化监听列表持久化管理器
     listen_store = ListenStore(config.listen_chats_file)
     LOG.info(f"ListenStore initialized: {config.listen_chats_file}")
-    
+
     # 初始化机器人
     robot = Robot(client, listen_store)
-    
+
     # 设置信号处理
     def signal_handler(sig, frame):
         LOG.info("Received shutdown signal...")
@@ -83,27 +83,30 @@ def main():
             robot.send_text_msg("True Love Base shutting down...", config.master_wix)
         except Exception:
             pass
+        # 清理 Robot 资源（线程池等）
+        robot.cleanup()
+        # 清理 wxauto 客户端资源
         client.cleanup()
         LOG.info("Cleanup completed, exiting...")
         sys.exit(0)
-    
+
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
-    
+
     # 启动 HTTP 服务
-    server.enable_http(robot)
+    t = server.enable_http(robot)
     LOG.info("HTTP server enabled")
-    
+
     # 发送启动通知
     try:
         robot.send_text_msg("True Love Base started successfully!", config.master_wix)
     except Exception as e:
         LOG.warning(f"Failed to send startup notification: {e}")
-    
+
     LOG.info("True Love Base is ready!")
     LOG.info("Use HTTP API to add chat listeners:")
     LOG.info("  POST /listen/add  {\"chat_name\": \"好友昵称或群名\"}")
-    
+
     # 定义监听线程的入口函数
     # 重要：AddListenChat 和 KeepRunning 必须在同一个线程中调用
     def listener_thread_entry():
@@ -116,7 +119,7 @@ def main():
             LOG.warning("No listen_chats found! Use API to add listeners")
         # 开始监听（阻塞）
         robot.start_listening()
-    
+
     # 在后台线程启动消息监听
     listen_thread = Thread(
         target=listener_thread_entry,
@@ -124,13 +127,9 @@ def main():
         daemon=True,
     )
     listen_thread.start()
-    
-    # 主线程保持运行
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        signal_handler(None, None)
+
+    # 把http现成拉到主线程保持运行
+    t.join()
 
 
 if __name__ == '__main__':

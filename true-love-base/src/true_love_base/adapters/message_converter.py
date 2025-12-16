@@ -3,10 +3,11 @@
 Message Converter - wxautox4 消息转换器
 
 将 wxautox4 的消息对象转换为统一的 BaseMessage 模型。
+使用类级别缓存优化导入性能。
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any, Optional, Type
 
 from true_love_base.core.media_handler import MediaHandler
 from true_love_base.models.message import (
@@ -27,10 +28,58 @@ class WxAutoMessageConverter:
     wxautox4 消息转换器
     
     将 wxautox4 的消息对象转换为统一的 BaseMessage 模型。
+    使用类级别缓存，避免每次转换都重新导入 wxautox4 消息类。
     """
+    
+    # 类级别缓存：wxautox4 消息类
+    _wx_classes_loaded: bool = False
+    _FriendMessage: Optional[Type] = None
+    _SelfMessage: Optional[Type] = None
+    _WxImageMessage: Optional[Type] = None
+    _WxVoiceMessage: Optional[Type] = None
+    _WxVideoMessage: Optional[Type] = None
     
     def __init__(self, media_handler: MediaHandler):
         self.media_handler = media_handler
+        # 在初始化时加载 wxautox4 消息类
+        self._load_wx_classes()
+    
+    @classmethod
+    def _load_wx_classes(cls) -> None:
+        """
+        一次性加载 wxautox4 消息类（类级别缓存）
+        
+        避免每次消息转换都重新导入，提升性能。
+        """
+        if cls._wx_classes_loaded:
+            return
+        
+        try:
+            from wxautox4.msgs import (
+                FriendMessage,
+                SelfMessage,
+            )
+            cls._FriendMessage = FriendMessage
+            cls._SelfMessage = SelfMessage
+            LOG.debug("Loaded wxautox4 basic message classes")
+        except ImportError as e:
+            LOG.warning(f"Failed to import wxautox4 basic message classes: {e}")
+        
+        try:
+            from wxautox4.msgs import (
+                ImageMessage as WxImageMessage,
+                VoiceMessage as WxVoiceMessage,
+                VideoMessage as WxVideoMessage,
+            )
+            cls._WxImageMessage = WxImageMessage
+            cls._WxVoiceMessage = WxVoiceMessage
+            cls._WxVideoMessage = WxVideoMessage
+            LOG.debug("Loaded wxautox4 media message classes")
+        except ImportError as e:
+            LOG.warning(f"Failed to import wxautox4 media message classes: {e}")
+        
+        cls._wx_classes_loaded = True
+        LOG.info("WxAutoMessageConverter: wxautox4 classes loaded")
     
     def convert(self, raw_msg: Any, chat_name: str, is_group: bool = False) -> BaseMessage:
         """
@@ -45,18 +94,14 @@ class WxAutoMessageConverter:
             转换后的 BaseMessage 对象
         """
         try:
-            # 延迟导入，避免在未安装时报错
-            from wxautox4.msgs import (
-                FriendMessage,
-                SelfMessage,
-            )
-            
             # 获取消息类型
             msg_type = getattr(raw_msg, 'type', 'unknown')
             sender = getattr(raw_msg, 'sender', chat_name)
             
-            # 判断是否自己发送
-            is_self = isinstance(raw_msg, SelfMessage) if hasattr(raw_msg, '__class__') else False
+            # 判断是否自己发送（使用缓存的类）
+            is_self = False
+            if self._SelfMessage is not None:
+                is_self = isinstance(raw_msg, self._SelfMessage)
             
             # 根据消息类型创建对应的消息对象
             if msg_type == 'text' or msg_type == 'friend':
@@ -91,25 +136,24 @@ class WxAutoMessageConverter:
         is_group: bool,
         is_self: bool
     ) -> BaseMessage:
-        """通过类名判断消息类型"""
-        try:
-            from wxautox4.msgs import ImageMessage as WxImageMessage
-            from wxautox4.msgs import VoiceMessage as WxVoiceMessage
-            from wxautox4.msgs import VideoMessage as WxVideoMessage
-            
-            class_name = raw_msg.__class__.__name__
-            
-            if isinstance(raw_msg, WxImageMessage) or 'Image' in class_name:
-                return self._convert_image_message(raw_msg, sender, chat_name, is_group, is_self)
-            elif isinstance(raw_msg, WxVoiceMessage) or 'Voice' in class_name:
-                return self._convert_voice_message(raw_msg, sender, chat_name, is_group, is_self)
-            elif isinstance(raw_msg, WxVideoMessage) or 'Video' in class_name:
-                return self._convert_video_message(raw_msg, sender, chat_name, is_group, is_self)
-            else:
-                # 默认作为文本消息处理
-                return self._convert_text_message(raw_msg, sender, chat_name, is_group, is_self)
-        except ImportError:
-            # 如果导入失败，作为文本消息处理
+        """通过类名判断消息类型（使用缓存的类）"""
+        class_name = raw_msg.__class__.__name__
+        
+        # 使用缓存的类进行类型判断
+        if self._WxImageMessage is not None and isinstance(raw_msg, self._WxImageMessage):
+            return self._convert_image_message(raw_msg, sender, chat_name, is_group, is_self)
+        elif self._WxVoiceMessage is not None and isinstance(raw_msg, self._WxVoiceMessage):
+            return self._convert_voice_message(raw_msg, sender, chat_name, is_group, is_self)
+        elif self._WxVideoMessage is not None and isinstance(raw_msg, self._WxVideoMessage):
+            return self._convert_video_message(raw_msg, sender, chat_name, is_group, is_self)
+        elif 'Image' in class_name:
+            return self._convert_image_message(raw_msg, sender, chat_name, is_group, is_self)
+        elif 'Voice' in class_name:
+            return self._convert_voice_message(raw_msg, sender, chat_name, is_group, is_self)
+        elif 'Video' in class_name:
+            return self._convert_video_message(raw_msg, sender, chat_name, is_group, is_self)
+        else:
+            # 默认作为文本消息处理
             return self._convert_text_message(raw_msg, sender, chat_name, is_group, is_self)
     
     def _convert_text_message(

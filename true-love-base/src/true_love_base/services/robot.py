@@ -4,9 +4,13 @@ Robot - 消息处理机器人
 
 负责消息监听、处理和转发。
 使用抽象的 WeChatClientProtocol 接口，与底层SDK解耦。
+支持异步消息处理，按 chat_id 分组保证同一聊天的消息顺序。
 """
 
 import logging
+import threading
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, TYPE_CHECKING
 
 from true_love_base.core.client_protocol import WeChatClientProtocol
@@ -30,9 +34,12 @@ class Robot:
     
     负责:
     - 消息监听和分发
-    - 消息处理逻辑
+    - 异步消息处理（按 chat_id 分组保证顺序）
     - 消息发送
     """
+    
+    # 线程池配置
+    MAX_WORKERS = 10
     
     def __init__(self, client: WeChatClientProtocol, listen_store: "ListenStore") -> None:
         """
@@ -48,7 +55,16 @@ class Robot:
         self._listening_chats: set[str] = set()
         self._listen_store = listen_store
         
-        self.LOG.info(f"Robot initialized, self_name: {self.self_name}")
+        # 消息处理线程池
+        self._executor = ThreadPoolExecutor(
+            max_workers=self.MAX_WORKERS,
+            thread_name_prefix="MsgHandler"
+        )
+        
+        # 每个 chat_id 一个锁，保证同一聊天内消息顺序
+        self._chat_locks: dict[str, threading.Lock] = defaultdict(threading.Lock)
+        
+        self.LOG.info(f"Robot initialized, self_name: {self.self_name}, max_workers: {self.MAX_WORKERS}")
     
     def forward_msg(self, msg: BaseMessage) -> str:
         """
@@ -64,39 +80,60 @@ class Robot:
     
     def on_message(self, msg: BaseMessage, chat_name: str) -> None:
         """
-        消息回调处理
+        消息回调处理 - 提交到线程池异步处理
         
         Args:
             msg: 收到的消息
             chat_name: 聊天对象名称
         """
         try:
-            self.LOG.info(f"Received message from [{chat_name}]: {msg}")
-            
-            # 过滤微信系统消息
+            # 快速过滤，不需要进入线程池
             if 'weixin' in msg.sender.lower() or msg.sender == 'system':
                 self.LOG.debug(f"Ignored system message from [{msg.sender}]")
                 return
             
-            # 过滤自己发送的消息
             if msg.is_self:
                 return
             
-            # 群消息处理
-            if msg.is_group:
-                self.LOG.info(f"Group message, is_at_me={msg.is_at_me}")
-                # 只处理@了自己的消息
-                if msg.is_at_me:
-                    reply = self.forward_msg(msg)
-                    self.send_text_msg(reply, chat_name, msg.sender)
-                return
+            self.LOG.info(f"Received message from [{chat_name}], submitting to thread pool")
             
-            # 私聊消息，全部转发处理
-            reply = self.forward_msg(msg)
-            self.send_text_msg(reply, chat_name)
+            # 提交到线程池异步处理
+            self._executor.submit(self._process_message, msg, chat_name)
             
         except Exception as e:
-            self.LOG.error(f"Error processing message: {e}")
+            self.LOG.error(f"Error submitting message to thread pool: {e}")
+    
+    def _process_message(self, msg: BaseMessage, chat_name: str) -> None:
+        """
+        实际处理消息 - 在线程池中执行
+        
+        同一 chat_name 的消息会串行处理，保证顺序。
+        不同 chat_name 的消息可以并行处理。
+        
+        Args:
+            msg: 收到的消息
+            chat_name: 聊天对象名称
+        """
+        # 获取该聊天的锁，保证同一 chat_name 的消息顺序
+        with self._chat_locks[chat_name]:
+            try:
+                self.LOG.info(f"Processing message from [{chat_name}]: {msg}")
+                
+                # 群消息处理
+                if msg.is_group:
+                    self.LOG.info(f"Group message, is_at_me={msg.is_at_me}")
+                    # 只处理@了自己的消息
+                    if msg.is_at_me:
+                        reply = self.forward_msg(msg)
+                        self.send_text_msg(reply, chat_name, msg.sender)
+                    return
+                
+                # 私聊消息，全部转发处理
+                reply = self.forward_msg(msg)
+                self.send_text_msg(reply, chat_name)
+                
+            except Exception as e:
+                self.LOG.error(f"Error processing message from [{chat_name}]: {e}")
     
     def add_listen_chat(self, chat_name: str, persist: bool = True) -> bool:
         """
@@ -169,6 +206,16 @@ class Robot:
         """
         self.LOG.info("Robot starting to listen...")
         self.client.start_listening()
+    
+    def cleanup(self) -> None:
+        """
+        清理资源
+        
+        关闭线程池，等待所有任务完成。
+        """
+        self.LOG.info("Robot cleanup: shutting down thread pool...")
+        self._executor.shutdown(wait=True, cancel_futures=False)
+        self.LOG.info("Robot cleanup: thread pool shutdown complete")
     
     # ==================== 消息发送 ====================
     

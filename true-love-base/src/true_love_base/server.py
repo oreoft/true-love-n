@@ -3,6 +3,7 @@
 HTTP Server - 提供 HTTP API 服务
 
 提供外部调用接口，用于发送消息等操作。
+使用 Waitress 作为生产级 WSGI 服务器。
 """
 
 import logging
@@ -11,6 +12,7 @@ from threading import Thread
 from typing import Optional, TYPE_CHECKING
 
 from flask import Flask, g, request, jsonify
+from waitress import serve
 
 from true_love_base.models.api import ApiResponse, ApiErrors
 
@@ -252,9 +254,14 @@ def after_request_logging(response):
 
 # ==================== Server Control ====================
 
+# Waitress 配置
+WAITRESS_THREADS = 8  # 工作线程数
+WAITRESS_CHANNEL_TIMEOUT = 120  # 通道超时（秒）
+
+
 def enable_http(robot: "Robot", host: str = "0.0.0.0", port: int = 5000):
     """
-    启动 HTTP 服务
+    启动 HTTP 服务（使用 Waitress 生产级服务器）
     
     Args:
         robot: Robot 实例
@@ -264,15 +271,27 @@ def enable_http(robot: "Robot", host: str = "0.0.0.0", port: int = 5000):
     global _robot
     _robot = robot
     
-    Thread(
-        target=app.run,
-        name="HttpServer",
-        kwargs={"host": host, "port": port, "threaded": True},
-        daemon=True,
-    ).start()
+    def run_server():
+        """运行 Waitress 服务器"""
+        serve(
+            app,
+            host=host,
+            port=port,
+            threads=WAITRESS_THREADS,
+            channel_timeout=WAITRESS_CHANNEL_TIMEOUT,
+            _quiet=True,  # 禁用 Waitress 默认日志，使用我们自己的
+        )
     
-    LOG.info(f"HTTP server started on {host}:{port}")
+    t = Thread(
+        target=run_server,
+        name="HttpServer",
+    )
+    t.start()
+    
+    LOG.info(f"HTTP server (Waitress) started on {host}:{port}, threads={WAITRESS_THREADS}")
+    return t
 
 
 if __name__ == '__main__':
+    # 开发模式使用 Flask 内置服务器
     app.run(debug=True)
