@@ -37,7 +37,7 @@ jobs:
           ssh -o StrictHostKeyChecking=no -p ${{ env.SERVER_PORT }} ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} << 'EOF'
             wsl -e bash -lc "
             set -e
-            cd /root/true-love-n/true-love-ai
+            cd /root/true-love-n/true-love-server
             git pull
           
             # 保证uv 安装

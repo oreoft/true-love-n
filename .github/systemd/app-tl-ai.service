@@ -2,6 +2,7 @@
 Description=app true-love-ai
 After=network-online.target
 Wants=network-online.target
+StartLimitBurst=3
 
 [Service]
 Type=simple
@@ -29,8 +30,8 @@ Environment=APP_ENV=prod
 ExecStart=/root/true-love-n/true-love-ai/.venv/bin/python -m true_love_ai
 
 # === pm2: autorestart ===
-Restart=always
-RestartSec=2
+Restart=on-failure
+RestartSec=3
 
 # === pm2: time + log_date_format ===
 # journald 自带时间戳（ISO-8601），比 pm2 稳

@@ -2,6 +2,7 @@
 Description=app true-love-server
 After=network-online.target
 Wants=network-online.target
+StartLimitBurst=3
 
 [Service]
 Type=simple
@@ -29,7 +30,7 @@ Environment=APP_ENV=prod
 ExecStart=/root/true-love-n/true-love-server/.venv/bin/python -m true_love_server
 
 # === pm2: autorestart ===
-Restart=always
+Restart=on-failure
 RestartSec=2
 
 # === pm2: time + log_date_format ===
