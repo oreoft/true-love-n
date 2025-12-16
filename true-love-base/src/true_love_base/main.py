@@ -68,21 +68,26 @@ def main():
     except Exception as e:
         LOG.warning(f"Failed to send startup notification: {e}")
     
-    # 从持久化文件加载监听列表
-    robot.load_listen_chats()
-    listen_count = len(robot.get_listen_chats())
-    if listen_count > 0:
-        LOG.info(f"Loaded {listen_count} listen chats from file")
-    else:
-        LOG.warning("No listen_chats found! Use API to add listeners")
-    
     LOG.info("True Love Base is ready!")
     LOG.info("Use HTTP API to add chat listeners:")
     LOG.info("  POST /listen/add  {\"chat_name\": \"好友昵称或群名\"}")
     
+    # 定义监听线程的入口函数
+    # 重要：AddListenChat 和 KeepRunning 必须在同一个线程中调用
+    def listener_thread_entry():
+        # 在监听线程中加载监听列表
+        robot.load_listen_chats()
+        listen_count = len(robot.get_listen_chats())
+        if listen_count > 0:
+            LOG.info(f"Loaded {listen_count} listen chats from file")
+        else:
+            LOG.warning("No listen_chats found! Use API to add listeners")
+        # 开始监听（阻塞）
+        robot.start_listening()
+    
     # 在后台线程启动消息监听
     listen_thread = Thread(
-        target=robot.start_listening,
+        target=listener_thread_entry,
         name="MessageListener",
         daemon=True,
     )
