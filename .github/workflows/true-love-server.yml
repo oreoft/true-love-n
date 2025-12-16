@@ -33,29 +33,35 @@ jobs:
           ssh-private-key: ${{ env.SERVER_SSH_KEY }}
 
       - name: Execute ai Commands Over SSH
+        shell: bash
         run: |
-          ssh -o StrictHostKeyChecking=no -p ${{ env.SERVER_PORT }} ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} << 'EOF'
-            wsl -e bash -lc "
-            set -e
-            cd /root/true-love-n/true-love-server
-            git pull
-          
-            # 保证uv 安装
-            if ! command -v uv >/dev/null 2>&1; then
-                echo "uv not found, installing..."
-                curl -LsSf https://astral.sh/uv/install.sh | sh
-                if ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' ~/.bashrc; then
-                    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-                fi
-                export PATH="$HOME/.local/bin:$PATH"
-            else
-                echo "uv already installed."
-            fi
-            # 同步
-            uv sync --locked
-            # 重启
-            systemctl restart app-tl-server"
-          EOF
+          set -euo pipefail
+          echo "SSH env ready"
+          # 目标机是 Win11，SSH 进去默认是 PowerShell/CMD；应用在 WSL 里。
+          # 用 wsl.exe 启动 WSL 的 bash，并通过 STDIN 喂入脚本，避免引号/$HOME/$PATH 在 PowerShell 中被展开。
+          ssh -o StrictHostKeyChecking=no -p "${{ env.SERVER_PORT }}" "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" "wsl.exe -e bash -s" <<'EOS'
+          set -euo pipefail
+
+          cd /root/true-love-n/true-love-server
+          git pull
+
+          # 保证 uv 安装
+          if ! command -v uv >/dev/null 2>&1; then
+            echo "uv not found, installing..."
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+          else
+            echo "uv already installed."
+          fi
+
+          # 确保 PATH 立刻可用（不要依赖 ~/.bashrc 在非交互 shell 自动加载）
+          export PATH="$HOME/.local/bin:$PATH"
+
+          # 同步
+          uv sync --locked
+
+          # 重启（要求 WSL 内 systemd 已启用）
+          systemctl restart app-tl-server
+          EOS
 
       - name: Notify - ai Success
         if: success()
