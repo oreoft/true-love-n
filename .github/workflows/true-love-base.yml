@@ -41,7 +41,7 @@ jobs:
             echo "Connected to remote server"
           
             echo "Stopping existing TrueLove-Base task if it exists"
-            schtasks /end /tn "UIA-TL-BASE" || echo "Task not running or does not exist"
+            schtasks /end /tn "UIA-TL-BASE"
           
             echo "Starting TrueLove-Base task"
             schtasks /run /tn "UIA-TL-BASE"
