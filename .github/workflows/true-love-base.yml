@@ -37,18 +37,17 @@ jobs:
         run: |
           set -euo pipefail
           echo "SSH env ready"
-          ssh -o StrictHostKeyChecking=no -p "${{ env.SERVER_PORT }}" "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}"
-            << 'EOF'
-                echo "Connected to remote server"
+          ssh -o StrictHostKeyChecking=no -p ${{ env.SERVER_PORT }} ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} << 'EOF'
+            echo "Connected to remote server"
           
-                echo "Stopping existing TrueLove-Base task if it exists"
-                schtasks /end /tn "UIA-TL-BASE" || echo "Task not running or does not exist"
+            echo "Stopping existing TrueLove-Base task if it exists"
+            schtasks /end /tn "UIA-TL-BASE" || echo "Task not running or does not exist"
           
-                echo "Starting TrueLove-Base task"
-                schtasks /run /tn "UIA-TL-BASE"
+            echo "Starting TrueLove-Base task"
+            schtasks /run /tn "UIA-TL-BASE"
           
-                echo "Deployment script completed"
-
+            echo "Deployment script completed"
+          EOF
 
       - name: Notify - base Success
         if: success()
