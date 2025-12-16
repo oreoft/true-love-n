@@ -37,11 +37,18 @@ jobs:
         run: |
           set -euo pipefail
           echo "SSH env ready"
+          ssh -o StrictHostKeyChecking=no -p "${{ env.SERVER_PORT }}" "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}"
+            << 'EOF'
+                echo "Connected to remote server"
+          
+                echo "Stopping existing TrueLove-Base task if it exists"
+                schtasks /end /tn "UIA-TL-BASE" || echo "Task not running or does not exist"
+          
+                echo "Starting TrueLove-Base task"
+                schtasks /run /tn "UIA-TL-BASE"
+          
+                echo "Deployment script completed"
 
-          # 直接在远端用 cmd.exe 执行（避免 PowerShell 解释 REM/语法差异）
-          ssh -o StrictHostKeyChecking=no -p "${{ env.SERVER_PORT }}" \
-            "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" \
-            "cmd.exe /c C:\\Users\\admin\\Desktop\\app-tl-base.cmd"
 
       - name: Notify - base Success
         if: success()
@@ -54,3 +61,22 @@ jobs:
             "atReceiver": "",
             "content": "真爱粉 base 模块已经成功启动"
           }' || echo "通知发送失败，但部署成功"
+
+
+## 创建任务
+## .\create-uia-base.ps1
+#
+## 启动任务
+## schtasks /run /tn "UIA-TL-BASE"
+#
+## 停止任务
+## schtasks /end /tn "UIA-TL-BASE"
+#
+## 重启
+## schtasks /end /tn "UIA-TL-BASE"; schtasks /run /tn "UIA-TL-BASE"
+#
+## 查看任务状态
+## Get-ScheduledTask -TaskName "UIA-TL-BASE"
+#
+## 删除任务（方便重新创建）
+## Unregister-ScheduledTask -TaskName "UIA-TL-BASE" -Confirm:$false
