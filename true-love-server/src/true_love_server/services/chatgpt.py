@@ -74,7 +74,7 @@ class ChatGPT(ChatBot):
             if rsp == '':
                 raise Exception("rep 返回为空")
         except Exception as e0:
-            self.LOG.error("发送到chatgpt出错", e0)
+            self.LOG.error("发送到chatgpt出错: %s", e0)
             rsp = {"type": "chat", "answer": "ai服务可用性受影响, 稍后再试试捏"}
         return rsp
 
@@ -98,7 +98,7 @@ class ChatGPT(ChatBot):
             # 获取结果
             rsp = response.json().get('data') or response.json().get('message')
         except Exception as e0:
-            self.LOG.error("发送到sd出错", e0)
+            self.LOG.error("发送到sd出错: %s", e0)
             rsp = '发生未知错误, 稍后再试试捏'
         return rsp
 
@@ -122,7 +122,7 @@ class ChatGPT(ChatBot):
             rsp = response.json().get('data') or response.json().get('message')
             self.LOG.info(f"get_img_type回答时间为：{round(time.time() - start_time, 2)}s, result:{rsp}")
         except Exception as e0:
-            self.LOG.error("发送到sd出错", e0)
+            self.LOG.error("发送到get_img_type出错: %s", e0)
             rsp = '发生未知错误, 稍后再试试捏'
         return rsp
 
@@ -146,7 +146,7 @@ class ChatGPT(ChatBot):
             # 获取结果
             rsp = response.json().get('data') or response.json().get('message')
         except Exception as e0:
-            self.LOG.error("发送到send_analyze出错", e0)
+            self.LOG.error("发送到send_analyze出错: %s", e0)
             rsp = '发生未知错误, 稍后再试试捏'
         return rsp
 
