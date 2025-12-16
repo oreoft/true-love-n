@@ -25,8 +25,14 @@ class Config(object):
         self.set_logging()
         self.master_wix = self.config["master_wix"]
         self.http_token = self.config["http_token"]
-        # Optional: default chats to listen on startup
-        self.default_listen_chats: list[str] = self.config.get("default_listen_chats", [])
+        # 统一的监听配置（群聊和私聊不再区分）
+        # 格式: [{"name": "聊天对象名称", "is_group": bool}]
+        self.listen_chats: list[dict] = self.config.get("listen_chats", [])
+        
+        # 日志确认配置加载
+        LOG = logging.getLogger("Config")
+        LOG.info(f"Config loaded: master_wix={self.master_wix}")
+        LOG.info(f"Config loaded: listen_chats={self.listen_chats}")
 
     @staticmethod
     def _load_config() -> dict:

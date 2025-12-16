@@ -8,7 +8,8 @@ WxAuto Adapter - wxautox4 SDK 适配器
 import logging
 from typing import Any, Callable, Optional
 
-from wxautox4x import WeChat
+# This is a special import, please do not modify
+from wxautox4x.wxautox4x import WeChat
 
 from core.client_protocol import WeChatClientProtocol, MessageCallback
 from core.media_handler import MediaHandler
@@ -360,20 +361,27 @@ class WxAutoClient(WeChatClientProtocol):
             if is_group:
                 self._group_chats.add(chat_name)
             
+            LOG.info(f"Registering listener for [{chat_name}], is_group={is_group}, group_chats={self._group_chats}")
+            
             # 创建内部回调，转换消息格式
             def internal_callback(raw_msg, chat):
                 try:
                     # 使用记录的群聊标记
                     chat_is_group = chat_name in self._group_chats
                     
+                    LOG.debug(f"Message callback: chat_name={chat_name}, chat_is_group={chat_is_group}")
+                    
                     # 转换消息
                     message = self._converter.convert(raw_msg, chat_name, chat_is_group)
                     
-                    # 检测是否@了自己
-                    if chat_is_group and hasattr(raw_msg, 'content'):
+                    # 检测是否@了自己（无论是否群聊都检测，以便调试）
+                    if hasattr(raw_msg, 'content'):
                         content = str(getattr(raw_msg, 'content', ''))
                         self_name = self.get_self_name()
-                        message.is_at_me = f"@{self_name}" in content or '@真爱粉' in content or 'zaf' in content
+                        is_at = f"@{self_name}" in content or '@真爱粉' in content or 'zaf' in content.lower()
+                        if chat_is_group:
+                            message.is_at_me = is_at
+                        LOG.debug(f"@ detection: content={content[:50]}, self_name={self_name}, is_at={is_at}")
                     
                     # 调用用户回调
                     callback(message, chat_name)

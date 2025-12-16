@@ -63,11 +63,17 @@ def main():
     except Exception as e:
         LOG.warning(f"Failed to send startup notification: {e}")
     
-    # 添加默认监听（如果在 config.yaml 中配置了 default_listen_chats）
-    if config.default_listen_chats:
-        LOG.info(f"Adding default listeners: {config.default_listen_chats}")
-        for chat_name in config.default_listen_chats:
-            robot.add_listen_chat(chat_name)
+    # 添加配置的监听对象
+    if config.listen_chats:
+        LOG.info(f"Adding listeners from config: {config.listen_chats}")
+        for chat_config in config.listen_chats:
+            chat_name = chat_config.get("name")
+            is_group = chat_config.get("is_group", False)
+            LOG.info(f"  -> Adding [{chat_name}], is_group={is_group}")
+            if chat_name:
+                robot.add_listen_chat(chat_name, is_group=is_group)
+    else:
+        LOG.warning("No listen_chats configured! Please check config.yaml")
     
     LOG.info("True Love Base is ready!")
     LOG.info("Use HTTP API to add chat listeners:")

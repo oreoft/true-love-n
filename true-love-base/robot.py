@@ -69,7 +69,8 @@ class Robot:
             self.LOG.info(f"Received message from [{chat_name}]: {msg}")
             
             # 过滤微信系统消息
-            if 'weixin' in msg.sender.lower():
+            if 'weixin' in msg.sender.lower() or msg.sender == 'system':
+                self.LOG.debug(f"Ignored system message from [{msg.sender}]")
                 return
             
             # 过滤自己发送的消息
@@ -78,6 +79,7 @@ class Robot:
             
             # 群消息处理
             if msg.is_group:
+                self.LOG.info(f"Group message, is_at_me={msg.is_at_me}")
                 # 只处理@了自己的消息
                 if msg.is_at_me:
                     reply = self.forward_msg(msg)

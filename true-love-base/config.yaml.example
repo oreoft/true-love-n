@@ -1,17 +1,23 @@
 # True Love Base Configuration
 # Copy this file to config.yaml and modify as needed
 
-# Master user - wxid or nickname for notifications
-master_wix: "your_wxid_or_nickname"
+# Master user - nickname for notifications (wxauto uses nickname, not wxid)
+master_wix: "your_friend_nickname"
 
 # HTTP token for authentication with backend server
 http_token: "your_secret_token"
 
-# Default chat listeners (optional)
-# Add friend nicknames or group names to auto-listen on startup
-# default_listen_chats:
-#   - "好友昵称1"
-#   - "群名称1"
+# Chat listeners configuration (unified for both private chats and groups)
+# - name: friend nickname or group name (wxauto uses display name)
+# - is_group: true for groups, false for private chats
+#   (groups require @ mention to respond, private chats respond to all messages)
+#
+# Example:
+# listen_chats:
+#   - name: "好友昵称"
+#     is_group: false
+#   - name: "群名称"
+#     is_group: true
 
 # Logging configuration
 logging:
