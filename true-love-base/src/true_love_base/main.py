@@ -54,7 +54,7 @@ def disable_quick_edit():
 def main():
     """主函数"""
     # 禁用 Windows 控制台 QuickEdit 模式，防止点击窗口导致程序暂停
-    # disable_quick_edit()
+    disable_quick_edit()
 
     LOG.info("=" * 50)
     LOG.info("True Love Base starting...")
