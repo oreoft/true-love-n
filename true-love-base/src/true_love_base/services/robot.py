@@ -74,7 +74,7 @@ class Robot:
 
     def on_message(self, msg: ChatMessage, chat_name: str) -> None:
         """
-        消息回调处理 - 提交到线程池异步处理
+        消息回调处理
         
         Args:
             msg: 收到的消息
@@ -89,13 +89,13 @@ class Robot:
             if msg.is_self:
                 return
 
-            self.LOG.info(f"Received message from [{chat_name}], submitting to thread pool")
+            self.LOG.info(f"Received message from [{chat_name}], processing synchronously")
 
             # 提交到线程池异步处理
-            self._executor.submit(self._process_message, msg, chat_name)
+            self._process_message(msg, chat_name)
 
         except Exception as e:
-            self.LOG.error(f"Error submitting message to thread pool: {e}")
+            self.LOG.error(f"Error processing message to thread pool: {e}")
 
     def _process_message(self, msg: ChatMessage, chat_name: str) -> None:
         """
@@ -232,17 +232,17 @@ class Robot:
         """
         chats = self._listen_store.load()
         self.LOG.info(f"Loading {len(chats)} listen chats from store")
-        
+
         success = []
         failed = []
-        
+
         for chat_name in chats:
             # persist=False 避免重复写入
             if self.add_listen_chat(chat_name, persist=False):
                 success.append(chat_name)
             else:
                 failed.append(chat_name)
-        
+
         return {"success": success, "failed": failed}
 
     def refresh_listen_chats(self) -> dict:
