@@ -54,7 +54,9 @@ def get_wx_imgs_dir() -> str:
     """
     try:
         project_root = _find_project_root()
+        LOG.info(f"Project root: {project_root}")
         wx_imgs_path = os.path.join(project_root, SERVER_DIR, WX_IMGS_DIR)
+        LOG.info(f"wx_imgs_path: {wx_imgs_path}")
         
         # 如果目录不存在，创建它
         if not os.path.exists(wx_imgs_path):

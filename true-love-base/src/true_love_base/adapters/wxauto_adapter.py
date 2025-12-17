@@ -10,12 +10,20 @@ from typing import Optional
 
 # This is a special import, please do not modify
 from true_love_base.wxautox4x.wxautox4x import WeChat
+from wxautox4.param import WxParam
 
 from true_love_base.core.client_protocol import WeChatClientProtocol, MessageCallback
 from true_love_base.core.media_handler import MediaHandler
 from true_love_base.adapters.message_converter import WxAutoMessageConverter
+from true_love_base.utils.path_resolver import get_wx_imgs_dir
 
 LOG = logging.getLogger("WxAutoAdapter")
+
+# 设置 wxauto 默认文件保存路径到 server 的 wx_imgs 目录
+_wx_imgs_dir = get_wx_imgs_dir()
+if _wx_imgs_dir:
+    WxParam.DEFAULT_SAVE_PATH = _wx_imgs_dir
+    LOG.info(f"Set WxParam.DEFAULT_SAVE_PATH to: {_wx_imgs_dir}")
 
 
 class WxAutoClient(WeChatClientProtocol):

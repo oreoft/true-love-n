@@ -191,12 +191,17 @@ class WxAutoMessageConverter:
         # 创建下载函数闭包
         def download_func(save_dir: Optional[str] = None) -> Optional[str]:
             try:
+                LOG.info(f"Downloading image to: {save_dir}")
                 if hasattr(raw_msg, 'download'):
-                    return raw_msg.download(save_dir) if save_dir else raw_msg.download()
+                    result = raw_msg.download(save_dir) if save_dir else raw_msg.download()
+                    LOG.info(f"Download result: {result}, type: {type(result)}")
+                    return str(result) if result else None
                 elif hasattr(raw_msg, 'save'):
-                    return raw_msg.save(save_dir) if save_dir else raw_msg.save()
+                    result = raw_msg.save(save_dir) if save_dir else raw_msg.save()
+                    LOG.info(f"Save result: {result}, type: {type(result)}")
+                    return str(result) if result else None
             except Exception as e:
-                LOG.error(f"Failed to download image: {e}")
+                LOG.error(f"Failed to download image: {e}", exc_info=True)
             return None
         
         return ImageMessage(
