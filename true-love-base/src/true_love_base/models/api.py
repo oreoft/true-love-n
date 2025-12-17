@@ -5,11 +5,13 @@ API Models - HTTP API 请求/响应模型
 定义与外部服务通信的数据模型。
 """
 
-from dataclasses import dataclass, field
-from typing import Any, Optional
 import json
+import os
+from dataclasses import dataclass
+from typing import Any, Optional
 
-from true_love_base.models.message import BaseMessage, MessageType
+from true_love_base.models.message import BaseMessage
+from true_love_base.utils.path_resolver import get_wx_imgs_dir
 
 
 @dataclass
@@ -94,10 +96,16 @@ class ChatRequest:
         
         # 媒体消息处理
         # 注意：wxauto 的 download() 返回的是 pathlib.Path 对象，需要转换为字符串
+        # 下载到 server 的 wx_imgs 目录，传给 server 时只传相对路径（wx_imgs/filename）
+        wx_imgs_dir = get_wx_imgs_dir()
+        
         if isinstance(msg, ImageMessage):
             if msg.file_path is None:
-                msg.download()
-            request.file_path = str(msg.file_path) if msg.file_path else None
+                msg.download(wx_imgs_dir)
+            # 只传相对路径：wx_imgs/filename
+            if msg.file_path:
+                filename = os.path.basename(str(msg.file_path))
+                request.file_path = f"wx_imgs/{filename}"
             
         elif isinstance(msg, VoiceMessage):
             # 语音消息：text_content 在 message_converter 转换时已经通过 to_text() 获取
@@ -109,13 +117,17 @@ class ChatRequest:
                 
         elif isinstance(msg, VideoMessage):
             if msg.file_path is None:
-                msg.download()
-            request.file_path = str(msg.file_path) if msg.file_path else None
+                msg.download(wx_imgs_dir)
+            if msg.file_path:
+                filename = os.path.basename(str(msg.file_path))
+                request.file_path = f"wx_imgs/{filename}"
             
         elif isinstance(msg, FileMessage):
             if msg.file_path is None:
-                msg.download()
-            request.file_path = str(msg.file_path) if msg.file_path else None
+                msg.download(wx_imgs_dir)
+            if msg.file_path:
+                filename = os.path.basename(str(msg.file_path))
+                request.file_path = f"wx_imgs/{filename}"
             
         elif isinstance(msg, ReferMessage):
             if msg.referred_msg:

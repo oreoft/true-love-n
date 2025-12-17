@@ -15,6 +15,8 @@ LOG = logging.getLogger("PathResolver")
 PROJECT_ROOT = "true-love-n"
 # Server 目录名
 SERVER_DIR = "true-love-server"
+# 微信图片下载目录名
+WX_IMGS_DIR = "wx_imgs"
 
 
 def _find_project_root() -> str:
@@ -38,6 +40,32 @@ def _find_project_root() -> str:
             # 已经到根目录了
             raise FileNotFoundError(f"找不到项目根目录: {PROJECT_ROOT}")
         current = parent
+
+
+def get_wx_imgs_dir() -> str:
+    """
+    获取 server 目录下的 wx_imgs 文件夹路径
+    
+    如果文件夹不存在则创建。
+    用于 base 下载微信图片，server 可以直接读取。
+    
+    Returns:
+        wx_imgs 文件夹的绝对路径
+    """
+    try:
+        project_root = _find_project_root()
+        wx_imgs_path = os.path.join(project_root, SERVER_DIR, WX_IMGS_DIR)
+        
+        # 如果目录不存在，创建它
+        if not os.path.exists(wx_imgs_path):
+            os.makedirs(wx_imgs_path)
+            LOG.info(f"Created wx_imgs directory: {wx_imgs_path}")
+        
+        return wx_imgs_path
+    except FileNotFoundError as e:
+        LOG.warning(f"Failed to get wx_imgs dir: {e}")
+        # 返回 None 让调用方使用默认路径
+        return None
 
 
 def resolve_path(path: str) -> str:
