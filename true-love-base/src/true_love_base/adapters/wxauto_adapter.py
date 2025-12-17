@@ -214,17 +214,15 @@ class WxAutoClient(WeChatClientProtocol):
 
             def internal_callback(raw_msg, chat):
                 try:
+
                     LOG.info('--------------Start------------------')
-                    LOG.info('------------ Raw message info ------------\n%s', self._dump_obj_attrs(raw_msg))
-                    LOG.info('------------ Raw chat info ------------\n%s', self._dump_obj_attrs(chat))
-
                     attr = getattr(raw_msg, 'attr', '')
-                    sender = getattr(raw_msg, 'sender', '')
-
                     # 快速过滤：在消息转换之前过滤，减少不必要的处理
                     if attr.lower() in ['weixin', 'system', 'self']:
-                        LOG.info(f"ignored system li message from [{sender}]")
+                        LOG.info(f"ignored system message attr is [{attr}]")
                         return
+                    LOG.info('------------ Raw message info ------------\n%s', self._dump_obj_attrs(raw_msg))
+                    LOG.info('------------ Raw chat info ------------\n%s', self._dump_obj_attrs(chat))
 
                     # 使用 chat_info.chat_type 判断群聊（更可靠）
                     chat_info = getattr(raw_msg, 'chat_info', {}) or {}
@@ -232,7 +230,8 @@ class WxAutoClient(WeChatClientProtocol):
                     content = getattr(raw_msg, 'content', str(raw_msg))
                     is_at_me = is_group and ('@真爱粉' in content or 'zaf' in content.lower())
                     if is_group and not is_at_me:
-                        LOG.info(f"ignored group message without @ from [{sender}] and chat [{chat_name}]")
+                        LOG.info(
+                            f"ignored group message without @ from [{getattr(raw_msg, 'sender', '')}] and chat [{chat_name}]")
                         return
 
                     # 转换消息
