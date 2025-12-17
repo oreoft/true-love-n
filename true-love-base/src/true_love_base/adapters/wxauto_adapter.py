@@ -192,6 +192,11 @@ class WxAutoClient(WeChatClientProtocol):
                     callback(message, chat_name)
                 except Exception as e:
                     LOG.error(f"Error in message callback for [{chat_name}]: {e}")
+                    # 发送错误提示，避免用户感觉假死
+                    try:
+                        raw_msg.quote("啊咧？消息好像坏掉了，麻烦再发一次吧~")
+                    except Exception as send_err:
+                        LOG.error(f"Failed to send error msg to [{chat_name}]: {send_err}")
 
             result = self.wx.AddListenChat(chat_name, internal_callback)
             if self._check_response(result, "AddListenChat", chat_name):

@@ -186,5 +186,5 @@ def get_chat(msg: ChatMessage) -> str:
 def _get_error_message() -> str:
     """获取错误提示消息"""
     if _circuit_breaker.fail_count < 3:
-        return "Oops! Request timeout, please try again~"
-    return "Oops! Service is adjusting, please try again later~"
+        return "啊哦~，可能内容太长搬运超时，再试试捏"
+    return "啊哦~, 服务正在重新调整，请稍后重试再试"
