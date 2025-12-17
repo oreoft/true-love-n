@@ -68,16 +68,5 @@ class ChatMessage:
     refer_msg: Optional['ChatMessage'] = None  # 引用消息（递归结构）
     
     def to_dict(self) -> dict[str, Any]:
-        """
-        转换为字典，用于 JSON 序列化
-        
-        注意：raw_msg 字段会被排除，因为它是 wxautox4 的原始消息对象，
-        不可序列化，且只用于本地操作（如 quote、tickle）。
-        """
-        result = asdict(self)
-        # 排除不可序列化的 raw_msg 字段
-        result.pop('raw_msg', None)
-        # 如果有引用消息，也需要排除其中的 raw_msg
-        if result.get('refer_msg') and isinstance(result['refer_msg'], dict):
-            result['refer_msg'].pop('raw_msg', None)
-        return result
+        """转换为字典，用于 JSON 序列化"""
+        return asdict(self)
