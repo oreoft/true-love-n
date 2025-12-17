@@ -8,12 +8,12 @@ WeChat Client Protocol - 微信客户端抽象协议
 
 from abc import ABC, abstractmethod
 from typing import Callable, Optional, Any
-from true_love_base.models.message import BaseMessage
+from true_love_base.models.message import ChatMessage
 
 
 # 消息回调函数类型定义
-# callback(message: BaseMessage, chat_name: str) -> None
-MessageCallback = Callable[[BaseMessage, str], None]
+# callback(message: ChatMessage, chat_name: str) -> None
+MessageCallback = Callable[[ChatMessage, str], None]
 
 
 class WeChatClientProtocol(ABC):

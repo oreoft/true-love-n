@@ -3,6 +3,20 @@
 Models package
 """
 
-from .chat_msg import ChatMsg, MsgType
+from .chat_msg import (
+    ChatMsg,
+    ImageMsg,
+    VoiceMsg,
+    VideoMsg,
+    FileMsg,
+    LinkMsg,
+)
 
-__all__ = ["ChatMsg", "MsgType"]
+__all__ = [
+    "ChatMsg",
+    "ImageMsg",
+    "VoiceMsg",
+    "VideoMsg",
+    "FileMsg",
+    "LinkMsg",
+]

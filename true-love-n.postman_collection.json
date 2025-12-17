@@ -1,0 +1,428 @@
+{
+	"info": {
+		"_postman_id": "true-love-n-collection",
+		"name": "true-love-n",
+		"description": "True Love N 项目接口集合，包含 ai、base、server 三个子模块",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "ai",
+			"item": [
+				{
+					"name": "健康检查 - root",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{ai_host}}/",
+							"host": ["{{ai_host}}"],
+							"path": [""]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "健康检查 - ping",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{ai_host}}/ping",
+							"host": ["{{ai_host}}"],
+							"path": ["ping"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "获取LLM回答",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"\",\n    \"content\": \"\",\n    \"wxid\": \"\",\n    \"sender\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{ai_host}}/get-llm",
+							"host": ["{{ai_host}}"],
+							"path": ["get-llm"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "获取图片类型",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"\",\n    \"content\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{ai_host}}/get-img-type",
+							"host": ["{{ai_host}}"],
+							"path": ["get-img-type"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "生成图片",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"\",\n    \"content\": \"\",\n    \"img_data\": \"\",\n    \"wxid\": \"\",\n    \"sender\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{ai_host}}/gen-img",
+							"host": ["{{ai_host}}"],
+							"path": ["gen-img"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "获取分析",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"\",\n    \"content\": \"\",\n    \"img_data\": \"\",\n    \"wxid\": \"\",\n    \"sender\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{ai_host}}/get-analyze",
+							"host": ["{{ai_host}}"],
+							"path": ["get-analyze"]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "AI 模块接口 - 提供 LLM 对话、图片生成、图片分析等功能"
+		},
+		{
+			"name": "base",
+			"item": [
+				{
+					"name": "健康检查 - root",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_host}}/",
+							"host": ["{{base_host}}"],
+							"path": [""]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "健康检查 - ping",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_host}}/ping",
+							"host": ["{{base_host}}"],
+							"path": ["ping"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "发送文本消息",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"sendReceiver\": \"\",\n    \"content\": \"\",\n    \"atReceiver\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{base_host}}/send/text",
+							"host": ["{{base_host}}"],
+							"path": ["send", "text"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "发送图片",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"sendReceiver\": \"\",\n    \"path\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{base_host}}/send/img",
+							"host": ["{{base_host}}"],
+							"path": ["send", "img"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "发送文件",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"sendReceiver\": \"\",\n    \"path\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{base_host}}/send/file",
+							"host": ["{{base_host}}"],
+							"path": ["send", "file"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "获取所有联系人",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_host}}/get/all",
+							"host": ["{{base_host}}"],
+							"path": ["get", "all"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "获取群成员",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"room_id\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{base_host}}/get/by/room-id",
+							"host": ["{{base_host}}"],
+							"path": ["get", "by", "room-id"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "获取监听列表",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_host}}/listen/list",
+							"host": ["{{base_host}}"],
+							"path": ["listen", "list"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "添加监听",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"chat_name\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{base_host}}/listen/add",
+							"host": ["{{base_host}}"],
+							"path": ["listen", "add"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "移除监听",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"chat_name\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{base_host}}/listen/remove",
+							"host": ["{{base_host}}"],
+							"path": ["listen", "remove"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "刷新监听列表",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_host}}/listen/refresh",
+							"host": ["{{base_host}}"],
+							"path": ["listen", "refresh"]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Base 模块接口 - 提供微信消息发送、联系人管理、监听管理等功能"
+		},
+		{
+			"name": "server",
+			"item": [
+				{
+					"name": "健康检查 - root",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{server_host}}/",
+							"host": ["{{server_host}}"],
+							"path": [""]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "健康检查 - ping",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{server_host}}/ping",
+							"host": ["{{server_host}}"],
+							"path": ["ping"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "发送消息",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"\",\n    \"sendReceiver\": \"\",\n    \"atReceiver\": \"\",\n    \"content\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{server_host}}/send-msg",
+							"host": ["{{server_host}}"],
+							"path": ["send-msg"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "聊天消息处理",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"\",\n    \"msg_type\": \"text\",\n    \"sender\": \"\",\n    \"chat_id\": \"\",\n    \"content\": \"\",\n    \"is_group\": false,\n    \"file_path\": null,\n    \"voice_text\": null,\n    \"refer_msg\": null,\n    \"url\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{server_host}}/get-chat",
+							"host": ["{{server_host}}"],
+							"path": ["get-chat"]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Server 模块接口 - 提供消息路由、聊天处理等核心功能"
+		}
+	],
+	"variable": [
+		{
+			"key": "ai_host",
+			"value": "http://localhost:8088",
+			"type": "string"
+		},
+		{
+			"key": "base_host",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "server_host",
+			"value": "http://localhost:8088",
+			"type": "string"
+		}
+	]
+}
+
+

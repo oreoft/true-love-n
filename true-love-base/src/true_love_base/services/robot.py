@@ -14,14 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, TYPE_CHECKING
 
 from true_love_base.core.client_protocol import WeChatClientProtocol
-from true_love_base.models.message import (
-    BaseMessage,
-    TextMessage,
-    ImageMessage,
-    VoiceMessage,
-    VideoMessage,
-    MessageType,
-)
+from true_love_base.models.message import ChatMessage
 from true_love_base.services import server_client
 
 if TYPE_CHECKING:
@@ -66,7 +59,7 @@ class Robot:
         
         self.LOG.info(f"Robot initialized, self_name: {self.self_name}, max_workers: {self.MAX_WORKERS}")
     
-    def forward_msg(self, msg: BaseMessage) -> str:
+    def forward_msg(self, msg: ChatMessage) -> str:
         """
         转发消息到服务端处理
         
@@ -78,7 +71,7 @@ class Robot:
         """
         return server_client.get_chat(msg)
     
-    def on_message(self, msg: BaseMessage, chat_name: str) -> None:
+    def on_message(self, msg: ChatMessage, chat_name: str) -> None:
         """
         消息回调处理 - 提交到线程池异步处理
         
@@ -103,7 +96,7 @@ class Robot:
         except Exception as e:
             self.LOG.error(f"Error submitting message to thread pool: {e}")
     
-    def _process_message(self, msg: BaseMessage, chat_name: str) -> None:
+    def _process_message(self, msg: ChatMessage, chat_name: str) -> None:
         """
         实际处理消息 - 在线程池中执行
         

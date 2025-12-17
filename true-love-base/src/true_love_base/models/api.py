@@ -6,12 +6,10 @@ API Models - HTTP API 请求/响应模型
 """
 
 import json
-import os
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Any, Optional
 
-from true_love_base.models.message import BaseMessage
-from true_love_base.utils.path_resolver import get_wx_imgs_dir
+from true_love_base.models.message import ChatMessage
 
 
 @dataclass
@@ -19,126 +17,20 @@ class ChatRequest:
     """
     发送到 server 的聊天请求
     
-    包含消息的所有必要信息，用于 AI 处理。
-    
-    字段说明：
-    - token: 认证 token
-    - msg_type: 消息类型 ("text", "image", "voice", "video", "file", "link", "refer", "unknown")
-    - sender: 发送者昵称
-    - chat_id: 聊天标识（好友昵称或群名）
-    - content: 消息内容
-    - is_group: 是否群消息
-    - is_at_me: 是否@了机器人
-    - file_path: 媒体文件本地路径（图片/语音/视频/文件）
-    - voice_text: 语音转文字结果
-    - refer_msg: 被引用的消息（dict格式）
+    包装 ChatMessage，添加认证 token。
     """
     token: str
-    msg_type: str
-    sender: str
-    chat_id: str
-    content: str
-    is_group: bool = False
-    is_at_me: bool = False
-    file_path: Optional[str] = None
-    voice_text: Optional[str] = None
-    refer_msg: Optional[dict] = None
-    url: Optional[str] = None
+    message: ChatMessage
     
     def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
-        return {
-            "token": self.token,
-            "msg_type": self.msg_type,
-            "sender": self.sender,
-            "chat_id": self.chat_id,
-            "content": self.content,
-            "is_group": self.is_group,
-            "is_at_me": self.is_at_me,
-            "file_path": self.file_path,
-            "voice_text": self.voice_text,
-            "refer_msg": self.refer_msg,
-            "url": self.url,
-        }
+        result = asdict(self.message)
+        result["token"] = self.token
+        return result
     
     def to_json(self) -> str:
-        """转换为JSON字符串"""
+        """转换为 JSON 字符串"""
         return json.dumps(self.to_dict(), ensure_ascii=False)
-    
-    @classmethod
-    def from_message(cls, msg: BaseMessage, token: str) -> "ChatRequest":
-        """
-        从 BaseMessage 创建 ChatRequest
-        
-        Args:
-            msg: 消息对象
-            token: 认证 token
-            
-        Returns:
-            ChatRequest 实例
-        """
-        from true_love_base.models.message import (
-            ImageMessage,
-            VoiceMessage,
-            VideoMessage,
-            FileMessage,
-            ReferMessage,
-            LinkMessage
-        )
-        
-        # 基础字段
-        request = cls(
-            token=token,
-            msg_type=msg.msg_type.value,
-            sender=msg.sender,
-            chat_id=msg.chat_id,
-            content=msg.get_content(),
-            is_group=msg.is_group,
-            is_at_me=msg.is_at_me,
-        )
-        
-        # 媒体消息处理
-        # 注意：wxauto 的 download() 返回的是 pathlib.Path 对象，需要转换为字符串
-        # 下载到 server 的 wx_imgs 目录，传给 server 时只传相对路径（wx_imgs/filename）
-        wx_imgs_dir = get_wx_imgs_dir()
-        
-        if isinstance(msg, ImageMessage):
-            if msg.file_path is None:
-                msg.download(wx_imgs_dir)
-            # 只传相对路径：wx_imgs/filename
-            if msg.file_path:
-                filename = os.path.basename(str(msg.file_path))
-                request.file_path = f"wx_imgs/{filename}"
-            
-        elif isinstance(msg, VoiceMessage):
-            # 语音消息：text_content 在 message_converter 转换时已经通过 to_text() 获取
-            # 这里直接使用，不再调用 download()（VoiceMessage 没有该方法）
-            request.voice_text = msg.text_content
-            # 如果有转文字结果，用它作为 content
-            if msg.text_content:
-                request.content = msg.text_content
-                
-        elif isinstance(msg, VideoMessage):
-            if msg.file_path is None:
-                msg.download(wx_imgs_dir)
-            if msg.file_path:
-                filename = os.path.basename(str(msg.file_path))
-                request.file_path = f"wx_imgs/{filename}"
-            
-        elif isinstance(msg, FileMessage):
-            if msg.file_path is None:
-                msg.download(wx_imgs_dir)
-            if msg.file_path:
-                filename = os.path.basename(str(msg.file_path))
-                request.file_path = f"wx_imgs/{filename}"
-            
-        elif isinstance(msg, ReferMessage):
-            if msg.referred_msg:
-                request.refer_msg = msg.referred_msg.to_dict()
-        elif isinstance(msg, LinkMessage):
-            request.url = msg.url
-        
-        return request
 
 
 @dataclass

@@ -4,16 +4,12 @@ Models package - 数据模型定义
 """
 
 from true_love_base.models.message import (
-    MessageType,
-    BaseMessage,
-    TextMessage,
-    ImageMessage,
-    VoiceMessage,
-    VideoMessage,
-    FileMessage,
-    LinkMessage,
-    ReferMessage,
-    UnknownMessage,
+    ChatMessage,
+    ImageMsg,
+    VoiceMsg,
+    VideoMsg,
+    FileMsg,
+    LinkMsg,
 )
 
 from true_love_base.models.api import (
@@ -25,16 +21,12 @@ from true_love_base.models.api import (
 
 __all__ = [
     # Message models
-    "MessageType",
-    "BaseMessage",
-    "TextMessage",
-    "ImageMessage",
-    "VoiceMessage",
-    "VideoMessage",
-    "FileMessage",
-    "LinkMessage",
-    "ReferMessage",
-    "UnknownMessage",
+    "ChatMessage",
+    "ImageMsg",
+    "VoiceMsg",
+    "VideoMsg",
+    "FileMsg",
+    "LinkMsg",
     # API models
     "ChatRequest",
     "ChatResponse",

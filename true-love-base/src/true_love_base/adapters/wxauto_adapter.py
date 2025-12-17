@@ -13,8 +13,7 @@ from true_love_base.wxautox4x.wxautox4x import WeChat
 from wxautox4.param import WxParam
 
 from true_love_base.core.client_protocol import WeChatClientProtocol, MessageCallback
-from true_love_base.core.media_handler import MediaHandler
-from true_love_base.adapters.message_converter import WxAutoMessageConverter
+from true_love_base.adapters.message_converter import convert_message
 from true_love_base.utils.path_resolver import get_wx_imgs_dir
 
 LOG = logging.getLogger("WxAutoAdapter")
@@ -38,8 +37,6 @@ class WxAutoClient(WeChatClientProtocol):
         self._wx = None
         self._running = False
         self._listeners: dict[str, MessageCallback] = {}
-        self._media_handler = MediaHandler()
-        self._converter = WxAutoMessageConverter(self._media_handler)
         self._self_name: Optional[str] = None
         
         self._init_client()
@@ -155,7 +152,7 @@ class WxAutoClient(WeChatClientProtocol):
                     LOG.debug(f"Message callback: chat_name={chat_name}, sender={sender}, is_group={is_group}")
                     
                     # 转换消息
-                    message = self._converter.convert(raw_msg, chat_name, is_group)
+                    message = convert_message(raw_msg, chat_name, is_group)
                     LOG.info('Converted message: %r', message.to_dict())
                     LOG.info('--------------------------------')
                     

@@ -1,398 +1,191 @@
 # -*- coding: utf-8 -*-
 """
-Message Converter - wxautox4 消息转换器
+消息转换器 - 简化版
 
-将 wxautox4 的消息对象转换为统一的 BaseMessage 模型。
-使用类级别缓存优化导入性能。
+将 wxautox4 的消息对象转换为统一的 ChatMessage 模型。
+
+文件路径处理说明：
+- 媒体文件下载到 Server 的 wx_imgs 目录（通过 WxParam.DEFAULT_SAVE_PATH 设置）
+- 下载后转换为相对路径（如 wx_imgs/filename.jpg）传输给 Server
+- Server 可以直接使用相对路径访问文件
 """
 
 import logging
-from typing import Any, Optional, Type
+from typing import Any, Optional
 
-from true_love_base.core.media_handler import MediaHandler
 from true_love_base.models.message import (
-    BaseMessage,
-    TextMessage,
-    ImageMessage,
-    VoiceMessage,
-    VideoMessage,
-    FileMessage,
-    ReferMessage,
-    UnknownMessage,
-    LinkMessage,
+    ChatMessage,
+    ImageMsg,
+    VoiceMsg,
+    VideoMsg,
+    FileMsg,
+    LinkMsg,
 )
+from true_love_base.utils.path_resolver import to_server_path
 
 LOG = logging.getLogger("MessageConverter")
 
+# 引用内容 → 消息类型映射
+QUOTE_TYPE_MAP = {
+    '图片': 'image',
+    '[图片]': 'image',
+    '视频': 'video',
+    '[视频]': 'video',
+    '语音': 'voice',
+    '[语音]': 'voice',
+    '文件': 'file',
+    '[文件]': 'file',
+}
 
-class WxAutoMessageConverter:
+
+def convert_message(
+    raw_msg: Any,
+    chat_name: str,
+    is_group: bool = False,
+    is_at_me: bool = False
+) -> ChatMessage:
     """
-    wxautox4 消息转换器
+    将 wxautox4 消息转换为 ChatMessage
     
-    将 wxautox4 的消息对象转换为统一的 BaseMessage 模型。
-    使用类级别缓存，避免每次转换都重新导入 wxautox4 消息类。
+    Args:
+        raw_msg: wxautox4 的原始消息对象
+        chat_name: 聊天对象名称
+        is_group: 是否群聊
+        is_at_me: 是否@了机器人
+        
+    Returns:
+        ChatMessage 实例
     """
-    
-    # 类级别缓存：wxautox4 消息类
-    _wx_classes_loaded: bool = False
-    _FriendMessage: Optional[Type] = None
-    _SelfMessage: Optional[Type] = None
-    _WxImageMessage: Optional[Type] = None
-    _WxVoiceMessage: Optional[Type] = None
-    _WxVideoMessage: Optional[Type] = None
-    
-    def __init__(self, media_handler: MediaHandler):
-        self.media_handler = media_handler
-        # 在初始化时加载 wxautox4 消息类
-        self._load_wx_classes()
-    
-    @classmethod
-    def _load_wx_classes(cls) -> None:
-        """
-        一次性加载 wxautox4 消息类（类级别缓存）
+    try:
+        msg_type = getattr(raw_msg, 'type', 'text')
+        sender = getattr(raw_msg, 'sender', chat_name)
+        content = getattr(raw_msg, 'content', str(raw_msg))
         
-        避免每次消息转换都重新导入，提升性能。
-        """
-        if cls._wx_classes_loaded:
-            return
+        # 判断是否自己发送的消息（wxautox4 的 attr 属性）
+        attr = getattr(raw_msg, 'attr', '')
+        is_self = attr == 'self'
         
-        try:
-            from wxautox4.msgs import (
-                FriendMessage,
-                SelfMessage,
-            )
-            cls._FriendMessage = FriendMessage
-            cls._SelfMessage = SelfMessage
-            LOG.debug("Loaded wxautox4 basic message classes")
-        except ImportError as e:
-            LOG.warning(f"Failed to import wxautox4 basic message classes: {e}")
+        # 如果 sender 是 wxauto 的消息属性标识，用 chat_name 替代
+        if sender in ('friend', 'self', ''):
+            sender = chat_name
         
-        try:
-            from wxautox4.msgs import (
-                ImageMessage as WxImageMessage,
-                VoiceMessage as WxVoiceMessage,
-                VideoMessage as WxVideoMessage,
-            )
-            cls._WxImageMessage = WxImageMessage
-            cls._WxVoiceMessage = WxVoiceMessage
-            cls._WxVideoMessage = WxVideoMessage
-            LOG.debug("Loaded wxautox4 media message classes")
-        except ImportError as e:
-            LOG.warning(f"Failed to import wxautox4 media message classes: {e}")
+        # 构建基础消息
+        msg = ChatMessage(
+            msg_type=msg_type if msg_type != 'quote' else 'refer',
+            sender=sender,
+            chat_id=chat_name,
+            content=content,
+            is_group=is_group,
+            is_self=is_self,
+            is_at_me=is_at_me,
+        )
         
-        cls._wx_classes_loaded = True
-        LOG.info("WxAutoMessageConverter: wxautox4 classes loaded")
-    
-    def convert(self, raw_msg: Any, chat_name: str, is_group: bool = False) -> BaseMessage:
-        """
-        将 wxautox4 消息转换为 BaseMessage
-        
-        Args:
-            raw_msg: wxautox4 的原始消息对象
-            chat_name: 聊天对象名称
-            is_group: 是否群聊
+        # 按类型填充特有字段
+        if msg_type == 'image':
+            file_path = _download(raw_msg, "image")
+            msg.image_msg = ImageMsg(file_path=file_path)
             
-        Returns:
-            转换后的 BaseMessage 对象
-        """
-        try:
-            # 获取消息类型
-            msg_type = getattr(raw_msg, 'type', 'unknown')
-            sender = getattr(raw_msg, 'sender', chat_name)
-            
-            # 如果 sender 是 wxauto 的消息属性标识（'friend'/'self'），用 chat_name 替代
-            if sender in ('friend', 'self', ''):
-                sender = chat_name
-            
-            # 判断是否自己发送（使用缓存的类）
-            is_self = False
-            if self._SelfMessage is not None:
-                is_self = isinstance(raw_msg, self._SelfMessage)
-            
-            # 根据消息类型创建对应的消息对象
-            if msg_type == 'text' or msg_type == 'friend':
-                return self._convert_text_message(raw_msg, sender, chat_name, is_group, is_self)
-            elif msg_type == 'image':
-                return self._convert_image_message(raw_msg, sender, chat_name, is_group, is_self)
-            elif msg_type == 'voice':
-                return self._convert_voice_message(raw_msg, sender, chat_name, is_group, is_self)
-            elif msg_type == 'video':
-                return self._convert_video_message(raw_msg, sender, chat_name, is_group, is_self)
-            elif msg_type == 'file':
-                return self._convert_file_message(raw_msg, sender, chat_name, is_group, is_self)
-            elif msg_type == 'quote':
-                return self._convert_quote_message(raw_msg, sender, chat_name, is_group, is_self)
-            elif msg_type == 'link':
-                return self._convert_link_message(raw_msg, sender, chat_name, is_group, is_self)
-            else:
-                # 尝试通过类名判断
-                return self._convert_by_class_name(raw_msg, sender, chat_name, is_group, is_self)
+        elif msg_type == 'voice':
+            text_content = _to_text(raw_msg)
+            msg.voice_msg = VoiceMsg(text_content=text_content)
+            # 如果有转文字结果，用它作为 content
+            if text_content:
+                msg.content = text_content
                 
-        except Exception as e:
-            LOG.error(f"Failed to convert message: {e}")
-            return UnknownMessage(
-                sender=chat_name,
-                chat_id=chat_name,
-                is_group=is_group,
-                content=str(raw_msg),
-                raw_data=raw_msg,
-            )
-    
-    def _convert_by_class_name(
-        self, 
-        raw_msg: Any, 
-        sender: str, 
-        chat_name: str, 
-        is_group: bool,
-        is_self: bool
-    ) -> BaseMessage:
-        """通过类名判断消息类型（使用缓存的类）"""
-        class_name = raw_msg.__class__.__name__
+        elif msg_type == 'video':
+            file_path = _download(raw_msg, "video")
+            msg.video_msg = VideoMsg(file_path=file_path)
+            
+        elif msg_type == 'file':
+            file_path = _download(raw_msg, "file")
+            file_name = getattr(raw_msg, 'file_name', None) or getattr(raw_msg, 'filename', None)
+            msg.file_msg = FileMsg(file_path=file_path, file_name=file_name)
+            
+        elif msg_type == 'link':
+            url = raw_msg.get_url() if hasattr(raw_msg, 'get_url') else None
+            msg.link_msg = LinkMsg(url=url)
+            
+        elif msg_type == 'quote':
+            msg.refer_msg = _build_refer_msg(raw_msg, chat_name, is_group)
         
-        # 使用缓存的类进行类型判断
-        if self._WxImageMessage is not None and isinstance(raw_msg, self._WxImageMessage):
-            return self._convert_image_message(raw_msg, sender, chat_name, is_group, is_self)
-        elif self._WxVoiceMessage is not None and isinstance(raw_msg, self._WxVoiceMessage):
-            return self._convert_voice_message(raw_msg, sender, chat_name, is_group, is_self)
-        elif self._WxVideoMessage is not None and isinstance(raw_msg, self._WxVideoMessage):
-            return self._convert_video_message(raw_msg, sender, chat_name, is_group, is_self)
-        elif 'Quote' in class_name:
-            return self._convert_quote_message(raw_msg, sender, chat_name, is_group, is_self)
-        elif 'Image' in class_name:
-            return self._convert_image_message(raw_msg, sender, chat_name, is_group, is_self)
-        elif 'Voice' in class_name:
-            return self._convert_voice_message(raw_msg, sender, chat_name, is_group, is_self)
-        elif 'Video' in class_name:
-            return self._convert_video_message(raw_msg, sender, chat_name, is_group, is_self)
-        else:
-            # 默认作为文本消息处理
-            return self._convert_text_message(raw_msg, sender, chat_name, is_group, is_self)
-    
-    def _convert_text_message(
-        self, 
-        raw_msg: Any, 
-        sender: str, 
-        chat_name: str, 
-        is_group: bool,
-        is_self: bool
-    ) -> TextMessage:
-        """转换文本消息"""
-        content = getattr(raw_msg, 'content', str(raw_msg))
-        return TextMessage(
-            sender=sender,
+        return msg
+        
+    except Exception as e:
+        LOG.error(f"Failed to convert message: {e}")
+        return ChatMessage(
+            msg_type='text',
+            sender=chat_name,
             chat_id=chat_name,
+            content=str(raw_msg),
             is_group=is_group,
-            is_self=is_self,
-            content=content,
-            raw_data=raw_msg,
         )
+
+
+def _download(raw_msg: Any, media_type: str) -> Optional[str]:
+    """
+    下载媒体文件，返回 Server 可用的相对路径
     
-    def _create_download_func(self, raw_msg: Any, media_type: str):
-        """创建媒体下载函数闭包"""
-        def download_func(save_dir: Optional[str] = None) -> Optional[str]:
-            try:
-                result = raw_msg.download(save_dir) if save_dir else raw_msg.download()
-                LOG.debug(f"Downloaded {media_type}: {result}")
-                return str(result) if result else None
-            except Exception as e:
-                LOG.error(f"Failed to download {media_type}: {e}")
+    wxautox4 会将文件下载到 WxParam.DEFAULT_SAVE_PATH（已设置为 server/wx_imgs）
+    下载后将完整路径转换为相对路径（如 wx_imgs/filename.jpg）供 Server 直接使用
+    
+    Args:
+        raw_msg: wxautox4 消息对象
+        media_type: 媒体类型（用于日志）
+        
+    Returns:
+        Server 可用的相对路径，如 "wx_imgs/filename.jpg"
+    """
+    if not hasattr(raw_msg, 'download'):
+        return None
+    try:
+        # wxautox4 下载文件，返回完整路径
+        full_path = raw_msg.download()
+        if not full_path:
             return None
-        return download_func
-    
-    def _convert_image_message(
-        self, 
-        raw_msg: Any, 
-        sender: str, 
-        chat_name: str, 
-        is_group: bool,
-        is_self: bool
-    ) -> ImageMessage:
-        """转换图片消息"""
-        return ImageMessage(
-            sender=sender,
-            chat_id=chat_name,
-            is_group=is_group,
-            is_self=is_self,
-            _download_func=self._create_download_func(raw_msg, "image"),
-            raw_data=raw_msg,
-        )
-    
-    def _convert_voice_message(
-        self, 
-        raw_msg: Any, 
-        sender: str, 
-        chat_name: str, 
-        is_group: bool,
-        is_self: bool
-    ) -> VoiceMessage:
-        """转换语音消息，调用 wxauto 的 to_text() 获取语音转文字结果"""
-        text_content = None
-        try:
-            if hasattr(raw_msg, 'to_text'):
-                text_content = raw_msg.to_text()
-                LOG.debug(f"Voice to_text: {text_content}")
-        except Exception as e:
-            LOG.warning(f"Voice to_text failed: {e}")
         
-        return VoiceMessage(
-            sender=sender,
-            chat_id=chat_name,
-            is_group=is_group,
-            is_self=is_self,
-            text_content=text_content,
-            raw_data=raw_msg,
-        )
+        # 转换为 Server 可用的相对路径
+        relative_path = to_server_path(str(full_path))
+        LOG.debug(f"Downloaded {media_type}: {full_path} -> {relative_path}")
+        return relative_path
+    except Exception as e:
+        LOG.warning(f"Failed to download {media_type}: {e}")
+        return None
+
+
+def _to_text(raw_msg: Any) -> Optional[str]:
+    """语音转文字"""
+    if not hasattr(raw_msg, 'to_text'):
+        return None
+    try:
+        text = raw_msg.to_text()
+        LOG.debug(f"Voice to_text: {text}")
+        return text
+    except Exception as e:
+        LOG.warning(f"Voice to_text failed: {e}")
+        return None
+
+
+def _build_refer_msg(raw_msg: Any, chat_name: str, is_group: bool) -> ChatMessage:
+    """
+    构建引用消息
     
-    def _convert_video_message(
-        self, 
-        raw_msg: Any, 
-        sender: str, 
-        chat_name: str, 
-        is_group: bool,
-        is_self: bool
-    ) -> VideoMessage:
-        """转换视频消息"""
-        return VideoMessage(
-            sender=sender,
-            chat_id=chat_name,
-            is_group=is_group,
-            is_self=is_self,
-            _download_func=self._create_download_func(raw_msg, "video"),
-            raw_data=raw_msg,
-        )
+    wxauto 的 QuoteMessage 结构：
+    - content: 用户输入的回复文字
+    - quote_content: 被引用的内容（字符串，如 "图片"、"视频" 或实际文字）
+    - quote_nickname: 被引用消息的发送者
+    """
+    quote_content = getattr(raw_msg, 'quote_content', '')
+    quote_sender = getattr(raw_msg, 'quote_nickname', '') or 'unknown'
     
-    def _convert_file_message(
-        self, 
-        raw_msg: Any, 
-        sender: str, 
-        chat_name: str, 
-        is_group: bool,
-        is_self: bool
-    ) -> FileMessage:
-        """转换文件消息"""
-        file_name = getattr(raw_msg, 'file_name', None) or getattr(raw_msg, 'filename', None)
-        return FileMessage(
-            sender=sender,
-            chat_id=chat_name,
-            is_group=is_group,
-            is_self=is_self,
-            file_name=file_name,
-            _download_func=self._create_download_func(raw_msg, "file"),
-            raw_data=raw_msg,
-        )
+    # 判断被引用的内容类型
+    refer_type = QUOTE_TYPE_MAP.get(quote_content, 'text')
     
-    def _convert_link_message(
-        self, 
-        raw_msg: Any, 
-        sender: str, 
-        chat_name: str, 
-        is_group: bool,
-        is_self: bool
-    ) -> LinkMessage:
-        """转换链接消息（公众号文章、分享链接等）"""
-        # 尝试从不同的属性名获取链接信息
-        url = url = raw_msg.get_url()
-        content = getattr(raw_msg, 'content', str(raw_msg))
-        return LinkMessage(
-            sender=sender,
-            chat_id=chat_name,
-            is_group=is_group,
-            is_self=is_self,
-            url=url,
-            raw_data=raw_msg,
-            content=content,
-        )
+    LOG.info(f"Building refer_msg: type={refer_type}, content={quote_content}, sender={quote_sender}")
     
-    # quote_content 到消息类型的映射
-    QUOTE_CONTENT_TYPE_MAP = {
-        '图片': 'image',
-        '[图片]': 'image',
-        '视频': 'video',
-        '[视频]': 'video',
-        '语音': 'voice',
-        '[语音]': 'voice',
-        '文件': 'file',
-        '[文件]': 'file',
-    }
-    
-    def _convert_quote_message(
-        self,
-        raw_msg: Any,
-        sender: str,
-        chat_name: str,
-        is_group: bool,
-        is_self: bool
-    ) -> BaseMessage:
-        """
-        转换引用消息
-        
-        wxauto 的 QuoteMessage 结构：
-        - content: 用户输入的回复文字
-        - quote_content: 被引用的内容（字符串，如 "图片"、"视频" 或实际文字）
-        - quote_nickname: 被引用消息的发送者
-        
-        注意：wxauto 无法获取被引用的图片/视频/语音文件，只能获取文字描述
-        base 端只负责传递消息，不做业务处理，由 server 端判断是否支持
-        """
-        content = getattr(raw_msg, 'content', '')
-        quote_content = getattr(raw_msg, 'quote_content', '')
-        quote_nickname = getattr(raw_msg, 'quote_nickname', '')
-        
-        LOG.info(f"Converting quote message: content={content}, quote_content={quote_content}, quote_nickname={quote_nickname}")
-        
-        # 判断被引用的内容类型，创建对应类型的消息对象
-        # 这样 to_dict() 会返回正确的 msg_type，供 server 端判断
-        refer_type = self.QUOTE_CONTENT_TYPE_MAP.get(quote_content)
-        refer_sender = quote_nickname or "unknown"
-        
-        if refer_type == 'image':
-            referred_msg = ImageMessage(
-                sender=refer_sender,
-                chat_id=chat_name,
-                is_group=is_group,
-                is_self=False,
-                file_path=None,  # wxauto 无法获取被引用的图片文件
-            )
-        elif refer_type == 'video':
-            referred_msg = VideoMessage(
-                sender=refer_sender,
-                chat_id=chat_name,
-                is_group=is_group,
-                is_self=False,
-                file_path=None,
-            )
-        elif refer_type == 'voice':
-            referred_msg = VoiceMessage(
-                sender=refer_sender,
-                chat_id=chat_name,
-                is_group=is_group,
-                is_self=False,
-                text_content=None,
-            )
-        elif refer_type == 'file':
-            referred_msg = FileMessage(
-                sender=refer_sender,
-                chat_id=chat_name,
-                is_group=is_group,
-                is_self=False,
-                file_path=None,
-            )
-        else:
-            # 默认为文本消息
-            referred_msg = TextMessage(
-                sender=refer_sender,
-                chat_id=chat_name,
-                is_group=is_group,
-                is_self=False,
-                content=quote_content,
-            )
-        
-        return ReferMessage(
-            sender=sender,
-            chat_id=chat_name,
-            is_group=is_group,
-            is_self=is_self,
-            content=content,
-            referred_msg=referred_msg,
-            raw_data=raw_msg,
-        )
+    return ChatMessage(
+        msg_type=refer_type,
+        sender=quote_sender,
+        chat_id=chat_name,
+        content=quote_content if refer_type == 'text' else '',
+        is_group=is_group,
+    )

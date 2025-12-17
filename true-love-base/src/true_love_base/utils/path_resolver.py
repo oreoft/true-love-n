@@ -2,8 +2,19 @@
 """
 PathResolver - 路径解析工具
 
-用于将 Server 发送的相对路径转换为 Base 可访问的完整路径。
-往上级查找 true-love-n 作为项目根目录，再从中找到 true-love-server。
+Base 端文件路径处理工具，用于 Base(Windows) 和 Server(WSL) 之间的文件路径交换。
+
+设计原则：
+- 文件统一存储在 Server 目录下（如 true-love-server/wx_imgs/）
+- Base 下载/生成文件时：找到 Server 目录 → 写入
+- Base 读取文件时：找到 Server 目录 → 读取
+- 传输给 Server 时：使用相对路径（如 wx_imgs/filename.jpg）
+- Server 直接使用相对路径
+
+核心函数：
+- get_wx_imgs_dir(): 获取 wx_imgs 完整路径，用于 Base 下载文件
+- to_server_path(): 将完整路径转为相对路径，用于传输给 Server
+- resolve_path(): 将相对路径转为完整路径，用于 Base 读取文件
 """
 
 import logging
@@ -75,18 +86,52 @@ def get_wx_imgs_dir() -> str:
         return None
 
 
-def resolve_path(path: str) -> str:
+def to_server_path(full_path: str, subdir: str = WX_IMGS_DIR) -> str:
     """
-    解析路径，将 Server 的相对路径转换为完整路径
+    将完整路径转换为 Server 可用的相对路径
+    
+    用于 Base 下载文件后，将路径转换为传输给 Server 的格式。
     
     Args:
-        path: Server 发送的相对路径，如 "sd-img/xxx.png"
+        full_path: 完整文件路径，如 "/path/to/true-love-server/wx_imgs/xxx.jpg"
+        subdir: 子目录名，默认为 wx_imgs
+    
+    Returns:
+        相对路径，如 "wx_imgs/xxx.jpg"
+    
+    Example:
+        >>> to_server_path("/path/to/server/wx_imgs/image.jpg")
+        "wx_imgs/image.jpg"
+    """
+    if not full_path:
+        return None
+    
+    # 提取文件名
+    filename = os.path.basename(str(full_path))
+    # 返回相对路径
+    relative_path = f"{subdir}/{filename}"
+    LOG.debug(f"Converted to server path: {full_path} -> {relative_path}")
+    return relative_path
+
+
+def resolve_path(path: str) -> str:
+    """
+    将 Server 的相对路径转换为 Base 可访问的完整路径
+    
+    用于 Base 读取 Server 发送的文件路径。
+    
+    Args:
+        path: Server 发送的相对路径，如 "wx_imgs/xxx.png" 或 "sd-img/xxx.png"
     
     Returns:
         完整路径
     
     Raises:
         FileNotFoundError: 文件不存在
+    
+    Example:
+        >>> resolve_path("wx_imgs/image.jpg")
+        "/path/to/true-love-server/wx_imgs/image.jpg"
     """
     if not path:
         return path
@@ -111,5 +156,5 @@ def resolve_path(path: str) -> str:
     if not os.path.exists(full_path):
         raise FileNotFoundError(f"文件路径不存在: {full_path}")
 
-    LOG.info(f"Resolved path: {path} -> {full_path}")
+    LOG.debug(f"Resolved path: {path} -> {full_path}")
     return full_path

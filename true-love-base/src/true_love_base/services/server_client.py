@@ -15,7 +15,7 @@ import requests
 
 from true_love_base.configuration import Config
 from true_love_base.models.api import ChatRequest, ChatResponse
-from true_love_base.models.message import BaseMessage
+from true_love_base.models.message import ChatMessage
 
 config = Config()
 LOG = logging.getLogger("ServerClient")
@@ -119,7 +119,7 @@ _circuit_breaker = CircuitBreaker(threshold=3, reset_timeout=60)
 
 # ==================== API 函数 ====================
 
-def get_chat(msg: BaseMessage) -> str:
+def get_chat(msg: ChatMessage) -> str:
     """
     发送消息到服务端获取回复
     
@@ -136,7 +136,7 @@ def get_chat(msg: BaseMessage) -> str:
     
     try:
         # 构建请求
-        request = ChatRequest.from_message(msg, config.http_token)
+        request = ChatRequest(token=config.http_token, message=msg)
         payload = request.to_json()
         
         LOG.info(f"Sending to server: {payload[:200]}...")

@@ -8,7 +8,7 @@ True Love Server - 真爱粉服务端
 __version__ = "0.1.0"
 
 from .core import Config, local_msg_id, create_db_and_table
-from .models import ChatMsg, MsgType
+from .models import ChatMsg
 
 __all__ = [
     "__version__",
@@ -16,5 +16,4 @@ __all__ = [
     "local_msg_id",
     "create_db_and_table",
     "ChatMsg",
-    "MsgType",
 ]
