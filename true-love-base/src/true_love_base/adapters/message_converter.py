@@ -212,32 +212,26 @@ class WxAutoMessageConverter:
         is_group: bool,
         is_self: bool
     ) -> VoiceMessage:
-        """转换语音消息"""
-        # 创建下载函数闭包
-        def download_func(save_dir: Optional[str] = None) -> Optional[str]:
-            try:
-                if hasattr(raw_msg, 'download'):
-                    return raw_msg.download(save_dir) if save_dir else raw_msg.download()
-            except Exception as e:
-                LOG.error(f"Failed to download voice: {e}")
-            return None
+        """
+        转换语音消息
         
-        # 创建语音转文字函数闭包
-        def to_text_func() -> Optional[str]:
-            try:
-                if hasattr(raw_msg, 'to_text'):
-                    return raw_msg.to_text()
-            except Exception as e:
-                LOG.error(f"Failed to convert voice to text: {e}")
-            return None
+        直接调用 wxauto 的 to_text() 方法获取语音转文字结果。
+        注意：VoiceMessage 没有 download() 方法，语音只能通过微信自带的转文字功能处理。
+        """
+        text_content = None
+        try:
+            if hasattr(raw_msg, 'to_text'):
+                text_content = raw_msg.to_text()
+                LOG.info(f"Voice to_text success: {text_content}")
+        except Exception as e:
+            LOG.warning(f"Voice to_text failed: {e}")
         
         return VoiceMessage(
             sender=sender,
             chat_id=chat_name,
             is_group=is_group,
             is_self=is_self,
-            _download_func=download_func,
-            _to_text_func=to_text_func,
+            text_content=text_content,
             raw_data=raw_msg,
         )
     

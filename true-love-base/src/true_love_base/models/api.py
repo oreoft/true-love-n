@@ -99,11 +99,8 @@ class ChatRequest:
             request.file_path = msg.file_path
             
         elif isinstance(msg, VoiceMessage):
-            if msg.file_path is None:
-                msg.download()
-            if msg.text_content is None:
-                msg.to_text()
-            request.file_path = msg.file_path
+            # 语音消息：text_content 在 message_converter 转换时已经通过 to_text() 获取
+            # 这里直接使用，不再调用 download()（VoiceMessage 没有该方法）
             request.voice_text = msg.text_content
             # 如果有转文字结果，用它作为 content
             if msg.text_content:
