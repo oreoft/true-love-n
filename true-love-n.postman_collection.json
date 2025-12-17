@@ -381,7 +381,7 @@
 					"response": []
 				},
 				{
-					"name": "聊天消息处理",
+					"name": "聊天消息处理 - 文本",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -392,7 +392,95 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"token\": \"\",\n    \"msg_type\": \"text\",\n    \"sender\": \"\",\n    \"chat_id\": \"\",\n    \"content\": \"\",\n    \"is_group\": false,\n    \"file_path\": null,\n    \"voice_text\": null,\n    \"refer_msg\": null,\n    \"url\": \"\"\n}"
+							"raw": "{\n    \"token\": \"\",\n    \"msg_type\": \"text\",\n    \"sender\": \"测试用户\",\n    \"chat_id\": \"测试聊天\",\n    \"content\": \"你好\",\n    \"is_group\": false,\n    \"is_self\": false,\n    \"is_at_me\": false,\n    \"image_msg\": null,\n    \"voice_msg\": null,\n    \"video_msg\": null,\n    \"file_msg\": null,\n    \"link_msg\": null,\n    \"refer_msg\": null\n}"
+						},
+						"url": {
+							"raw": "{{server_host}}/get-chat",
+							"host": ["{{server_host}}"],
+							"path": ["get-chat"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "聊天消息处理 - 图片",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"\",\n    \"msg_type\": \"image\",\n    \"sender\": \"测试用户\",\n    \"chat_id\": \"测试聊天\",\n    \"content\": \"\",\n    \"is_group\": false,\n    \"is_self\": false,\n    \"is_at_me\": false,\n    \"image_msg\": {\n        \"file_path\": \"wx_imgs/test.jpg\"\n    },\n    \"voice_msg\": null,\n    \"video_msg\": null,\n    \"file_msg\": null,\n    \"link_msg\": null,\n    \"refer_msg\": null\n}"
+						},
+						"url": {
+							"raw": "{{server_host}}/get-chat",
+							"host": ["{{server_host}}"],
+							"path": ["get-chat"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "聊天消息处理 - 语音",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"\",\n    \"msg_type\": \"voice\",\n    \"sender\": \"测试用户\",\n    \"chat_id\": \"测试聊天\",\n    \"content\": \"语音转文字内容\",\n    \"is_group\": false,\n    \"is_self\": false,\n    \"is_at_me\": false,\n    \"image_msg\": null,\n    \"voice_msg\": {\n        \"text_content\": \"语音转文字内容\"\n    },\n    \"video_msg\": null,\n    \"file_msg\": null,\n    \"link_msg\": null,\n    \"refer_msg\": null\n}"
+						},
+						"url": {
+							"raw": "{{server_host}}/get-chat",
+							"host": ["{{server_host}}"],
+							"path": ["get-chat"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "聊天消息处理 - 链接",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"\",\n    \"msg_type\": \"link\",\n    \"sender\": \"测试用户\",\n    \"chat_id\": \"测试聊天\",\n    \"content\": \"分享链接\",\n    \"is_group\": false,\n    \"is_self\": false,\n    \"is_at_me\": false,\n    \"image_msg\": null,\n    \"voice_msg\": null,\n    \"video_msg\": null,\n    \"file_msg\": null,\n    \"link_msg\": {\n        \"url\": \"https://example.com\"\n    },\n    \"refer_msg\": null\n}"
+						},
+						"url": {
+							"raw": "{{server_host}}/get-chat",
+							"host": ["{{server_host}}"],
+							"path": ["get-chat"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "聊天消息处理 - 引用文本",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"\",\n    \"msg_type\": \"refer\",\n    \"sender\": \"测试用户\",\n    \"chat_id\": \"测试聊天\",\n    \"content\": \"这是我的回复\",\n    \"is_group\": false,\n    \"is_self\": false,\n    \"is_at_me\": false,\n    \"image_msg\": null,\n    \"voice_msg\": null,\n    \"video_msg\": null,\n    \"file_msg\": null,\n    \"link_msg\": null,\n    \"refer_msg\": {\n        \"msg_type\": \"text\",\n        \"sender\": \"被引用者\",\n        \"chat_id\": \"测试聊天\",\n        \"content\": \"被引用的文本内容\",\n        \"is_group\": false,\n        \"is_self\": false,\n        \"is_at_me\": false,\n        \"image_msg\": null,\n        \"voice_msg\": null,\n        \"video_msg\": null,\n        \"file_msg\": null,\n        \"link_msg\": null,\n        \"refer_msg\": null\n    }\n}"
 						},
 						"url": {
 							"raw": "{{server_host}}/get-chat",
