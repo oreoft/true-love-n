@@ -100,7 +100,7 @@ class ImageMessage(BaseMessage):
 
     def to_dict(self) -> dict[str, Any]:
         base = super().to_dict()
-        base["file_path"] = self.file_path
+        base["file_path"] = str(self.file_path) if self.file_path else None
         return base
 
 
@@ -133,7 +133,7 @@ class VoiceMessage(BaseMessage):
 
     def to_dict(self) -> dict[str, Any]:
         base = super().to_dict()
-        base["file_path"] = self.file_path
+        base["file_path"] = str(self.file_path) if self.file_path else None
         base["text_content"] = self.text_content
         base["duration"] = self.duration
         return base
@@ -159,8 +159,8 @@ class VideoMessage(BaseMessage):
 
     def to_dict(self) -> dict[str, Any]:
         base = super().to_dict()
-        base["file_path"] = self.file_path
-        base["thumbnail_path"] = self.thumbnail_path
+        base["file_path"] = str(self.file_path) if self.file_path else None
+        base["thumbnail_path"] = str(self.thumbnail_path) if self.thumbnail_path else None
         base["duration"] = self.duration
         return base
 
@@ -185,7 +185,7 @@ class FileMessage(BaseMessage):
 
     def to_dict(self) -> dict[str, Any]:
         base = super().to_dict()
-        base["file_path"] = self.file_path
+        base["file_path"] = str(self.file_path) if self.file_path else None
         base["file_name"] = self.file_name
         base["file_size"] = self.file_size
         return base

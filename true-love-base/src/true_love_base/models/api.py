@@ -93,10 +93,11 @@ class ChatRequest:
         )
         
         # 媒体消息处理
+        # 注意：wxauto 的 download() 返回的是 pathlib.Path 对象，需要转换为字符串
         if isinstance(msg, ImageMessage):
             if msg.file_path is None:
                 msg.download()
-            request.file_path = msg.file_path
+            request.file_path = str(msg.file_path) if msg.file_path else None
             
         elif isinstance(msg, VoiceMessage):
             # 语音消息：text_content 在 message_converter 转换时已经通过 to_text() 获取
@@ -109,12 +110,12 @@ class ChatRequest:
         elif isinstance(msg, VideoMessage):
             if msg.file_path is None:
                 msg.download()
-            request.file_path = msg.file_path
+            request.file_path = str(msg.file_path) if msg.file_path else None
             
         elif isinstance(msg, FileMessage):
             if msg.file_path is None:
                 msg.download()
-            request.file_path = msg.file_path
+            request.file_path = str(msg.file_path) if msg.file_path else None
             
         elif isinstance(msg, ReferMessage):
             if msg.referred_msg:
