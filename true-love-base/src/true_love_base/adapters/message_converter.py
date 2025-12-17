@@ -78,7 +78,6 @@ def convert_message(
             is_group=is_group,
             is_self=is_self,
             is_at_me=is_at_me,
-            raw_msg=raw_msg,
         )
         
         # 按类型填充特有字段
@@ -119,7 +118,6 @@ def convert_message(
             chat_id=chat_name,
             content=str(raw_msg),
             is_group=is_group,
-            raw_msg=raw_msg,
         )
 
 

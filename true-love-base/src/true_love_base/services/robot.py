@@ -9,7 +9,6 @@ Robot - 消息处理机器人
 
 import logging
 import threading
-import random
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, TYPE_CHECKING
@@ -119,25 +118,10 @@ class Robot:
                     # 没有艾特自己不处理
                     if not msg.is_at_me:
                         return
-                res = self.forward_msg(msg)
 
-                use_send = random.choice([True, False])
-                raw = getattr(msg, "raw_msg", None)
-                # 如果是群那么两种方式随机,如果不是群,那么固定直接发送
-                if msg.is_group:
-                    if use_send:
-                        can_tickle = raw is not None and hasattr(raw, "tickle")
-                        if can_tickle:
-                            raw.tickle()
-                        self.send_text_msg(res, chat_name, None if can_tickle else msg.sender)
-                    else:
-                        if raw is not None and hasattr(raw, "quote"):
-                            raw.quote(res)
-                        else:
-                            # 兜底：quote 不可用就退回普通发送
-                            self.send_text_msg(res, chat_name, msg.sender)
-                else:
-                    self.send_text_msg(res, chat_name)
+                # 转发处理
+                self.send_text_msg(self.forward_msg(msg), chat_name, msg.sender if not msg.is_group else None)
+
             except Exception as e:
                 self.LOG.error(f"Error processing message from [{chat_name}]: {e}")
 
