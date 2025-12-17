@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from true_love_base.models.message import BaseMessage
+from true_love_base.utils.path_resolver import get_wx_imgs_dir
 
 
 @dataclass
@@ -42,6 +43,7 @@ class ChatRequest:
     file_path: Optional[str] = None
     voice_text: Optional[str] = None
     refer_msg: Optional[dict] = None
+    url: Optional[str] = None
     
     def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
@@ -56,6 +58,7 @@ class ChatRequest:
             "file_path": self.file_path,
             "voice_text": self.voice_text,
             "refer_msg": self.refer_msg,
+            "url": self.url,
         }
     
     def to_json(self) -> str:
@@ -80,6 +83,7 @@ class ChatRequest:
             VideoMessage,
             FileMessage,
             ReferMessage,
+            LinkMessage
         )
         
         # 基础字段
@@ -94,13 +98,13 @@ class ChatRequest:
         )
         
         # 媒体消息处理
-        # 注意：
-        # 1. wxauto 的 download() 返回的是 pathlib.Path 对象
-        # 2. 默认保存路径已在 wxauto_adapter 中通过 WxParam.DEFAULT_SAVE_PATH 设置为 server/wx_imgs
-        # 3. 传给 server 时只传相对路径（wx_imgs/filename）
+        # 注意：wxauto 的 download() 返回的是 pathlib.Path 对象，需要转换为字符串
+        # 下载到 server 的 wx_imgs 目录，传给 server 时只传相对路径（wx_imgs/filename）
+        wx_imgs_dir = get_wx_imgs_dir()
+        
         if isinstance(msg, ImageMessage):
             if msg.file_path is None:
-                msg.download()  # 使用 WxParam.DEFAULT_SAVE_PATH
+                msg.download(wx_imgs_dir)
             # 只传相对路径：wx_imgs/filename
             if msg.file_path:
                 filename = os.path.basename(str(msg.file_path))
@@ -116,14 +120,14 @@ class ChatRequest:
                 
         elif isinstance(msg, VideoMessage):
             if msg.file_path is None:
-                msg.download()  # 使用 WxParam.DEFAULT_SAVE_PATH
+                msg.download(wx_imgs_dir)
             if msg.file_path:
                 filename = os.path.basename(str(msg.file_path))
                 request.file_path = f"wx_imgs/{filename}"
             
         elif isinstance(msg, FileMessage):
             if msg.file_path is None:
-                msg.download()  # 使用 WxParam.DEFAULT_SAVE_PATH
+                msg.download(wx_imgs_dir)
             if msg.file_path:
                 filename = os.path.basename(str(msg.file_path))
                 request.file_path = f"wx_imgs/{filename}"
@@ -131,6 +135,8 @@ class ChatRequest:
         elif isinstance(msg, ReferMessage):
             if msg.referred_msg:
                 request.refer_msg = msg.referred_msg.to_dict()
+        elif isinstance(msg, LinkMessage):
+            request.url = msg.url
         
         return request
 

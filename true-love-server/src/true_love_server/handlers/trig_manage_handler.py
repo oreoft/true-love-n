@@ -69,6 +69,10 @@ class TrigManageHandler:
         if "删除" in action or "移除" in action:
             return self._remove_listen(action)
 
+        # 刷新监听列表
+        if "刷新" in action or "同步" in action:
+            return self._refresh_listen()
+
         return self._get_listen_help()
 
     def _query_listen_list(self) -> str:
@@ -124,6 +128,50 @@ class TrigManageHandler:
             return f"删除监听成功: {chat_name}"
         return f"删除监听失败: {msg}"
 
+    def _refresh_listen(self) -> str:
+        """
+        刷新监听列表
+        
+        比对内存和文件中的监听列表，重新添加缺失的监听。
+        """
+        LOG.info("开始刷新监听列表")
+        success, data, msg = base_client.refresh_listen()
+        
+        if not success:
+            return f"刷新监听列表失败: {msg}"
+        
+        if data is None:
+            return "刷新监听列表失败: 返回数据为空"
+        
+        # 构建结果报告
+        file_count = len(data.get('file_chats', []))
+        memory_count = len(data.get('memory_chats', []))
+        missing = data.get('missing', [])
+        recovered = data.get('recovered', [])
+        failed = data.get('failed', [])
+        
+        report_lines = [
+            f"监听列表刷新完成:",
+            f"  文件中: {file_count}个",
+            f"  内存中: {memory_count}个",
+        ]
+        
+        if missing:
+            report_lines.append(f"  缺失: {len(missing)}个")
+        if recovered:
+            report_lines.append(f"  已恢复: {', '.join(recovered)}")
+        if failed:
+            report_lines.append(f"  恢复失败: {', '.join(failed)}")
+        
+        if not missing:
+            report_lines.append("  状态: 内存与文件一致 ✓")
+        elif not failed:
+            report_lines.append("  状态: 全部恢复成功 ✓")
+        else:
+            report_lines.append("  状态: 部分恢复失败 ✗")
+        
+        return "\n".join(report_lines)
+
     @staticmethod
     def _get_main_help() -> str:
         """获取管理主帮助信息"""
@@ -138,4 +186,6 @@ class TrigManageHandler:
   $管理监听 新增-监听名称 - 添加监听对象
   $管理监听 添加-监听名称 - 添加监听对象
   $管理监听 删除-监听名称 - 删除监听对象
-  $管理监听 移除-监听名称 - 删除监听对象"""
+  $管理监听 移除-监听名称 - 删除监听对象
+  $管理监听 刷新 - 刷新监听列表(修复缺失监听)
+  $管理监听 同步 - 同上"""

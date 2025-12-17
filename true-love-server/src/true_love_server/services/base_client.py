@@ -21,6 +21,7 @@ get_by_room_id_url = f"{host}/get/by/room-id"
 listen_list_url = f"{host}/listen/list"
 listen_add_url = f"{host}/listen/add"
 listen_remove_url = f"{host}/listen/remove"
+listen_refresh_url = f"{host}/listen/refresh"
 LOG = logging.getLogger("BaseClient")
 
 
@@ -161,3 +162,25 @@ def remove_listen(chat_name: str) -> tuple[bool, str]:
     except Exception as e:
         LOG.exception("remove_listen 失败: %s", e)
     return False, str(e)
+
+
+def refresh_listen() -> tuple[bool, dict | None, str]:
+    """
+    刷新监听列表
+    
+    比对内存和文件中的监听列表，重新添加缺失的监听。
+    
+    Returns:
+        (是否成功, 刷新结果数据, 消息)
+    """
+    try:
+        start_time = time.time()
+        LOG.info("开始刷新监听列表")
+        res = requests.post(listen_refresh_url, timeout=(2, 120))  # 刷新可能需要更长时间
+        res.raise_for_status()
+        result = res.json()
+        LOG.info("refresh_listen请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, result)
+        return True, result.get('data'), result.get('msg', '成功')
+    except Exception as e:
+        LOG.exception("refresh_listen 失败: %s", e)
+    return False, None, str(e)

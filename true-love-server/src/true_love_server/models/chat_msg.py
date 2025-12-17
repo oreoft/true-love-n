@@ -36,6 +36,7 @@ class ChatMsg:
     file_path: Optional[str] = None  # 文件路径（图片、语音、视频等）
     voice_text: Optional[str] = None  # 语音转文字内容
     refer_msg: Optional[dict] = None  # 引用消息
+    url: str = ""  # 链接
 
     def from_group(self) -> bool:
         """是否来自群聊"""
@@ -102,6 +103,7 @@ class ChatMsg:
             "file_path": self.file_path,
             "voice_text": self.voice_text,
             "refer_msg": self.refer_msg,
+            "url": self.url,
         }
 
     @classmethod
@@ -122,4 +124,5 @@ class ChatMsg:
             file_path=data.get("file_path"),
             voice_text=data.get("voice_text"),
             refer_msg=data.get("refer_msg"),
+            url=data.get("url"),
         )

@@ -195,20 +195,16 @@ class FileMessage(BaseMessage):
 class LinkMessage(BaseMessage):
     """链接消息（公众号文章、分享链接等）"""
     msg_type: MessageType = field(default=MessageType.LINK, init=False)
-    title: Optional[str] = None
-    description: Optional[str] = None
     url: Optional[str] = None
-    thumbnail_url: Optional[str] = None
+    content: str = ""  # 主消息文本
 
     def get_content(self) -> str:
-        return self.title or self.url or "[Link]"
+        return self.content
 
     def to_dict(self) -> dict[str, Any]:
         base = super().to_dict()
-        base["title"] = self.title
-        base["description"] = self.description
         base["url"] = self.url
-        base["thumbnail_url"] = self.thumbnail_url
+        base["content"] = self.content
         return base
 
 

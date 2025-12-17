@@ -248,6 +248,25 @@ def remove_listen_chat():
     return jsonify(ApiResponse.error(105, "Failed to remove listener").to_dict())
 
 
+@app.route('/listen/refresh', methods=['POST'])
+def refresh_listen_chats():
+    """
+    刷新监听列表
+    
+    比对内存和文件中的监听列表，重新添加缺失的监听。
+    用于修复因窗口句柄失效等原因导致的监听丢失问题。
+    
+    Response:
+        - data: 刷新结果，包含 file_chats, memory_chats, missing, extra, recovered, failed
+    """
+    robot = get_robot()
+    if robot is None:
+        return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
+    
+    result = robot.refresh_listen_chats()
+    return jsonify(ApiResponse.success(result).to_dict())
+
+
 # ==================== Middleware ====================
 
 @app.before_request
@@ -300,11 +319,11 @@ def enable_http(robot: "Robot", host: str = "0.0.0.0", port: int = 5000):
     t = Thread(
         target=run_server,
         name="HttpServer",
+        daemon=True,  # 守护线程，主线程退出时自动结束
     )
     t.start()
     
     LOG.info(f"HTTP server (Waitress) started on {host}:{port}, threads={WAITRESS_THREADS}")
-    return t
 
 
 if __name__ == '__main__':

@@ -126,6 +126,15 @@ class WxAutoClient(WeChatClientProtocol):
             # 注意：wxauto 回调签名是 (msg, chat)，必须接收两个参数
             def internal_callback(raw_msg, chat):
                 try:
+                   
+                    # if exists, log raw_msg.type and raw_msg.attr
+                    LOG.info('--------------------------------')
+                    LOG.info('Raw message: %r', raw_msg)
+                    if hasattr(raw_msg, 'type') :
+                        LOG.info('Raw message type: %s', raw_msg.type)
+                    if hasattr(raw_msg, 'attr'):
+                        LOG.info('Raw message attr: %r', raw_msg.attr)
+                   
                     # 获取 sender 属性
                     sender = getattr(raw_msg, 'sender', '')
                     
@@ -147,6 +156,8 @@ class WxAutoClient(WeChatClientProtocol):
                     
                     # 转换消息
                     message = self._converter.convert(raw_msg, chat_name, is_group)
+                    LOG.info('Converted message: %r', message.to_dict())
+                    LOG.info('--------------------------------')
                     
                     # 检测是否@了自己
                     if hasattr(raw_msg, 'content'):

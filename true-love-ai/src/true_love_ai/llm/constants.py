@@ -15,4 +15,4 @@ DEEPSEEK_MODEL = "deepseek/deepseek-reasoner"
 DEFAULT_MODEL = OPENAI_MODEL
 
 # ==================== 对话配置 ====================
-MAX_CONVERSATION_LENGTH = 10  # 最大对话历史长度
+MAX_CONVERSATION_LENGTH = 20  # 最大对话历史长度

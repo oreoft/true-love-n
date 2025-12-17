@@ -9,8 +9,7 @@ True Love Base - Main Entry Point
 import logging
 import signal
 import sys
-import time
-from threading import Thread
+from threading import Thread, Event
 
 from true_love_base.configuration import Config
 from true_love_base.adapters import WxAutoClient
@@ -55,7 +54,7 @@ def disable_quick_edit():
 def main():
     """主函数"""
     # 禁用 Windows 控制台 QuickEdit 模式，防止点击窗口导致程序暂停
-    disable_quick_edit()
+    # disable_quick_edit()
 
     LOG.info("=" * 50)
     LOG.info("True Love Base starting...")
@@ -76,32 +75,20 @@ def main():
     # 初始化机器人
     robot = Robot(client, listen_store)
 
+    # 关闭事件，用于优雅退出
+    shutdown_event = Event()
+
     # 设置信号处理
     def signal_handler(sig, frame):
-        LOG.info("Received shutdown signal...")
-        try:
-            robot.send_text_msg("True Love Base shutting down...", config.master_wix)
-        except Exception:
-            pass
-        # 清理 Robot 资源（线程池等）
-        robot.cleanup()
-        # 清理 wxauto 客户端资源
-        client.cleanup()
-        LOG.info("Cleanup completed, exiting...")
-        sys.exit(0)
+        LOG.info("Received shutdown signal, shutting down...")
+        shutdown_event.set()  # 通知主线程退出
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
     # 启动 HTTP 服务
-    t = server.enable_http(robot)
+    server.enable_http(robot)
     LOG.info("HTTP server enabled")
-
-    # 发送启动通知
-    try:
-        robot.send_text_msg("True Love Base started successfully!", config.master_wix)
-    except Exception as e:
-        LOG.warning(f"Failed to send startup notification: {e}")
 
     LOG.info("True Love Base is ready!")
     LOG.info("Use HTTP API to add chat listeners:")
@@ -112,11 +99,21 @@ def main():
     def listener_thread_entry():
         # 在监听线程中加载监听列表
         robot.load_listen_chats()
-        listen_count = len(robot.get_listen_chats())
+        listen_chats = robot.get_listen_chats()
+        listen_count = len(listen_chats)
         if listen_count > 0:
             LOG.info(f"Loaded {listen_count} listen chats from file")
         else:
             LOG.warning("No listen_chats found! Use API to add listeners")
+        
+        # 发送启动通知，包含内存中实际加载的监听列表
+        try:
+            listen_list_str = "\n".join([f"  {i+1}. {name}" for i, name in enumerate(listen_chats)]) if listen_chats else "  (无)"
+            startup_msg = f"True Love Base started successfully!\n\n当前监听列表 ({listen_count}个):\n{listen_list_str}"
+            robot.send_text_msg(startup_msg, config.master_wix)
+        except Exception as e:
+            LOG.warning(f"Failed to send startup notification: {e}")
+        
         # 开始监听（阻塞）
         robot.start_listening()
 
@@ -128,8 +125,19 @@ def main():
     )
     listen_thread.start()
 
-    # 把http现成拉到主线程保持运行
-    t.join()
+    # 主线程等待关闭信号（带超时循环，确保能响应 Ctrl+C）
+    while not shutdown_event.wait(timeout=0.2):
+        pass
+
+    # 收到关闭信号后，执行清理
+    LOG.info("Cleaning up...")
+    try:
+        robot.send_text_msg("True Love Base shutting down...", config.master_wix)
+    except Exception:
+        pass
+    robot.cleanup()
+    client.cleanup()
+    LOG.info("Cleanup completed, bye!")
 
 
 if __name__ == '__main__':

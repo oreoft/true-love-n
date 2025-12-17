@@ -135,29 +135,53 @@ class Robot:
             except Exception as e:
                 self.LOG.error(f"Error processing message from [{chat_name}]: {e}")
     
-    def add_listen_chat(self, chat_name: str, persist: bool = True) -> bool:
+    # 监听添加重试配置
+    LISTEN_ADD_RETRY_COUNT = 3
+    LISTEN_ADD_RETRY_DELAY = 1.0  # 秒
+    
+    def add_listen_chat(self, chat_name: str, persist: bool = True, retry: bool = True) -> bool:
         """
         添加监听的聊天对象
         
         Args:
             chat_name: 聊天对象名称（好友昵称或群名）
             persist: 是否持久化到文件（默认 True）
+            retry: 是否在失败时重试（默认 True）
             
         Returns:
             是否添加成功
         """
+        import time
+        
         if chat_name in self._listening_chats:
             self.LOG.warning(f"Already listening to [{chat_name}]")
             return True
         
-        success = self.client.add_message_listener(chat_name, self.on_message)
-        if success:
-            self._listening_chats.add(chat_name)
-            self.LOG.info(f"Started listening to [{chat_name}]")
-            # 持久化到文件
-            if persist:
-                self._listen_store.add(chat_name)
-        return success
+        max_attempts = self.LISTEN_ADD_RETRY_COUNT if retry else 1
+        last_error = None
+        
+        for attempt in range(1, max_attempts + 1):
+            try:
+                success = self.client.add_message_listener(chat_name, self.on_message)
+                if success:
+                    self._listening_chats.add(chat_name)
+                    self.LOG.info(f"Started listening to [{chat_name}] (attempt {attempt})")
+                    # 持久化到文件
+                    if persist:
+                        self._listen_store.add(chat_name)
+                    return True
+                else:
+                    self.LOG.warning(f"Failed to add listener for [{chat_name}] (attempt {attempt}/{max_attempts})")
+            except Exception as e:
+                last_error = e
+                self.LOG.warning(f"Exception adding listener for [{chat_name}] (attempt {attempt}/{max_attempts}): {e}")
+            
+            # 如果不是最后一次尝试，等待后重试
+            if attempt < max_attempts:
+                time.sleep(self.LISTEN_ADD_RETRY_DELAY)
+        
+        self.LOG.error(f"Failed to add listener for [{chat_name}] after {max_attempts} attempts. Last error: {last_error}")
+        return False
     
     def remove_listen_chat(self, chat_name: str) -> bool:
         """
@@ -197,6 +221,54 @@ class Robot:
         for chat_name in chats:
             # persist=False 避免重复写入
             self.add_listen_chat(chat_name, persist=False)
+    
+    def refresh_listen_chats(self) -> dict:
+        """
+        刷新监听列表：比对内存和文件，重新添加缺失的监听
+        
+        Returns:
+            刷新结果，包含:
+            - file_chats: 文件中的监听列表
+            - memory_chats: 内存中的监听列表
+            - missing: 文件中有但内存中没有的
+            - extra: 内存中有但文件中没有的
+            - recovered: 成功恢复的
+            - failed: 恢复失败的
+        """
+        # 获取文件中的监听列表
+        file_chats = set(self._listen_store.load())
+        # 获取内存中的监听列表
+        memory_chats = set(self._listening_chats)
+        
+        # 计算差异
+        missing = file_chats - memory_chats  # 文件有，内存没有
+        extra = memory_chats - file_chats    # 内存有，文件没有
+        
+        self.LOG.info(f"Refresh: file={len(file_chats)}, memory={len(memory_chats)}, missing={len(missing)}, extra={len(extra)}")
+        
+        recovered = []
+        failed = []
+        
+        # 尝试恢复缺失的监听
+        for chat_name in missing:
+            self.LOG.info(f"Attempting to recover listener for [{chat_name}]")
+            # persist=False 因为文件中已经有了
+            success = self.add_listen_chat(chat_name, persist=False, retry=True)
+            if success:
+                recovered.append(chat_name)
+                self.LOG.info(f"Successfully recovered listener for [{chat_name}]")
+            else:
+                failed.append(chat_name)
+                self.LOG.error(f"Failed to recover listener for [{chat_name}]")
+        
+        return {
+            "file_chats": list(file_chats),
+            "memory_chats": list(self._listening_chats),  # 更新后的内存列表
+            "missing": list(missing),
+            "extra": list(extra),
+            "recovered": recovered,
+            "failed": failed,
+        }
     
     def start_listening(self) -> None:
         """

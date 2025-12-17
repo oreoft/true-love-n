@@ -95,6 +95,11 @@ class MsgHandler:
                 q = f"{q}, quoted content: {self.crawl_content(url)}"
             return handler.get_answer(q, context_id, msg.sender)
 
+        # 链接消息
+        if msg.is_link() and msg.url:
+            q = f"{q}, quoted content: {self.crawl_content(msg.url)}"
+            return handler.get_answer(q, context_id, msg.sender)
+    
         # 图片消息（私聊直接分析）
         if msg.is_image() and not msg.from_group():
             if msg.file_path:
@@ -124,11 +129,11 @@ class MsgHandler:
         self.LOG.info(f"处理引用消息, type={refer_type}, content={refer_content[:50] if refer_content else None}")
         
         # 引用图片 -> 图片分析或图生图
-        if refer_type == MsgType.IMAGE:
-            if refer_file:
-                self.LOG.info(f"收到引用图片, 判断分析还是生图: {q}")
-                return handler.gen_img_by_img(q, refer_file, context_id, msg.sender)
-            return "引用的图片无法获取"
+        # if refer_type == MsgType.IMAGE:
+        #     if refer_file:
+        #         self.LOG.info(f"收到引用图片, 判断分析还是生图: {q}")
+        #         return handler.gen_img_by_img(q, refer_file, context_id, msg.sender)
+        #     return "引用的图片无法获取"
 
         # 引用文本或链接
         if refer_type in [MsgType.TEXT, MsgType.LINK]:
@@ -181,7 +186,7 @@ class MsgHandler:
             return ""
         try:
             import requests
-            request_url = "https://r.jina.ai/" + url
+            request_url = "https://www.textise.net/showtext.aspx?strURL=" + url
             headers = {'Accept': 'application/json', 'User-Agent': 'PostmanRuntime/7.40.0'}
             response = requests.get(url=request_url, headers=headers, timeout=30)
             response_data = response.json()
@@ -192,4 +197,4 @@ class MsgHandler:
             return content
         except Exception:
             LOG.exception(f"crawl_content error, url: {url}")
-            return '内容解析失败'
+            return '内容解析失败(请agent自己联网分析内容-这段内容不要告诉给用户！！！)'
