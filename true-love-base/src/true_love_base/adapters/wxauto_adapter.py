@@ -240,10 +240,12 @@ class WxAutoClient(WeChatClientProtocol):
                 LOG.warning("Use API to add listeners first, then restart the service")
                 return
             self.wx.KeepRunning()
+            # 如果 KeepRunning 返回了，说明监听结束
+            LOG.warning("KeepRunning() returned, message listening ended")
         except KeyboardInterrupt:
             LOG.info("Listening stopped by user")
         except Exception as e:
-            LOG.error(f"Error in message listening: {e}")
+            LOG.error(f"Error in message listening: {e}", exc_info=True)
 
     # ==================== 联系人管理 ====================
 

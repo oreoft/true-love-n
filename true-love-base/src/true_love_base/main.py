@@ -127,6 +127,8 @@ def main():
 
         # 开始监听（阻塞）
         robot.start_listening()
+        # 如果到这里说明监听结束了
+        LOG.error("!!! Listener thread exited unexpectedly !!!")
 
     # 在后台线程启动消息监听
     listen_thread = Thread(
