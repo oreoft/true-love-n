@@ -86,10 +86,10 @@ class LLMService:
     def _init_router(self) -> Router:
         """初始化 LiteLLM 路由器"""
         model_list = [
-            # OpenAI 多 Key 配置 (GPT-5 不支持自定义 temperature，只能用 temperature=1)
-            {"model_name": OPENAI_MODEL, "litellm_params": {"model": OPENAI_MODEL, "api_key": self.config.get('key1'), "temperature": 1}},
-            {"model_name": OPENAI_MODEL, "litellm_params": {"model": OPENAI_MODEL, "api_key": self.config.get('key2'), "temperature": 1}},
-            {"model_name": OPENAI_MODEL, "litellm_params": {"model": OPENAI_MODEL, "api_key": self.config.get('key3'), "temperature": 1}},
+            # OpenAI 多 Key 配置
+            {"model_name": OPENAI_MODEL, "litellm_params": {"model": OPENAI_MODEL, "api_key": self.config.get('key1')}},
+            {"model_name": OPENAI_MODEL, "litellm_params": {"model": OPENAI_MODEL, "api_key": self.config.get('key2')}},
+            {"model_name": OPENAI_MODEL, "litellm_params": {"model": OPENAI_MODEL, "api_key": self.config.get('key3')}},
             # Claude
             {"model_name": CLAUDE_MODEL, "litellm_params": {"model": CLAUDE_MODEL, "api_key": self.config.get('claude_key1')}},
             # DeepSeek
