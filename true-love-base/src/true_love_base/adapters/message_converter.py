@@ -39,9 +39,8 @@ QUOTE_TYPE_MAP = {
 
 
 def convert_message(
-    raw_msg: Any,
-    chat_name: str,
-    is_group: bool = False,
+        raw_msg: Any,
+        chat_name: str,
 ) -> ChatMessage:
     """
     将 wxautox4 消息转换为 ChatMessage
@@ -49,7 +48,6 @@ def convert_message(
     Args:
         raw_msg: wxautox4 的原始消息对象
         chat_name: 聊天对象名称
-        is_group: 是否群聊
         
     Returns:
         ChatMessage 实例
@@ -57,19 +55,15 @@ def convert_message(
     try:
         msg_type = getattr(raw_msg, 'type', 'text')
         sender = getattr(raw_msg, 'sender', chat_name)
+        msg_id = getattr(raw_msg, 'id', '')
+        msg_hash = getattr(raw_msg, 'hash', '')
         content = getattr(raw_msg, 'content', str(raw_msg))
-        
-        # 判断是否自己发送的消息（wxautox4 的 attr 属性）
-        attr = getattr(raw_msg, 'attr', '')
-        is_self = attr == 'self'
-        
-        # 如果 sender 是 wxauto 的消息属性标识，用 chat_name 替代
-        if sender in ('friend', 'self', ''):
-            sender = chat_name
-        
-        # 检测是否@了自己（仅群聊有效）
+
+        # 使用 chat_info.chat_type 判断群聊（更可靠）
+        chat_info = getattr(raw_msg, 'chat_info', {}) or {}
+        is_group = chat_info.get('chat_type') == 'group'
         is_at_me = is_group and ('@真爱粉' in content or 'zaf' in content.lower())
-        
+
         # 构建基础消息
         msg = ChatMessage(
             msg_type=msg_type if msg_type != 'quote' else 'refer',
@@ -77,40 +71,41 @@ def convert_message(
             chat_id=chat_name,
             content=content,
             is_group=is_group,
-            is_self=is_self,
             is_at_me=is_at_me,
+            msg_id=msg_id,
+            msg_hash=msg_hash,
         )
-        
+
         # 按类型填充特有字段
         if msg_type == 'image':
             file_path = _download(raw_msg, "image")
             msg.image_msg = ImageMsg(file_path=file_path)
-            
+
         elif msg_type == 'voice':
             text_content = _to_text(raw_msg)
             msg.voice_msg = VoiceMsg(text_content=text_content)
             # 如果有转文字结果，用它作为 content
             if text_content:
                 msg.content = text_content
-                
+
         elif msg_type == 'video':
             file_path = _download(raw_msg, "video")
             msg.video_msg = VideoMsg(file_path=file_path)
-            
+
         elif msg_type == 'file':
             file_path = _download(raw_msg, "file")
             file_name = getattr(raw_msg, 'file_name', None) or getattr(raw_msg, 'filename', None)
             msg.file_msg = FileMsg(file_path=file_path, file_name=file_name)
-            
+
         elif msg_type == 'link':
             url = raw_msg.get_url() if hasattr(raw_msg, 'get_url') else None
             msg.link_msg = LinkMsg(url=url)
-            
+
         elif msg_type == 'quote':
             msg.refer_msg = _build_refer_msg(raw_msg, chat_name, is_group)
-        
+
         return msg
-        
+
     except Exception as e:
         LOG.error(f"Failed to convert message: {e}")
         return ChatMessage(
@@ -118,7 +113,9 @@ def convert_message(
             sender=chat_name,
             chat_id=chat_name,
             content=str(raw_msg),
-            is_group=is_group,
+            is_group=False,
+            msg_hash='',
+            msg_id='',
         )
 
 
@@ -143,7 +140,7 @@ def _download(raw_msg: Any, media_type: str) -> Optional[str]:
         full_path = raw_msg.download()
         if not full_path:
             return None
-        
+
         # 转换为 Server 可用的相对路径
         relative_path = to_server_path(str(full_path))
         LOG.debug(f"Downloaded {media_type}: {full_path} -> {relative_path}")
@@ -177,16 +174,18 @@ def _build_refer_msg(raw_msg: Any, chat_name: str, is_group: bool) -> ChatMessag
     """
     quote_content = getattr(raw_msg, 'quote_content', '')
     quote_sender = getattr(raw_msg, 'quote_nickname', '') or 'unknown'
-    
+
     # 判断被引用的内容类型
     refer_type = QUOTE_TYPE_MAP.get(quote_content, 'text')
-    
+
     LOG.info(f"Building refer_msg: type={refer_type}, content={quote_content}, sender={quote_sender}")
-    
+
     return ChatMessage(
         msg_type=refer_type,
         sender=quote_sender,
         chat_id=chat_name,
         content=quote_content if refer_type == 'text' else '',
         is_group=is_group,
+        msg_id='',
+        msg_hash='',
     )

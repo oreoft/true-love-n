@@ -53,9 +53,10 @@ class ChatMessage:
     msg_type: str
     sender: str
     chat_id: str
+    msg_id: str
+    msg_hash: str
     content: str = ""
     is_group: bool = False
-    is_self: bool = False
     is_at_me: bool = False
     
     # ===== 类型特有字段（按需填充，其他为 None）=====

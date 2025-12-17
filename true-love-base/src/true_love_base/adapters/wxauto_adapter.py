@@ -127,29 +127,6 @@ class WxAutoClient(WeChatClientProtocol):
                 pass
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    @staticmethod
-    def _check_is_group(sender: str, chat_name: str) -> bool:
-        """
-        判断是否群聊
-        
-        判断逻辑：
-        1. sender 为空或等于 chat_name -> 私聊
-        2. sender 为 'friend' 或 'self' -> 私聊（wxauto 的消息属性标识）
-        3. 其他情况（sender 是群成员昵称）-> 群聊
-        
-        Args:
-            sender: 发送者
-            chat_name: 聊天对象名称
-            
-        Returns:
-            是否群聊
-        """
-        return bool(
-            sender
-            and sender != chat_name
-            and sender not in ('friend', 'self')
-        )
-
     # ==================== 消息发送 ====================
 
     def send_text(self, receiver: str, content: str, at_list: Optional[list[str]] = None) -> bool:
@@ -196,28 +173,72 @@ class WxAutoClient(WeChatClientProtocol):
 
             # 创建内部回调，转换消息格式
             # 注意：wxauto 回调签名是 (msg, chat)，必须接收两个参数
+            """
+             示例 raw_msg 属性：
+             私聊
+             {
+                "attr": "friend", # 获取 attr, 属性system：系统消息 self：自己发送的消息 friend：好友消息 other：其他消息
+                "chat_info": {
+                    "chat_type": "friend",
+                    "chat_name": "纯路人"
+                    },
+                "content": "hello",
+                "control": "<wxautox4.uia.uiautomation.ListItemControl object at 0x0000023CA83F92B0>",
+                "hash": "0c6a86758fe737c7d0c3a9fd28474bb0",
+                "hash_text": "(56,360)hello",
+                "id": "cd886a97fd1c05f6d49f628d6c114d16",
+                "parent": "<wxautox4.ui.chatbox.ChatBox object at 0x0000023CA8BCB200>",
+                "root": "<wxautox4 - WeChatSubWnd object(\"纯路人\")>",
+                "sender": "纯路人",
+                "type": "text" # https://plus.wxauto.org/docs/class/Message.html
+             }
+             群消息
+             {
+                  "attr": "friend",
+                  "chat_info": {
+                    "chat_type": "group",
+                    "chat_name": "委员会",
+                    "group_member_count": 6
+                  },
+                  "content": "@真爱粉",
+                  "control": "<wxautox4.uia.uiautomation.ListItemControl object at 0x0000023CA8BD8CE0>",
+                  "hash": "27913b5c034854e5a4d2268fd0e380d0",
+                  "hash_text": "(77,360)@真爱粉",
+                  "id": "2e8a2aff7f368555d9cc5bd317acc532",
+                  "parent": "<wxautox4.ui.chatbox.ChatBox object at 0x0000023CA8BD8560>",
+                  "root": "<wxautox4 - WeChatSubWnd object(\"委员会\")>",
+                  "sender": "纯路人",
+                  "type": "text"
+            }
+            """
+
             def internal_callback(raw_msg, chat):
                 try:
-                    LOG.info('------------ Raw message attrs ------------\n%s', self._dump_obj_attrs(raw_msg))
+                    LOG.info('--------------Start------------------')
+                    LOG.info('------------ Raw message info ------------\n%s', self._dump_obj_attrs(raw_msg))
+                    LOG.info('------------ Raw chat info ------------\n%s', self._dump_obj_attrs(chat))
 
-                    # 获取 attr 属性system：系统消息 self：自己发送的消息 friend：好友消息 other：其他消息
-                    sender = getattr(raw_msg, 'attr', '')
+                    attr = getattr(raw_msg, 'attr', '')
+                    sender = getattr(raw_msg, 'sender', '')
 
                     # 快速过滤：在消息转换之前过滤，减少不必要的处理
-                    if sender.lower() in ['weixin', 'system', 'self']:
+                    if attr.lower() in ['weixin', 'system', 'self']:
                         LOG.info(f"ignored system li message from [{sender}]")
                         return
 
-                    # 判断是否群聊
-                    is_group = self._check_is_group(sender, chat_name)
-
-                    # 如果 sender 是属性标识，用 chat_name 作为实际发送者
-                    LOG.debug(f"Message callback: chat_name={chat_name}, sender={sender}, is_group={is_group}")
+                    # 使用 chat_info.chat_type 判断群聊（更可靠）
+                    chat_info = getattr(raw_msg, 'chat_info', {}) or {}
+                    is_group = chat_info.get('chat_type') == 'group'
+                    content = getattr(raw_msg, 'content', str(raw_msg))
+                    is_at_me = is_group and ('@真爱粉' in content or 'zaf' in content.lower())
+                    if is_group and not is_at_me:
+                        LOG.info(f"ignored group message without @ from [{sender}] and chat [{chat_name}]")
+                        return
 
                     # 转换消息
-                    message = convert_message(raw_msg, chat_name, is_group)
+                    message = convert_message(raw_msg, chat_name)
                     LOG.info('Converted message: %r', message.to_dict())
-                    LOG.info('--------------------------------')
+                    LOG.info('---------------END-----------------')
 
                     # 调用用户回调
                     callback(message, chat_name)
@@ -225,7 +246,7 @@ class WxAutoClient(WeChatClientProtocol):
                     LOG.error(f"Error in message callback for [{chat_name}]: {e}")
                     # 发送错误提示，避免用户感觉假死
                     try:
-                        raw_msg.quote("啊咧？消息好像坏掉了，麻烦再发一次吧~")
+                        self.wx.SendMsg("啊咧？消息好像坏掉了，麻烦再发一次吧~", chat_name)
                     except Exception as send_err:
                         LOG.error(f"Failed to send error msg to [{chat_name}]: {send_err}")
 
