@@ -57,7 +57,8 @@ class ChatMessage:
     is_group: bool = False
     is_self: bool = False
     is_at_me: bool = False
-    
+    raw_msg: Any = None
+
     # ===== 类型特有字段（按需填充，其他为 None）=====
     image_msg: Optional[ImageMsg] = None
     voice_msg: Optional[VoiceMsg] = None
