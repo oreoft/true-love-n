@@ -98,6 +98,10 @@ class WxAutoMessageConverter:
             msg_type = getattr(raw_msg, 'type', 'unknown')
             sender = getattr(raw_msg, 'sender', chat_name)
             
+            # 如果 sender 是 wxauto 的消息属性标识（'friend'/'self'），用 chat_name 替代
+            if sender in ('friend', 'self', ''):
+                sender = chat_name
+            
             # 判断是否自己发送（使用缓存的类）
             is_self = False
             if self._SelfMessage is not None:

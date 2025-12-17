@@ -118,11 +118,22 @@ class WxAutoClient(WeChatClientProtocol):
             # 注意：wxauto 回调签名是 (msg, chat)，必须接收两个参数
             def internal_callback(raw_msg, chat):
                 try:
-                    # 运行时推断是否群聊：群聊时 sender 是群成员昵称，不等于 chat_name
+                    # 获取 sender 属性
                     sender = getattr(raw_msg, 'sender', '')
-                    # 如果 sender 不为空且不等于 chat_name，则为群聊
-                    # 私聊时 sender 通常等于 chat_name 或为空
-                    is_group = bool(sender and sender != chat_name)
+                    
+                    # 判断是否群聊：
+                    # 1. sender 为空或等于 chat_name -> 私聊
+                    # 2. sender 为 'friend' 或 'self' -> 私聊（这是 wxauto 的消息属性标识，不是真正的发送者）
+                    # 3. 其他情况（sender 是群成员昵称）-> 群聊
+                    is_group = bool(
+                        sender 
+                        and sender != chat_name 
+                        and sender not in ('friend', 'self')
+                    )
+                    
+                    # 如果 sender 是属性标识，用 chat_name 作为实际发送者
+                    if sender in ('friend', 'self', ''):
+                        sender = chat_name
                     
                     LOG.debug(f"Message callback: chat_name={chat_name}, sender={sender}, is_group={is_group}")
                     
