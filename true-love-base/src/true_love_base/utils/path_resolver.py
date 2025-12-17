@@ -21,7 +21,10 @@ WX_IMGS_DIR = "wx_imgs"
 
 def _find_project_root() -> str:
     """
-    往上级查找 true-love-n 目录
+    通过当前文件路径查找 true-love-n 目录
+    
+    路径结构: true-love-n/true-love-base/src/true_love_base/utils/path_resolver.py
+    从当前文件往上 5 层就是项目根目录
     
     Returns:
         项目根目录路径
@@ -29,17 +32,19 @@ def _find_project_root() -> str:
     Raises:
         FileNotFoundError: 找不到项目根目录
     """
-    current = os.getcwd()
-
-    while True:
+    # 使用 __file__ 定位，比 os.getcwd() 更可靠
+    current = os.path.dirname(os.path.abspath(__file__))
+    
+    # 往上查找 true-love-n 目录
+    for _ in range(10):  # 最多查找 10 层
         if os.path.basename(current) == PROJECT_ROOT:
             return current
-
         parent = os.path.dirname(current)
         if parent == current:
-            # 已经到根目录了
-            raise FileNotFoundError(f"找不到项目根目录: {PROJECT_ROOT}")
+            break
         current = parent
+    
+    raise FileNotFoundError(f"找不到项目根目录: {PROJECT_ROOT}")
 
 
 def get_wx_imgs_dir() -> str:
