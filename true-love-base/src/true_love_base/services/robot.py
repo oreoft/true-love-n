@@ -221,13 +221,29 @@ class Robot:
         """
         return list(self._listening_chats)
 
-    def load_listen_chats(self) -> None:
-        """从持久化文件加载监听列表并开始监听"""
+    def load_listen_chats(self) -> dict[str, list[str]]:
+        """
+        从持久化文件加载监听列表并开始监听
+        
+        Returns:
+            包含成功和失败列表的字典:
+            - success: 成功监听的聊天列表
+            - failed: 监听失败的聊天列表
+        """
         chats = self._listen_store.load()
         self.LOG.info(f"Loading {len(chats)} listen chats from store")
+        
+        success = []
+        failed = []
+        
         for chat_name in chats:
             # persist=False 避免重复写入
-            self.add_listen_chat(chat_name, persist=False)
+            if self.add_listen_chat(chat_name, persist=False):
+                success.append(chat_name)
+            else:
+                failed.append(chat_name)
+        
+        return {"success": success, "failed": failed}
 
     def refresh_listen_chats(self) -> dict:
         """

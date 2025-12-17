@@ -98,22 +98,33 @@ def main():
     # 重要：AddListenChat 和 KeepRunning 必须在同一个线程中调用
     def listener_thread_entry():
         # 在监听线程中加载监听列表
-        robot.load_listen_chats()
-        listen_chats = robot.get_listen_chats()
-        listen_count = len(listen_chats)
-        if listen_count > 0:
-            LOG.info(f"Loaded {listen_count} listen chats from file")
+        load_result = robot.load_listen_chats()
+        success_chats = load_result["success"]
+        failed_chats = load_result["failed"]
+
+        if len(success_chats) > 0:
+            LOG.info(f"Loaded {len(success_chats)} listen chats from file")
         else:
             LOG.warning("No listen_chats found! Use API to add listeners")
-        
-        # 发送启动通知，包含内存中实际加载的监听列表
+
+        if len(failed_chats) > 0:
+            LOG.warning(f"Failed to load {len(failed_chats)} listen chats: {failed_chats}")
+
+        # 发送启动通知，包含监听成功和失败的列表
         try:
-            listen_list_str = "\n".join([f"  {i+1}. {name}" for i, name in enumerate(listen_chats)]) if listen_chats else "  (无)"
-            startup_msg = f"True Love Base started successfully!\n\n当前监听列表 ({listen_count}个):\n{listen_list_str}"
+            success_list_str = "\n".join(
+                [f"  {i + 1}. {name}" for i, name in enumerate(success_chats)]) if success_chats else "  (无)"
+            failed_list_str = "\n".join(
+                [f"  {i + 1}. {name}" for i, name in enumerate(failed_chats)]) if failed_chats else "  (无)"
+
+            startup_msg = f"True Love Base started successfully!\n\n当前监听列表 ({len(success_chats)}个):\n{success_list_str}"
+            if failed_chats:
+                startup_msg += f"\n\n监听失败 ({len(failed_chats)}个):\n{failed_list_str}"
+
             robot.send_text_msg(startup_msg, config.master_wix)
         except Exception as e:
             LOG.warning(f"Failed to send startup notification: {e}")
-        
+
         # 开始监听（阻塞）
         robot.start_listening()
 
