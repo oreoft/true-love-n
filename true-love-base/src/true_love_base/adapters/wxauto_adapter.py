@@ -5,6 +5,7 @@ WxAuto Adapter - wxautox4 SDK 适配器
 实现 WeChatClientProtocol 接口，封装 wxautox4 的具体调用。
 """
 
+import json
 import logging
 from typing import Optional
 
@@ -98,6 +99,57 @@ class WxAutoClient(WeChatClientProtocol):
                 self._self_name = "Unknown"
         return self._self_name
 
+    @staticmethod
+    def _dump_obj_attrs(obj) -> str:
+        """
+        获取对象的所有公开属性（非方法、非私有），返回格式化的 JSON 字符串
+        
+        Args:
+            obj: 要打印的对象
+            
+        Returns:
+            格式化的属性字符串
+        """
+        result = {}
+        for attr in dir(obj):
+            if attr.startswith('_'):
+                continue
+            try:
+                value = getattr(obj, attr)
+                if not callable(value):
+                    # 尝试转为可序列化的类型
+                    try:
+                        json.dumps(value, ensure_ascii=False)
+                        result[attr] = value
+                    except (TypeError, ValueError):
+                        result[attr] = repr(value)
+            except Exception:
+                pass
+        return json.dumps(result, ensure_ascii=False, indent=2)
+
+    @staticmethod
+    def _check_is_group(sender: str, chat_name: str) -> bool:
+        """
+        判断是否群聊
+        
+        判断逻辑：
+        1. sender 为空或等于 chat_name -> 私聊
+        2. sender 为 'friend' 或 'self' -> 私聊（wxauto 的消息属性标识）
+        3. 其他情况（sender 是群成员昵称）-> 群聊
+        
+        Args:
+            sender: 发送者
+            chat_name: 聊天对象名称
+            
+        Returns:
+            是否群聊
+        """
+        return bool(
+            sender
+            and sender != chat_name
+            and sender not in ('friend', 'self')
+        )
+
     # ==================== 消息发送 ====================
 
     def send_text(self, receiver: str, content: str, at_list: Optional[list[str]] = None) -> bool:
@@ -146,47 +198,26 @@ class WxAutoClient(WeChatClientProtocol):
             # 注意：wxauto 回调签名是 (msg, chat)，必须接收两个参数
             def internal_callback(raw_msg, chat):
                 try:
+                    LOG.info('------------ Raw message attrs ------------\n%s', self._dump_obj_attrs(raw_msg))
 
-                    # if exists, log raw_msg.type and raw_msg.attr
-                    LOG.info('--------------------------------')
-                    LOG.info('Raw message: %r', raw_msg)
-                    if hasattr(raw_msg, 'type'):
-                        LOG.info('Raw message type: %s', raw_msg.type)
-                    if hasattr(raw_msg, 'attr'):
-                        LOG.info('Raw message attr: %r', raw_msg.attr)
+                    # 获取 attr 属性system：系统消息 self：自己发送的消息 friend：好友消息 other：其他消息
+                    sender = getattr(raw_msg, 'attr', '')
 
-                    # 获取 sender 属性
-                    sender = getattr(raw_msg, 'sender', '')
+                    # 快速过滤：在消息转换之前过滤，减少不必要的处理
+                    if sender.lower() in ['weixin', 'system', 'self']:
+                        LOG.info(f"ignored system li message from [{sender}]")
+                        return
 
-                    # 判断是否群聊：
-                    # 1. sender 为空或等于 chat_name -> 私聊
-                    # 2. sender 为 'friend' 或 'self' -> 私聊（这是 wxauto 的消息属性标识，不是真正的发送者）
-                    # 3. 其他情况（sender 是群成员昵称）-> 群聊
-                    is_group = bool(
-                        sender
-                        and sender != chat_name
-                        and sender not in ('friend', 'self')
-                    )
+                    # 判断是否群聊
+                    is_group = self._check_is_group(sender, chat_name)
 
                     # 如果 sender 是属性标识，用 chat_name 作为实际发送者
-                    if sender in ('friend', 'self', ''):
-                        sender = chat_name
-
                     LOG.debug(f"Message callback: chat_name={chat_name}, sender={sender}, is_group={is_group}")
 
                     # 转换消息
                     message = convert_message(raw_msg, chat_name, is_group)
                     LOG.info('Converted message: %r', message.to_dict())
                     LOG.info('--------------------------------')
-
-                    # 检测是否@了自己
-                    if hasattr(raw_msg, 'content'):
-                        content = str(getattr(raw_msg, 'content', ''))
-                        self_name = self.get_self_name()
-                        is_at = f"@{self_name}" in content or '@真爱粉' in content or 'zaf' in content.lower()
-                        if is_group:
-                            message.is_at_me = is_at
-                        LOG.debug(f"@ detection: content={content[:50]}, self_name={self_name}, is_at={is_at}")
 
                     # 调用用户回调
                     callback(message, chat_name)

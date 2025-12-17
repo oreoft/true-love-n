@@ -80,19 +80,9 @@ class Robot:
             chat_name: 聊天对象名称
         """
         try:
-            # 快速过滤，不需要进入线程池
-            if 'weixin' in msg.sender.lower() or msg.sender == 'system':
-                self.LOG.debug(f"Ignored system message from [{msg.sender}]")
-                return
-
-            if msg.is_self:
-                return
-
             self.LOG.info(f"Received message from [{chat_name}], submitting to thread pool")
-
             # 提交到线程池异步处理
             self._executor.submit(self._process_message, msg, chat_name)
-
         except Exception as e:
             self.LOG.error(f"Error submitting message to thread pool: {e}")
 

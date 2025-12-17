@@ -42,7 +42,6 @@ def convert_message(
     raw_msg: Any,
     chat_name: str,
     is_group: bool = False,
-    is_at_me: bool = False
 ) -> ChatMessage:
     """
     将 wxautox4 消息转换为 ChatMessage
@@ -51,7 +50,6 @@ def convert_message(
         raw_msg: wxautox4 的原始消息对象
         chat_name: 聊天对象名称
         is_group: 是否群聊
-        is_at_me: 是否@了机器人
         
     Returns:
         ChatMessage 实例
@@ -68,6 +66,9 @@ def convert_message(
         # 如果 sender 是 wxauto 的消息属性标识，用 chat_name 替代
         if sender in ('friend', 'self', ''):
             sender = chat_name
+        
+        # 检测是否@了自己（仅群聊有效）
+        is_at_me = is_group and ('@真爱粉' in content or 'zaf' in content.lower())
         
         # 构建基础消息
         msg = ChatMessage(
