@@ -534,7 +534,9 @@ class WxAutoClient(WeChatClientProtocol):
         """
         健康检查：检查监听状态是否正常
         
-        通过比对已注册的监听和实际活跃的子窗口来判断监听是否健康。
+        通过以下方式检测监听健康状态：
+        1. 检查窗口是否存在
+        2. 对存在的窗口执行主动探测（调用 ChatInfo()），验证窗口是否真正可用
         
         Returns:
             健康检查结果字典，包含:
@@ -542,40 +544,84 @@ class WxAutoClient(WeChatClientProtocol):
             - message: 状态描述
             - registered_listeners: 已注册的监听列表
             - active_windows: 活跃的子窗口列表
-            - unhealthy_listeners: 异常的监听列表（已注册但无对应窗口）
+            - unhealthy_listeners: 异常的监听列表（包含失败原因）
             - orphan_windows: 孤立的窗口列表（有窗口但未注册）
+            - probe_results: 主动探测结果详情
         """
         try:
             # 获取已注册的监听
             registered = set(self._listeners.keys())
             
             # 获取所有活跃的子窗口
+            active = set()
+            window_map = {}  # chat_name -> window object
             try:
                 sub_windows = self.wx.GetAllSubWindow()
-                active = set()
                 for w in sub_windows:
                     try:
                         who = getattr(w, 'who', None)
                         if who:
                             active.add(who)
+                            window_map[who] = w
                     except Exception:
                         pass
             except Exception as e:
                 LOG.error(f"Failed to get sub windows: {e}")
-                # 获取子窗口失败，认为所有监听都不健康
                 return {
                     "healthy": False,
                     "message": f"Failed to get sub windows: {e}",
                     "registered_listeners": list(registered),
                     "active_windows": [],
-                    "unhealthy_listeners": list(registered),
-                    "orphan_windows": []
+                    "unhealthy_listeners": [{"chat": c, "reason": "get_windows_failed"} for c in registered],
+                    "orphan_windows": [],
+                    "probe_results": []
                 }
             
-            # 计算差异
-            unhealthy = registered - active  # 已注册但无窗口
-            orphan = active - registered  # 有窗口但未注册
+            # 主动探测每个已注册的监听
+            unhealthy = []
+            probe_results = []
             
+            for chat_name in registered:
+                probe_result = {"chat": chat_name, "window_exists": False, "probe_success": False, "reason": None}
+                
+                # Step 1: 检查窗口是否存在
+                if chat_name not in active:
+                    probe_result["reason"] = "window_not_found"
+                    unhealthy.append({"chat": chat_name, "reason": "window_not_found"})
+                    probe_results.append(probe_result)
+                    LOG.warning(f"Health check: [{chat_name}] window not found")
+                    continue
+                
+                probe_result["window_exists"] = True
+                
+                # Step 2: 主动探测 - 尝试调用 ChatInfo() 验证窗口可用性
+                try:
+                    window = window_map.get(chat_name)
+                    if window:
+                        # 尝试获取聊天信息，验证窗口是否真正响应
+                        chat_info = window.ChatInfo()
+                        if chat_info:
+                            probe_result["probe_success"] = True
+                            LOG.debug(f"Health check: [{chat_name}] probe success")
+                        else:
+                            probe_result["reason"] = "chat_info_empty"
+                            unhealthy.append({"chat": chat_name, "reason": "chat_info_empty"})
+                            LOG.warning(f"Health check: [{chat_name}] ChatInfo returned empty")
+                    else:
+                        probe_result["reason"] = "window_object_missing"
+                        unhealthy.append({"chat": chat_name, "reason": "window_object_missing"})
+                        LOG.warning(f"Health check: [{chat_name}] window object missing from map")
+                except Exception as e:
+                    probe_result["reason"] = f"probe_exception: {str(e)}"
+                    unhealthy.append({"chat": chat_name, "reason": f"probe_exception: {str(e)}"})
+                    LOG.warning(f"Health check: [{chat_name}] probe exception: {e}")
+                
+                probe_results.append(probe_result)
+            
+            # 计算孤立窗口
+            orphan = active - registered
+            
+            # 判断整体健康状态
             healthy = len(unhealthy) == 0
             
             if healthy:
@@ -590,8 +636,9 @@ class WxAutoClient(WeChatClientProtocol):
                 "message": message,
                 "registered_listeners": list(registered),
                 "active_windows": list(active),
-                "unhealthy_listeners": list(unhealthy),
-                "orphan_windows": list(orphan)
+                "unhealthy_listeners": unhealthy,
+                "orphan_windows": list(orphan),
+                "probe_results": probe_results
             }
             
         except Exception as e:

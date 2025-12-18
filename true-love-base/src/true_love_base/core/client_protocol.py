@@ -174,7 +174,9 @@ class WeChatClientProtocol(ABC):
         """
         健康检查：检查监听状态是否正常
         
-        通过比对已注册的监听和实际活跃的子窗口来判断监听是否健康。
+        通过以下方式检测监听健康状态：
+        1. 检查窗口是否存在
+        2. 对存在的窗口执行主动探测，验证窗口是否真正可用
         
         Returns:
             健康检查结果字典，包含:
@@ -182,8 +184,9 @@ class WeChatClientProtocol(ABC):
             - message: 状态描述
             - registered_listeners: 已注册的监听列表
             - active_windows: 活跃的子窗口列表
-            - unhealthy_listeners: 异常的监听列表
+            - unhealthy_listeners: 异常的监听列表（包含失败原因）
             - orphan_windows: 孤立的窗口列表
+            - probe_results: 主动探测结果详情
         """
         pass
 
