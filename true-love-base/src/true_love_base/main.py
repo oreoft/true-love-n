@@ -10,12 +10,13 @@ import logging
 import signal
 import sys
 from threading import Thread, Event
+from typing import Callable
 
-from true_love_base.configuration import Config
-from true_love_base.adapters import WxAutoClient
-from true_love_base.services.robot import Robot
-from true_love_base.services.listen_store import ListenStore
 from true_love_base import server
+from true_love_base.adapters import WxAutoClient
+from true_love_base.configuration import Config
+from true_love_base.services.listen_store import ListenStore
+from true_love_base.services.robot import Robot
 
 # 初始化配置（会设置日志）
 config = Config()
@@ -55,25 +56,12 @@ def main():
     """主函数"""
     # 禁用 Windows 控制台 QuickEdit 模式，防止点击窗口导致程序暂停
     disable_quick_edit()
-
     LOG.info("=" * 50)
     LOG.info("True Love Base starting...")
     LOG.info("=" * 50)
 
-    # 初始化微信客户端
-    try:
-        client = WxAutoClient()
-        LOG.info(f"WeChat client initialized, self: {client.get_self_name()}")
-    except Exception as e:
-        LOG.error(f"Failed to initialize WeChat client: {e}")
-        sys.exit(1)
-
-    # 初始化监听列表持久化管理器
-    listen_store = ListenStore(config.listen_chats_file)
-    LOG.info(f"ListenStore initialized: {config.listen_chats_file}")
-
-    # 初始化机器人
-    robot = Robot(client, listen_store)
+    # 初始化微信客户端和机器人
+    client, robot = init_wx()
 
     # 关闭事件，用于优雅退出
     shutdown_event = Event()
@@ -96,6 +84,31 @@ def main():
 
     # 定义监听线程的入口函数
     # 重要：AddListenChat 和 KeepRunning 必须在同一个线程中调用
+
+    # 在后台线程启动消息监听
+    listen_thread = Thread(
+        target=init_listening(robot),
+        name="MessageListener",
+        daemon=True,
+    )
+    listen_thread.start()
+
+    # 主线程等待关闭信号（带超时循环，确保能响应 Ctrl+C）
+    while not shutdown_event.wait(timeout=0.2):
+        pass
+
+    # 收到关闭信号后，执行清理
+    LOG.info("Cleaning up...")
+    try:
+        robot.send_text_msg("True Love Base shutting down...", config.master_wix)
+    except Exception:
+        pass
+    robot.cleanup()
+    client.cleanup()
+    LOG.info("Cleanup completed, bye!")
+
+
+def init_listening(robot: Robot) -> Callable[[], None]:
     def listener_thread_entry():
         # 在监听线程中加载监听列表
         load_result = robot.load_listen_chats()
@@ -128,27 +141,25 @@ def main():
         # 开始监听（阻塞）
         robot.start_listening()
 
-    # 在后台线程启动消息监听
-    listen_thread = Thread(
-        target=listener_thread_entry,
-        name="MessageListener",
-        daemon=True,
-    )
-    listen_thread.start()
+    return listener_thread_entry
 
-    # 主线程等待关闭信号（带超时循环，确保能响应 Ctrl+C）
-    while not shutdown_event.wait(timeout=0.2):
-        pass
 
-    # 收到关闭信号后，执行清理
-    LOG.info("Cleaning up...")
+def init_wx() -> tuple[WxAutoClient, Robot]:
+    # 初始化微信客户端
     try:
-        robot.send_text_msg("True Love Base shutting down...", config.master_wix)
-    except Exception:
-        pass
-    robot.cleanup()
-    client.cleanup()
-    LOG.info("Cleanup completed, bye!")
+        client = WxAutoClient()
+        LOG.info(f"WeChat client initialized, self: {client.get_self_name()}")
+    except Exception as e:
+        LOG.error(f"Failed to initialize WeChat client: {e}")
+        sys.exit(1)
+
+    # 初始化监听列表持久化管理器
+    listen_store = ListenStore(config.listen_chats_file)
+    LOG.info(f"ListenStore initialized: {config.listen_chats_file}")
+
+    # 初始化机器人
+    robot = Robot(client, listen_store)
+    return client, robot
 
 
 if __name__ == '__main__':
