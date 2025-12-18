@@ -338,7 +338,8 @@ class ChatGPT(ChatBot):
         provider_initial = provider[0].upper() if provider else 'U'
 
         # 拼接 prompt 和 provider 信息
-        res_text = f"🎬视频生成完成!\n{rsp.get('prompt')}\n\n该视频由{provider_initial}家提供"
+        # res_text = f"🎬视频生成完成!\n{rsp.get('prompt')}\n\n该视频由{provider_initial}家提供"
+        res_text = f"🎬视频生成完成!\n{rsp.get('prompt')}"
         base_client.send_text(wxid, at_user, res_text)
 
         # 处理视频：依次判断 video_url, video_base64, video_id
