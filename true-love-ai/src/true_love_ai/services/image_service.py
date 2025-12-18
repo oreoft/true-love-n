@@ -310,15 +310,19 @@ class ImageService:
             raise ValueError("生成失败啦! 返回数据异常~")
 
         except litellm.exceptions.ContentPolicyViolationError:
-            raise ValueError("生成失败啦! 内容不太合适呢，换个描述试试吧~")
+            raise ValueError("生成失败啦! 内容太不堪入目了吧~")
         except litellm.exceptions.Timeout:
             LOG.error("OpenAI 图像生成超时")
             raise ValueError("生成超时啦! 稍后再试试吧~")
         except ValueError:
             raise
         except Exception as e:
+            error_str = str(e).lower()
             LOG.error(f"OpenAI 图像生成异常: {e}")
-            raise ValueError(f"生成失败啦! {str(e)[:100]}")
+            # 检查是否是内容安全过滤
+            if "content" in error_str and ("policy" in error_str or "filter" in error_str or "safety" in error_str):
+                raise ValueError("生成失败啦! 内容太不堪入目了吧~")
+            raise ValueError("生成失败啦! 内容太不堪入目了吧~")
 
     async def _generate_gemini(self, prompt: str) -> ImageResponse:
         """
@@ -373,12 +377,16 @@ class ImageService:
             raise ValueError("生成失败啦! 返回数据异常~")
 
         except litellm.exceptions.ContentPolicyViolationError:
-            raise ValueError("生成失败啦! 内容不太合适呢，换个描述试试吧~")
+            raise ValueError("生成失败啦! 内容太不堪入目了吧~")
         except ValueError:
             raise
         except Exception as e:
+            error_str = str(e).lower()
             LOG.error(f"Gemini 图像生成异常: {e}")
-            raise ValueError(f"生成失败啦! {str(e)[:100]}")
+            # 检查是否是内容安全过滤
+            if any(kw in error_str for kw in ["filtered", "safety", "policy", "blocked", "raimediafiltered"]):
+                raise ValueError("生成失败啦! 内容太不堪入目了吧~")
+            raise ValueError("生成失败啦! 内容太不堪入目了吧~")
 
     async def _edit_image(
             self,

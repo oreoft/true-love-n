@@ -289,6 +289,11 @@ class VideoService:
                         LOG.info(f"[{video_id_remote}] OpenAI {task_type}完成, 大小: {len(video_bytes) / 1024 / 1024:.2f}MB")
                         break
                 except Exception as e:
+                    error_str = str(e).lower()
+                    # 检查是否是内容安全过滤
+                    if any(kw in error_str for kw in ["content_policy", "safety", "filtered", "moderation", "blocked"]):
+                        LOG.warning(f"[{video_id_remote}] OpenAI 内容安全过滤触发: {str(e)[:200]}")
+                        raise ValueError("生成失败啦! 内容太不堪入目了吧~")
                     # 视频还在处理中
                     LOG.debug(f"[{video_id_remote}] OpenAI {task_type}中... 尝试: {attempt + 1}/{max_attempts}, err: {str(e)[:50]}")
                     await asyncio.sleep(interval)
@@ -373,19 +378,28 @@ class VideoService:
             max_attempts = 120
             interval = 5.0
             for attempt in range(max_attempts):
-                status_response = await litellm.avideo_status(video_id=video_id_remote, api_key=api_key)
-                status = status_response.status
+                try:
+                    status_response = await litellm.avideo_status(video_id=video_id_remote, api_key=api_key)
+                    status = status_response.status
 
-                if status == "completed":
-                    LOG.info(f"[{video_id_remote}] Gemini {task_type}完成, 开始下载...")
-                    break
-                elif status == "failed":
-                    LOG.error(f"[{video_id_remote}] Gemini {task_type}失败")
-                    raise ValueError(f"{task_type}失败啦!")
+                    if status == "completed":
+                        LOG.info(f"[{video_id_remote}] Gemini {task_type}完成, 开始下载...")
+                        break
+                    elif status == "failed":
+                        LOG.error(f"[{video_id_remote}] Gemini {task_type}失败")
+                        raise ValueError(f"{task_type}失败啦!")
 
-                LOG.debug(
-                    f"[{video_id_remote}] Gemini {task_type}中... 状态: {status}, 尝试: {attempt + 1}/{max_attempts}")
-                await asyncio.sleep(interval)
+                    LOG.debug(
+                        f"[{video_id_remote}] Gemini {task_type}中... 状态: {status}, 尝试: {attempt + 1}/{max_attempts}")
+                    await asyncio.sleep(interval)
+                except Exception as e:
+                    error_str = str(e).lower()
+                    # 检查是否是内容安全过滤导致的错误
+                    if any(kw in error_str for kw in ["raimediafiltered", "filtered", "generatedsamples", "safety", "policy", "blocked"]):
+                        LOG.warning(f"[{video_id_remote}] Gemini 内容安全过滤触发: {str(e)[:200]}")
+                        raise ValueError("生成失败啦! 内容太不堪入目了吧~")
+                    # 其他错误继续抛出
+                    raise
             else:
                 LOG.error(f"[{video_id_remote}] Gemini {task_type}超时")
                 raise ValueError(f"{task_type}超时，请稍后再试~")

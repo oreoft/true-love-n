@@ -189,8 +189,33 @@ class ChatGPT(ChatBot):
 
             # 发送请求（视频生成时间较长，设置较长超时）
             response = requests.post(url, headers=headers, data=json.dumps(data), timeout=600)
+            
+            # 先检查响应状态
+            if response.status_code != 200:
+                self.LOG.error(f"gen-video请求失败, status_code: {response.status_code}, body: {response.text[:500]}")
+                return f'呜呜~视频生成服务好像出问题了捏 (HTTP {response.status_code})'
+            
+            # 检查响应内容是否为空
+            response_text = response.text
+            if not response_text or not response_text.strip():
+                self.LOG.error("gen-video响应为空")
+                return '诶嘿~服务器君好像睡着了，什么都没回我呢，再试试吧~'
+            
+            # 尝试解析 JSON
+            try:
+                json_data = response.json()
+            except json.JSONDecodeError as je:
+                self.LOG.error(f"gen-video响应JSON解析失败: {je}, 响应内容: {response_text[:500]}")
+                return '呀~服务器君说的话我听不懂，稍后再试试吧~'
+            
             # 获取结果
-            rsp = response.json().get('data') or response.json().get('message')
+            rsp = json_data.get('data') or json_data.get('message')
+        except requests.exceptions.Timeout:
+            self.LOG.error("发送到gen-video超时")
+            rsp = '视频酱制作太久啦~等不及了，稍后再试试吧~'
+        except requests.exceptions.ConnectionError as ce:
+            self.LOG.error(f"发送到gen-video连接错误: {ce}")
+            rsp = '呜呜~连不上视频服务器君了，稍后再试试吧~'
         except Exception as e0:
             self.LOG.error("发送到gen-video出错: %s", e0)
             rsp = '发生未知错误, 稍后再试试捏'

@@ -36,7 +36,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         
         LOG.info(
             f"AI服务收到请求: [{request.method} {request.url.path}], "
-            f"req: [{body.decode()[:500] if body else 'empty'}]"
+            f"req: [{body.decode() if body else 'empty'}]"
         )
         
         # 处理请求
@@ -54,7 +54,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             resp_log = f"[binary {response.media_type}, {len(response_body)} bytes]"
         else:
             try:
-                resp_log = response_body.decode()[:500] if response_body else 'empty'
+                resp_log = response_body.decode() if response_body else 'empty'
             except UnicodeDecodeError:
                 resp_log = f"[binary data, {len(response_body)} bytes]"
         
