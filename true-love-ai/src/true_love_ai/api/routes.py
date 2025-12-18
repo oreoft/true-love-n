@@ -5,14 +5,15 @@ API 路由模块
 """
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 
 from true_love_ai.api.deps import verify_token, get_chat_service, get_image_service, get_video_service
 from true_love_ai.models.request import ChatRequest, ImageRequest, ImageTypeRequest, AnalyzeRequest, VideoRequest
 from true_love_ai.models.response import APIResponse
 from true_love_ai.services.chat_service import ChatService
 from true_love_ai.services.image_service import ImageService
-from true_love_ai.services.video_service import VideoService
+from true_love_ai.services.video_service import VideoService, GEN_VIDEO_DIR
 
 LOG = logging.getLogger(__name__)
 
@@ -179,3 +180,35 @@ async def gen_video(
     except Exception as e:
         LOG.exception(f"gen-video处理失败: {e}")
         return APIResponse.internal_error(str(e))
+
+
+@router.get("/download-video/{video_id}")
+async def download_video(
+        video_id: str,
+        token: str = Query(..., description="鉴权 Token")
+) -> FileResponse:
+    """
+    下载视频文件
+    
+    用于 Server 端获取 Gemini 生成的视频
+    视频通过 video_id 标识，存储在 AI 服务本地
+    """
+    LOG.info(f"download-video请求, video_id: {video_id}")
+
+    # 鉴权
+    if not verify_token(token):
+        raise HTTPException(status_code=403, detail="Token 验证失败")
+
+    # 查找视频文件
+    video_path = GEN_VIDEO_DIR / f"{video_id}.mp4"
+    
+    if not video_path.exists():
+        LOG.warning(f"视频文件不存在: {video_path}")
+        raise HTTPException(status_code=404, detail="视频文件不存在或已过期")
+
+    LOG.info(f"返回视频文件: {video_path}")
+    return FileResponse(
+        path=video_path,
+        media_type="video/mp4",
+        filename=f"{video_id}.mp4"
+    )

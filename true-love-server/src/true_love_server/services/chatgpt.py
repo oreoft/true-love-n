@@ -27,7 +27,7 @@ name = "chatgpt"
 # 图像生成支持的 provider
 IMAGE_PROVIDERS = ["openai", "stability", "gemini"]
 # 视频生成支持的 provider
-VIDEO_PROVIDERS = ["openai", "gemini"]
+VIDEO_PROVIDERS = ["gemini"]
 
 
 def get_file_path(msg_id, file_type='png'):
@@ -316,13 +316,14 @@ class ChatGPT(ChatBot):
         res_text = f"🎬视频生成完成!\n{rsp.get('prompt')}\n\n该视频由{provider_initial}家提供"
         base_client.send_text(wxid, at_user, res_text)
 
-        # 处理视频：URL 和 base64 都保存到本地
+        # 处理视频：依次判断 video_url, video_base64, video_id
         video_url = rsp.get('video_url')
         video_base64 = rsp.get('video_base64')
+        video_id = rsp.get('video_id')
         file_path = get_video_file_path(msg_id)
 
         if video_url:
-            # 如果是 URL，下载保存到本地
+            # 如果是可直接访问的 URL，下载保存到本地
             try:
                 import requests as req
                 video_resp = req.get(video_url, timeout=120)
@@ -338,6 +339,21 @@ class ChatGPT(ChatBot):
             with open(file_path, "wb") as file:
                 file.write(base64.b64decode(video_base64))
             base_client.send_video(file_path, wxid)
+        elif video_id:
+            # 如果是 video_id（Gemini），从 AI 服务下载
+            try:
+                self.LOG.info(f"从AI服务下载视频, video_id={video_id}")
+                download_url = f'{self.ai_host}/download-video/{video_id}?token={self.token}'
+                video_resp = requests.get(download_url, timeout=300, stream=True)
+                video_resp.raise_for_status()
+                with open(file_path, "wb") as file:
+                    for chunk in video_resp.iter_content(chunk_size=8192):
+                        file.write(chunk)
+                self.LOG.info(f"视频下载完成: {file_path}")
+                base_client.send_video(file_path, wxid)
+            except Exception as e:
+                self.LOG.error(f"从AI服务下载视频失败: {e}")
+                base_client.send_text(wxid, at_user, "视频下载失败，请稍后再试")
 
     def gen_analyze(self, question, wxid, sender, img_path=''):
         # 私聊时不@

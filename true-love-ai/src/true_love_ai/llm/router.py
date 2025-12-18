@@ -44,16 +44,19 @@ class LLMRouter:
         
         # 其他提供商（单 Key）
         providers = [
-            ("claude_key1", self.config.claude_model),
-            ("ds_key1", self.config.deepseek_model),
-            ("gemini_key1", self.config.gemini_model),
+            ("claude_key1", self.config.claude_model, None),
+            ("ds_key1", self.config.deepseek_model, None),
+            # Gemini 需要加 gemini/ 前缀使用 Google AI Studio API（而不是 Vertex AI）
+            ("gemini_key1", self.config.gemini_model, "gemini/"),
         ]
-        for key_attr, model in providers:
+        for key_attr, model, prefix in providers:
             key = getattr(self.config, key_attr, '')
             if key:
+                # litellm_params.model 可能需要前缀，但 model_name 保持原样
+                litellm_model = f"{prefix}{model}" if prefix else model
                 model_list.append({
                     "model_name": model,
-                    "litellm_params": {"model": model, "api_key": key}
+                    "litellm_params": {"model": litellm_model, "api_key": key}
                 })
         
         LOG.info(f"LLM Router 初始化，共 {len(model_list)} 个模型配置")

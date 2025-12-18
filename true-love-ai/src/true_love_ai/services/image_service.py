@@ -215,7 +215,7 @@ class ImageService:
     async def _generate_openai(self, prompt: str) -> ImageResponse:
         """
         使用 OpenAI 生成图像
-        支持 DALL-E 3 和 GPT-4o 原生生图（gpt-image-1）
+        支持 DALL-E 系列（使用 response_format）和 gpt-image 系列（使用 output_format）
         """
         # 获取 API Key
         api_key = None
@@ -225,56 +225,79 @@ class ImageService:
         if not api_key:
             raise ValueError("OpenAI API Key 未配置，无法生成图像呢~")
 
-        # 获取模型配置
+        # 获取模型配置和 API 端点
         image_model = self.config.chatgpt.image_model if self.config.chatgpt else "gpt-image-1"
+        api_base = self.config.chatgpt.api if self.config.chatgpt else "https://api.openai.com/v1/"
+        api_base = api_base.rstrip("/")
+
         LOG.info(f"OpenAI 生成图像, model: {image_model}, prompt: {prompt[:50]}...")
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://api.openai.com/v1/images/generations",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": image_model,
-                    "prompt": prompt,
-                    "n": 1,
-                    "size": "1024x1024",
-                    "response_format": "b64_json"
-                },
-                timeout=120.0
-            )
+        # 根据模型类型选择参数
+        # gpt-image-* 系列使用 output_format，dall-e-* 系列使用 response_format
+        is_gpt_image = image_model.startswith("gpt-image")
 
-            if response.status_code == 200:
-                data = response.json()
-                image_data = data["data"][0]["b64_json"]
-                return ImageResponse(
-                    prompt=prompt,
-                    img=image_data
+        request_data = {
+            "model": image_model,
+            "prompt": prompt,
+            "n": 1,
+            "size": "1024x1024"
+        }
+
+        if is_gpt_image:
+            # gpt-image 系列：使用 output_format 获取 base64
+            request_data["output_format"] = "png"
+        else:
+            # dall-e 系列：使用 response_format 获取 base64
+            request_data["response_format"] = "b64_json"
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{api_base}/images/generations",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json=request_data,
+                    timeout=120.0
                 )
-            else:
-                error_msg = response.text
-                LOG.error(f"OpenAI 图像生成失败: {response.status_code}, {error_msg}")
 
-                # 解析错误信息
-                try:
-                    error_data = response.json()
-                    if "error" in error_data:
-                        error_detail = error_data["error"].get("message", "")
-                        if "content_policy" in error_detail.lower() or "safety" in error_detail.lower():
-                            raise ValueError("生成失败啦! 内容不太合适呢，换个描述试试吧~")
-                except ValueError:
-                    raise  # 重新抛出 ValueError
-                except Exception:
-                    pass
+                if response.status_code == 200:
+                    data = response.json()
+                    # 两种模型的返回格式略有不同
+                    image_item = data.get("data", [{}])[0]
+                    image_data = image_item.get("b64_json") or image_item.get("b64")
+                    if image_data:
+                        return ImageResponse(
+                            prompt=prompt,
+                            img=image_data
+                        )
 
-                raise ValueError("生成失败啦! 可能是服务暂时不可用，稍后再试试吧~")
+                    LOG.error(f"OpenAI 返回数据格式异常: {data}")
+                    raise ValueError("生成失败啦! 返回数据异常~")
+                else:
+                    error_msg = response.text
+                    LOG.error(f"OpenAI 图像生成失败: {response.status_code}, {error_msg}")
+
+                    if "content_policy" in error_msg.lower() or "safety" in error_msg.lower():
+                        raise ValueError("生成失败啦! 内容不太合适呢，换个描述试试吧~")
+
+                    raise ValueError("生成失败啦! 可能是服务暂时不可用，稍后再试试吧~")
+
+        except httpx.TimeoutException:
+            LOG.error("OpenAI 图像生成超时")
+            raise ValueError("生成超时啦! 稍后再试试吧~")
+        except ValueError:
+            raise
+        except Exception as e:
+            LOG.error(f"OpenAI 图像生成异常: {e}")
+            raise ValueError("生成失败啦! 可能是服务暂时不可用，稍后再试试吧~")
 
     async def _generate_gemini(self, prompt: str) -> ImageResponse:
         """
-        使用 Gemini/Imagen 生成图像
-        使用 Imagen 3 模型
+        使用 Gemini 生成图像
+        使用 Nano Banana Pro (gemini-3-pro-image-preview) 模型
+        API 文档: https://ai.google.dev/gemini-api/docs/nanobanana
         """
         # 获取 API Key
         api_key = None
@@ -284,25 +307,26 @@ class ImageService:
         if not api_key:
             raise ValueError("Gemini API Key 未配置，无法生成图像呢~")
 
-        # Imagen 3 API
-        # 参考: https://ai.google.dev/gemini-api/docs/imagen
-        model_name = self.config.chatgpt.gemini_image_model if self.config.chatgpt else "imagen-3.0-generate-002"
-        LOG.info(f"Gemini/Imagen 生成图像, model: {model_name}, prompt: {prompt[:50]}...")
+        # Gemini Image 模型
+        model_name = self.config.chatgpt.gemini_image_model if self.config.chatgpt else "gemini-3-pro-image-preview"
+        LOG.info(f"Gemini 生成图像, model: {model_name}, prompt: {prompt[:50]}...")
 
         async with httpx.AsyncClient() as client:
+            # 使用 generateContent 端点
             response = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:predict",
+                f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent",
                 params={"key": api_key},
                 headers={"Content-Type": "application/json"},
                 json={
-                    "instances": [
-                        {"prompt": prompt}
-                    ],
-                    "parameters": {
-                        "sampleCount": 1,
-                        "aspectRatio": "1:1",
-                        "outputOptions": {
-                            "mimeType": "image/jpeg"
+                    "contents": [{
+                        "parts": [
+                            {"text": prompt}
+                        ]
+                    }],
+                    "generationConfig": {
+                        "responseModalities": ["IMAGE"],
+                        "imageConfig": {
+                            "aspectRatio": "1:1"
                         }
                     }
                 },
@@ -311,16 +335,20 @@ class ImageService:
 
             if response.status_code == 200:
                 data = response.json()
-                # Imagen 返回格式
-                predictions = data.get("predictions", [])
-                if predictions and len(predictions) > 0:
-                    # 图像数据在 bytesBase64Encoded 字段
-                    image_data = predictions[0].get("bytesBase64Encoded", "")
-                    if image_data:
-                        return ImageResponse(
-                            prompt=prompt,
-                            img=image_data
-                        )
+                # 从 candidates 中提取图像数据
+                candidates = data.get("candidates", [])
+                if candidates:
+                    content = candidates[0].get("content", {})
+                    parts = content.get("parts", [])
+                    for part in parts:
+                        # 图像数据在 inlineData 字段
+                        inline_data = part.get("inlineData", {})
+                        image_data = inline_data.get("data", "")
+                        if image_data:
+                            return ImageResponse(
+                                prompt=prompt,
+                                img=image_data
+                            )
 
                 LOG.error(f"Gemini 返回数据格式异常: {data}")
                 raise ValueError("生成失败啦! 返回数据异常~")

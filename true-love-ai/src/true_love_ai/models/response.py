@@ -56,5 +56,6 @@ class ImageTypeResponse(BaseModel):
 class VideoResponse(BaseModel):
     """视频响应数据"""
     prompt: str = Field(..., description="使用的 prompt")
-    video_url: Optional[str] = Field(default=None, description="视频 URL")
-    video_base64: Optional[str] = Field(default=None, description="base64 编码的视频（部分提供商返回）")
+    video_url: Optional[str] = Field(default=None, description="视频 URL（可直接访问）")
+    video_base64: Optional[str] = Field(default=None, description="base64 编码的视频")
+    video_id: Optional[str] = Field(default=None, description="视频文件 ID（需要通过 /download-video 接口获取）")
