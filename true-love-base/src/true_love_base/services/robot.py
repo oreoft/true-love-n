@@ -371,11 +371,6 @@ class Robot:
         Returns:
             重置结果字典
         """
-        if not hasattr(self.client, 'reset_listener'):
-            return {
-                "success": False,
-                "message": "Client does not support reset_listener"
-            }
         return self.client.reset_listener(chat_name)
 
     def reset_all_listeners(self) -> dict:
@@ -385,11 +380,6 @@ class Robot:
         Returns:
             重置结果字典
         """
-        if not hasattr(self.client, 'reset_all_listeners'):
-            return {
-                "success": False,
-                "message": "Client does not support reset_all_listeners"
-            }
         return self.client.reset_all_listeners()
 
     def listener_health_check(self) -> dict:
@@ -399,9 +389,4 @@ class Robot:
         Returns:
             健康检查结果字典
         """
-        if not hasattr(self.client, 'health_check'):
-            return {
-                "healthy": False,
-                "message": "Client does not support health_check"
-            }
         return self.client.health_check()

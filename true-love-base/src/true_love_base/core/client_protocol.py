@@ -131,6 +131,62 @@ class WeChatClientProtocol(ABC):
         """
         pass
 
+    # ==================== 监听恢复 ====================
+
+    @abstractmethod
+    def reset_listener(self, chat_name: str) -> dict:
+        """
+        重置指定聊天的监听
+        
+        通过关闭子窗口、移除监听、重新添加监听的方式恢复异常的监听。
+        
+        Args:
+            chat_name: 聊天对象名称
+            
+        Returns:
+            重置结果字典，包含:
+            - success: 是否成功
+            - message: 结果描述
+            - steps: 各步骤执行情况
+        """
+        pass
+
+    @abstractmethod
+    def reset_all_listeners(self) -> dict:
+        """
+        重置所有监听
+        
+        通过停止所有监听、关闭所有子窗口、刷新 UI、重新添加所有监听的方式恢复。
+        
+        Returns:
+            重置结果字典，包含:
+            - success: 是否成功
+            - message: 结果描述
+            - total: 总监听数
+            - recovered: 成功恢复的列表
+            - failed: 恢复失败的列表
+            - steps: 各步骤执行情况
+        """
+        pass
+
+    @abstractmethod
+    def health_check(self) -> dict:
+        """
+        健康检查：检查监听状态是否正常
+        
+        通过比对已注册的监听和实际活跃的子窗口来判断监听是否健康。
+        
+        Returns:
+            健康检查结果字典，包含:
+            - healthy: 是否健康
+            - message: 状态描述
+            - registered_listeners: 已注册的监听列表
+            - active_windows: 活跃的子窗口列表
+            - unhealthy_listeners: 异常的监听列表
+            - orphan_windows: 孤立的窗口列表
+        """
+        pass
+
     # ==================== 联系人管理 ====================
 
     @abstractmethod

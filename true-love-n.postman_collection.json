@@ -325,6 +325,57 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "重置单个监听",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"chat_name\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{base_host}}/listen/reset",
+							"host": ["{{base_host}}"],
+							"path": ["listen", "reset"]
+						},
+						"description": "通过关闭子窗口、移除监听、重新添加监听的方式恢复异常的单个监听"
+					},
+					"response": []
+				},
+				{
+					"name": "重置所有监听",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_host}}/listen/reset-all",
+							"host": ["{{base_host}}"],
+							"path": ["listen", "reset-all"]
+						},
+						"description": "通过停止所有监听、关闭所有子窗口、刷新 UI、重新添加所有监听的方式恢复"
+					},
+					"response": []
+				},
+				{
+					"name": "监听健康检查",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_host}}/listen/health",
+							"host": ["{{base_host}}"],
+							"path": ["listen", "health"]
+						},
+						"description": "检查监听状态是否正常，比对已注册的监听和实际活跃的子窗口"
+					},
+					"response": []
 				}
 			],
 			"description": "Base 模块接口 - 提供微信消息发送、联系人管理、监听管理等功能"
