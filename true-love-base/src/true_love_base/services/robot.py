@@ -45,7 +45,6 @@ class Robot:
         self.client = client
         self.LOG = logging.getLogger("Robot")
         self.self_name = self.client.get_self_name()
-        self._listening_chats: set[str] = set()
         self._listen_store = listen_store
 
         # 消息处理线程池
@@ -133,8 +132,9 @@ class Robot:
         """
         import time
 
-        if chat_name in self._listening_chats:
-            self.LOG.warning(f"Already listening to [{chat_name}]")
+        # 用 GetAllSubWindow 作为运行时金标准判断是否已在监听
+        if self.client.is_listening(chat_name):
+            self.LOG.warning(f"Already listening to [{chat_name}] (found in GetAllSubWindow)")
             return True
 
         max_attempts = self.LISTEN_ADD_RETRY_COUNT if retry else 1
@@ -144,7 +144,6 @@ class Robot:
             try:
                 success = self.client.add_message_listener(chat_name, self.on_message)
                 if success:
-                    self._listening_chats.add(chat_name)
                     self.LOG.info(f"Started listening to [{chat_name}] (attempt {attempt})")
                     # 持久化到文件
                     if persist:
@@ -174,15 +173,11 @@ class Robot:
         Returns:
             是否移除成功
         """
-        if chat_name not in self._listening_chats:
-            # 即使内存中没有，也尝试从持久化中删除
-            self._listen_store.remove(chat_name)
-            return True
-
+        # 尝试从 SDK 移除监听
         success = self.client.remove_message_listener(chat_name)
+        # 无论是否成功，都从持久化中删除
+        self._listen_store.remove(chat_name)
         if success:
-            self._listening_chats.discard(chat_name)
-            self._listen_store.remove(chat_name)
             self.LOG.info(f"Stopped listening to [{chat_name}]")
         return success
 
@@ -439,13 +434,7 @@ class Robot:
             }
         
         # 调用 client 重置，传入统一的回调
-        result = self.client.reset_listener(chat_name, self.on_message)
-        
-        # 同步 Robot 层内存
-        if result.get("success"):
-            self._listening_chats.add(chat_name)
-        
-        return result
+        return self.client.reset_listener(chat_name, self.on_message)
 
     def reset_all_listeners(self) -> dict:
         """
@@ -467,11 +456,4 @@ class Robot:
             }
         
         # 调用 client 重置，传入 chat_list 和统一的回调
-        result = self.client.reset_all_listeners(db_chats, self.on_message)
-        
-        # 同步 Robot 层内存
-        self._listening_chats.clear()
-        for chat_name in result.get("recovered", []):
-            self._listening_chats.add(chat_name)
-        
-        return result
+        return self.client.reset_all_listeners(db_chats, self.on_message)

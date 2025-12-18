@@ -38,7 +38,6 @@ class WxAutoClient(WeChatClientProtocol):
         """初始化 wxautox4 客户端"""
         self._wx = None
         self._running = False
-        self._listeners: dict[str, MessageCallback] = {}
         self._self_name: Optional[str] = None
 
         self._init_client()
@@ -265,10 +264,7 @@ class WxAutoClient(WeChatClientProtocol):
 
             internal_callback = self._create_internal_callback(chat_name, callback)
             result = self.wx.AddListenChat(chat_name, internal_callback)
-            if self._check_response(result, "AddListenChat", chat_name):
-                self._listeners[chat_name] = callback
-                return True
-            return False
+            return self._check_response(result, "AddListenChat", chat_name)
         except Exception as e:
             LOG.error(f"Failed to add listener for [{chat_name}]: {e}")
             return False
@@ -282,15 +278,8 @@ class WxAutoClient(WeChatClientProtocol):
             close_window: 是否关闭聊天窗口，默认 True
         """
         try:
-            if chat_name not in self._listeners:
-                LOG.warning(f"Listener for [{chat_name}] not found in internal dict")
-                return True
-
             result = self.wx.RemoveListenChat(chat_name, close_window=close_window)
-            if self._check_response(result, "RemoveListenChat", chat_name):
-                del self._listeners[chat_name]
-                return True
-            return False
+            return self._check_response(result, "RemoveListenChat", chat_name)
         except Exception as e:
             LOG.error(f"Failed to remove listener for [{chat_name}]: {e}")
             return False
@@ -299,10 +288,10 @@ class WxAutoClient(WeChatClientProtocol):
         """开始消息监听（阻塞）"""
         try:
             LOG.info("Starting message listening...")
-            # 检查是否有监听器，如果没有则不调用 KeepRunning
+            # 用 GetAllSubWindow 检查是否有监听器
             # wxautox4x 的 KeepRunning 需要先调用 AddListenChat 初始化 _listener_stop_event
-            if not self._listeners:
-                LOG.warning("No listeners registered, KeepRunning() will not be called")
+            if not self._has_active_listeners():
+                LOG.warning("No listeners registered (GetAllSubWindow empty), KeepRunning() will not be called")
                 LOG.warning("Use API to add listeners first, then restart the service")
                 return
             self.wx.KeepRunning()
@@ -312,6 +301,44 @@ class WxAutoClient(WeChatClientProtocol):
             LOG.error(f"Error in message listening: {e}")
 
     # ==================== 监听状态与恢复 ====================
+
+    def is_listening(self, chat_name: str) -> bool:
+        """
+        检查是否正在监听某个聊天（以 GetAllSubWindow 为准）
+        
+        Args:
+            chat_name: 聊天对象名称
+            
+        Returns:
+            是否正在监听
+        """
+        try:
+            sub_windows = self.wx.GetAllSubWindow()
+            for w in sub_windows:
+                try:
+                    who = getattr(w, 'who', None)
+                    if who == chat_name:
+                        return True
+                except Exception:
+                    pass
+            return False
+        except Exception as e:
+            LOG.warning(f"Failed to check is_listening for [{chat_name}]: {e}")
+            return False
+
+    def _has_active_listeners(self) -> bool:
+        """
+        检查是否有活跃的监听器（以 GetAllSubWindow 为准）
+        
+        Returns:
+            是否有活跃的监听器
+        """
+        try:
+            sub_windows = self.wx.GetAllSubWindow()
+            return len(sub_windows) > 0
+        except Exception as e:
+            LOG.warning(f"Failed to check active listeners: {e}")
+            return False
 
     def get_listener_status(self, db_chats: list[str], probe: bool = False) -> dict:
         """
@@ -446,10 +473,6 @@ class WxAutoClient(WeChatClientProtocol):
             
             # Step 2: 移除监听（清理旧状态）
             try:
-                # 从内存中移除
-                if chat_name in self._listeners:
-                    del self._listeners[chat_name]
-                # 调用 SDK 移除
                 result = self.wx.RemoveListenChat(chat_name, close_window=True)
                 steps.append({"step": "remove_listen", "success": bool(result)})
                 LOG.info(f"Removed listener for [{chat_name}]: {result}")
@@ -466,8 +489,6 @@ class WxAutoClient(WeChatClientProtocol):
                 internal_callback = self._create_internal_callback(chat_name, callback)
                 result = self.wx.AddListenChat(chat_name, internal_callback)
                 if result:
-                    # 更新内存
-                    self._listeners[chat_name] = callback
                     steps.append({"step": "add_listen", "success": True})
                     LOG.info(f"Re-added listener for [{chat_name}]")
                     return {
@@ -574,16 +595,12 @@ class WxAutoClient(WeChatClientProtocol):
                 steps.append({"step": "switch_pages", "success": False, "error": str(e)})
                 LOG.warning(f"Failed to switch pages: {e}")
             
-            # Step 4: 清空内部监听列表
-            self._listeners.clear()
-            
-            # Step 5: 重新添加所有监听（使用传入的 chat_list 和 callback）
+            # Step 4: 重新添加所有监听（使用传入的 chat_list 和 callback）
             for chat_name in chat_list:
                 try:
                     internal_callback = self._create_internal_callback(chat_name, callback)
                     result = self.wx.AddListenChat(chat_name, internal_callback)
                     if result:
-                        self._listeners[chat_name] = callback
                         recovered.append(chat_name)
                         LOG.info(f"Re-added listener for [{chat_name}]")
                     else:
@@ -662,7 +679,6 @@ class WxAutoClient(WeChatClientProtocol):
         """清理资源"""
         try:
             self._running = False
-            self._listeners.clear()
             LOG.info("WxAutoClient cleaned up")
         except Exception as e:
             LOG.error(f"Error during cleanup: {e}")

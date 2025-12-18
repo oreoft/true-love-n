@@ -131,6 +131,19 @@ class WeChatClientProtocol(ABC):
         """
         pass
 
+    @abstractmethod
+    def is_listening(self, chat_name: str) -> bool:
+        """
+        检查是否正在监听某个聊天（以运行时状态为准）
+        
+        Args:
+            chat_name: 聊天对象名称
+            
+        Returns:
+            是否正在监听
+        """
+        pass
+
     # ==================== 监听状态与恢复 ====================
 
     @abstractmethod
