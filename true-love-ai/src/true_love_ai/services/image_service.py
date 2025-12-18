@@ -16,6 +16,7 @@ from true_love_ai.core.config import get_config
 from true_love_ai.core.session import get_session_manager
 from true_love_ai.llm.router import get_llm_router
 from true_love_ai.llm.intent import IntentRouter, ImageOperationType
+from true_love_ai.llm import img_prompt
 from true_love_ai.models.response import ImageResponse
 
 LOG = logging.getLogger(__name__)
@@ -149,22 +150,12 @@ class ImageService:
         """
         LOG.info(f"开始文生图: {content[:50]}...")
 
-        # 先生成图像描述词
-        img_prompt_config = self.config.chatgpt.prompt4 if self.config.chatgpt else ""
-
-        try:
-            image_prompt = await self.llm_router.chat(
-                messages=[
-                    {"role": "system", "content": img_prompt_config},
-                    {"role": "user", "content": content}
-                ],
-                provider=provider,
-                model=model
-            )
-            LOG.info(f"生成的图像描述词: {image_prompt[:100]}...")
-        except Exception as e:
-            LOG.warning(f"生成描述词失败，使用原始内容: {e}")
-            image_prompt = content
+        # 使用新的提示词系统生成图像描述词
+        image_prompt = await self._generate_image_prompt(
+            content=content,
+            provider=provider,
+            model=model
+        )
 
         # 保存到会话历史
         if wxid:
@@ -182,6 +173,71 @@ class ImageService:
             return await self._generate_gemini(image_prompt)
         else:
             return await self._generate_stability(image_prompt)
+
+    async def _generate_image_prompt(
+            self,
+            content: str,
+            provider: Optional[str] = None,
+            model: Optional[str] = None
+    ) -> str:
+        """
+        使用风格匹配系统生成图像描述词
+        
+        Args:
+            content: 用户原始描述
+            provider: LLM 提供商
+            model: LLM 模型
+            
+        Returns:
+            英文图像描述词
+        """
+        try:
+            # Step 1: 先尝试快速关键词匹配
+            style_id = img_prompt.quick_match_style(content)
+            
+            # Step 2: 如果快速匹配没有结果，使用 LLM 进行风格匹配
+            if not style_id:
+                LOG.info("快速匹配无结果，使用 LLM 进行风格匹配...")
+                style_matcher_prompt = img_prompt.get_style_matcher_prompt()
+                
+                style_id = await self.llm_router.chat(
+                    messages=[
+                        {"role": "system", "content": style_matcher_prompt},
+                        {"role": "user", "content": content}
+                    ],
+                    provider=provider,
+                    model=model
+                )
+                
+                # 清理 LLM 返回的风格 ID
+                style_id = style_id.strip().lower()
+                
+                # 验证风格 ID 是否有效
+                valid_ids = img_prompt.get_all_style_ids()
+                if style_id not in valid_ids:
+                    LOG.warning(f"LLM 返回的风格 ID 无效: {style_id}，使用 general")
+                    style_id = "general"
+            
+            LOG.info(f"匹配到的风格: {style_id}")
+            
+            # Step 3: 使用匹配到的风格模板生成最终 prompt
+            generator_prompt = img_prompt.get_prompt_generator_prompt(style_id, content)
+            
+            image_prompt = await self.llm_router.chat(
+                messages=[
+                    {"role": "system", "content": generator_prompt},
+                    {"role": "user", "content": f"请根据以下描述生成图像提示词：{content}"}
+                ],
+                provider=provider,
+                model=model
+            )
+            
+            LOG.info(f"生成的图像描述词 (风格: {style_id}): {image_prompt[:100]}...")
+            return image_prompt
+            
+        except Exception as e:
+            LOG.warning(f"生成描述词失败，使用原始内容: {e}")
+            return content
 
     async def _generate_stability(self, prompt: str) -> ImageResponse:
         """使用 Stability AI 生成图像"""
