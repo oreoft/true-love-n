@@ -2,7 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 意图识别模块
-使用 OpenAI Structured Output 进行意图识别
+使用 OpenAI Function Call 进行意图识别
+
+设计原则：
+1. 上下文感知：传递最近对话历史，理解指代关系
+2. 时间感知：传递当前时间，让时间敏感查询补充年份
+3. 搜索优化：生成完整、具体的搜索关键词
 """
 import json
 import logging
@@ -48,7 +53,7 @@ class ImageIntent(BaseModel):
 class IntentRouter:
     """
     意图路由器
-    使用 Function Call / Structured Output 进行意图识别
+    使用 Function Call 进行上下文感知的意图识别
     """
     
     def __init__(self):
@@ -56,18 +61,15 @@ class IntentRouter:
     
     async def route(
         self,
-        content: str,
+        messages: list[dict],
         provider: Optional[str] = None,
         model: Optional[str] = None
     ) -> ChatIntent:
         """
-        路由用户消息到对应意图
-        
-        使用 Function Call 完成意图识别 + 回答生成
-        只看当前消息，不受历史影响，确保意图识别准确
+        路由用户消息到对应意图（上下文感知版本）
         
         Args:
-            content: 当前用户消息
+            messages: 包含上下文的消息列表（由 session.get_context_for_intent 生成）
             provider: 提供商
             model: 模型
             
@@ -75,14 +77,8 @@ class IntentRouter:
             ChatIntent: 意图识别结果
         """
         try:
-            config = self.llm_router.config
-            system_prompt = config.prompt if config else "你是一个智能助手"
-            
             result_str = await self.llm_router.chat_with_tools(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": content}
-                ],
+                messages=messages,
                 tools=TYPE_ANSWER_CALL,
                 tool_choice={"type": "function", "function": {"name": "type_answer"}},
                 provider=provider,

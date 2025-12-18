@@ -50,8 +50,17 @@ class Session:
         if len(self.messages) > self.max_history:
             self.messages = self.messages[-self.max_history:]
     
+    @staticmethod
+    def get_current_time_context() -> str:
+        """获取当前时间上下文（供各模块复用）"""
+        now = datetime.now()
+        return (
+            f"当前时间: {now.strftime('%Y年%m月%d日 %H:%M')}，"
+            f"当前年份: {now.year}年"
+        )
+    
     def get_messages_for_llm(self) -> list[dict]:
-        """获取用于 LLM 的消息列表"""
+        """获取用于 LLM 最终回答的消息列表"""
         messages = []
         
         # 系统 prompt
@@ -61,13 +70,10 @@ class Session:
                 "content": self.system_prompt
             })
         
-        # 时间提示
+        # 时间与能力提示
         time_hint = (
-            f"当需要回答当前时间或者关于当前日期类问题, 请直接参考这个时间: "
-            f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            f"(请注意这是美国中部时间, 你可以告诉别人你使用的时区), "
-            f"另外用户提问是否可以联网你需要说我已经接入搜索引擎, "
-            f"并且知识库最新消息是: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            f"{self.get_current_time_context()}。"
+            f"你已接入搜索引擎，可以获取实时信息。"
         )
         messages.append({
             "role": "system",
@@ -76,6 +82,35 @@ class Session:
         
         # 对话历史
         messages.extend(self.messages)
+        
+        return messages
+    
+    def get_context_for_intent(self, current_content: str, max_turns: int = 4) -> list[dict]:
+        """
+        获取用于意图识别的上下文消息
+        
+        Args:
+            current_content: 当前用户消息
+            max_turns: 最大历史轮数（一轮 = user + assistant）
+            
+        Returns:
+            用于意图识别的消息列表
+        """
+        messages = []
+        
+        # 只提供时间信息，让 LLM 自己推理
+        messages.append({
+            "role": "system", 
+            "content": self.get_current_time_context()
+        })
+        
+        # 添加最近的对话历史
+        if self.messages:
+            recent_messages = self.messages[-(max_turns * 2):]
+            messages.extend(recent_messages)
+        
+        # 当前用户消息
+        messages.append({"role": "user", "content": current_content})
         
         return messages
     

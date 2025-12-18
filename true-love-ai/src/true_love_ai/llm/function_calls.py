@@ -5,35 +5,33 @@ OpenAI Function Call 定义模块
 包含各种 function call 的 schema 定义
 """
 
-# 消息类型判断的 function call
+# Intent recognition function call
 TYPE_ANSWER_CALL = [
     {
         "type": "function",
         "function": {
             "name": "type_answer",
-            "description": "type_answer",
+            "description": "Analyze user intent and generate response",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": ["chat", "search", "gen-img"],
                         "description": (
-                            "the type of question, "
-                            "if user wants you to generate images, please return the 'gen-img', "
-                            "if it is a normal chat, please return the 'chat', "
-                            "if the content requires online search You search in context first "
-                            "and if there is no information, please return the 'search'"
+                            "Intent type: "
+                            "'chat' for general conversation or questions you can answer from knowledge, "
+                            "'search' for real-time information that requires web search, "
+                            "'gen-img' for image generation requests"
                         )
                     },
                     "answer": {
                         "type": "string",
                         "description": (
-                            "the answer of content, "
-                            "if type is 'chat', please put your answer in this field, "
-                            "if type is 'gen-img', "
-                            "Please combine the context to give the descriptive words needed to generate the image."
-                            "if type is 'search', 请在此字段中返回要搜索的内容关键词, 必须是中文, "
-                            "如果其他类型, This can be empty, "
+                            "For 'chat': your response to the user. "
+                            "For 'gen-img': English prompt for image generation. "
+                            "For 'search': Chinese search keywords that are complete, specific, "
+                            "and self-contained based on conversation context."
                         )
                     },
                 },
@@ -75,3 +73,4 @@ IMG_TYPE_ANSWER_CALL = [
         }
     }
 ]
+

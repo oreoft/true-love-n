@@ -66,9 +66,10 @@ class ChatService:
         
         LOG.info(f"开始调用 LLM, session={session_id}, provider={provider}, model={model}")
         
-        # 意图识别（只看当前消息，不受历史影响，更准确）
+        # 意图识别（带上下文，理解指代关系和时间敏感查询）
+        intent_messages = session.get_context_for_intent(clean_content)
         intent_result = await self.intent_router.route(
-            content=clean_content,
+            messages=intent_messages,
             provider=provider,
             model=model
         )
