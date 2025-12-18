@@ -18,7 +18,7 @@ host = config.BASE_SERVER["host"]
 text_url = f"{host}/send/text"
 text_img = f"{host}/send/img"
 get_by_room_id_url = f"{host}/get/by/room-id"
-listen_list_url = f"{host}/listen/list"
+listen_status_url = f"{host}/listen/status"
 listen_add_url = f"{host}/listen/add"
 listen_remove_url = f"{host}/listen/remove"
 listen_refresh_url = f"{host}/listen/refresh"
@@ -87,23 +87,46 @@ def get_by_room_id(room_id) -> dict:
     return {}
 
 
+def get_listen_status(probe: bool = False) -> dict | None:
+    """
+    获取监听状态
+    
+    Args:
+        probe: 是否执行主动探测（ChatInfo 检测）
+        
+    Returns:
+        监听状态字典，包含:
+        - listeners: 每个监听的状态列表
+        - summary: 状态汇总
+        - probe_mode: 是否为探测模式
+        失败返回 None
+    """
+    try:
+        start_time = time.time()
+        LOG.info("开始请求监听状态, probe=%s", probe)
+        params = {"probe": "true" if probe else "false"}
+        res = requests.get(listen_status_url, params=params, timeout=(2, 60))
+        res.raise_for_status()
+        LOG.info("get_listen_status请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
+        return res.json().get('data')
+    except Exception as e:
+        LOG.exception("get_listen_status 失败: %s", e)
+    return None
+
+
 def get_listen_list() -> list | None:
     """
-    获取所有监听对象列表
+    获取所有监听对象列表（从状态接口提取）
     
     Returns:
         监听对象列表，失败返回 None
     """
-    try:
-        start_time = time.time()
-        LOG.info("开始请求监听列表")
-        res = requests.get(listen_list_url, timeout=(2, 60))
-        res.raise_for_status()
-        LOG.info("get_listen_list请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
-        return res.json().get('data', [])
-    except Exception as e:
-        LOG.exception("get_listen_list 失败: %s", e)
-    return None
+    status = get_listen_status(probe=False)
+    if status is None:
+        return None
+    # 从 listeners 中提取 chat 名称列表
+    listeners = status.get('listeners', [])
+    return [item.get('chat') for item in listeners if item.get('chat')]
 
 
 def add_listen(chat_name: str) -> tuple[bool, str]:
@@ -166,12 +189,15 @@ def remove_listen(chat_name: str) -> tuple[bool, str]:
 
 def refresh_listen() -> tuple[bool, dict | None, str]:
     """
-    刷新监听列表
-    
-    比对内存和文件中的监听列表，重新添加缺失的监听。
+    刷新监听列表（智能刷新，以 DB 为基准）
     
     Returns:
         (是否成功, 刷新结果数据, 消息)
+        刷新结果数据包含:
+        - total: 总监听数
+        - success_count: 成功数
+        - fail_count: 失败数
+        - listeners: 每个监听的详情列表
     """
     try:
         start_time = time.time()
@@ -180,7 +206,7 @@ def refresh_listen() -> tuple[bool, dict | None, str]:
         res.raise_for_status()
         result = res.json()
         LOG.info("refresh_listen请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, result)
-        return True, result.get('data'), result.get('msg', '成功')
+        return True, result.get('data'), result.get('message', '成功')
     except Exception as e:
         LOG.exception("refresh_listen 失败: %s", e)
     return False, None, str(e)

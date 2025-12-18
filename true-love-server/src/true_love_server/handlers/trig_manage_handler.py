@@ -130,9 +130,7 @@ class TrigManageHandler:
 
     def _refresh_listen(self) -> str:
         """
-        刷新监听列表
-        
-        比对内存和文件中的监听列表，重新添加缺失的监听。
+        刷新监听列表（智能刷新，以 DB 为基准）
         """
         LOG.info("开始刷新监听列表")
         success, data, msg = base_client.refresh_listen()
@@ -143,32 +141,40 @@ class TrigManageHandler:
         if data is None:
             return "刷新监听列表失败: 返回数据为空"
         
-        # 构建结果报告
-        file_count = len(data.get('file_chats', []))
-        memory_count = len(data.get('memory_chats', []))
-        missing = data.get('missing', [])
-        recovered = data.get('recovered', [])
-        failed = data.get('failed', [])
+        # 解析新结构
+        total = data.get('total', 0)
+        success_count = data.get('success_count', 0)
+        fail_count = data.get('fail_count', 0)
+        listeners = data.get('listeners', [])
+        
+        # 分类统计
+        skipped = [l for l in listeners if l.get('action') == 'skip']
+        added = [l for l in listeners if l.get('action') == 'add' and l.get('success')]
+        reset = [l for l in listeners if l.get('action') == 'reset' and l.get('success')]
+        failed = [l for l in listeners if not l.get('success')]
         
         report_lines = [
             f"监听列表刷新完成:",
-            f"  文件中: {file_count}个",
-            f"  内存中: {memory_count}个",
+            f"  总数: {total}个",
+            f"  成功: {success_count}个，失败: {fail_count}个",
         ]
         
-        if missing:
-            report_lines.append(f"  缺失: {len(missing)}个")
-        if recovered:
-            report_lines.append(f"  已恢复: {', '.join(recovered)}")
+        if skipped:
+            report_lines.append(f"  健康(跳过): {len(skipped)}个")
+        if added:
+            names = ', '.join([l.get('chat', '') for l in added])
+            report_lines.append(f"  新增恢复: {names}")
+        if reset:
+            names = ', '.join([l.get('chat', '') for l in reset])
+            report_lines.append(f"  重置恢复: {names}")
         if failed:
-            report_lines.append(f"  恢复失败: {', '.join(failed)}")
+            names = ', '.join([l.get('chat', '') for l in failed])
+            report_lines.append(f"  恢复失败: {names}")
         
-        if not missing:
-            report_lines.append("  状态: 内存与文件一致 ✓")
-        elif not failed:
-            report_lines.append("  状态: 全部恢复成功 ✓")
+        if fail_count == 0:
+            report_lines.append("  状态: 全部正常 ✓")
         else:
-            report_lines.append("  状态: 部分恢复失败 ✗")
+            report_lines.append("  状态: 部分失败 ✗")
         
         return "\n".join(report_lines)
 
