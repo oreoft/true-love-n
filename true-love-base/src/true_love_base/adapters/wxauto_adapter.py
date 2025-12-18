@@ -219,6 +219,7 @@ class WxAutoClient(WeChatClientProtocol):
                   "type": "text"
             }
         """
+
         def internal_callback(raw_msg, chat):
             try:
                 LOG.info('--------------Start------------------')
@@ -288,12 +289,25 @@ class WxAutoClient(WeChatClientProtocol):
         """开始消息监听（阻塞）"""
         try:
             LOG.info("Starting message listening...")
-            # 用 GetAllSubWindow 检查是否有监听器
-            # wxautox4x 的 KeepRunning 需要先调用 AddListenChat 初始化 _listener_stop_event
-            if not self._has_active_listeners():
-                LOG.warning("No listeners registered (GetAllSubWindow empty), KeepRunning() will not be called")
-                LOG.warning("Use API to add listeners first, then restart the service")
+
+            # 自旋等待 _listener_stop_event 初始化完成
+            # AddListenChat 是 UI 操作，需要时间创建窗口并初始化监听线程
+            max_wait = 15.0  # 最大等待 15 秒
+            interval = 0.3  # 每 0.3 秒检查一次
+            waited = 0.0
+
+            while waited < max_wait:
+                if hasattr(self.wx, '_listener_stop_event') and self.wx._listener_stop_event is not None:
+                    LOG.info(f"_listener_stop_event initialized after {waited:.1f}s")
+                    break
+                time.sleep(interval)
+                waited += interval
+            else:
+                # 超时仍未初始化
+                LOG.warning(f"_listener_stop_event not initialized after {max_wait}s, AddListenChat may have failed")
+                LOG.warning("KeepRunning() will not be called. Use API to add listeners first, then restart")
                 return
+
             self.wx.KeepRunning()
         except KeyboardInterrupt:
             LOG.info("Listening stopped by user")
@@ -362,7 +376,7 @@ class WxAutoClient(WeChatClientProtocol):
         """
         listeners = []
         summary = {"healthy": 0, "unhealthy": 0, "not_listening": 0, "listening": 0}
-        
+
         # 获取活跃窗口（运行时金标准）
         window_map = {}
         try:
@@ -390,11 +404,11 @@ class WxAutoClient(WeChatClientProtocol):
                 "summary": summary,
                 "probe_mode": probe
             }
-        
+
         # 以 DB 为基准，结合 GetAllSubWindow 检查每个 chat 的状态
         for chat_name in db_chats:
             status_info = {"chat": chat_name, "status": None, "reason": None}
-            
+
             # 检查是否在 GetAllSubWindow 中（运行时金标准）
             window = window_map.get(chat_name)
             if not window:
@@ -404,7 +418,7 @@ class WxAutoClient(WeChatClientProtocol):
                 summary["not_listening"] += 1
                 listeners.append(status_info)
                 continue
-            
+
             # 窗口存在，根据 probe 参数决定状态
             if not probe:
                 # 快速模式：有窗口就是 listening
@@ -425,11 +439,11 @@ class WxAutoClient(WeChatClientProtocol):
                     status_info["status"] = "unhealthy"
                     status_info["reason"] = f"probe_exception: {str(e)}"
                     summary["unhealthy"] += 1
-            
+
             listeners.append(status_info)
-        
+
         LOG.info(f"Listener status (probe={probe}): {summary}")
-        
+
         return {
             "listeners": listeners,
             "summary": summary,
@@ -454,10 +468,10 @@ class WxAutoClient(WeChatClientProtocol):
             - steps: 各步骤执行情况
         """
         steps = []
-        
+
         try:
             LOG.info(f"Resetting listener for [{chat_name}]")
-            
+
             # Step 1: 尝试获取并关闭子窗口
             try:
                 sub_window = self.wx.GetSubWindow(chat_name)
@@ -470,7 +484,7 @@ class WxAutoClient(WeChatClientProtocol):
             except Exception as e:
                 steps.append({"step": "close_window", "success": False, "error": str(e)})
                 LOG.warning(f"Failed to close sub window for [{chat_name}]: {e}")
-            
+
             # Step 2: 移除监听（清理旧状态）
             try:
                 result = self.wx.RemoveListenChat(chat_name, close_window=True)
@@ -479,11 +493,11 @@ class WxAutoClient(WeChatClientProtocol):
             except Exception as e:
                 steps.append({"step": "remove_listen", "success": False, "error": str(e)})
                 LOG.warning(f"Failed to remove listener for [{chat_name}]: {e}")
-            
+
             # Step 3: 等待 UI 稳定
             time.sleep(0.5)
             steps.append({"step": "wait", "success": True, "duration": 0.5})
-            
+
             # Step 4: 重新添加监听（使用传入的 callback）
             try:
                 internal_callback = self._create_internal_callback(chat_name, callback)
@@ -511,7 +525,7 @@ class WxAutoClient(WeChatClientProtocol):
                     "message": f"Exception re-adding listener: {e}",
                     "steps": steps
                 }
-                
+
         except Exception as e:
             LOG.error(f"Reset listener failed for [{chat_name}]: {e}")
             return {
@@ -544,7 +558,7 @@ class WxAutoClient(WeChatClientProtocol):
         recovered = []
         failed = []
         total = len(chat_list)
-        
+
         try:
             if total == 0:
                 return {
@@ -555,18 +569,25 @@ class WxAutoClient(WeChatClientProtocol):
                     "failed": [],
                     "steps": steps
                 }
-            
+
             LOG.info(f"Starting reset all listeners, total: {total}")
-            
+
             # Step 1: 停止所有监听
+            # 检查 _listener_thread 是否已初始化（由 AddListenChat 创建）
+            # 如果从未成功调用过 AddListenChat，则跳过 StopListening
             try:
-                self.wx.StopListening(remove=True)
-                steps.append({"step": "stop_listening", "success": True})
-                LOG.info("Stopped all listening")
+                if hasattr(self.wx, '_listener_thread') and self.wx._listener_thread is not None:
+                    self.wx.StopListening(remove=True)
+                    steps.append({"step": "stop_listening", "success": True})
+                    LOG.info("Stopped all listening")
+                else:
+                    steps.append(
+                        {"step": "stop_listening", "success": True, "note": "skipped, no active listener thread"})
+                    LOG.info("Skipped StopListening: _listener_thread not initialized")
             except Exception as e:
                 steps.append({"step": "stop_listening", "success": False, "error": str(e)})
                 LOG.warning(f"Failed to stop listening: {e}")
-            
+
             # Step 2: 关闭所有子窗口
             closed_count = 0
             try:
@@ -582,7 +603,7 @@ class WxAutoClient(WeChatClientProtocol):
             except Exception as e:
                 steps.append({"step": "close_all_windows", "success": False, "error": str(e)})
                 LOG.warning(f"Failed to close sub windows: {e}")
-            
+
             # Step 3: 切换页面刷新 UI
             try:
                 self.wx.SwitchToContact()
@@ -594,7 +615,7 @@ class WxAutoClient(WeChatClientProtocol):
             except Exception as e:
                 steps.append({"step": "switch_pages", "success": False, "error": str(e)})
                 LOG.warning(f"Failed to switch pages: {e}")
-            
+
             # Step 4: 重新添加所有监听（使用传入的 chat_list 和 callback）
             for chat_name in chat_list:
                 try:
@@ -609,14 +630,14 @@ class WxAutoClient(WeChatClientProtocol):
                 except Exception as e:
                     failed.append(chat_name)
                     LOG.error(f"Exception re-adding listener for [{chat_name}]: {e}")
-            
+
             steps.append({
                 "step": "re_add_listeners",
                 "success": len(failed) == 0,
                 "recovered": len(recovered),
                 "failed": len(failed)
             })
-            
+
             success = len(failed) == 0
             return {
                 "success": success,
@@ -626,7 +647,7 @@ class WxAutoClient(WeChatClientProtocol):
                 "failed": failed,
                 "steps": steps
             }
-            
+
         except Exception as e:
             LOG.error(f"Reset all listeners failed: {e}")
             return {

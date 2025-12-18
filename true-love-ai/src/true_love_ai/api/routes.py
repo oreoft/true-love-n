@@ -47,7 +47,7 @@ async def get_llm(
             provider=request.provider,
             model=request.model
         )
-        return APIResponse.success(result.model_dump())
+        return APIResponse.success(result.model_dump(exclude_none=True))
     except Exception as e:
         LOG.exception(f"llm处理失败: {e}")
         return APIResponse.internal_error(str(e))
@@ -112,7 +112,7 @@ async def gen_img(
             provider=request.provider,
             model=request.model
         )
-        return APIResponse.success(result.model_dump())
+        return APIResponse.success(result.model_dump(exclude_none=True))
     except Exception as e:
         LOG.exception(f"gen-img处理失败: {e}")
         return APIResponse.internal_error(str(e))
