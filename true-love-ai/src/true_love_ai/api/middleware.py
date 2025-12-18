@@ -49,11 +49,19 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         async for chunk in response.body_iterator:
             response_body += chunk
         
-        # 响应日志
+        # 响应日志 - 对二进制响应不尝试解码
+        if response.media_type and response.media_type.startswith(("video/", "image/", "audio/")):
+            resp_log = f"[binary {response.media_type}, {len(response_body)} bytes]"
+        else:
+            try:
+                resp_log = response_body.decode()[:500] if response_body else 'empty'
+            except UnicodeDecodeError:
+                resp_log = f"[binary data, {len(response_body)} bytes]"
+        
         LOG.info(
             f"AI服务返回响应: [{request.method} {request.url.path}], "
             f"cost: {process_time:.0f}ms, "
-            f"resp: [{response_body.decode()[:500] if response_body else 'empty'}]"
+            f"resp: [{resp_log}]"
         )
         
         # 重新构建响应（因为body_iterator已被消费）
