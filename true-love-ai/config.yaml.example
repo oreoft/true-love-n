@@ -1,5 +1,6 @@
 # True Love AI Configuration Example
 # ============================================
+# 真爱粉 AI 配置示例
 
 # Base service address (用于发送通知)
 base_server:
@@ -11,29 +12,56 @@ http:
   port: 8088
   token: ["your_token"]
 
-# Chat bot configuration
-enable_bot: chatgpt
+# Session configuration
+session:
+  max_history: 20        # 最大对话历史长度
+  ttl_seconds: 86400     # 会话过期时间（秒）
+
+# 默认服务提供商 (openai/claude/deepseek/gemini)
+default_provider: openai
+
+# LLM 配置
 chatgpt:
+  # OpenAI Keys（多 Key 负载均衡，用于聊天和图像生成）
   key1: "sk-xxx"
   key2: "sk-xxx"
   key3: "sk-xxx"
+  
+  # Claude（用于聊天）
   claude_key1: "sk-ant-xxx"
+  
+  # DeepSeek（用于聊天）
   ds_key1: "sk-xxx"
-  gpt4: []
-  prompt: "You are a helpful assistant."
-  prompt2: "You are a helpful assistant."
-  prompt3: "You are a helpful assistant."
-  prompt4: "You are a professional image prompt generator."
-  prompt5: "You are a professional image type classifier."
-  prompt6: "You are a professional image analyzer."
+  
+  # Gemini（用于聊天和 Imagen 图像生成）
+  gemini_key1: "xxx"
+  
+  # 模型配置
+  default_model: "gpt-4o"                      # 默认聊天模型
+  vision_model: "gpt-4o"                       # 图像分析模型
+  image_model: "gpt-image-1"                   # 图像生成模型
+  claude_model: "claude-sonnet-4-20250514"     # Claude 模型
+  deepseek_model: "deepseek/deepseek-chat"     # DeepSeek 模型
+  gemini_model: "gemini/gemini-2.0-flash"      # Gemini 模型
+  
+  # 使用 prompt2 的用户列表（特殊用户使用不同的系统提示词）
+  prompt2_users: []
+  
+  # System Prompts
+  prompt: "你是一个可爱的智能助手~"       # 默认系统提示词
+  prompt2: "你是一个可爱的智能助手~"      # prompt2_users 用户专用
+  prompt3: "你是一个可爱的智能助手~"      # 询问功能
+  prompt4: "你是一个专业的图像描述词生成器，请生成适合 AI 绘图的英文 prompt"
+  prompt5: "根据用户描述判断图像操作类型"
+  prompt6: "你是一个专业的图像分析助手"
 
 # Platform API keys
+# 图像生成提供商：
+#   - stability: 使用 Stability AI（默认）
+#   - openai: 使用 OpenAI DALL-E / GPT-4o 原生生图
+#   - gemini: 使用 Google Imagen 3
 platform_key:
   sd: "sk-xxx"  # Stability AI API key
-
-# GitHub integration
-github:
-  token: "github_pat_xxx"
 
 # Logging configuration
 logging:
