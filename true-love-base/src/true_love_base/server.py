@@ -182,20 +182,34 @@ def get_contacts_by_room_id():
     return jsonify(ApiResponse.success(members).to_dict())
 
 
-@app.route('/listen/list', methods=['GET'])
-def list_listen_chats():
+@app.route('/listen/status', methods=['GET'])
+def get_listener_status():
     """
-    获取所有监听对象
+    获取监听状态（以 DB 为基准）
+    
+    Query Params:
+        - probe: 是否执行主动探测（可选，默认 false）
+          - false: 快速模式，只检查内存状态
+          - true: 探测模式，执行 ChatInfo 检测
     
     Response:
-        - data: 监听对象名称列表
+        - data: 状态结果，包含:
+            - listeners: 每个监听的状态列表
+              - chat: 聊天名称
+              - status: not_listening / listening / healthy / unhealthy
+              - reason: 失败原因（可选）
+            - summary: 状态汇总
+            - probe_mode: 是否为探测模式
     """
     robot = get_robot()
     if robot is None:
         return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
     
-    chats = robot.get_listen_chats()
-    return jsonify(ApiResponse.success(chats).to_dict())
+    # 获取 probe 参数
+    probe = request.args.get('probe', 'false').lower() == 'true'
+    
+    result = robot.get_listener_status(probe=probe)
+    return jsonify(ApiResponse.success(result).to_dict())
 
 
 @app.route('/listen/add', methods=['POST'])
@@ -251,13 +265,23 @@ def remove_listen_chat():
 @app.route('/listen/refresh', methods=['POST'])
 def refresh_listen_chats():
     """
-    刷新监听列表
+    智能刷新监听列表（以 DB 为基准，结合健康检测）
     
-    比对内存和文件中的监听列表，重新添加缺失的监听。
-    用于修复因窗口句柄失效等原因导致的监听丢失问题。
+    流程：
+    1. 从 DB 获取配置的监听列表
+    2. 执行健康检测（probe=True）
+    3. 分类处理：
+       - not_listening: 执行 add
+       - unhealthy: 执行 reset
+       - healthy: 不处理
     
     Response:
-        - data: 刷新结果，包含 file_chats, memory_chats, missing, extra, recovered, failed
+        - data: 刷新结果，包含:
+            - db_chats: DB 中的监听列表
+            - status_before: 刷新前的状态
+            - actions: 执行的操作
+            - recovered: 成功恢复的
+            - failed: 恢复失败的
     """
     robot = get_robot()
     if robot is None:
@@ -270,10 +294,10 @@ def refresh_listen_chats():
 @app.route('/listen/reset', methods=['POST'])
 def reset_listener():
     """
-    重置单个监听
+    重置单个监听（基于 DB 配置）
     
     通过关闭子窗口、移除监听、重新添加监听的方式恢复异常的监听。
-    用于修复因 UIA 窗口异常导致的单个监听失效问题。
+    只能重置 DB 中已配置的监听。
     
     Request Body:
         - chat_name: 聊天对象名称
@@ -298,10 +322,10 @@ def reset_listener():
 @app.route('/listen/reset-all', methods=['POST'])
 def reset_all_listeners():
     """
-    重置所有监听
+    重置所有监听（基于 DB 配置）
     
     通过停止所有监听、关闭所有子窗口、切换页面刷新 UI、重新添加所有监听的方式恢复。
-    用于修复因 UIA 整体异常导致的全部监听失效问题。
+    以 DB 中的配置为基准，不依赖内存状态。
     
     Response:
         - data: 重置结果，包含 success, message, total, recovered, failed, steps
@@ -311,31 +335,6 @@ def reset_all_listeners():
         return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
     
     result = robot.reset_all_listeners()
-    return jsonify(ApiResponse.success(result).to_dict())
-
-
-@app.route('/listen/health', methods=['GET'])
-def listener_health_check():
-    """
-    监听健康检查
-    
-    通过比对已注册的监听和实际活跃的子窗口来判断监听是否健康。
-    外部服务可定时调用此接口检测监听状态。
-    
-    Response:
-        - data: 健康检查结果，包含:
-            - healthy: 是否健康
-            - message: 状态描述
-            - registered_listeners: 已注册的监听列表
-            - active_windows: 活跃的子窗口列表
-            - unhealthy_listeners: 异常的监听列表
-            - orphan_windows: 孤立的窗口列表
-    """
-    robot = get_robot()
-    if robot is None:
-        return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
-    
-    result = robot.listener_health_check()
     return jsonify(ApiResponse.success(result).to_dict())
 
 

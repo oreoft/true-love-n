@@ -311,16 +311,114 @@ class WxAutoClient(WeChatClientProtocol):
         except Exception as e:
             LOG.error(f"Error in message listening: {e}")
 
-    # ==================== 监听恢复 ====================
+    # ==================== 监听状态与恢复 ====================
 
-    def reset_listener(self, chat_name: str) -> dict:
+    def get_listener_status(self, db_chats: list[str], probe: bool = False) -> dict:
+        """
+        获取监听状态（以 DB 为基准，GetAllSubWindow 为运行时金标准）
+        
+        判断逻辑：
+        - DB 有，GetAllSubWindow 没有 → not_listening（掉了）
+        - DB 有，GetAllSubWindow 有 → listening（快速模式）
+        - DB 有，GetAllSubWindow 有，ChatInfo 无响应 → unhealthy（探测模式）
+        - DB 有，GetAllSubWindow 有，ChatInfo 有响应 → healthy（探测模式）
+        
+        Args:
+            db_chats: DB 中配置的监听列表（基准值）
+            probe: 是否执行主动探测（ChatInfo 检测）
+            
+        Returns:
+            状态结果字典，包含:
+            - listeners: 每个监听的状态列表
+            - summary: 状态汇总
+            - probe_mode: 是否为探测模式
+        """
+        listeners = []
+        summary = {"healthy": 0, "unhealthy": 0, "not_listening": 0, "listening": 0}
+        
+        # 获取活跃窗口（运行时金标准）
+        window_map = {}
+        try:
+            sub_windows = self.wx.GetAllSubWindow()
+            for w in sub_windows:
+                try:
+                    who = getattr(w, 'who', None)
+                    if who:
+                        window_map[who] = w
+                except Exception:
+                    pass
+            LOG.debug(f"GetAllSubWindow returned {len(window_map)} windows: {list(window_map.keys())}")
+        except Exception as e:
+            LOG.error(f"Failed to get sub windows: {e}")
+            # 获取窗口失败，所有配置都标记为 not_listening
+            for chat_name in db_chats:
+                listeners.append({
+                    "chat": chat_name,
+                    "status": "not_listening",
+                    "reason": f"get_windows_failed: {str(e)}"
+                })
+                summary["not_listening"] += 1
+            return {
+                "listeners": listeners,
+                "summary": summary,
+                "probe_mode": probe
+            }
+        
+        # 以 DB 为基准，结合 GetAllSubWindow 检查每个 chat 的状态
+        for chat_name in db_chats:
+            status_info = {"chat": chat_name, "status": None, "reason": None}
+            
+            # 检查是否在 GetAllSubWindow 中（运行时金标准）
+            window = window_map.get(chat_name)
+            if not window:
+                # 窗口不存在，说明监听掉了
+                status_info["status"] = "not_listening"
+                status_info["reason"] = "window_not_found"
+                summary["not_listening"] += 1
+                listeners.append(status_info)
+                continue
+            
+            # 窗口存在，根据 probe 参数决定状态
+            if not probe:
+                # 快速模式：有窗口就是 listening
+                status_info["status"] = "listening"
+                summary["listening"] += 1
+            else:
+                # 探测模式：执行 ChatInfo 检测
+                try:
+                    chat_info = window.ChatInfo()
+                    if chat_info:
+                        status_info["status"] = "healthy"
+                        summary["healthy"] += 1
+                    else:
+                        status_info["status"] = "unhealthy"
+                        status_info["reason"] = "chat_info_empty"
+                        summary["unhealthy"] += 1
+                except Exception as e:
+                    status_info["status"] = "unhealthy"
+                    status_info["reason"] = f"probe_exception: {str(e)}"
+                    summary["unhealthy"] += 1
+            
+            listeners.append(status_info)
+        
+        LOG.info(f"Listener status (probe={probe}): {summary}")
+        
+        return {
+            "listeners": listeners,
+            "summary": summary,
+            "probe_mode": probe
+        }
+
+    def reset_listener(self, chat_name: str, callback: MessageCallback) -> dict:
         """
         重置指定聊天的监听
         
         通过关闭子窗口、移除监听、重新添加监听的方式恢复异常的监听。
+        不依赖内存状态，使用传入的 callback 参数。
         
         Args:
             chat_name: 聊天对象名称
+            callback: 消息回调函数
             
         Returns:
             重置结果字典，包含:
@@ -331,16 +429,7 @@ class WxAutoClient(WeChatClientProtocol):
         steps = []
         
         try:
-            # 检查是否有该监听
-            if chat_name not in self._listeners:
-                return {
-                    "success": False,
-                    "message": f"Listener [{chat_name}] not found",
-                    "steps": steps
-                }
-            
-            # 保存原始回调
-            original_callback = self._listeners.get(chat_name)
+            LOG.info(f"Resetting listener for [{chat_name}]")
             
             # Step 1: 尝试获取并关闭子窗口
             try:
@@ -355,8 +444,12 @@ class WxAutoClient(WeChatClientProtocol):
                 steps.append({"step": "close_window", "success": False, "error": str(e)})
                 LOG.warning(f"Failed to close sub window for [{chat_name}]: {e}")
             
-            # Step 2: 移除监听
+            # Step 2: 移除监听（清理旧状态）
             try:
+                # 从内存中移除
+                if chat_name in self._listeners:
+                    del self._listeners[chat_name]
+                # 调用 SDK 移除
                 result = self.wx.RemoveListenChat(chat_name, close_window=True)
                 steps.append({"step": "remove_listen", "success": bool(result)})
                 LOG.info(f"Removed listener for [{chat_name}]: {result}")
@@ -368,15 +461,13 @@ class WxAutoClient(WeChatClientProtocol):
             time.sleep(0.5)
             steps.append({"step": "wait", "success": True, "duration": 0.5})
             
-            # Step 4: 重新添加监听
+            # Step 4: 重新添加监听（使用传入的 callback）
             try:
-                # 确保 _listeners 中有回调（可能被 RemoveListenChat 清理了）
-                if chat_name not in self._listeners and original_callback:
-                    self._listeners[chat_name] = original_callback
-                
-                internal_callback = self._create_internal_callback(chat_name, original_callback)
+                internal_callback = self._create_internal_callback(chat_name, callback)
                 result = self.wx.AddListenChat(chat_name, internal_callback)
                 if result:
+                    # 更新内存
+                    self._listeners[chat_name] = callback
                     steps.append({"step": "add_listen", "success": True})
                     LOG.info(f"Re-added listener for [{chat_name}]")
                     return {
@@ -408,11 +499,16 @@ class WxAutoClient(WeChatClientProtocol):
                 "steps": steps
             }
 
-    def reset_all_listeners(self) -> dict:
+    def reset_all_listeners(self, chat_list: list[str], callback: MessageCallback) -> dict:
         """
         重置所有监听
         
         通过停止所有监听、关闭所有子窗口、切换页面刷新 UI、重新添加所有监听的方式恢复。
+        不依赖内存状态，使用传入的 chat_list 和 callback 参数。
+        
+        Args:
+            chat_list: 要重置的聊天列表（通常来自 DB）
+            callback: 消息回调函数
         
         Returns:
             重置结果字典，包含:
@@ -426,12 +522,9 @@ class WxAutoClient(WeChatClientProtocol):
         steps = []
         recovered = []
         failed = []
+        total = len(chat_list)
         
         try:
-            # 保存当前所有回调
-            saved_listeners = dict(self._listeners)
-            total = len(saved_listeners)
-            
             if total == 0:
                 return {
                     "success": True,
@@ -484,14 +577,12 @@ class WxAutoClient(WeChatClientProtocol):
             # Step 4: 清空内部监听列表
             self._listeners.clear()
             
-            # Step 5: 重新添加所有监听
-            for chat_name, callback in saved_listeners.items():
+            # Step 5: 重新添加所有监听（使用传入的 chat_list 和 callback）
+            for chat_name in chat_list:
                 try:
-                    # 重新构建内部回调
                     internal_callback = self._create_internal_callback(chat_name, callback)
                     result = self.wx.AddListenChat(chat_name, internal_callback)
                     if result:
-                        # 添加成功，把 callback 加回 _listeners
                         self._listeners[chat_name] = callback
                         recovered.append(chat_name)
                         LOG.info(f"Re-added listener for [{chat_name}]")
@@ -524,132 +615,10 @@ class WxAutoClient(WeChatClientProtocol):
             return {
                 "success": False,
                 "message": f"Exception: {e}",
-                "total": len(saved_listeners) if 'saved_listeners' in dir() else 0,
+                "total": total,
                 "recovered": recovered,
                 "failed": failed,
                 "steps": steps
-            }
-
-    def health_check(self) -> dict:
-        """
-        健康检查：检查监听状态是否正常
-        
-        通过以下方式检测监听健康状态：
-        1. 检查窗口是否存在
-        2. 对存在的窗口执行主动探测（调用 ChatInfo()），验证窗口是否真正可用
-        
-        Returns:
-            健康检查结果字典，包含:
-            - healthy: 是否健康
-            - message: 状态描述
-            - registered_listeners: 已注册的监听列表
-            - active_windows: 活跃的子窗口列表
-            - unhealthy_listeners: 异常的监听列表（包含失败原因）
-            - orphan_windows: 孤立的窗口列表（有窗口但未注册）
-            - probe_results: 主动探测结果详情
-        """
-        try:
-            # 获取已注册的监听
-            registered = set(self._listeners.keys())
-            
-            # 获取所有活跃的子窗口
-            active = set()
-            window_map = {}  # chat_name -> window object
-            try:
-                sub_windows = self.wx.GetAllSubWindow()
-                for w in sub_windows:
-                    try:
-                        who = getattr(w, 'who', None)
-                        if who:
-                            active.add(who)
-                            window_map[who] = w
-                    except Exception:
-                        pass
-            except Exception as e:
-                LOG.error(f"Failed to get sub windows: {e}")
-                return {
-                    "healthy": False,
-                    "message": f"Failed to get sub windows: {e}",
-                    "registered_listeners": list(registered),
-                    "active_windows": [],
-                    "unhealthy_listeners": [{"chat": c, "reason": "get_windows_failed"} for c in registered],
-                    "orphan_windows": [],
-                    "probe_results": []
-                }
-            
-            # 主动探测每个已注册的监听
-            unhealthy = []
-            probe_results = []
-            
-            for chat_name in registered:
-                probe_result = {"chat": chat_name, "window_exists": False, "probe_success": False, "reason": None}
-                
-                # Step 1: 检查窗口是否存在
-                if chat_name not in active:
-                    probe_result["reason"] = "window_not_found"
-                    unhealthy.append({"chat": chat_name, "reason": "window_not_found"})
-                    probe_results.append(probe_result)
-                    LOG.warning(f"Health check: [{chat_name}] window not found")
-                    continue
-                
-                probe_result["window_exists"] = True
-                
-                # Step 2: 主动探测 - 尝试调用 ChatInfo() 验证窗口可用性
-                try:
-                    window = window_map.get(chat_name)
-                    if window:
-                        # 尝试获取聊天信息，验证窗口是否真正响应
-                        chat_info = window.ChatInfo()
-                        if chat_info:
-                            probe_result["probe_success"] = True
-                            LOG.debug(f"Health check: [{chat_name}] probe success")
-                        else:
-                            probe_result["reason"] = "chat_info_empty"
-                            unhealthy.append({"chat": chat_name, "reason": "chat_info_empty"})
-                            LOG.warning(f"Health check: [{chat_name}] ChatInfo returned empty")
-                    else:
-                        probe_result["reason"] = "window_object_missing"
-                        unhealthy.append({"chat": chat_name, "reason": "window_object_missing"})
-                        LOG.warning(f"Health check: [{chat_name}] window object missing from map")
-                except Exception as e:
-                    probe_result["reason"] = f"probe_exception: {str(e)}"
-                    unhealthy.append({"chat": chat_name, "reason": f"probe_exception: {str(e)}"})
-                    LOG.warning(f"Health check: [{chat_name}] probe exception: {e}")
-                
-                probe_results.append(probe_result)
-            
-            # 计算孤立窗口
-            orphan = active - registered
-            
-            # 判断整体健康状态
-            healthy = len(unhealthy) == 0
-            
-            if healthy:
-                message = f"All {len(registered)} listeners are healthy"
-            else:
-                message = f"{len(unhealthy)}/{len(registered)} listeners are unhealthy"
-            
-            LOG.info(f"Health check: {message}, orphan windows: {len(orphan)}")
-            
-            return {
-                "healthy": healthy,
-                "message": message,
-                "registered_listeners": list(registered),
-                "active_windows": list(active),
-                "unhealthy_listeners": unhealthy,
-                "orphan_windows": list(orphan),
-                "probe_results": probe_results
-            }
-            
-        except Exception as e:
-            LOG.error(f"Health check failed: {e}")
-            return {
-                "healthy": False,
-                "message": f"Health check exception: {e}",
-                "registered_listeners": list(self._listeners.keys()),
-                "active_windows": [],
-                "unhealthy_listeners": list(self._listeners.keys()),
-                "orphan_windows": []
             }
 
     # ==================== 联系人管理 ====================

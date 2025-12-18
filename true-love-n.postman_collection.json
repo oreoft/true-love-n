@@ -257,15 +257,23 @@
 					"response": []
 				},
 				{
-					"name": "获取监听列表",
+					"name": "监听状态",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_host}}/listen/list",
+							"raw": "{{base_host}}/listen/status",
 							"host": ["{{base_host}}"],
-							"path": ["listen", "list"]
-						}
+							"path": ["listen", "status"],
+							"query": [
+								{
+									"key": "probe",
+									"value": "false",
+									"description": "是否执行主动探测（true/false）"
+								}
+							]
+						},
+						"description": "获取监听状态（以 DB 为基准）\n\n快速模式（probe=false）：只检查内存状态\n探测模式（probe=true）：执行 ChatInfo 检测\n\n状态：not_listening / listening / healthy / unhealthy"
 					},
 					"response": []
 				},
@@ -314,7 +322,7 @@
 					"response": []
 				},
 				{
-					"name": "刷新监听列表",
+					"name": "智能刷新监听",
 					"request": {
 						"method": "POST",
 						"header": [],
@@ -322,7 +330,8 @@
 							"raw": "{{base_host}}/listen/refresh",
 							"host": ["{{base_host}}"],
 							"path": ["listen", "refresh"]
-						}
+						},
+						"description": "智能刷新监听列表（以 DB 为基准，结合健康检测）\n\n流程：\n1. 从 DB 获取配置的监听列表\n2. 执行健康检测（probe=True）\n3. 分类处理：not_listening 执行 add，unhealthy 执行 reset，healthy 不处理"
 					},
 					"response": []
 				},
@@ -345,7 +354,7 @@
 							"host": ["{{base_host}}"],
 							"path": ["listen", "reset"]
 						},
-						"description": "通过关闭子窗口、移除监听、重新添加监听的方式恢复异常的单个监听"
+						"description": "重置单个监听（基于 DB 配置）\n\n只能重置 DB 中已配置的监听"
 					},
 					"response": []
 				},
@@ -359,21 +368,7 @@
 							"host": ["{{base_host}}"],
 							"path": ["listen", "reset-all"]
 						},
-						"description": "通过停止所有监听、关闭所有子窗口、刷新 UI、重新添加所有监听的方式恢复"
-					},
-					"response": []
-				},
-				{
-					"name": "监听健康检查",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_host}}/listen/health",
-							"host": ["{{base_host}}"],
-							"path": ["listen", "health"]
-						},
-						"description": "检查监听状态是否正常，比对已注册的监听和实际活跃的子窗口"
+						"description": "重置所有监听（基于 DB 配置）\n\n以 DB 中的配置为基准，不依赖内存状态"
 					},
 					"response": []
 				}

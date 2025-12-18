@@ -188,12 +188,12 @@ class Robot:
 
     def get_listen_chats(self) -> list[str]:
         """
-        获取所有监听对象
+        获取所有监听对象（从 DB）
         
         Returns:
             监听对象名称列表
         """
-        return list(self._listening_chats)
+        return self._listen_store.load()
 
     def load_listen_chats(self) -> dict[str, list[str]]:
         """
@@ -221,51 +221,97 @@ class Robot:
 
     def refresh_listen_chats(self) -> dict:
         """
-        刷新监听列表：比对内存和文件，重新添加缺失的监听
+        智能刷新监听列表（以 DB 为基准，结合健康检测）
+        
+        流程：
+        1. 从 DB 获取配置的监听列表
+        2. 执行健康检测（probe=True）
+        3. 分类处理：
+           - not_listening: 执行 add
+           - unhealthy: 执行 reset
+           - healthy: 不处理
         
         Returns:
             刷新结果，包含:
-            - file_chats: 文件中的监听列表
-            - memory_chats: 内存中的监听列表
-            - missing: 文件中有但内存中没有的
-            - extra: 内存中有但文件中没有的
+            - db_chats: DB 中的监听列表
+            - status_before: 刷新前的状态
+            - actions: 执行的操作
             - recovered: 成功恢复的
             - failed: 恢复失败的
         """
-        # 获取文件中的监听列表
-        file_chats = set(self._listen_store.load())
-        # 获取内存中的监听列表
-        memory_chats = set(self._listening_chats)
-
-        # 计算差异
-        missing = file_chats - memory_chats  # 文件有，内存没有
-        extra = memory_chats - file_chats  # 内存有，文件没有
-
-        self.LOG.info(
-            f"Refresh: file={len(file_chats)}, memory={len(memory_chats)}, missing={len(missing)}, extra={len(extra)}")
-
+        # 获取 DB 配置
+        db_chats = self._listen_store.load()
+        
+        if not db_chats:
+            return {
+                "db_chats": [],
+                "status_before": {"listeners": [], "summary": {}},
+                "actions": [],
+                "recovered": [],
+                "failed": []
+            }
+        
+        # 执行健康检测
+        status = self.get_listener_status(probe=True)
+        
+        self.LOG.info(f"Refresh: DB has {len(db_chats)} chats, status: {status.get('summary', {})}")
+        
+        actions = []
         recovered = []
         failed = []
-
-        # 尝试恢复缺失的监听
-        for chat_name in missing:
-            self.LOG.info(f"Attempting to recover listener for [{chat_name}]")
-            # persist=False 因为文件中已经有了
-            success = self.add_listen_chat(chat_name, persist=False, retry=True)
-            if success:
-                recovered.append(chat_name)
-                self.LOG.info(f"Successfully recovered listener for [{chat_name}]")
+        
+        # 根据状态分类处理
+        for item in status.get("listeners", []):
+            chat_name = item.get("chat")
+            chat_status = item.get("status")
+            reason = item.get("reason")
+            
+            action = {"chat": chat_name, "status_before": chat_status, "action": None, "success": None}
+            
+            if chat_status == "healthy":
+                # 健康的不处理
+                action["action"] = "skip"
+                action["success"] = True
+                recovered.append(chat_name)  # 健康的也算"恢复"
+            
+            elif chat_status == "not_listening":
+                # 未监听的，执行 add
+                action["action"] = "add"
+                success = self.add_listen_chat(chat_name, persist=False, retry=True)
+                action["success"] = success
+                if success:
+                    recovered.append(chat_name)
+                    self.LOG.info(f"Added listener for [{chat_name}]")
+                else:
+                    failed.append({"chat": chat_name, "reason": "add_failed"})
+                    self.LOG.error(f"Failed to add listener for [{chat_name}]")
+            
+            elif chat_status == "unhealthy":
+                # 不健康的，执行 reset
+                action["action"] = "reset"
+                result = self.reset_listener(chat_name)
+                action["success"] = result.get("success", False)
+                if result.get("success"):
+                    recovered.append(chat_name)
+                    self.LOG.info(f"Reset listener for [{chat_name}]")
+                else:
+                    failed.append({"chat": chat_name, "reason": reason or "reset_failed"})
+                    self.LOG.error(f"Failed to reset listener for [{chat_name}]: {result.get('message')}")
+            
             else:
-                failed.append(chat_name)
-                self.LOG.error(f"Failed to recover listener for [{chat_name}]")
-
+                # 未知状态（listening 但未 probe）
+                action["action"] = "skip"
+                action["success"] = True
+                recovered.append(chat_name)
+            
+            actions.append(action)
+        
         return {
-            "file_chats": list(file_chats),
-            "memory_chats": list(self._listening_chats),  # 更新后的内存列表
-            "missing": list(missing),
-            "extra": list(extra),
+            "db_chats": db_chats,
+            "status_before": status,
+            "actions": actions,
             "recovered": recovered,
-            "failed": failed,
+            "failed": failed
         }
 
     def start_listening(self) -> None:
@@ -359,11 +405,25 @@ class Robot:
         """
         return self.client.get_chat_members(chat_name)
 
-    # ==================== 监听恢复 ====================
+    # ==================== 监听状态与恢复 ====================
+
+    def get_listener_status(self, probe: bool = False) -> dict:
+        """
+        获取监听状态（以 DB 为基准）
+        
+        Args:
+            probe: 是否执行主动探测（ChatInfo 检测）
+            
+        Returns:
+            状态结果字典
+        """
+        # 从 DB 获取配置的监听列表
+        db_chats = self._listen_store.load()
+        return self.client.get_listener_status(db_chats, probe)
 
     def reset_listener(self, chat_name: str) -> dict:
         """
-        重置指定聊天的监听
+        重置指定聊天的监听（基于 DB）
         
         Args:
             chat_name: 聊天对象名称
@@ -371,22 +431,47 @@ class Robot:
         Returns:
             重置结果字典
         """
-        return self.client.reset_listener(chat_name)
+        # 检查 DB 中是否有该配置
+        if not self._listen_store.exists(chat_name):
+            return {
+                "success": False,
+                "message": f"Chat [{chat_name}] not found in DB config"
+            }
+        
+        # 调用 client 重置，传入统一的回调
+        result = self.client.reset_listener(chat_name, self.on_message)
+        
+        # 同步 Robot 层内存
+        if result.get("success"):
+            self._listening_chats.add(chat_name)
+        
+        return result
 
     def reset_all_listeners(self) -> dict:
         """
-        重置所有监听
+        重置所有监听（基于 DB）
         
         Returns:
             重置结果字典
         """
-        return self.client.reset_all_listeners()
-
-    def listener_health_check(self) -> dict:
-        """
-        监听健康检查
+        # 从 DB 获取配置的监听列表
+        db_chats = self._listen_store.load()
         
-        Returns:
-            健康检查结果字典
-        """
-        return self.client.health_check()
+        if not db_chats:
+            return {
+                "success": True,
+                "message": "No listeners in DB config",
+                "total": 0,
+                "recovered": [],
+                "failed": []
+            }
+        
+        # 调用 client 重置，传入 chat_list 和统一的回调
+        result = self.client.reset_all_listeners(db_chats, self.on_message)
+        
+        # 同步 Robot 层内存
+        self._listening_chats.clear()
+        for chat_name in result.get("recovered", []):
+            self._listening_chats.add(chat_name)
+        
+        return result

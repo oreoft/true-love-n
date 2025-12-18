@@ -131,17 +131,39 @@ class WeChatClientProtocol(ABC):
         """
         pass
 
-    # ==================== 监听恢复 ====================
+    # ==================== 监听状态与恢复 ====================
 
     @abstractmethod
-    def reset_listener(self, chat_name: str) -> dict:
+    def get_listener_status(self, db_chats: list[str], probe: bool = False) -> dict:
+        """
+        获取监听状态（以 DB 为基准）
+        
+        Args:
+            db_chats: DB 中配置的监听列表（基准值）
+            probe: 是否执行主动探测（ChatInfo 检测）
+            
+        Returns:
+            状态结果字典，包含:
+            - listeners: 每个监听的状态列表
+              - chat: 聊天名称
+              - status: not_listening / listening / healthy / unhealthy
+              - reason: 失败原因（可选）
+            - summary: 状态汇总
+            - probe_mode: 是否为探测模式
+        """
+        pass
+
+    @abstractmethod
+    def reset_listener(self, chat_name: str, callback: MessageCallback) -> dict:
         """
         重置指定聊天的监听
         
         通过关闭子窗口、移除监听、重新添加监听的方式恢复异常的监听。
+        不依赖内存状态，使用传入的 callback 参数。
         
         Args:
             chat_name: 聊天对象名称
+            callback: 消息回调函数
             
         Returns:
             重置结果字典，包含:
@@ -152,11 +174,16 @@ class WeChatClientProtocol(ABC):
         pass
 
     @abstractmethod
-    def reset_all_listeners(self) -> dict:
+    def reset_all_listeners(self, chat_list: list[str], callback: MessageCallback) -> dict:
         """
         重置所有监听
         
         通过停止所有监听、关闭所有子窗口、刷新 UI、重新添加所有监听的方式恢复。
+        不依赖内存状态，使用传入的 chat_list 和 callback 参数。
+        
+        Args:
+            chat_list: 要重置的聊天列表（通常来自 DB）
+            callback: 消息回调函数
         
         Returns:
             重置结果字典，包含:
@@ -166,27 +193,6 @@ class WeChatClientProtocol(ABC):
             - recovered: 成功恢复的列表
             - failed: 恢复失败的列表
             - steps: 各步骤执行情况
-        """
-        pass
-
-    @abstractmethod
-    def health_check(self) -> dict:
-        """
-        健康检查：检查监听状态是否正常
-        
-        通过以下方式检测监听健康状态：
-        1. 检查窗口是否存在
-        2. 对存在的窗口执行主动探测，验证窗口是否真正可用
-        
-        Returns:
-            健康检查结果字典，包含:
-            - healthy: 是否健康
-            - message: 状态描述
-            - registered_listeners: 已注册的监听列表
-            - active_windows: 活跃的子窗口列表
-            - unhealthy_listeners: 异常的监听列表（包含失败原因）
-            - orphan_windows: 孤立的窗口列表
-            - probe_results: 主动探测结果详情
         """
         pass
 
