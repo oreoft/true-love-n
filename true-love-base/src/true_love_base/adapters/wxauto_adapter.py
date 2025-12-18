@@ -299,7 +299,7 @@ class WxAutoClient(WeChatClientProtocol):
 
     def is_sub_win_open(self, chat_name: str) -> bool:
         """
-        检测某个聊天的子窗口是否打开（以 GetAllSubWindow 为准）
+        检测某个聊天的子窗口是否打开
         
         注意：子窗口打开不等于正在监听！
         监听的金标准是 ChatInfo 能正确响应。
@@ -311,15 +311,9 @@ class WxAutoClient(WeChatClientProtocol):
             子窗口是否打开（不能作为监听健康的依据）
         """
         try:
-            sub_windows = self.wx.GetAllSubWindow()
-            for w in sub_windows:
-                try:
-                    who = getattr(w, 'who', None)
-                    if who == chat_name:
-                        return True
-                except Exception:
-                    pass
-            return False
+            w = self.wx.GetSubWindow()
+            who = getattr(w, 'who', None)
+            return True if who == chat_name else False
         except Exception as e:
             LOG.warning(f"Failed to check sub window for [{chat_name}]: {e}")
             return False
