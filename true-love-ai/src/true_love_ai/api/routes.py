@@ -20,8 +20,8 @@ router = APIRouter()
 
 @router.post("/get-llm")
 async def get_llm(
-    request: ChatRequest,
-    service: ChatService = Depends(get_chat_service)
+        request: ChatRequest,
+        service: ChatService = Depends(get_chat_service)
 ) -> APIResponse:
     """
     获取 LLM 回答
@@ -33,12 +33,11 @@ async def get_llm(
     - provider: 指定模型提供商 (openai/claude/deepseek/gemini)
     - model: 指定具体模型
     """
-    LOG.info(f"llm消息收到请求, req: {request.model_dump()}")
-    
+
     # 鉴权
     if not verify_token(request.token):
         return APIResponse.token_error()
-    
+
     try:
         result = await service.get_answer(
             content=request.content,
@@ -55,8 +54,8 @@ async def get_llm(
 
 @router.post("/get-img-type")
 async def get_img_type(
-    request: ImageTypeRequest,
-    service: ImageService = Depends(get_image_service)
+        request: ImageTypeRequest,
+        service: ImageService = Depends(get_image_service)
 ) -> APIResponse:
     """
     判断图像操作类型
@@ -69,11 +68,11 @@ async def get_img_type(
     - remove_background_img: 去背景
     """
     LOG.info(f"get-img-type消息收到请求, req: {str(request.model_dump())[:200]}")
-    
+
     # 鉴权
     if not verify_token(request.token):
         return APIResponse.token_error()
-    
+
     try:
         result = await service.get_img_type(
             content=request.content,
@@ -88,8 +87,8 @@ async def get_img_type(
 
 @router.post("/gen-img")
 async def gen_img(
-    request: ImageRequest,
-    service: ImageService = Depends(get_image_service)
+        request: ImageRequest,
+        service: ImageService = Depends(get_image_service)
 ) -> APIResponse:
     """
     生成图像
@@ -98,11 +97,11 @@ async def gen_img(
     - 图生图：传 content + img_data
     """
     LOG.info(f"gen-img消息收到请求, req: {str(request.model_dump())[:200]}")
-    
+
     # 鉴权
     if not verify_token(request.token):
         return APIResponse.token_error()
-    
+
     try:
         result = await service.generate_image(
             content=request.content,
@@ -120,18 +119,18 @@ async def gen_img(
 
 @router.post("/get-analyze")
 async def get_analyze(
-    request: AnalyzeRequest,
-    service: ImageService = Depends(get_image_service)
+        request: AnalyzeRequest,
+        service: ImageService = Depends(get_image_service)
 ) -> APIResponse:
     """
     分析图像内容
     """
     LOG.info(f"get-analyze消息收到请求, req: {str(request.model_dump())[:200]}")
-    
+
     # 鉴权
     if not verify_token(request.token):
         return APIResponse.token_error()
-    
+
     try:
         result = await service.analyze_image(
             content=request.content,

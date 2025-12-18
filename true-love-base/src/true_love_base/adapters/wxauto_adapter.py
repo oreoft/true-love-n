@@ -388,6 +388,7 @@ class WxAutoClient(WeChatClientProtocol):
             try:
                 chat_info = window.ChatInfo()
                 if chat_info:
+                    LOG.info('chat alive for [%s]: %s', chat_name, self._dump_obj_attrs(chat_info))
                     # ChatInfo 有响应 → healthy
                     status_info["status"] = "healthy"
                     summary["healthy"] += 1

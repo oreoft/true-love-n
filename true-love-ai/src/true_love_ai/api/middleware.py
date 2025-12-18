@@ -35,17 +35,31 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             body = await request.body()
         
         LOG.info(
-            f"Request: [{request.method} {request.url.path}], "
-            f"req: [{body.decode()[:200] if body else 'empty'}]"
+            f"AI服务收到请求: [{request.method} {request.url.path}], "
+            f"req: [{body.decode()[:500] if body else 'empty'}]"
         )
         
         # 处理请求
+        start_time = time.time()
         response = await call_next(request)
+        process_time = (time.time() - start_time) * 1000
+        
+        # 读取响应体
+        response_body = b""
+        async for chunk in response.body_iterator:
+            response_body += chunk
         
         # 响应日志
         LOG.info(
-            f"Response: [{request.method} {request.url.path}, "
-            f"cost: {response.headers.get('X-Process-Time', 'N/A')}]"
+            f"AI服务返回响应: [{request.method} {request.url.path}], "
+            f"cost: {process_time:.0f}ms, "
+            f"resp: [{response_body.decode()[:500] if response_body else 'empty'}]"
         )
         
-        return response
+        # 重新构建响应（因为body_iterator已被消费）
+        return Response(
+            content=response_body,
+            status_code=response.status_code,
+            headers=dict(response.headers),
+            media_type=response.media_type
+        )
