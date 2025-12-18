@@ -125,6 +125,7 @@ class ImageService:
             # 文生图
             return await self._generate_from_text(
                 content=content,
+                wxid=wxid,
                 provider=provider,
                 model=model
             )
@@ -132,6 +133,7 @@ class ImageService:
     async def _generate_from_text(
         self,
         content: str,
+        wxid: str = "",
         provider: Optional[str] = None,
         model: Optional[str] = None
     ) -> ImageResponse:
@@ -140,6 +142,7 @@ class ImageService:
         
         Args:
             content: 用户描述
+            wxid: 会话 ID
             provider: 提供商
             model: 模型
         """
@@ -161,6 +164,12 @@ class ImageService:
         except Exception as e:
             LOG.warning(f"生成描述词失败，使用原始内容: {e}")
             image_prompt = content
+        
+        # 保存到会话历史
+        if wxid:
+            session = self.session_manager.get_or_create(wxid)
+            session.add_message("user", content)
+            session.add_message("assistant", f"[生成图片] {image_prompt}")
         
         # 根据 provider 选择生图服务
         provider = provider or "stability"  # 默认使用 Stability AI
