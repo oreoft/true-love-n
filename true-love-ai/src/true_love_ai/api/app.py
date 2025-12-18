@@ -43,9 +43,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # 自定义中间件
-    application.add_middleware(LoggingMiddleware)
+    # 自定义中间件（注意顺序：后添加的先执行，TimingMiddleware 需要在 LoggingMiddleware 之前执行完）
     application.add_middleware(TimingMiddleware)
+    application.add_middleware(LoggingMiddleware)
 
     # 注册路由
     application.include_router(router)
