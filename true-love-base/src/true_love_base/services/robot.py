@@ -224,26 +224,29 @@ class Robot:
         3. 分类处理：
            - not_listening: 执行 add
            - unhealthy: 执行 reset
-           - healthy: 不处理
+           - healthy: 不处理（skip）
         
         Returns:
             刷新结果，包含:
-            - db_chats: DB 中的监听列表
-            - status_before: 刷新前的状态
-            - actions: 执行的操作
-            - recovered: 成功恢复的
-            - failed: 恢复失败的
+            - total: 总监听数
+            - success_count: 成功数
+            - fail_count: 失败数
+            - listeners: 每个监听的详情列表
+              - chat: 聊天名称
+              - before: 刷新前状态
+              - action: 执行的操作 (skip/add/reset)
+              - after: 刷新后状态
+              - success: 是否成功
         """
         # 获取 DB 配置
         db_chats = self._listen_store.load()
         
         if not db_chats:
             return {
-                "db_chats": [],
-                "status_before": {"listeners": [], "summary": {}},
-                "actions": [],
-                "recovered": [],
-                "failed": []
+                "total": 0,
+                "success_count": 0,
+                "fail_count": 0,
+                "listeners": []
             }
         
         # 执行健康检测
@@ -251,62 +254,73 @@ class Robot:
         
         self.LOG.info(f"Refresh: DB has {len(db_chats)} chats, status: {status.get('summary', {})}")
         
-        actions = []
-        recovered = []
-        failed = []
+        listeners = []
+        success_count = 0
+        fail_count = 0
         
         # 根据状态分类处理
         for item in status.get("listeners", []):
             chat_name = item.get("chat")
-            chat_status = item.get("status")
-            reason = item.get("reason")
+            before_status = item.get("status")
             
-            action = {"chat": chat_name, "status_before": chat_status, "action": None, "success": None}
+            listener_info = {
+                "chat": chat_name,
+                "before": before_status,
+                "action": None,
+                "after": None,
+                "success": None
+            }
             
-            if chat_status == "healthy":
+            if before_status == "healthy":
                 # 健康的不处理
-                action["action"] = "skip"
-                action["success"] = True
-                recovered.append(chat_name)  # 健康的也算"恢复"
+                listener_info["action"] = "skip"
+                listener_info["after"] = "healthy"
+                listener_info["success"] = True
+                success_count += 1
             
-            elif chat_status == "not_listening":
+            elif before_status == "not_listening":
                 # 未监听的，执行 add
-                action["action"] = "add"
+                listener_info["action"] = "add"
                 success = self.add_listen_chat(chat_name, persist=False, retry=True)
-                action["success"] = success
+                listener_info["success"] = success
                 if success:
-                    recovered.append(chat_name)
+                    listener_info["after"] = "healthy"
+                    success_count += 1
                     self.LOG.info(f"Added listener for [{chat_name}]")
                 else:
-                    failed.append({"chat": chat_name, "reason": "add_failed"})
+                    listener_info["after"] = "failed"
+                    fail_count += 1
                     self.LOG.error(f"Failed to add listener for [{chat_name}]")
             
-            elif chat_status == "unhealthy":
+            elif before_status == "unhealthy":
                 # 不健康的，执行 reset
-                action["action"] = "reset"
+                listener_info["action"] = "reset"
                 result = self.reset_listener(chat_name)
-                action["success"] = result.get("success", False)
-                if result.get("success"):
-                    recovered.append(chat_name)
+                success = result.get("success", False)
+                listener_info["success"] = success
+                if success:
+                    listener_info["after"] = "healthy"
+                    success_count += 1
                     self.LOG.info(f"Reset listener for [{chat_name}]")
                 else:
-                    failed.append({"chat": chat_name, "reason": reason or "reset_failed"})
+                    listener_info["after"] = "failed"
+                    fail_count += 1
                     self.LOG.error(f"Failed to reset listener for [{chat_name}]: {result.get('message')}")
             
             else:
-                # 未知状态（listening 但未 probe）
-                action["action"] = "skip"
-                action["success"] = True
-                recovered.append(chat_name)
+                # 未知状态（listening 但未 probe，理论上不会到这里）
+                listener_info["action"] = "skip"
+                listener_info["after"] = before_status
+                listener_info["success"] = True
+                success_count += 1
             
-            actions.append(action)
+            listeners.append(listener_info)
         
         return {
-            "db_chats": db_chats,
-            "status_before": status,
-            "actions": actions,
-            "recovered": recovered,
-            "failed": failed
+            "total": len(listeners),
+            "success_count": success_count,
+            "fail_count": fail_count,
+            "listeners": listeners
         }
 
     def start_listening(self) -> None:
