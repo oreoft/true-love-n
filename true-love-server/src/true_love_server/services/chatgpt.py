@@ -24,15 +24,20 @@ executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 
 name = "chatgpt"
 
+# 图像生成支持的 provider
+IMAGE_PROVIDERS = ["openai", "stability", "gemini"]
+# 视频生成支持的 provider
+VIDEO_PROVIDERS = ["openai", "gemini"]
 
-def get_file_path(msg_id):
+
+def get_file_path(msg_id, file_type='png'):
     # 使用当前工作目录（而非包内部）
     download_directory = 'sd-img/'
     # 如果不存在，则创建该文件夹
     if not os.path.exists(download_directory):
         os.makedirs(download_directory)
     # 构建唯一文件名
-    local_filename = f'{msg_id if msg_id else str(time.time())}.png'
+    local_filename = f'{msg_id if msg_id else str(time.time())}.{file_type}'
     # 构建完整的文件路径
     return os.path.join(download_directory, local_filename)
 
@@ -78,7 +83,7 @@ class ChatGPT(ChatBot):
             rsp = {"type": "chat", "answer": "ai服务可用性受影响, 稍后再试试捏"}
         return rsp
 
-    def send_sd(self, question, wxid, sender, img_path):
+    def send_sd(self, question, wxid, sender, img_path, provider):
         try:
             # 准备数据
             data = {
@@ -87,6 +92,7 @@ class ChatGPT(ChatBot):
                 'wxid': wxid,
                 "sender": sender,
                 "img_data": image_to_base64(img_path),
+                "provider": provider,
             }
 
             # 请求配置
@@ -150,6 +156,34 @@ class ChatGPT(ChatBot):
             rsp = '发生未知错误, 稍后再试试捏'
         return rsp
 
+    def send_video(self, question, wxid, sender, img_path_list=None, provider=None):
+        try:
+            # 准备数据
+            data = {
+                "token": self.token,
+                "content": question,
+                'wxid': wxid,
+                "sender": sender,
+                "provider": provider,
+            }
+
+            # 如果有图片列表，转换为 base64
+            if img_path_list:
+                data["img_data_list"] = [image_to_base64(p) for p in img_path_list if p]
+
+            # 请求配置
+            url = f'{self.ai_host}/gen-video'
+            headers = {'Content-Type': 'application/json'}
+
+            # 发送请求（视频生成时间较长，设置较长超时）
+            response = requests.post(url, headers=headers, data=json.dumps(data), timeout=600)
+            # 获取结果
+            rsp = response.json().get('data') or response.json().get('message')
+        except Exception as e0:
+            self.LOG.error("发送到gen-video出错: %s", e0)
+            rsp = '发生未知错误, 稍后再试试捏'
+        return rsp
+
     def get_answer_type(self, question: str, wxid: str, sender: str):
         start_time = time.time()
         self.LOG.info("开始发送给get_answer_type")
@@ -172,6 +206,8 @@ class ChatGPT(ChatBot):
         result = self.get_answer_type(question, wxid, sender)
         if 'type' in result and result['type'] == 'gen-img':
             return self.async_gen_img(f"user_input:{question}, supplementary:{result['answer']}", wxid, sender)
+        if 'type' in result and result['type'] == 'gen-video':
+            return self.async_gen_video(f"user_input:{question}, supplementary:{result['answer']}", wxid, sender)
         if 'answer' in result:
             rsp = result['answer']
         if 'debug' in result:
@@ -189,7 +225,15 @@ class ChatGPT(ChatBot):
         executor.submit(self.gen_img, question, wxid, sender, '', local_msg_id.get(''))
         # 私聊时不@
         at_user = sender if wxid != sender else ""
-        base_client.send_text(wxid, at_user, "🚀您的作品将在1~10分钟左右完成，请耐心等待")
+        base_client.send_text(wxid, at_user, "📸您的作品将在1~10分钟左右完成，请耐心等待")
+        return ""
+
+    def async_gen_video(self, question: str, wxid: str, sender: str) -> str:
+        # 这里异步调用方法
+        executor.submit(self.gen_video, question, wxid, sender, None, local_msg_id.get(''))
+        # 私聊时不@
+        at_user = sender if wxid != sender else ""
+        base_client.send_text(wxid, at_user, "🎬视频生成中，预计需要2~10分钟，请耐心等待")
         return ""
 
     def async_gen_img_by_img(self, question: str, img_path: str, wxid: str, sender: str) -> str:
@@ -209,8 +253,9 @@ class ChatGPT(ChatBot):
         # 私聊时不@
         at_user = sender if wxid != sender else ""
         start_time = time.time()
-        self.LOG.info(f"开始发送给sd生图, img_path={img_path[:10]}")
-        rsp = self.send_sd(question, wxid, sender, img_path)
+        provider = random.choice(IMAGE_PROVIDERS)
+        self.LOG.info(f"开始发送给sd生图, img_path={img_path[:10] if img_path else ''}, provider={provider}")
+        rsp = self.send_sd(question, wxid, sender, provider)
         end_time = time.time()
         cost = round(end_time - start_time, 2)
         self.LOG.info("sd回答时间为：%s 秒", cost)
@@ -218,7 +263,11 @@ class ChatGPT(ChatBot):
             base_client.send_text(wxid, at_user, rsp)
             return
 
-        res_text = f"🎨绘画完成! \nprompt: {rsp.get('prompt')}"
+        # 获取 provider 首字母
+        provider_initial = provider[0].upper() if provider else 'U'
+
+        # 拼接 prompt 和 provider 信息
+        res_text = f"🎨绘画完成!\n{rsp.get('prompt')}\n\n该图片由{provider_initial}家提供"
         base_client.send_text(wxid, at_user, res_text)
 
         # 保存图片到本地
@@ -227,6 +276,51 @@ class ChatGPT(ChatBot):
         with open(file_path, "wb") as file:
             file.write(base64.b64decode(rsp.get('img')))
         base_client.send_img(file_path, wxid)
+
+    def gen_video(self, question, wxid, sender, img_path_list=None, msg_id=''):
+        # 私聊时不@
+        at_user = sender if wxid != sender else ""
+        start_time = time.time()
+        provider = random.choice(VIDEO_PROVIDERS)
+        self.LOG.info(f"开始发送给gen_video生成视频, img_path_list={img_path_list}, provider={provider}")
+        rsp = self.send_video(question, wxid, sender, img_path_list)
+        end_time = time.time()
+        cost = round(end_time - start_time, 2)
+        self.LOG.info("gen_video回答时间为：%s 秒", cost)
+
+        if isinstance(rsp, str):
+            # 错误信息
+            base_client.send_text(wxid, at_user, rsp)
+            return
+
+        if 'prompt' not in rsp:
+            base_client.send_text(wxid, at_user, str(rsp))
+            return
+
+        # 获取 provider 首字母
+        provider_initial = provider[0].upper() if provider else 'U'
+
+        # 处理视频：优先使用 URL，其次使用 base64
+        video_url = rsp.get('video_url')
+        video_base64 = rsp.get('video_base64')
+
+        # 拼接 prompt 和 provider 信息
+        res_text = f"🎬视频生成完成!\n{rsp.get('prompt')}\n\n该视频由{provider_initial}家提供"
+
+        if video_url:
+            # 如果是 URL，附加到消息中
+            res_text += f"\n📹视频链接: {video_url}"
+            base_client.send_text(wxid, at_user, res_text)
+        elif video_base64:
+            # 如果是 base64，保存到本地
+            file_path = get_file_path(msg_id, 'mp4')
+            with open(file_path, "wb") as file:
+                file.write(base64.b64decode(video_base64))
+            # 发送提示和文件路径
+            res_text += f"\n📹视频已保存: {file_path}"
+            base_client.send_text(wxid, at_user, res_text)
+        else:
+            base_client.send_text(wxid, at_user, res_text)
 
     def gen_analyze(self, question, wxid, sender, img_path=''):
         # 私聊时不@

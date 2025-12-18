@@ -22,36 +22,46 @@ if not os.path.exists("logs"):
 class LLMConfig(BaseSettings):
     """LLM 配置"""
     model_config = SettingsConfigDict(extra="ignore")
-    
+
     # OpenAI Keys（多 Key 负载均衡）
     key1: str = ""
     key2: str = ""
     key3: str = ""
-    
+
     # Claude
     claude_key1: str = ""
-    
+
     # DeepSeek
     ds_key1: str = ""
-    
+
     # Gemini
     gemini_key1: str = ""
-    
+
     # API 配置（兼容旧配置）
     api: str = "https://api.openai.com/v1/"
     proxy: str = ""
-    
+
     # 模型配置
-    default_model: str = "gpt-4o"              # 默认聊天模型
-    vision_model: str = "gpt-4o"               # 图像分析模型
-    image_model: str = "gpt-image-1"           # 图像生成模型
-    claude_model: str = "claude-sonnet-4-20250514"  # Claude 模型
+    default_model: str = "gpt-5.2"  # 默认聊天模型
+    # 图像多态配置
+    vision_model: str = "gpt-5.2"  # 图像分析模型
+
+    # 聊天模型
     deepseek_model: str = "deepseek/deepseek-chat"  # DeepSeek 模型
-    gemini_model: str = "gemini/gemini-2.0-flash"   # Gemini 模型
-    
+    claude_model: str = "claude-sonnet-4-5"  # Claude 模型
+    gemini_model: str = "gemini-3-pro-preview"  # Gemini 模型
+
+    # 图像生成配置
+    image_model: str = "gpt-image-1.5"  # 图像生成模型
+    gemini_image_model: str = "gemini-3-pro-image-preview"  # Gemini 图像模型
+
+    # 视频生成配置
+    openai_video_model: str = "sora-2-pro"  # OpenAI 视频模型
+    gemini_video_model: str = "veo-3.1-generate-preview"  # Gemini 视频模型
+
     # 使用 prompt2 的用户列表（特殊用户使用不同的系统提示词）
     prompt2_users: list[str] = []
-    
+
     # System Prompts
     prompt: str = "你是一个可爱的智能助手~"
     prompt2: str = "你是一个可爱的智能助手~"  # prompt2_users 用户专用
@@ -70,8 +80,8 @@ class HTTPConfig(BaseSettings):
 
 class SessionConfig(BaseSettings):
     """会话配置"""
-    max_history: int = 50      # 默认最大对话历史长度
-    ttl_seconds: int = 86400   # 24小时
+    max_history: int = 50  # 默认最大对话历史长度
+    ttl_seconds: int = 86400  # 24小时
 
 
 class PlatformKeyConfig(BaseSettings):
@@ -82,11 +92,11 @@ class PlatformKeyConfig(BaseSettings):
 class BaseServerConfig(BaseSettings):
     """Base 服务配置"""
     model_config = SettingsConfigDict(extra="ignore")
-    
+
     host: str = "http://localhost:5000/send-text"
-    self_wxid: str = ""      # 机器人微信ID
-    master_wxid: str = ""    # 主人微信ID
-    master_group: str = ""   # 主人群组
+    self_wxid: str = ""  # 机器人微信ID
+    master_wxid: str = ""  # 主人微信ID
+    master_group: str = ""  # 主人群组
 
 
 class Config(BaseSettings):
@@ -97,32 +107,32 @@ class Config(BaseSettings):
     model_config = SettingsConfigDict(
         extra="ignore"
     )
-    
+
     # 默认服务提供商 (openai/claude/deepseek/gemini)
     default_provider: str = "openai"
-    
+
     # 各模块配置
     chatgpt: Optional[LLMConfig] = None
     http: Optional[HTTPConfig] = None
     session: SessionConfig = SessionConfig()
     platform_key: PlatformKeyConfig = PlatformKeyConfig()
     base_server: BaseServerConfig = BaseServerConfig()
-    
+
     # 日志配置
     logging: Optional[dict] = None
-    
+
     @classmethod
     def from_yaml(cls, path: str = "config.yaml") -> "Config":
         """从 YAML 文件加载配置"""
         LOG.info(f"从 {path} 加载配置...")
-        
+
         with open(path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
-        
+
         # 配置日志
         if "logging" in data:
             logging.config.dictConfig(data["logging"])
-        
+
         return cls(**data)
 
 

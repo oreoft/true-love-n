@@ -53,3 +53,16 @@ class AnalyzeRequest(BaseModel):
     # 可选：指定模型
     provider: Optional[str] = Field(default=None, description="模型提供商: openai/claude/gemini")
     model: Optional[str] = Field(default=None, description="指定模型名称")
+
+
+class VideoRequest(BaseModel):
+    """视频生成请求"""
+    token: str = Field(..., description="鉴权 Token")
+    content: str = Field(..., description="视频描述")
+    img_data_list: Optional[list[str]] = Field(default=None, description="base64 编码的图像列表（图生视频时使用）")
+    wxid: str = Field(default="", description="会话 ID")
+    sender: str = Field(default="", description="发送者")
+    
+    # 可选：指定模型提供商和模型
+    provider: Optional[str] = Field(default=None, description="视频提供商: openai/gemini")
+    model: Optional[str] = Field(default=None, description="指定模型名称")

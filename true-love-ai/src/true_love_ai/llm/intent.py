@@ -27,6 +27,7 @@ class IntentType(str, Enum):
     CHAT = "chat"
     SEARCH = "search"
     GEN_IMAGE = "gen-img"
+    GEN_VIDEO = "gen-video"
 
 
 class ChatIntent(BaseModel):

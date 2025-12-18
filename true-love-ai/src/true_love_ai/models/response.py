@@ -36,7 +36,7 @@ class APIResponse(BaseModel):
 
 class ChatResponse(BaseModel):
     """聊天响应数据"""
-    type: str = Field(..., description="响应类型: chat/search/gen-img")
+    type: str = Field(..., description="响应类型: chat/search/gen-img/gen-video")
     answer: str = Field(..., description="回答内容")
     debug: Optional[str] = Field(default=None, description="调试信息")
 
@@ -51,3 +51,10 @@ class ImageTypeResponse(BaseModel):
     """图像类型响应数据"""
     type: str = Field(..., description="操作类型: gen_by_img/erase_img/replace_img/analyze_img/remove_background_img")
     answer: str = Field(..., description="操作描述词")
+
+
+class VideoResponse(BaseModel):
+    """视频响应数据"""
+    prompt: str = Field(..., description="使用的 prompt")
+    video_url: Optional[str] = Field(default=None, description="视频 URL")
+    video_base64: Optional[str] = Field(default=None, description="base64 编码的视频（部分提供商返回）")

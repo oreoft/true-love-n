@@ -108,7 +108,12 @@ class ChatService:
             # 生图意图：不存入 session，避免干扰后续聊天
             answer = intent_result.answer
             response_type = "gen-img"
-            
+
+        elif intent_result.type == IntentType.GEN_VIDEO:
+            # 生视频意图：不存入 session，避免干扰后续聊天
+            answer = intent_result.answer
+            response_type = "gen-video"
+
         else:
             answer = intent_result.answer or "呜呜，我不太明白你的意思呢~"
             response_type = "chat"
