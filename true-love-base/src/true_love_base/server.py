@@ -143,6 +143,41 @@ def send_file():
     return jsonify(ApiErrors.SEND_FAILED.to_dict())
 
 
+@app.route('/send/video', methods=['POST'])
+def send_video():
+    """
+    发送视频消息
+    
+    Request Body:
+        - sendReceiver: 接收者
+        - path: 视频文件路径（可以是 Server 的相对路径，会自动在 true-love-server 目录下查找）
+    """
+    robot = get_robot()
+    if robot is None:
+        return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
+    
+    data = request.json or {}
+    path = data.get('path', '')
+    receiver = data.get('sendReceiver', '')
+    
+    if not receiver or not path:
+        return jsonify(ApiErrors.INVALID_PARAMS.to_dict())
+    
+    # 解析 Server 相对路径
+    try:
+        resolved_path = resolve_path(path)
+    except FileNotFoundError as e:
+        LOG.error(f"Failed to send video to [{receiver}]: {e}")
+        return jsonify(ApiErrors.SEND_FAILED.to_dict())
+    
+    # 视频使用 send_file 发送
+    success = robot.send_file_msg(resolved_path, receiver)
+    
+    if success:
+        return jsonify(ApiResponse.success().to_dict())
+    return jsonify(ApiErrors.SEND_FAILED.to_dict())
+
+
 @app.route('/get/all', methods=['GET'])
 def get_all_contacts():
     """

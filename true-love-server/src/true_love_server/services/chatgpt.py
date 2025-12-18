@@ -32,12 +32,24 @@ VIDEO_PROVIDERS = ["openai", "gemini"]
 
 def get_file_path(msg_id, file_type='png'):
     # 使用当前工作目录（而非包内部）
-    download_directory = 'sd-img/'
+    download_directory = 'gen-img/'
     # 如果不存在，则创建该文件夹
     if not os.path.exists(download_directory):
         os.makedirs(download_directory)
     # 构建唯一文件名
     local_filename = f'{msg_id if msg_id else str(time.time())}.{file_type}'
+    # 构建完整的文件路径
+    return os.path.join(download_directory, local_filename)
+
+
+def get_video_file_path(msg_id):
+    # 使用当前工作目录（而非包内部）
+    download_directory = 'gen-video/'
+    # 如果不存在，则创建该文件夹
+    if not os.path.exists(download_directory):
+        os.makedirs(download_directory)
+    # 构建唯一文件名
+    local_filename = f'{msg_id if msg_id else str(time.time())}.mp4'
     # 构建完整的文件路径
     return os.path.join(download_directory, local_filename)
 
@@ -255,7 +267,7 @@ class ChatGPT(ChatBot):
         start_time = time.time()
         provider = random.choice(IMAGE_PROVIDERS)
         self.LOG.info(f"开始发送给sd生图, img_path={img_path[:10] if img_path else ''}, provider={provider}")
-        rsp = self.send_sd(question, wxid, sender, provider)
+        rsp = self.send_sd(question, wxid, sender, img_path, provider)
         end_time = time.time()
         cost = round(end_time - start_time, 2)
         self.LOG.info("sd回答时间为：%s 秒", cost)
@@ -283,7 +295,7 @@ class ChatGPT(ChatBot):
         start_time = time.time()
         provider = random.choice(VIDEO_PROVIDERS)
         self.LOG.info(f"开始发送给gen_video生成视频, img_path_list={img_path_list}, provider={provider}")
-        rsp = self.send_video(question, wxid, sender, img_path_list)
+        rsp = self.send_video(question, wxid, sender, img_path_list, provider)
         end_time = time.time()
         cost = round(end_time - start_time, 2)
         self.LOG.info("gen_video回答时间为：%s 秒", cost)
@@ -300,27 +312,32 @@ class ChatGPT(ChatBot):
         # 获取 provider 首字母
         provider_initial = provider[0].upper() if provider else 'U'
 
-        # 处理视频：优先使用 URL，其次使用 base64
-        video_url = rsp.get('video_url')
-        video_base64 = rsp.get('video_base64')
-
         # 拼接 prompt 和 provider 信息
         res_text = f"🎬视频生成完成!\n{rsp.get('prompt')}\n\n该视频由{provider_initial}家提供"
+        base_client.send_text(wxid, at_user, res_text)
+
+        # 处理视频：URL 和 base64 都保存到本地
+        video_url = rsp.get('video_url')
+        video_base64 = rsp.get('video_base64')
+        file_path = get_video_file_path(msg_id)
 
         if video_url:
-            # 如果是 URL，附加到消息中
-            res_text += f"\n📹视频链接: {video_url}"
-            base_client.send_text(wxid, at_user, res_text)
+            # 如果是 URL，下载保存到本地
+            try:
+                import requests as req
+                video_resp = req.get(video_url, timeout=120)
+                video_resp.raise_for_status()
+                with open(file_path, "wb") as file:
+                    file.write(video_resp.content)
+                base_client.send_video(file_path, wxid)
+            except Exception as e:
+                self.LOG.error(f"下载视频失败: {e}")
+                base_client.send_text(wxid, at_user, f"📹视频链接: {video_url}")
         elif video_base64:
             # 如果是 base64，保存到本地
-            file_path = get_file_path(msg_id, 'mp4')
             with open(file_path, "wb") as file:
                 file.write(base64.b64decode(video_base64))
-            # 发送提示和文件路径
-            res_text += f"\n📹视频已保存: {file_path}"
-            base_client.send_text(wxid, at_user, res_text)
-        else:
-            base_client.send_text(wxid, at_user, res_text)
+            base_client.send_video(file_path, wxid)
 
     def gen_analyze(self, question, wxid, sender, img_path=''):
         # 私聊时不@

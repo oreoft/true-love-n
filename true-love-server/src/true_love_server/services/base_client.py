@@ -17,6 +17,7 @@ config = Config()
 host = config.BASE_SERVER["host"]
 text_url = f"{host}/send/text"
 text_img = f"{host}/send/img"
+text_video = f"{host}/send/video"
 get_by_room_id_url = f"{host}/get/by/room-id"
 listen_status_url = f"{host}/listen/status"
 listen_add_url = f"{host}/listen/add"
@@ -64,6 +65,27 @@ def send_img(path, send_receiver):
         LOG.info("send_img请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
     except Exception as e:
         LOG.info("send_img 失败", e)
+    return ""
+
+
+def send_video(path, send_receiver):
+    payload = json.dumps({
+        "path": path,
+        "sendReceiver": send_receiver,
+    }, ensure_ascii=False)
+    headers = {
+        'Content-Type': 'application/json'
+    }
+
+    try:
+        start_time = time.time()
+        LOG.info("开始请求base推送video内容, req:[%s]", payload[:200])
+        res = requests.request("POST", text_video, headers=headers, data=payload, timeout=(2, 60))
+        # 检查HTTP响应状态
+        res.raise_for_status()
+        LOG.info("send_video请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
+    except Exception as e:
+        LOG.info("send_video 失败", e)
     return ""
 
 
