@@ -215,11 +215,10 @@ class Robot:
         
         流程：
         1. 从 DB 获取配置的监听列表
-        2. 执行健康检测（probe=True）
+        2. 执行健康检测（ChatInfo 响应检测）
         3. 分类处理：
-           - not_listening: 执行 add
-           - unhealthy: 执行 reset
            - healthy: 不处理（skip）
+           - unhealthy: 执行 reset
         
         Returns:
             刷新结果，包含:
@@ -228,8 +227,8 @@ class Robot:
             - fail_count: 失败数
             - listeners: 每个监听的详情列表
               - chat: 聊天名称
-              - before: 刷新前状态
-              - action: 执行的操作 (skip/add/reset)
+              - before: 刷新前状态 (healthy/unhealthy)
+              - action: 执行的操作 (skip/reset)
               - after: 刷新后状态
               - success: 是否成功
         """
@@ -245,7 +244,7 @@ class Robot:
             }
         
         # 执行健康检测
-        status = self.get_listener_status(probe=True)
+        status = self.get_listener_status()
         
         self.LOG.info(f"Refresh: DB has {len(db_chats)} chats, status: {status.get('summary', {})}")
         
@@ -253,7 +252,7 @@ class Robot:
         success_count = 0
         fail_count = 0
         
-        # 根据状态分类处理
+        # 根据状态分类处理（只有 healthy 和 unhealthy 两种状态）
         for item in status.get("listeners", []):
             chat_name = item.get("chat")
             before_status = item.get("status")
@@ -272,23 +271,8 @@ class Robot:
                 listener_info["after"] = "healthy"
                 listener_info["success"] = True
                 success_count += 1
-            
-            elif before_status == "not_listening":
-                # 未监听的，执行 add
-                listener_info["action"] = "add"
-                success = self.add_listen_chat(chat_name, persist=False, retry=True)
-                listener_info["success"] = success
-                if success:
-                    listener_info["after"] = "healthy"
-                    success_count += 1
-                    self.LOG.info(f"Added listener for [{chat_name}]")
-                else:
-                    listener_info["after"] = "failed"
-                    fail_count += 1
-                    self.LOG.error(f"Failed to add listener for [{chat_name}]")
-            
-            elif before_status == "unhealthy":
-                # 不健康的，执行 reset
+            else:
+                # unhealthy: 执行 reset（包括窗口不存在、ChatInfo 无响应等情况）
                 listener_info["action"] = "reset"
                 result = self.reset_listener(chat_name)
                 success = result.get("success", False)
@@ -298,16 +282,9 @@ class Robot:
                     success_count += 1
                     self.LOG.info(f"Reset listener for [{chat_name}]")
                 else:
-                    listener_info["after"] = "failed"
+                    listener_info["after"] = "unhealthy"
                     fail_count += 1
                     self.LOG.error(f"Failed to reset listener for [{chat_name}]: {result.get('message')}")
-            
-            else:
-                # 未知状态（listening 但未 probe，理论上不会到这里）
-                listener_info["action"] = "skip"
-                listener_info["after"] = before_status
-                listener_info["success"] = True
-                success_count += 1
             
             listeners.append(listener_info)
         
@@ -411,19 +388,25 @@ class Robot:
 
     # ==================== 监听状态与恢复 ====================
 
-    def get_listener_status(self, probe: bool = False) -> dict:
+    def get_listener_status(self) -> dict:
         """
-        获取监听状态（以 DB 为基准）
+        获取监听状态（以 DB 为基准，ChatInfo 响应为健康金标准）
         
-        Args:
-            probe: 是否执行主动探测（ChatInfo 检测）
+        状态定义（只有两种）：
+        - healthy: 子窗口存在 AND ChatInfo 能正确响应
+        - unhealthy: 子窗口不存在 OR ChatInfo 无法响应
             
         Returns:
-            状态结果字典
+            状态结果字典，包含:
+            - listeners: 每个监听的状态列表
+              - chat: 聊天名称
+              - status: healthy / unhealthy
+              - reason: 不健康的原因（可选）
+            - summary: 状态汇总 {"healthy": N, "unhealthy": M}
         """
         # 从 DB 获取配置的监听列表
         db_chats = self._listen_store.load()
-        return self.client.get_listener_status(db_chats, probe)
+        return self.client.get_listener_status(db_chats)
 
     def reset_listener(self, chat_name: str) -> dict:
         """

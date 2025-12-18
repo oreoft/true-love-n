@@ -185,30 +185,25 @@ def get_contacts_by_room_id():
 @app.route('/listen/status', methods=['GET'])
 def get_listener_status():
     """
-    获取监听状态（以 DB 为基准）
+    获取监听状态（以 DB 为基准，ChatInfo 响应为健康金标准）
     
-    Query Params:
-        - probe: 是否执行主动探测（可选，默认 false）
-          - false: 快速模式，只检查内存状态
-          - true: 探测模式，执行 ChatInfo 检测
+    状态定义（只有两种）：
+    - healthy: 子窗口存在 AND ChatInfo 能正确响应
+    - unhealthy: 子窗口不存在 OR ChatInfo 无法响应
     
     Response:
         - data: 状态结果，包含:
             - listeners: 每个监听的状态列表
               - chat: 聊天名称
-              - status: not_listening / listening / healthy / unhealthy
-              - reason: 失败原因（可选）
-            - summary: 状态汇总
-            - probe_mode: 是否为探测模式
+              - status: healthy / unhealthy
+              - reason: 不健康的原因（可选）
+            - summary: 状态汇总 {"healthy": N, "unhealthy": M}
     """
     robot = get_robot()
     if robot is None:
         return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
     
-    # 获取 probe 参数
-    probe = request.args.get('probe', 'false').lower() == 'true'
-    
-    result = robot.get_listener_status(probe=probe)
+    result = robot.get_listener_status()
     return jsonify(ApiResponse.success(result).to_dict())
 
 
@@ -269,19 +264,22 @@ def refresh_listen_chats():
     
     流程：
     1. 从 DB 获取配置的监听列表
-    2. 执行健康检测（probe=True）
+    2. 执行健康检测（ChatInfo 响应检测）
     3. 分类处理：
-       - not_listening: 执行 add
+       - healthy: 不处理（skip）
        - unhealthy: 执行 reset
-       - healthy: 不处理
     
     Response:
         - data: 刷新结果，包含:
-            - db_chats: DB 中的监听列表
-            - status_before: 刷新前的状态
-            - actions: 执行的操作
-            - recovered: 成功恢复的
-            - failed: 恢复失败的
+            - total: 总监听数
+            - success_count: 成功数
+            - fail_count: 失败数
+            - listeners: 每个监听的详情列表
+              - chat: 聊天名称
+              - before: 刷新前状态 (healthy/unhealthy)
+              - action: 执行的操作 (skip/reset)
+              - after: 刷新后状态
+              - success: 是否成功
     """
     robot = get_robot()
     if robot is None:

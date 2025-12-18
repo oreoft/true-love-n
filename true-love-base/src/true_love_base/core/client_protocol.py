@@ -134,35 +134,40 @@ class WeChatClientProtocol(ABC):
     @abstractmethod
     def is_sub_win_open(self, chat_name: str) -> bool:
         """
-        检查是否正在监听某个聊天（以运行时状态为准）
+        检测某个聊天的子窗口是否打开
+        
+        注意：子窗口打开不等于正在监听！
+        监听的金标准是 ChatInfo 能正确响应。
         
         Args:
             chat_name: 聊天对象名称
             
         Returns:
-            是否正在监听
+            子窗口是否打开（不能作为监听健康的依据）
         """
         pass
 
     # ==================== 监听状态与恢复 ====================
 
     @abstractmethod
-    def get_listener_status(self, db_chats: list[str], probe: bool = False) -> dict:
+    def get_listener_status(self, db_chats: list[str]) -> dict:
         """
-        获取监听状态（以 DB 为基准）
+        获取监听状态（以 DB 为基准，ChatInfo 响应为健康金标准）
+        
+        状态定义（只有两种）：
+        - healthy: 子窗口存在 AND ChatInfo 能正确响应
+        - unhealthy: 子窗口不存在 OR ChatInfo 无法响应
         
         Args:
             db_chats: DB 中配置的监听列表（基准值）
-            probe: 是否执行主动探测（ChatInfo 检测）
             
         Returns:
             状态结果字典，包含:
             - listeners: 每个监听的状态列表
               - chat: 聊天名称
-              - status: not_listening / listening / healthy / unhealthy
-              - reason: 失败原因（可选）
-            - summary: 状态汇总
-            - probe_mode: 是否为探测模式
+              - status: healthy / unhealthy
+              - reason: 不健康的原因（可选）
+            - summary: 状态汇总 {"healthy": N, "unhealthy": M}
         """
         pass
 

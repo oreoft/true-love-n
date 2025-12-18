@@ -299,13 +299,16 @@ class WxAutoClient(WeChatClientProtocol):
 
     def is_sub_win_open(self, chat_name: str) -> bool:
         """
-        检测监听某个聊天的窗口是否打开（以 GetAllSubWindow 为准）
+        检测某个聊天的子窗口是否打开（以 GetAllSubWindow 为准）
+        
+        注意：子窗口打开不等于正在监听！
+        监听的金标准是 ChatInfo 能正确响应。
         
         Args:
             chat_name: 聊天对象名称
             
         Returns:
-            窗口是否打开(不能作为监听依据)
+            子窗口是否打开（不能作为监听健康的依据）
         """
         try:
             sub_windows = self.wx.GetAllSubWindow()
@@ -318,47 +321,32 @@ class WxAutoClient(WeChatClientProtocol):
                     pass
             return False
         except Exception as e:
-            LOG.warning(f"Failed to check is_listening for [{chat_name}]: {e}")
+            LOG.warning(f"Failed to check sub window for [{chat_name}]: {e}")
             return False
 
-    def _has_active_listeners(self) -> bool:
+    def get_listener_status(self, db_chats: list[str]) -> dict:
         """
-        检查是否有活跃的监听器（以 GetAllSubWindow 为准）
+        获取监听状态（以 DB 为基准，ChatInfo 响应为健康金标准）
         
-        Returns:
-            是否有活跃的监听器
-        """
-        try:
-            sub_windows = self.wx.GetAllSubWindow()
-            return len(sub_windows) > 0
-        except Exception as e:
-            LOG.warning(f"Failed to check active listeners: {e}")
-            return False
-
-    def get_listener_status(self, db_chats: list[str], probe: bool = False) -> dict:
-        """
-        获取监听状态（以 DB 为基准，GetAllSubWindow 为运行时金标准）
-        
-        判断逻辑：
-        - DB 有，GetAllSubWindow 没有 → not_listening（掉了）
-        - DB 有，GetAllSubWindow 有 → listening（快速模式）
-        - DB 有，GetAllSubWindow 有，ChatInfo 无响应 → unhealthy（探测模式）
-        - DB 有，GetAllSubWindow 有，ChatInfo 有响应 → healthy（探测模式）
+        状态定义（只有两种）：
+        - healthy: GetAllSubWindow 有窗口 AND ChatInfo 能正确响应
+        - unhealthy: GetAllSubWindow 没有窗口 OR ChatInfo 无法响应
         
         Args:
             db_chats: DB 中配置的监听列表（基准值）
-            probe: 是否执行主动探测（ChatInfo 检测）
             
         Returns:
             状态结果字典，包含:
             - listeners: 每个监听的状态列表
-            - summary: 状态汇总
-            - probe_mode: 是否为探测模式
+              - chat: 聊天名称
+              - status: healthy / unhealthy
+              - reason: 不健康的原因（可选）
+            - summary: 状态汇总 {"healthy": N, "unhealthy": M}
         """
         listeners = []
-        summary = {"healthy": 0, "unhealthy": 0, "not_listening": 0, "listening": 0}
+        summary = {"healthy": 0, "unhealthy": 0}
 
-        # 获取活跃窗口（运行时金标准）
+        # 获取所有子窗口
         window_map = {}
         try:
             sub_windows = self.wx.GetAllSubWindow()
@@ -372,64 +360,53 @@ class WxAutoClient(WeChatClientProtocol):
             LOG.debug(f"GetAllSubWindow returned {len(window_map)} windows: {list(window_map.keys())}")
         except Exception as e:
             LOG.error(f"Failed to get sub windows: {e}")
-            # 获取窗口失败，所有配置都标记为 not_listening
+            # 获取窗口失败，所有配置都标记为 unhealthy
             for chat_name in db_chats:
                 listeners.append({
                     "chat": chat_name,
-                    "status": "not_listening",
+                    "status": "unhealthy",
                     "reason": f"get_windows_failed: {str(e)}"
                 })
-                summary["not_listening"] += 1
-            return {
-                "listeners": listeners,
-                "summary": summary,
-                "probe_mode": probe
-            }
+                summary["unhealthy"] += 1
+            return {"listeners": listeners, "summary": summary}
 
-        # 以 DB 为基准，结合 GetAllSubWindow 检查每个 chat 的状态
+        # 以 DB 为基准，检查每个 chat 的健康状态
         for chat_name in db_chats:
             status_info = {"chat": chat_name, "status": None, "reason": None}
 
-            # 检查是否在 GetAllSubWindow 中（运行时金标准）
+            # Step 1: 检查子窗口是否存在
             window = window_map.get(chat_name)
             if not window:
-                # 窗口不存在，说明监听掉了
-                status_info["status"] = "not_listening"
+                # 子窗口不存在 → unhealthy
+                status_info["status"] = "unhealthy"
                 status_info["reason"] = "window_not_found"
-                summary["not_listening"] += 1
+                summary["unhealthy"] += 1
                 listeners.append(status_info)
                 continue
 
-            # 窗口存在，根据 probe 参数决定状态
-            if not probe:
-                # 快速模式：有窗口就是 listening
-                status_info["status"] = "listening"
-                summary["listening"] += 1
-            else:
-                # 探测模式：执行 ChatInfo 检测
-                try:
-                    chat_info = window.ChatInfo()
-                    if chat_info:
-                        status_info["status"] = "healthy"
-                        summary["healthy"] += 1
-                    else:
-                        status_info["status"] = "unhealthy"
-                        status_info["reason"] = "chat_info_empty"
-                        summary["unhealthy"] += 1
-                except Exception as e:
+            # Step 2: 子窗口存在，检查 ChatInfo 是否能响应（监听健康的金标准）
+            try:
+                chat_info = window.ChatInfo()
+                if chat_info:
+                    # ChatInfo 有响应 → healthy
+                    status_info["status"] = "healthy"
+                    summary["healthy"] += 1
+                else:
+                    # ChatInfo 返回空 → unhealthy
                     status_info["status"] = "unhealthy"
-                    status_info["reason"] = f"probe_exception: {str(e)}"
+                    status_info["reason"] = "chat_info_empty"
                     summary["unhealthy"] += 1
+            except Exception as e:
+                # ChatInfo 异常 → unhealthy
+                status_info["status"] = "unhealthy"
+                status_info["reason"] = f"chat_info_exception: {str(e)}"
+                summary["unhealthy"] += 1
 
             listeners.append(status_info)
 
-        LOG.info(f"Listener status (probe={probe}): {summary}")
+        LOG.info(f"Listener status: {summary}")
 
-        return {
-            "listeners": listeners,
-            "summary": summary,
-            "probe_mode": probe
-        }
+        return {"listeners": listeners, "summary": summary}
 
     def reset_listener(self, chat_name: str, callback: MessageCallback) -> dict:
         """
