@@ -267,6 +267,78 @@ def refresh_listen_chats():
     return jsonify(ApiResponse.success(result).to_dict())
 
 
+@app.route('/listen/reset', methods=['POST'])
+def reset_listener():
+    """
+    重置单个监听
+    
+    通过关闭子窗口、移除监听、重新添加监听的方式恢复异常的监听。
+    用于修复因 UIA 窗口异常导致的单个监听失效问题。
+    
+    Request Body:
+        - chat_name: 聊天对象名称
+        
+    Response:
+        - data: 重置结果，包含 success, message, steps
+    """
+    robot = get_robot()
+    if robot is None:
+        return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
+    
+    data = request.json or {}
+    chat_name = data.get('chat_name', '')
+    
+    if not chat_name:
+        return jsonify(ApiErrors.INVALID_PARAMS.to_dict())
+    
+    result = robot.reset_listener(chat_name)
+    return jsonify(ApiResponse.success(result).to_dict())
+
+
+@app.route('/listen/reset-all', methods=['POST'])
+def reset_all_listeners():
+    """
+    重置所有监听
+    
+    通过停止所有监听、关闭所有子窗口、切换页面刷新 UI、重新添加所有监听的方式恢复。
+    用于修复因 UIA 整体异常导致的全部监听失效问题。
+    
+    Response:
+        - data: 重置结果，包含 success, message, total, recovered, failed, steps
+    """
+    robot = get_robot()
+    if robot is None:
+        return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
+    
+    result = robot.reset_all_listeners()
+    return jsonify(ApiResponse.success(result).to_dict())
+
+
+@app.route('/listen/health', methods=['GET'])
+def listener_health_check():
+    """
+    监听健康检查
+    
+    通过比对已注册的监听和实际活跃的子窗口来判断监听是否健康。
+    外部服务可定时调用此接口检测监听状态。
+    
+    Response:
+        - data: 健康检查结果，包含:
+            - healthy: 是否健康
+            - message: 状态描述
+            - registered_listeners: 已注册的监听列表
+            - active_windows: 活跃的子窗口列表
+            - unhealthy_listeners: 异常的监听列表
+            - orphan_windows: 孤立的窗口列表
+    """
+    robot = get_robot()
+    if robot is None:
+        return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
+    
+    result = robot.listener_health_check()
+    return jsonify(ApiResponse.success(result).to_dict())
+
+
 # ==================== Middleware ====================
 
 @app.before_request

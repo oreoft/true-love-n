@@ -358,3 +358,50 @@ class Robot:
             群成员字典 {id: nickname}
         """
         return self.client.get_chat_members(chat_name)
+
+    # ==================== 监听恢复 ====================
+
+    def reset_listener(self, chat_name: str) -> dict:
+        """
+        重置指定聊天的监听
+        
+        Args:
+            chat_name: 聊天对象名称
+            
+        Returns:
+            重置结果字典
+        """
+        if not hasattr(self.client, 'reset_listener'):
+            return {
+                "success": False,
+                "message": "Client does not support reset_listener"
+            }
+        return self.client.reset_listener(chat_name)
+
+    def reset_all_listeners(self) -> dict:
+        """
+        重置所有监听
+        
+        Returns:
+            重置结果字典
+        """
+        if not hasattr(self.client, 'reset_all_listeners'):
+            return {
+                "success": False,
+                "message": "Client does not support reset_all_listeners"
+            }
+        return self.client.reset_all_listeners()
+
+    def listener_health_check(self) -> dict:
+        """
+        监听健康检查
+        
+        Returns:
+            健康检查结果字典
+        """
+        if not hasattr(self.client, 'health_check'):
+            return {
+                "healthy": False,
+                "message": "Client does not support health_check"
+            }
+        return self.client.health_check()

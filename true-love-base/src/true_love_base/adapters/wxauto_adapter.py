@@ -7,6 +7,7 @@ WxAuto Adapter - wxautox4 SDK 适配器
 
 import json
 import logging
+import time
 from typing import Optional
 
 # This is a special import, please do not modify
@@ -166,16 +167,24 @@ class WxAutoClient(WeChatClientProtocol):
 
     # ==================== 消息监听 ====================
 
-    def add_message_listener(self, chat_name: str, callback: MessageCallback) -> bool:
-        """添加消息监听器"""
-        try:
-            LOG.info(f"Registering listener for [{chat_name}]")
-
-            # 创建内部回调，转换消息格式
-            # 注意：wxauto 回调签名是 (msg, chat)，必须接收两个参数
-            """
-             示例 raw_msg 属性：
-             私聊
+    def _create_internal_callback(self, chat_name: str, callback: MessageCallback):
+        """
+        创建内部回调函数
+        
+        将用户回调包装成 wxauto 需要的内部回调格式，包含消息过滤和格式转换逻辑。
+        
+        Args:
+            chat_name: 聊天对象名称
+            callback: 用户回调函数
+            
+        Returns:
+            内部回调函数（签名为 (raw_msg, chat)）
+            
+        Note:
+            wxauto 回调签名是 (msg, chat)，必须接收两个参数
+            
+            示例 raw_msg 属性：
+            私聊
              {
                 "attr": "friend", # 获取 attr, 属性system：系统消息 self：自己发送的消息 friend：好友消息 other：其他消息
                 "chat_info": {
@@ -210,45 +219,51 @@ class WxAutoClient(WeChatClientProtocol):
                   "sender": "纯路人",
                   "type": "text"
             }
-            """
+        """
+        def internal_callback(raw_msg, chat):
+            try:
+                LOG.info('--------------Start------------------')
+                attr = getattr(raw_msg, 'attr', '')
+                # 快速过滤：在消息转换之前过滤，减少不必要的处理
+                if attr.lower() in ['weixin', 'system', 'self']:
+                    LOG.info(f"ignored system message attr is [{attr}]")
+                    return
+                LOG.info('------------ Raw message info ------------\n%s', self._dump_obj_attrs(raw_msg))
+                LOG.info('------------ Raw chat info ------------\n%s', self._dump_obj_attrs(chat))
 
-            def internal_callback(raw_msg, chat):
+                # 使用 chat_info.chat_type 判断群聊（更可靠）
+                chat_info = getattr(raw_msg, 'chat_info', {}) or {}
+                is_group = chat_info.get('chat_type') == 'group'
+                content = getattr(raw_msg, 'content', str(raw_msg))
+                is_at_me = is_group and ('@真爱粉' in content or 'zaf' in content.lower())
+                if is_group and not is_at_me:
+                    LOG.info(
+                        f"ignored group message without @ from [{getattr(raw_msg, 'sender', '')}] and chat [{chat_name}]")
+                    return
+
+                # 转换消息
+                message = convert_message(raw_msg, chat_name)
+                LOG.info('Converted message: %r', message.to_dict())
+                LOG.info('---------------END-----------------')
+
+                # 调用用户回调
+                callback(message, chat_name)
+            except Exception as e:
+                LOG.error(f"Error in message callback for [{chat_name}]: {e}")
+                # 发送错误提示，避免用户感觉假死
                 try:
+                    self.wx.SendMsg("啊咧？消息好像坏掉了，麻烦再发一次吧~", chat_name)
+                except Exception as send_err:
+                    LOG.error(f"Failed to send error msg to [{chat_name}]: {send_err}")
 
-                    LOG.info('--------------Start------------------')
-                    attr = getattr(raw_msg, 'attr', '')
-                    # 快速过滤：在消息转换之前过滤，减少不必要的处理
-                    if attr.lower() in ['weixin', 'system', 'self']:
-                        LOG.info(f"ignored system message attr is [{attr}]")
-                        return
-                    LOG.info('------------ Raw message info ------------\n%s', self._dump_obj_attrs(raw_msg))
-                    LOG.info('------------ Raw chat info ------------\n%s', self._dump_obj_attrs(chat))
+        return internal_callback
 
-                    # 使用 chat_info.chat_type 判断群聊（更可靠）
-                    chat_info = getattr(raw_msg, 'chat_info', {}) or {}
-                    is_group = chat_info.get('chat_type') == 'group'
-                    content = getattr(raw_msg, 'content', str(raw_msg))
-                    is_at_me = is_group and ('@真爱粉' in content or 'zaf' in content.lower())
-                    if is_group and not is_at_me:
-                        LOG.info(
-                            f"ignored group message without @ from [{getattr(raw_msg, 'sender', '')}] and chat [{chat_name}]")
-                        return
+    def add_message_listener(self, chat_name: str, callback: MessageCallback) -> bool:
+        """添加消息监听器"""
+        try:
+            LOG.info(f"Registering listener for [{chat_name}]")
 
-                    # 转换消息
-                    message = convert_message(raw_msg, chat_name)
-                    LOG.info('Converted message: %r', message.to_dict())
-                    LOG.info('---------------END-----------------')
-
-                    # 调用用户回调
-                    callback(message, chat_name)
-                except Exception as e:
-                    LOG.error(f"Error in message callback for [{chat_name}]: {e}")
-                    # 发送错误提示，避免用户感觉假死
-                    try:
-                        self.wx.SendMsg("啊咧？消息好像坏掉了，麻烦再发一次吧~", chat_name)
-                    except Exception as send_err:
-                        LOG.error(f"Failed to send error msg to [{chat_name}]: {send_err}")
-
+            internal_callback = self._create_internal_callback(chat_name, callback)
             result = self.wx.AddListenChat(chat_name, internal_callback)
             if self._check_response(result, "AddListenChat", chat_name):
                 self._listeners[chat_name] = callback
@@ -295,6 +310,300 @@ class WxAutoClient(WeChatClientProtocol):
             LOG.info("Listening stopped by user")
         except Exception as e:
             LOG.error(f"Error in message listening: {e}")
+
+    # ==================== 监听恢复 ====================
+
+    def reset_listener(self, chat_name: str) -> dict:
+        """
+        重置指定聊天的监听
+        
+        通过关闭子窗口、移除监听、重新添加监听的方式恢复异常的监听。
+        
+        Args:
+            chat_name: 聊天对象名称
+            
+        Returns:
+            重置结果字典，包含:
+            - success: 是否成功
+            - message: 结果描述
+            - steps: 各步骤执行情况
+        """
+        steps = []
+        
+        try:
+            # 检查是否有该监听
+            if chat_name not in self._listeners:
+                return {
+                    "success": False,
+                    "message": f"Listener [{chat_name}] not found",
+                    "steps": steps
+                }
+            
+            # 保存原始回调
+            original_callback = self._listeners.get(chat_name)
+            
+            # Step 1: 尝试获取并关闭子窗口
+            try:
+                sub_window = self.wx.GetSubWindow(chat_name)
+                if sub_window:
+                    sub_window.Close()
+                    steps.append({"step": "close_window", "success": True})
+                    LOG.info(f"Closed sub window for [{chat_name}]")
+                else:
+                    steps.append({"step": "close_window", "success": True, "note": "no window found"})
+            except Exception as e:
+                steps.append({"step": "close_window", "success": False, "error": str(e)})
+                LOG.warning(f"Failed to close sub window for [{chat_name}]: {e}")
+            
+            # Step 2: 移除监听
+            try:
+                result = self.wx.RemoveListenChat(chat_name, close_window=True)
+                steps.append({"step": "remove_listen", "success": bool(result)})
+                LOG.info(f"Removed listener for [{chat_name}]: {result}")
+            except Exception as e:
+                steps.append({"step": "remove_listen", "success": False, "error": str(e)})
+                LOG.warning(f"Failed to remove listener for [{chat_name}]: {e}")
+            
+            # Step 3: 等待 UI 稳定
+            time.sleep(0.5)
+            steps.append({"step": "wait", "success": True, "duration": 0.5})
+            
+            # Step 4: 重新添加监听
+            try:
+                # 确保 _listeners 中有回调（可能被 RemoveListenChat 清理了）
+                if chat_name not in self._listeners and original_callback:
+                    self._listeners[chat_name] = original_callback
+                
+                internal_callback = self._create_internal_callback(chat_name, original_callback)
+                result = self.wx.AddListenChat(chat_name, internal_callback)
+                if result:
+                    steps.append({"step": "add_listen", "success": True})
+                    LOG.info(f"Re-added listener for [{chat_name}]")
+                    return {
+                        "success": True,
+                        "message": f"Successfully reset listener for [{chat_name}]",
+                        "steps": steps
+                    }
+                else:
+                    steps.append({"step": "add_listen", "success": False})
+                    return {
+                        "success": False,
+                        "message": f"Failed to re-add listener for [{chat_name}]",
+                        "steps": steps
+                    }
+            except Exception as e:
+                steps.append({"step": "add_listen", "success": False, "error": str(e)})
+                LOG.error(f"Failed to re-add listener for [{chat_name}]: {e}")
+                return {
+                    "success": False,
+                    "message": f"Exception re-adding listener: {e}",
+                    "steps": steps
+                }
+                
+        except Exception as e:
+            LOG.error(f"Reset listener failed for [{chat_name}]: {e}")
+            return {
+                "success": False,
+                "message": f"Exception: {e}",
+                "steps": steps
+            }
+
+    def reset_all_listeners(self) -> dict:
+        """
+        重置所有监听
+        
+        通过停止所有监听、关闭所有子窗口、切换页面刷新 UI、重新添加所有监听的方式恢复。
+        
+        Returns:
+            重置结果字典，包含:
+            - success: 是否成功
+            - message: 结果描述
+            - total: 总监听数
+            - recovered: 成功恢复的列表
+            - failed: 恢复失败的列表
+            - steps: 各步骤执行情况
+        """
+        steps = []
+        recovered = []
+        failed = []
+        
+        try:
+            # 保存当前所有回调
+            saved_listeners = dict(self._listeners)
+            total = len(saved_listeners)
+            
+            if total == 0:
+                return {
+                    "success": True,
+                    "message": "No listeners to reset",
+                    "total": 0,
+                    "recovered": [],
+                    "failed": [],
+                    "steps": steps
+                }
+            
+            LOG.info(f"Starting reset all listeners, total: {total}")
+            
+            # Step 1: 停止所有监听
+            try:
+                self.wx.StopListening(remove=True)
+                steps.append({"step": "stop_listening", "success": True})
+                LOG.info("Stopped all listening")
+            except Exception as e:
+                steps.append({"step": "stop_listening", "success": False, "error": str(e)})
+                LOG.warning(f"Failed to stop listening: {e}")
+            
+            # Step 2: 关闭所有子窗口
+            closed_count = 0
+            try:
+                sub_windows = self.wx.GetAllSubWindow()
+                for sub_window in sub_windows:
+                    try:
+                        sub_window.Close()
+                        closed_count += 1
+                    except Exception as e:
+                        LOG.warning(f"Failed to close sub window: {e}")
+                steps.append({"step": "close_all_windows", "success": True, "closed": closed_count})
+                LOG.info(f"Closed {closed_count} sub windows")
+            except Exception as e:
+                steps.append({"step": "close_all_windows", "success": False, "error": str(e)})
+                LOG.warning(f"Failed to close sub windows: {e}")
+            
+            # Step 3: 切换页面刷新 UI
+            try:
+                self.wx.SwitchToContact()
+                time.sleep(0.3)
+                self.wx.SwitchToChat()
+                time.sleep(0.3)
+                steps.append({"step": "switch_pages", "success": True})
+                LOG.info("Switched pages to refresh UI")
+            except Exception as e:
+                steps.append({"step": "switch_pages", "success": False, "error": str(e)})
+                LOG.warning(f"Failed to switch pages: {e}")
+            
+            # Step 4: 清空内部监听列表
+            self._listeners.clear()
+            
+            # Step 5: 重新添加所有监听
+            for chat_name, callback in saved_listeners.items():
+                try:
+                    # 重新构建内部回调
+                    internal_callback = self._create_internal_callback(chat_name, callback)
+                    result = self.wx.AddListenChat(chat_name, internal_callback)
+                    if result:
+                        # 添加成功，把 callback 加回 _listeners
+                        self._listeners[chat_name] = callback
+                        recovered.append(chat_name)
+                        LOG.info(f"Re-added listener for [{chat_name}]")
+                    else:
+                        failed.append(chat_name)
+                        LOG.error(f"Failed to re-add listener for [{chat_name}]")
+                except Exception as e:
+                    failed.append(chat_name)
+                    LOG.error(f"Exception re-adding listener for [{chat_name}]: {e}")
+            
+            steps.append({
+                "step": "re_add_listeners",
+                "success": len(failed) == 0,
+                "recovered": len(recovered),
+                "failed": len(failed)
+            })
+            
+            success = len(failed) == 0
+            return {
+                "success": success,
+                "message": f"Reset complete: {len(recovered)}/{total} recovered" if success else f"Reset partial: {len(recovered)}/{total} recovered, {len(failed)} failed",
+                "total": total,
+                "recovered": recovered,
+                "failed": failed,
+                "steps": steps
+            }
+            
+        except Exception as e:
+            LOG.error(f"Reset all listeners failed: {e}")
+            return {
+                "success": False,
+                "message": f"Exception: {e}",
+                "total": len(saved_listeners) if 'saved_listeners' in dir() else 0,
+                "recovered": recovered,
+                "failed": failed,
+                "steps": steps
+            }
+
+    def health_check(self) -> dict:
+        """
+        健康检查：检查监听状态是否正常
+        
+        通过比对已注册的监听和实际活跃的子窗口来判断监听是否健康。
+        
+        Returns:
+            健康检查结果字典，包含:
+            - healthy: 是否健康
+            - message: 状态描述
+            - registered_listeners: 已注册的监听列表
+            - active_windows: 活跃的子窗口列表
+            - unhealthy_listeners: 异常的监听列表（已注册但无对应窗口）
+            - orphan_windows: 孤立的窗口列表（有窗口但未注册）
+        """
+        try:
+            # 获取已注册的监听
+            registered = set(self._listeners.keys())
+            
+            # 获取所有活跃的子窗口
+            try:
+                sub_windows = self.wx.GetAllSubWindow()
+                active = set()
+                for w in sub_windows:
+                    try:
+                        who = getattr(w, 'who', None)
+                        if who:
+                            active.add(who)
+                    except Exception:
+                        pass
+            except Exception as e:
+                LOG.error(f"Failed to get sub windows: {e}")
+                # 获取子窗口失败，认为所有监听都不健康
+                return {
+                    "healthy": False,
+                    "message": f"Failed to get sub windows: {e}",
+                    "registered_listeners": list(registered),
+                    "active_windows": [],
+                    "unhealthy_listeners": list(registered),
+                    "orphan_windows": []
+                }
+            
+            # 计算差异
+            unhealthy = registered - active  # 已注册但无窗口
+            orphan = active - registered  # 有窗口但未注册
+            
+            healthy = len(unhealthy) == 0
+            
+            if healthy:
+                message = f"All {len(registered)} listeners are healthy"
+            else:
+                message = f"{len(unhealthy)}/{len(registered)} listeners are unhealthy"
+            
+            LOG.info(f"Health check: {message}, orphan windows: {len(orphan)}")
+            
+            return {
+                "healthy": healthy,
+                "message": message,
+                "registered_listeners": list(registered),
+                "active_windows": list(active),
+                "unhealthy_listeners": list(unhealthy),
+                "orphan_windows": list(orphan)
+            }
+            
+        except Exception as e:
+            LOG.error(f"Health check failed: {e}")
+            return {
+                "healthy": False,
+                "message": f"Health check exception: {e}",
+                "registered_listeners": list(self._listeners.keys()),
+                "active_windows": [],
+                "unhealthy_listeners": list(self._listeners.keys()),
+                "orphan_windows": []
+            }
 
     # ==================== 联系人管理 ====================
 
