@@ -132,7 +132,7 @@ class WeChatClientProtocol(ABC):
         pass
 
     @abstractmethod
-    def is_listening(self, chat_name: str) -> bool:
+    def is_sub_win_open(self, chat_name: str) -> bool:
         """
         检查是否正在监听某个聊天（以运行时状态为准）
         

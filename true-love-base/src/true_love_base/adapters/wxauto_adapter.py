@@ -297,15 +297,15 @@ class WxAutoClient(WeChatClientProtocol):
 
     # ==================== 监听状态与恢复 ====================
 
-    def is_listening(self, chat_name: str) -> bool:
+    def is_sub_win_open(self, chat_name: str) -> bool:
         """
-        检查是否正在监听某个聊天（以 GetAllSubWindow 为准）
+        检测监听某个聊天的窗口是否打开（以 GetAllSubWindow 为准）
         
         Args:
             chat_name: 聊天对象名称
             
         Returns:
-            是否正在监听
+            窗口是否打开(不能作为监听依据)
         """
         try:
             sub_windows = self.wx.GetAllSubWindow()

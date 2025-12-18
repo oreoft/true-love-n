@@ -131,12 +131,7 @@ class Robot:
             是否添加成功
         """
         import time
-
-        # 用 GetAllSubWindow 作为运行时金标准判断是否已在监听
-        if self.client.is_listening(chat_name):
-            self.LOG.warning(f"Already listening to [{chat_name}] (found in GetAllSubWindow)")
-            return True
-
+        
         max_attempts = self.LISTEN_ADD_RETRY_COUNT if retry else 1
         last_error = None
 
