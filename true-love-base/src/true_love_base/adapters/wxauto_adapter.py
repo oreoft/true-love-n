@@ -289,25 +289,6 @@ class WxAutoClient(WeChatClientProtocol):
         """开始消息监听（阻塞）"""
         try:
             LOG.info("Starting message listening...")
-
-            # 自旋等待 _listener_stop_event 初始化完成
-            # AddListenChat 是 UI 操作，需要时间创建窗口并初始化监听线程
-            max_wait = 15.0  # 最大等待 15 秒
-            interval = 0.3  # 每 0.3 秒检查一次
-            waited = 0.0
-
-            while waited < max_wait:
-                if hasattr(self.wx, '_listener_stop_event') and self.wx._listener_stop_event is not None:
-                    LOG.info(f"_listener_stop_event initialized after {waited:.1f}s")
-                    break
-                time.sleep(interval)
-                waited += interval
-            else:
-                # 超时仍未初始化
-                LOG.warning(f"_listener_stop_event not initialized after {max_wait}s, AddListenChat may have failed")
-                LOG.warning("KeepRunning() will not be called. Use API to add listeners first, then restart")
-                return
-
             self.wx.KeepRunning()
         except KeyboardInterrupt:
             LOG.info("Listening stopped by user")
