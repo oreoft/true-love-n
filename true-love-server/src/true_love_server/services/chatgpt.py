@@ -35,8 +35,10 @@ def is_friendly_message(msg: str) -> bool:
 name = "chatgpt"
 
 # 图像生成支持的 provider
-IMAGE_PROVIDERS = ["openai", "stability", "gemini"]
+IMAGE_PROVIDERS = ["openai", "gemini"]
+# IMAGE_PROVIDERS = ["openai", "stability", "gemini"]
 # 视频生成支持的 provider
+# VIDEO_PROVIDERS = ["gemini", "openai"]
 VIDEO_PROVIDERS = ["gemini"]
 
 
