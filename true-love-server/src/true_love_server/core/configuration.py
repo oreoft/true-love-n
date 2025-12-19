@@ -61,3 +61,4 @@ class Config:
             self.ASR: dict = yconfig.get("asr", {})
             self.BROWSERLESS: str = yconfig.get("browserless", "")
             self.AI_SERVICE: dict = yconfig.get("ai_service", {})
+            self.ALAPI: dict = yconfig.get("alapi", {})

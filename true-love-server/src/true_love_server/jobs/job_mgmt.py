@@ -52,7 +52,7 @@ class Job(object):
         """
         schedule.every(days).days.do(task, *args, **kwargs)
 
-    def on_every_time(self, times: Any, task: Callable[..., Any], *args, **kwargs) -> None:
+    def on_every_time(self, times: Any, task: Callable[..., Any], tz: str = "Asia/Shanghai", *args, **kwargs) -> None:
         """
         每天定时执行
         :param times: 时间字符串列表，格式:
@@ -60,6 +60,7 @@ class Job(object):
             - For hourly jobs -> MM:SS or :MM
             - For minute jobs -> :SS
         :param task: 定时执行的方法
+        :param tz: 时区，默认北京时间 (Asia/Shanghai)
         :return: None
 
         例子: times=["10:30", "10:45", "11:00"]
@@ -68,7 +69,7 @@ class Job(object):
             times = [times]
 
         for t in times:
-            schedule.every(1).days.at(t).do(task, *args, **kwargs)
+            schedule.every(1).days.at(t, tz).do(task, *args, **kwargs)
 
     def async_enable_jobs(self):
         Thread(target=self.enable_jobs, name="enableJobs", daemon=True).start()
@@ -80,16 +81,8 @@ class Job(object):
             time.sleep(1)
 
 
-# 导入这个包的时候,就会把这里的代码都执行一遍
-daytime_list = ["10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00",
-                "15:30", "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30",
-                "21:00", "21:30", "22:00"]
 job = Job()
-# job.on_every_time(daytime_list, job_process.notice_mei_yuan)
-# job.on_every_time("07:00", job_process.notice_library_schedule)
-# job.on_every_time("20:00", job_process.async_download_zao_bao_file)
-# job.on_every_time("20:01", job_process.async_download_moyu_file)
-# job.on_every_time("20:05", job_process.notice_moyu_schedule)
-# job.on_every_time("20:08", job_process.notice_usa_moyu_schedule)
-
-# job.on_every_time("22:00", job_process.notice_card_schedule)
+job.on_every_time("08:00", job_process.async_download_zao_bao_file)
+job.on_every_time("08:01", job_process.async_download_moyu_file)
+job.on_every_time("08:05", job_process.notice_moyu_schedule)
+job.on_every_time("08:00", job_process.notice_usa_moyu_schedule, tz="America/Chicago")  # 美中时间 20:08

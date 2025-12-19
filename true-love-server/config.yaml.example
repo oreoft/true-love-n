@@ -41,6 +41,10 @@ asr:
 # Server only processes messages that base decides to forward.
 # =============================================================
 
+# ALAPI configuration (早报等 API)
+alapi:
+  token: "your_alapi_token"
+
 # Auto notification settings (for scheduled notifications)
 auto_notice: {}
 
