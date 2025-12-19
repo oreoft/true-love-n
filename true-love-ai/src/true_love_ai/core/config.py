@@ -37,10 +37,6 @@ class LLMConfig(BaseSettings):
     # Gemini
     gemini_key1: str = ""
 
-    # API 配置（兼容旧配置）
-    api: str = "https://api.openai.com/v1/"
-    proxy: str = ""
-
     # 模型配置
     default_model: str = "gpt-5.2"  # 默认聊天模型
     # 图像多态配置
@@ -49,11 +45,11 @@ class LLMConfig(BaseSettings):
     # 聊天模型
     deepseek_model: str = "deepseek/deepseek-chat"  # DeepSeek 模型
     claude_model: str = "claude-sonnet-4-5"  # Claude 模型
-    gemini_model: str = "gemini-3-pro-preview"  # Gemini 模型
+    gemini_model: str = "gemini-3-pro"  # Gemini 模型
 
     # 图像生成配置
-    image_model: str = "gpt-image-1.5"  # 图像生成模型
-    gemini_image_model: str = "gemini-3-pro-image-preview"  # Gemini 图像模型
+    image_model: str = "dall-e-3"  # 图像生成模型
+    gemini_image_model: str = "gemini-3-pro-image"  # Gemini 图像模型
 
     # 视频生成配置
     openai_video_model: str = "sora-2-pro"  # OpenAI 视频模型

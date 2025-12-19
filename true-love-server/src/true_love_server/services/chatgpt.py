@@ -22,6 +22,16 @@ from ..core import Config, local_msg_id
 
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 
+
+def is_friendly_message(msg: str) -> bool:
+    """判断是否是 AI 服务处理过的友好文案（二次元风格）"""
+    if not msg or not isinstance(msg, str):
+        return False
+    # 二次元风格的关键特征
+    friendly_keywords = ['~', '呜呜', '啦', '捏', '吧~', '呢~', '哦~', '呀~']
+    return any(kw in msg for kw in friendly_keywords)
+
+
 name = "chatgpt"
 
 # 图像生成支持的 provider
@@ -84,15 +94,34 @@ class ChatGPT(ChatBot):
             headers = {'Content-Type': 'application/json'}
 
             # 发送请求
-            response = requests.post(url, headers=headers, data=json.dumps(data))
+            response = requests.post(url, headers=headers, data=json.dumps(data), timeout=120)
 
-            # 获取结果
-            rsp = response.json().get('data')
+            # 检查响应状态
+            if response.status_code != 200:
+                self.LOG.error(f"get-llm请求失败, status_code: {response.status_code}, body: {response.text[:500]}")
+                return {"type": "chat", "answer": "呜呜~AI服务好像出问题了捏，稍后再试试吧~"}
+
+            # 解析 JSON
+            json_data = response.json()
+
+            # 检查是否是错误响应
+            code = json_data.get('code', 0)
+            if code != 0:
+                error_msg = json_data.get('message', '未知错误')
+                self.LOG.error(f"get-llm返回错误, code: {code}, message: {error_msg}")
+                if is_friendly_message(error_msg):
+                    return {"type": "chat", "answer": error_msg}
+                return {"type": "chat", "answer": "呜呜~AI酱出了点小状况，稍后再来找我玩吧~"}
+
+            rsp = json_data.get('data')
             if rsp == '':
                 raise Exception("rep 返回为空")
+        except requests.exceptions.Timeout:
+            self.LOG.error("发送到get-llm超时")
+            rsp = {"type": "chat", "answer": "AI酱思考太久啦~等不及了，稍后再试试吧~"}
         except Exception as e0:
             self.LOG.error("发送到chatgpt出错: %s", e0)
-            rsp = {"type": "chat", "answer": "ai服务可用性受影响, 稍后再试试捏"}
+            rsp = {"type": "chat", "answer": "呜呜~出了点小状况，稍后再试试捏~"}
         return rsp
 
     def send_sd(self, question, wxid, sender, img_path, provider):
@@ -112,12 +141,33 @@ class ChatGPT(ChatBot):
             headers = {'Content-Type': 'application/json'}
 
             # 发送请求
-            response = requests.post(url, headers=headers, data=json.dumps(data))
-            # 获取结果
-            rsp = response.json().get('data') or response.json().get('message')
+            response = requests.post(url, headers=headers, data=json.dumps(data), timeout=300)
+
+            # 检查响应状态
+            if response.status_code != 200:
+                self.LOG.error(f"gen-img请求失败, status_code: {response.status_code}, body: {response.text[:500]}")
+                return '呜呜~画画服务好像出问题了捏，稍后再试试吧~'
+
+            # 解析 JSON
+            json_data = response.json()
+
+            # 检查是否是错误响应
+            code = json_data.get('code', 0)
+            if code != 0:
+                error_msg = json_data.get('message', '未知错误')
+                self.LOG.error(f"gen-img返回错误, code: {code}, message: {error_msg}")
+                # 如果是 AI 服务处理过的友好文案，直接返回
+                if is_friendly_message(error_msg):
+                    return error_msg
+                return '呜呜~画画酱出了点小状况，稍后再来找我玩吧~'
+
+            rsp = json_data.get('data')
+        except requests.exceptions.Timeout:
+            self.LOG.error("发送到gen-img超时")
+            rsp = '画画酱画太久啦~等不及了，稍后再试试吧~'
         except Exception as e0:
             self.LOG.error("发送到sd出错: %s", e0)
-            rsp = '发生未知错误, 稍后再试试捏'
+            rsp = '呜呜~出了点小状况，稍后再试试捏~'
         return rsp
 
     def get_img_type(self, question):
@@ -135,13 +185,34 @@ class ChatGPT(ChatBot):
             # 发送请求
             start_time = time.time()
             self.LOG.info("开始发送给get_img_type")
-            response = requests.post(url, headers=headers, data=json.dumps(data))
-            # 获取结果
-            rsp = response.json().get('data') or response.json().get('message')
+            response = requests.post(url, headers=headers, data=json.dumps(data), timeout=60)
+
+            # 检查响应状态
+            if response.status_code != 200:
+                self.LOG.error(
+                    f"get-img-type请求失败, status_code: {response.status_code}, body: {response.text[:500]}")
+                return '呜呜~识别服务好像出问题了捏，稍后再试试吧~'
+
+            # 解析 JSON
+            json_data = response.json()
+
+            # 检查是否是错误响应
+            code = json_data.get('code', 0)
+            if code != 0:
+                error_msg = json_data.get('message', '未知错误')
+                self.LOG.error(f"get-img-type返回错误, code: {code}, message: {error_msg}")
+                if is_friendly_message(error_msg):
+                    return error_msg
+                return '呜呜~识别酱出了点小状况，稍后再来找我玩吧~'
+
+            rsp = json_data.get('data')
             self.LOG.info(f"get_img_type回答时间为：{round(time.time() - start_time, 2)}s, result:{rsp}")
+        except requests.exceptions.Timeout:
+            self.LOG.error("发送到get-img-type超时")
+            rsp = '识别酱思考太久啦~等不及了，稍后再试试吧~'
         except Exception as e0:
             self.LOG.error("发送到get_img_type出错: %s", e0)
-            rsp = '发生未知错误, 稍后再试试捏'
+            rsp = '呜呜~出了点小状况，稍后再试试捏~'
         return rsp
 
     def send_analyze(self, question, wxid, sender, img_path):
@@ -160,12 +231,32 @@ class ChatGPT(ChatBot):
             headers = {'Content-Type': 'application/json'}
 
             # 发送请求
-            response = requests.post(url, headers=headers, data=json.dumps(data))
-            # 获取结果
-            rsp = response.json().get('data') or response.json().get('message')
+            response = requests.post(url, headers=headers, data=json.dumps(data), timeout=120)
+
+            # 检查响应状态
+            if response.status_code != 200:
+                self.LOG.error(f"get-analyze请求失败, status_code: {response.status_code}, body: {response.text[:500]}")
+                return '呜呜~分析服务好像出问题了捏，稍后再试试吧~'
+
+            # 解析 JSON
+            json_data = response.json()
+
+            # 检查是否是错误响应
+            code = json_data.get('code', 0)
+            if code != 0:
+                error_msg = json_data.get('message', '未知错误')
+                self.LOG.error(f"get-analyze返回错误, code: {code}, message: {error_msg}")
+                if is_friendly_message(error_msg):
+                    return error_msg
+                return '呜呜~分析酱出了点小状况，稍后再来找我玩吧~'
+
+            rsp = json_data.get('data')
+        except requests.exceptions.Timeout:
+            self.LOG.error("发送到get-analyze超时")
+            rsp = '分析酱思考太久啦~等不及了，稍后再试试吧~'
         except Exception as e0:
             self.LOG.error("发送到send_analyze出错: %s", e0)
-            rsp = '发生未知错误, 稍后再试试捏'
+            rsp = '呜呜~出了点小状况，稍后再试试捏~'
         return rsp
 
     def send_video(self, question, wxid, sender, img_path_list=None, provider=None):
@@ -189,27 +280,37 @@ class ChatGPT(ChatBot):
 
             # 发送请求（视频生成时间较长，设置较长超时）
             response = requests.post(url, headers=headers, data=json.dumps(data), timeout=600)
-            
+
             # 先检查响应状态
             if response.status_code != 200:
                 self.LOG.error(f"gen-video请求失败, status_code: {response.status_code}, body: {response.text[:500]}")
                 return f'呜呜~视频生成服务好像出问题了捏 (HTTP {response.status_code})'
-            
+
             # 检查响应内容是否为空
             response_text = response.text
             if not response_text or not response_text.strip():
                 self.LOG.error("gen-video响应为空")
                 return '诶嘿~服务器君好像睡着了，什么都没回我呢，再试试吧~'
-            
+
             # 尝试解析 JSON
             try:
                 json_data = response.json()
             except json.JSONDecodeError as je:
                 self.LOG.error(f"gen-video响应JSON解析失败: {je}, 响应内容: {response_text[:500]}")
                 return '呀~服务器君说的话我听不懂，稍后再试试吧~'
-            
+
+            # 检查是否是错误响应
+            code = json_data.get('code', 0)
+            if code != 0:
+                error_msg = json_data.get('message', '未知错误')
+                self.LOG.error(f"gen-video返回错误, code: {code}, message: {error_msg}")
+                # 如果是 AI 服务处理过的友好文案，直接返回
+                if is_friendly_message(error_msg):
+                    return error_msg
+                return '呜呜~视频酱出了点小状况，稍后再来找我玩吧~'
+
             # 获取结果
-            rsp = json_data.get('data') or json_data.get('message')
+            rsp = json_data.get('data')
         except requests.exceptions.Timeout:
             self.LOG.error("发送到gen-video超时")
             rsp = '视频酱制作太久啦~等不及了，稍后再试试吧~'
@@ -218,7 +319,7 @@ class ChatGPT(ChatBot):
             rsp = '呜呜~连不上视频服务器君了，稍后再试试吧~'
         except Exception as e0:
             self.LOG.error("发送到gen-video出错: %s", e0)
-            rsp = '发生未知错误, 稍后再试试捏'
+            rsp = '呜呜~出了点小状况，稍后再试试捏~'
         return rsp
 
     def get_answer_type(self, question: str, wxid: str, sender: str):
