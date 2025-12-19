@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>真爱粉管理</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            color: #1a1a1a;
+        }
+        
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .toast {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            animation: slideIn 0.3s ease;
+            max-width: 350px;
+            text-align: center;
+        }
+        
+        .toast.success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .toast.error {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .toast.info {
+            background: #1a1a1a;
+            color: white;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Header */
+        .header {
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-content {
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .header h1 span {
+            color: #10b981;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        /* Buttons */
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .btn-primary {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: #059669;
+        }
+        
+        .btn-secondary {
+            background: #374151;
+            color: white;
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            background: #4b5563;
+        }
+        
+        .btn-danger {
+            background: transparent;
+            color: #ef4444;
+            border: 1px solid #ef4444;
+        }
+        
+        .btn-danger:hover:not(:disabled) {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            color: #1a1a1a;
+            border: 1px solid #d1d5db;
+        }
+        
+        .btn-outline:hover:not(:disabled) {
+            background: #f3f4f6;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .btn-xs {
+            padding: 4px 10px;
+            font-size: 11px;
+        }
+        
+        /* Summary */
+        .summary-bar {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        
+        .summary-content {
+            background: white;
+            border-radius: 10px;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .summary-stats {
+            display: flex;
+            gap: 24px;
+        }
+        
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .stat-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        
+        .stat-dot.healthy {
+            background: #10b981;
+        }
+        
+        .stat-dot.unhealthy {
+            background: #ef4444;
+        }
+        
+        .stat-label {
+            font-size: 13px;
+            color: #6b7280;
+        }
+        
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+        
+        /* List */
+        .list-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 20px 100px;
+        }
+        
+        .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .list-title {
+            font-size: 14px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+        
+        .listener-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .listener-item {
+            background: white;
+            border-radius: 10px;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s;
+        }
+        
+        .listener-item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .listener-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        .status-indicator.healthy {
+            background: #10b981;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+        
+        .status-indicator.unhealthy {
+            background: #ef4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+        }
+        
+        .listener-details {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .listener-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: #1a1a1a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .listener-status {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+        
+        .listener-status.healthy {
+            color: #10b981;
+        }
+        
+        .listener-status.unhealthy {
+            color: #ef4444;
+        }
+        
+        .listener-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+        
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        .empty-text {
+            font-size: 15px;
+            margin-bottom: 20px;
+        }
+        
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e5e7eb;
+            border-top-color: #10b981;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            padding: 20px;
+        }
+        
+        .modal {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 20px;
+        }
+        
+        .modal-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 15px;
+            margin-bottom: 20px;
+            transition: border-color 0.2s;
+        }
+        
+        .modal-input:focus {
+            outline: none;
+            border-color: #10b981;
+        }
+        
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        .modal-message {
+            font-size: 15px;
+            color: #4b5563;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+        
+        /* Add Button Card */
+        .add-card {
+            background: white;
+            border-radius: 10px;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px dashed #d1d5db;
+            color: #6b7280;
+            font-size: 14px;
+            gap: 8px;
+        }
+        
+        .add-card:hover {
+            border-color: #10b981;
+            color: #10b981;
+            background: #f0fdf4;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Toast Container -->
+        <div class="toast-container">
+            <div 
+                v-for="toast in toasts" 
+                :key="toast.id" 
+                :class="['toast', toast.type]"
+            >
+                {{ toast.message }}
+            </div>
+        </div>
+        
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>📡 <span>真爱粉</span>管理</h1>
+                <div class="header-actions">
+                    <button class="btn btn-secondary btn-xs" @click="refreshAll" :disabled="loading">
+                        刷新
+                    </button>
+                    <button class="btn btn-secondary btn-xs" @click="resetAll" :disabled="loading">
+                        重置
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Summary Bar -->
+        <div class="summary-bar">
+            <div class="summary-content">
+                <div class="summary-stats">
+                    <div class="stat-item">
+                        <span class="stat-dot healthy"></span>
+                        <span class="stat-label">健康</span>
+                        <span class="stat-value">{{ summary.healthy }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-dot unhealthy"></span>
+                        <span class="stat-label">异常</span>
+                        <span class="stat-value">{{ summary.unhealthy }}</span>
+                    </div>
+                </div>
+                <button class="btn btn-outline btn-sm" @click="fetchStatus" :disabled="loading">
+                    {{ loading ? '加载中...' : '刷新状态' }}
+                </button>
+            </div>
+        </div>
+        
+        <!-- List -->
+        <div class="list-container">
+            <div class="list-header">
+                <span class="list-title">监听列表 ({{ listeners.length }})</span>
+            </div>
+            
+            <!-- Loading -->
+            <div v-if="loading && listeners.length === 0" class="loading">
+                <div class="spinner"></div>
+                <p>加载中...</p>
+            </div>
+            
+            <!-- List Content -->
+            <div v-else class="listener-list">
+                <!-- Listener Items -->
+                <div 
+                    v-for="item in listeners" 
+                    :key="item.chat" 
+                    class="listener-item"
+                >
+                    <div class="listener-info">
+                        <span :class="['status-indicator', item.status]"></span>
+                        <div class="listener-details">
+                            <div class="listener-name">{{ item.chat }}</div>
+                            <div :class="['listener-status', item.status]">
+                                {{ item.status === 'healthy' ? '运行正常' : (item.reason || '状态异常') }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="listener-actions">
+                        <button 
+                            class="btn btn-outline btn-sm" 
+                            @click="resetOne(item.chat)"
+                            :disabled="loadingItems[item.chat]"
+                        >
+                            {{ loadingItems[item.chat] === 'reset' ? '重置中...' : '重置' }}
+                        </button>
+                        <button 
+                            class="btn btn-danger btn-sm" 
+                            @click="removeOne(item.chat)"
+                            :disabled="loadingItems[item.chat]"
+                        >
+                            {{ loadingItems[item.chat] === 'remove' ? '删除中...' : '删除' }}
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Add Card -->
+                <div class="add-card" @click="showAddModal = true">
+                    <span>➕</span>
+                    <span>添加监听</span>
+                </div>
+            </div>
+            
+            <!-- Empty State (when not loading and no items) -->
+            <div v-if="!loading && listeners.length === 0" class="empty-state">
+                <div class="empty-icon">📭</div>
+                <p class="empty-text">暂无监听记录</p>
+            </div>
+        </div>
+        
+        <!-- Add Modal -->
+        <div v-if="showAddModal" class="modal-overlay" @click.self="showAddModal = false">
+            <div class="modal">
+                <h3 class="modal-title">添加监听</h3>
+                <input 
+                    v-model="newChatName" 
+                    class="modal-input" 
+                    placeholder="请输入聊天名称（好友昵称或群名）"
+                    @keyup.enter="addListener"
+                    ref="addInput"
+                />
+                <div class="modal-actions">
+                    <button class="btn btn-outline" @click="showAddModal = false">取消</button>
+                    <button class="btn btn-primary" @click="addListener" :disabled="!newChatName.trim() || addLoading">
+                        {{ addLoading ? '添加中...' : '确认添加' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Confirm Modal -->
+        <div v-if="confirmModal.show" class="modal-overlay" @click.self="confirmModal.show = false">
+            <div class="modal">
+                <h3 class="modal-title">{{ confirmModal.title }}</h3>
+                <p class="modal-message">{{ confirmModal.message }}</p>
+                <div class="modal-actions">
+                    <button class="btn btn-outline" @click="confirmModal.show = false">取消</button>
+                    <button class="btn btn-danger" @click="confirmModal.onConfirm">确认</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, onMounted, watch, nextTick } = Vue;
+        
+        const BASE_HOST = 'http://localhost:5000';
+        
+        createApp({
+            setup() {
+                const listeners = ref([]);
+                const summary = ref({ healthy: 0, unhealthy: 0 });
+                const loading = ref(false);
+                const loadingItems = reactive({});
+                const toasts = ref([]);
+                
+                const showAddModal = ref(false);
+                const newChatName = ref('');
+                const addLoading = ref(false);
+                const addInput = ref(null);
+                
+                const confirmModal = reactive({
+                    show: false,
+                    title: '',
+                    message: '',
+                    onConfirm: () => {}
+                });
+                
+                const showConfirm = (title, message, onConfirm) => {
+                    confirmModal.title = title;
+                    confirmModal.message = message;
+                    confirmModal.onConfirm = () => {
+                        confirmModal.show = false;
+                        onConfirm();
+                    };
+                    confirmModal.show = true;
+                };
+                
+                // Toast
+                const showToast = (message, type = 'info') => {
+                    const id = Date.now();
+                    toasts.value.push({ id, message, type });
+                    setTimeout(() => {
+                        toasts.value = toasts.value.filter(t => t.id !== id);
+                    }, 3000);
+                };
+                
+                // API Request
+                const request = async (url, options = {}) => {
+                    try {
+                        const response = await fetch(BASE_HOST + url, {
+                            headers: { 'Content-Type': 'application/json' },
+                            ...options
+                        });
+                        const data = await response.json();
+                        if (data.code !== 0) {
+                            throw new Error(data.message || '请求失败');
+                        }
+                        return data;
+                    } catch (error) {
+                        if (error.message === 'Failed to fetch') {
+                            throw new Error('无法连接到服务器，请检查 Base 服务是否启动');
+                        }
+                        throw error;
+                    }
+                };
+                
+                // Fetch Status
+                const fetchStatus = async () => {
+                    loading.value = true;
+                    try {
+                        const data = await request('/listen/status');
+                        listeners.value = data.data?.listeners || [];
+                        summary.value = data.data?.summary || { healthy: 0, unhealthy: 0 };
+                    } catch (error) {
+                        showToast(error.message, 'error');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+                
+                // Add Listener
+                const addListener = async () => {
+                    if (!newChatName.value.trim()) return;
+                    
+                    addLoading.value = true;
+                    try {
+                        await request('/listen/add', {
+                            method: 'POST',
+                            body: JSON.stringify({ chat_name: newChatName.value.trim() })
+                        });
+                        showToast('添加成功', 'success');
+                        showAddModal.value = false;
+                        newChatName.value = '';
+                        await fetchStatus();
+                    } catch (error) {
+                        showToast(error.message, 'error');
+                    } finally {
+                        addLoading.value = false;
+                    }
+                };
+                
+                // Remove Listener
+                const removeOne = (chatName) => {
+                    showConfirm('删除确认', `确定要删除「${chatName}」的监听吗？`, async () => {
+                        loadingItems[chatName] = 'remove';
+                        try {
+                            await request('/listen/remove', {
+                                method: 'POST',
+                                body: JSON.stringify({ chat_name: chatName })
+                            });
+                            showToast('删除成功', 'success');
+                            await fetchStatus();
+                        } catch (error) {
+                            showToast(error.message, 'error');
+                        } finally {
+                            delete loadingItems[chatName];
+                        }
+                    });
+                };
+                
+                // Reset One
+                const resetOne = async (chatName) => {
+                    loadingItems[chatName] = 'reset';
+                    try {
+                        const data = await request('/listen/reset', {
+                            method: 'POST',
+                            body: JSON.stringify({ chat_name: chatName })
+                        });
+                        showToast(data.data?.message || '重置成功', 'success');
+                        await fetchStatus();
+                    } catch (error) {
+                        showToast(error.message, 'error');
+                    } finally {
+                        delete loadingItems[chatName];
+                    }
+                };
+                
+                // Refresh All
+                const refreshAll = async () => {
+                    loading.value = true;
+                    try {
+                        const data = await request('/listen/refresh', { method: 'POST' });
+                        const result = data.data;
+                        showToast(`刷新完成：成功 ${result?.success_count || 0}，失败 ${result?.fail_count || 0}`, 'success');
+                        await fetchStatus();
+                    } catch (error) {
+                        showToast(error.message, 'error');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+                
+                // Reset All
+                const resetAll = () => {
+                    showConfirm('重置确认', '确定要重置所有监听吗？这将重启所有监听连接。', async () => {
+                        loading.value = true;
+                        try {
+                            const data = await request('/listen/reset-all', { method: 'POST' });
+                            const result = data.data;
+                            showToast(result?.message || '重置全部完成', 'success');
+                            await fetchStatus();
+                        } catch (error) {
+                            showToast(error.message, 'error');
+                        } finally {
+                            loading.value = false;
+                        }
+                    });
+                };
+                
+                // Watch modal to focus input
+                watch(showAddModal, (val) => {
+                    if (val) {
+                        nextTick(() => {
+                            addInput.value?.focus();
+                        });
+                    }
+                });
+                
+                // Init
+                onMounted(() => {
+                    fetchStatus();
+                });
+                
+                return {
+                    listeners,
+                    summary,
+                    loading,
+                    loadingItems,
+                    toasts,
+                    showAddModal,
+                    newChatName,
+                    addLoading,
+                    addInput,
+                    confirmModal,
+                    fetchStatus,
+                    addListener,
+                    removeOne,
+                    resetOne,
+                    refreshAll,
+                    resetAll
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

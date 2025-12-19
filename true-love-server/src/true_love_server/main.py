@@ -7,6 +7,9 @@ Main Entry Point - 主入口
 
 import signal
 import logging
+import threading
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+from functools import partial
 
 import uvicorn
 
@@ -17,6 +20,14 @@ from .core import Config, create_db_and_table
 
 LOG = logging.getLogger("Main")
 config = Config()
+
+
+def start_static_server(port: int = 8089, directory: str = 'static'):
+    """启动静态文件服务器"""
+    handler = partial(SimpleHTTPRequestHandler, directory=directory)
+    server = HTTPServer(("0.0.0.0", port), handler)
+    LOG.info("静态页面服务启动: http://0.0.0.0:%s", port)
+    server.serve_forever()
 
 
 def notice_master():
@@ -43,6 +54,10 @@ def main():
     # 注册并异步启动定时任务
     job = Job()
     job.async_enable_jobs()
+
+    # 启动静态页面服务器（独立线程）
+    static_thread = threading.Thread(target=start_static_server, args=(8089, 'static'), daemon=True)
+    static_thread.start()
 
     # 创建 FastAPI 应用
     app = create_app()
