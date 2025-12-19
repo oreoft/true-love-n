@@ -92,7 +92,7 @@ def notice_ao_yuan_schedule():
     if rsp2 != "": msg = msg + "今日美元汇率情况：\n" + rsp2
     moyu_dir = "https://api.vvhan.com/api/moyu"
     # 使用相对路径，base 端会自动解析到 true-love-server 目录
-    zao_bao_path = 'zaobao-jpg/' + datetime.now().strftime('%m-%d-%Y') + '.jpg'
+    zao_bao_path = 'zaobao-jpg/' + get_current_date('Australia/Melbourne') + '.jpg'
     for room_id in room_ids:
         base_client.send_text(room_id, "", msg)
         base_client.send_img(moyu_dir, room_id)
@@ -104,7 +104,7 @@ def notice_ao_yuan_schedule():
 @log_function_execution
 def send_daily_notice(room_id, content='早上好☀️家人萌~', tz: str = "Asia/Shanghai"):
     # 使用指定时区的日期，确保文件名与下载任务的触发时间一致
-    current_date = datetime.now(pytz.timezone(tz)).strftime('%m-%d-%Y')
+    current_date = get_current_date(tz)
     moyu_file_path = f'moyu-jpg/{current_date}.jpg'
     zao_bao_file_path = f'zaobao-jpg/{current_date}.jpg'
     r_resp = trig_search_handler.run("查询日元汇率")
@@ -173,7 +173,7 @@ def download_moyu_file():
     download_directory = 'moyu-jpg/'
     if not os.path.exists(download_directory):
         os.makedirs(download_directory)
-    local_filename = f'{get_current_date_utc8()}.jpg'
+    local_filename = f'{get_current_date()}.jpg'
     full_file_path = os.path.join(download_directory, local_filename)
     retry_count = 3
     file_url = ''
@@ -201,7 +201,7 @@ def download_zao_bao_file():
     download_directory = 'zaobao-jpg/'
     if not os.path.exists(download_directory):
         os.makedirs(download_directory)
-    local_filename = f'{get_current_date_utc8()}.jpg'
+    local_filename = f'{get_current_date()}.jpg'
     full_file_path = os.path.join(download_directory, local_filename)
 
     url = "https://v3.alapi.cn/api/zaobao"
@@ -237,7 +237,7 @@ def get_moyu_url_by_wx():
 
         for item in album_items:
             title = item.find('div', class_='album__item-title').text.strip()
-            if f"[摸鱼人日历]{get_current_date_utc8()}" in title or f"[摸鱼人日历]{get_current_date_utc8().lstrip('0')}" in title:
+            if f"[摸鱼人日历]{get_current_date()}" in title or f"[摸鱼人日历]{get_current_date().lstrip('0')}" in title:
                 link = item['data-link']
                 LOG.info(f"article link: {link}")
                 result = send_to_jina(link)
@@ -277,8 +277,8 @@ def send_to_jina(link):
         return None
 
 
-def get_current_date_utc8():
-    tz = pytz.timezone('Asia/Shanghai')
+def get_current_date(tzs: str = "Asia/Shanghai"):
+    tz = pytz.timezone(tzs)
     current_date_utc8 = datetime.now(tz)
     formatted_date = current_date_utc8.strftime('%m月%d号')
     return formatted_date
