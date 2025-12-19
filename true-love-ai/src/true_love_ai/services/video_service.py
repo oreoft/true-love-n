@@ -141,12 +141,12 @@ class VideoService:
         try:
             # Step 1: 先尝试快速关键词匹配
             style_id = video_prompt.quick_match_style(content)
-            
+
             # Step 2: 如果快速匹配没有结果，使用 LLM 进行风格匹配
             if not style_id:
                 LOG.info("快速匹配无结果，使用 LLM 进行风格匹配...")
                 style_matcher_prompt = video_prompt.get_style_matcher_prompt()
-                
+
                 style_id = await self.llm_router.chat(
                     messages=[
                         {"role": "system", "content": style_matcher_prompt},
@@ -155,21 +155,21 @@ class VideoService:
                     provider=provider,
                     model=model
                 )
-                
+
                 # 清理 LLM 返回的风格 ID
                 style_id = style_id.strip().lower()
-                
+
                 # 验证风格 ID 是否有效
                 valid_ids = video_prompt.get_all_style_ids()
                 if style_id not in valid_ids:
                     LOG.warning(f"LLM 返回的风格 ID 无效: {style_id}，使用 general")
                     style_id = "general"
-            
+
             LOG.info(f"匹配到的视频风格: {style_id}")
-            
+
             # Step 3: 使用匹配到的风格模板生成最终 prompt
             generator_prompt = video_prompt.get_prompt_generator_prompt(style_id, content)
-            
+
             video_prompt_text = await self.llm_router.chat(
                 messages=[
                     {"role": "system", "content": generator_prompt},
@@ -178,10 +178,10 @@ class VideoService:
                 provider=provider,
                 model=model
             )
-            
+
             LOG.info(f"生成的视频描述词 (风格: {style_id}): {video_prompt_text[:100]}...")
             return video_prompt_text
-            
+
         except Exception as e:
             LOG.warning(f"生成视频描述词失败，使用原始内容: {e}")
             return content
@@ -274,7 +274,11 @@ class VideoService:
                 gen_params["input_reference"] = open(temp_file.name, "rb")
 
             # Step 1: 发起视频生成请求
-            response = await litellm.avideo_generation(**gen_params)
+            try:
+                response = await litellm.avideo_generation(**gen_params)
+            except litellm.RateLimitError as e:
+                LOG.warning(f"OpenAI 视频生成触发速率限制: {e}")
+                raise ValueError("呜呜~视频酱今天太累了，等一会再来找我玩吧~")
             video_id_remote = response.id
             LOG.info(f"OpenAI {task_type}任务已创建, video_id: {video_id_remote}")
 
@@ -286,16 +290,25 @@ class VideoService:
                 try:
                     video_bytes = await litellm.avideo_content(video_id=video_id_remote, api_key=api_key)
                     if video_bytes:
-                        LOG.info(f"[{video_id_remote}] OpenAI {task_type}完成, 大小: {len(video_bytes) / 1024 / 1024:.2f}MB")
+                        LOG.info(
+                            f"[{video_id_remote}] OpenAI {task_type}完成, 大小: {len(video_bytes) / 1024 / 1024:.2f}MB")
                         break
+                except litellm.RateLimitError as e:
+                    LOG.warning(f"[{video_id_remote}] OpenAI 视频生成触发速率限制: {e}")
+                    raise ValueError("呜呜~视频酱今天太累了，等一会再来找我玩吧~")
                 except Exception as e:
                     error_str = str(e).lower()
+                    # 检查是否是速率限制
+                    if any(kw in error_str for kw in ["rate", "quota", "429", "resource_exhausted"]):
+                        LOG.warning(f"[{video_id_remote}] OpenAI 视频生成触发速率限制: {str(e)[:200]}")
+                        raise ValueError("呜呜~视频酱今天太累了，等一会再来找我玩吧~")
                     # 检查是否是内容安全过滤
                     if any(kw in error_str for kw in ["content_policy", "safety", "filtered", "moderation", "blocked"]):
                         LOG.warning(f"[{video_id_remote}] OpenAI 内容安全过滤触发: {str(e)[:200]}")
                         raise ValueError("生成失败啦! 内容太不堪入目了吧~")
                     # 视频还在处理中
-                    LOG.debug(f"[{video_id_remote}] OpenAI {task_type}中... 尝试: {attempt + 1}/{max_attempts}, err: {str(e)[:50]}")
+                    LOG.debug(
+                        f"[{video_id_remote}] OpenAI {task_type}中... 尝试: {attempt + 1}/{max_attempts}, err: {str(e)[:50]}")
                     await asyncio.sleep(interval)
             else:
                 LOG.error(f"[{video_id_remote}] OpenAI {task_type}超时")
@@ -370,7 +383,11 @@ class VideoService:
                 gen_params["input_reference"] = temp_file.name
 
             # Step 1: 发起视频生成请求
-            response = await litellm.avideo_generation(**gen_params)
+            try:
+                response = await litellm.avideo_generation(**gen_params)
+            except litellm.RateLimitError as e:
+                LOG.warning(f"Gemini 视频生成触发速率限制: {e}")
+                raise ValueError("呜呜~视频酱今天太累了，等一会再来找我玩吧~")
             video_id_remote = response.id
             LOG.info(f"Gemini {task_type}任务已创建, video_id: {video_id_remote}")
 
@@ -392,10 +409,18 @@ class VideoService:
                     LOG.debug(
                         f"[{video_id_remote}] Gemini {task_type}中... 状态: {status}, 尝试: {attempt + 1}/{max_attempts}")
                     await asyncio.sleep(interval)
+                except litellm.RateLimitError as e:
+                    LOG.warning(f"[{video_id_remote}] Gemini 视频生成触发速率限制: {e}")
+                    raise ValueError("呜呜~视频酱今天太累了，等一会再来找我玩吧~")
                 except Exception as e:
                     error_str = str(e).lower()
+                    # 检查是否是速率限制
+                    if any(kw in error_str for kw in ["rate", "quota", "429", "resource_exhausted"]):
+                        LOG.warning(f"[{video_id_remote}] Gemini 视频生成触发速率限制: {str(e)[:200]}")
+                        raise ValueError("呜呜~视频酱今天太累了，等一会再来找我玩吧~")
                     # 检查是否是内容安全过滤导致的错误
-                    if any(kw in error_str for kw in ["raimediafiltered", "filtered", "generatedsamples", "safety", "policy", "blocked"]):
+                    if any(kw in error_str for kw in
+                           ["raimediafiltered", "filtered", "generatedsamples", "safety", "policy", "blocked"]):
                         LOG.warning(f"[{video_id_remote}] Gemini 内容安全过滤触发: {str(e)[:200]}")
                         raise ValueError("生成失败啦! 内容太不堪入目了吧~")
                     # 其他错误继续抛出
