@@ -17,3 +17,4 @@ def create_db_and_table():
     ''')
     conn.commit()
     conn.close()
+

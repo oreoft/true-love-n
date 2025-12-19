@@ -463,9 +463,6 @@
             <div class="header-content">
                 <h1>📡 <span>真爱粉</span>管理</h1>
                 <div class="header-actions">
-                    <button class="btn btn-secondary btn-xs" @click="refreshAll" :disabled="loading">
-                        刷新
-                    </button>
                     <button class="btn btn-secondary btn-xs" @click="resetAll" :disabled="loading">
                         重置
                     </button>
@@ -488,8 +485,8 @@
                         <span class="stat-value">{{ summary.unhealthy }}</span>
                     </div>
                 </div>
-                <button class="btn btn-outline btn-sm" @click="fetchStatus" :disabled="loading">
-                    {{ loading ? '加载中...' : '刷新状态' }}
+                <button class="btn btn-outline btn-sm" @click="refreshAll" :disabled="loading">
+                    {{ loading ? '刷新中...' : '刷新' }}
                 </button>
             </div>
         </div>

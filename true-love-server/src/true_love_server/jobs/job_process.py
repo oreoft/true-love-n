@@ -293,3 +293,4 @@ def check_image_openable(image_path):
     except (IOError, SyntaxError) as e:
         LOG.error(f"Cannot open image: {e}")
         return False
+
