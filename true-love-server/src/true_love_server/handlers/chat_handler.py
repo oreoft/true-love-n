@@ -176,8 +176,18 @@ class ChatHandler(BaseHandler):
             request_url = "https://www.textise.net/showtext.aspx?strURL=" + url
             headers = {'Accept': 'application/json', 'User-Agent': 'PostmanRuntime/7.40.0'}
             response = requests.get(url=request_url, headers=headers, timeout=30)
-            response_data = response.json()
-            content = response_data.get('data', {}).get('content', '')
+            
+            # 兼容处理：先尝试 JSON 解析，失败则使用纯文本
+            try:
+                response_data = response.json()
+                content = response_data.get('data', {}).get('content', '')
+            except (ValueError, requests.exceptions.JSONDecodeError):
+                # Jina 返回的不是 JSON，直接使用文本内容
+                content = response.text
+            
+            if not content:
+                content = response.text
+            
             content = re.sub(r'\(http.*?\)', '', content)
             content = content.replace('[]', '').replace('\n\n', '\n').strip()
             return content
