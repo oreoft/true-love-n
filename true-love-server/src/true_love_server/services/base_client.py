@@ -26,7 +26,19 @@ listen_refresh_url = f"{host}/listen/refresh"
 LOG = logging.getLogger("BaseClient")
 
 
-def send_text(send_receiver, at_receiver, content):
+def send_text(send_receiver, at_receiver, content, raise_on_error: bool = False) -> tuple[bool, str]:
+    """
+    发送文本消息
+
+    Args:
+        send_receiver: 接收者
+        at_receiver: @的用户
+        content: 消息内容
+        raise_on_error: 是否在失败时抛出异常
+
+    Returns:
+        (是否成功, 错误信息)
+    """
     payload = json.dumps({
         "sendReceiver": send_receiver,
         "atReceiver": at_receiver,
@@ -39,15 +51,28 @@ def send_text(send_receiver, at_receiver, content):
         start_time = time.time()
         LOG.info("开始请求base推送text内容, req:[%s]", payload)
         res = requests.request("POST", text_url, headers=headers, data=payload, timeout=(2, 60))
-        # 检查HTTP响应状态
         res.raise_for_status()
         LOG.info("请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
+        return True, ""
     except Exception as e:
-        LOG.info("send_text 失败", e)
-    return ""
+        LOG.error("send_text 失败: %s", e)
+        if raise_on_error:
+            raise
+        return False, str(e)
 
 
-def send_img(path, send_receiver):
+def send_img(path, send_receiver, raise_on_error: bool = False) -> tuple[bool, str]:
+    """
+    发送图片消息
+
+    Args:
+        path: 图片路径
+        send_receiver: 接收者
+        raise_on_error: 是否在失败时抛出异常
+
+    Returns:
+        (是否成功, 错误信息)
+    """
     payload = json.dumps({
         "path": path,
         "sendReceiver": send_receiver,
@@ -60,15 +85,28 @@ def send_img(path, send_receiver):
         start_time = time.time()
         LOG.info("开始请求base推送img内容, req:[%s]", payload[:200])
         res = requests.request("POST", text_img, headers=headers, data=payload, timeout=(2, 60))
-        # 检查HTTP响应状态
         res.raise_for_status()
         LOG.info("send_img请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
+        return True, ""
     except Exception as e:
-        LOG.info("send_img 失败", e)
-    return ""
+        LOG.error("send_img 失败: %s", e)
+        if raise_on_error:
+            raise
+        return False, str(e)
 
 
-def send_video(path, send_receiver):
+def send_video(path, send_receiver, raise_on_error: bool = False) -> tuple[bool, str]:
+    """
+    发送视频消息
+
+    Args:
+        path: 视频路径
+        send_receiver: 接收者
+        raise_on_error: 是否在失败时抛出异常
+
+    Returns:
+        (是否成功, 错误信息)
+    """
     payload = json.dumps({
         "path": path,
         "sendReceiver": send_receiver,
@@ -81,12 +119,14 @@ def send_video(path, send_receiver):
         start_time = time.time()
         LOG.info("开始请求base推送video内容, req:[%s]", payload[:200])
         res = requests.request("POST", text_video, headers=headers, data=payload, timeout=(2, 60))
-        # 检查HTTP响应状态
         res.raise_for_status()
         LOG.info("send_video请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
+        return True, ""
     except Exception as e:
-        LOG.info("send_video 失败", e)
-    return ""
+        LOG.error("send_video 失败: %s", e)
+        if raise_on_error:
+            raise
+        return False, str(e)
 
 
 def get_by_room_id(room_id) -> dict:
@@ -100,22 +140,21 @@ def get_by_room_id(room_id) -> dict:
         start_time = time.time()
         LOG.info("开始请求get_all内容")
         res = requests.request("POST", get_by_room_id_url, headers=headers, data=payload, timeout=(2, 60))
-        # 检查HTTP响应状态
         res.raise_for_status()
         LOG.info("get_all请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
         return res.json()['data']
     except Exception as e:
-        LOG.info("get_all 失败", e)
+        LOG.error("get_all 失败: %s", e)
     return {}
 
 
-def get_listen_status(probe: bool = False) -> dict | None:
+def get_listen_status() -> dict | None:
     """
     获取监听状态
-    
+
     Args:
         probe: 是否执行主动探测（ChatInfo 检测）
-        
+
     Returns:
         监听状态字典，包含:
         - listeners: 每个监听的状态列表
@@ -125,9 +164,8 @@ def get_listen_status(probe: bool = False) -> dict | None:
     """
     try:
         start_time = time.time()
-        LOG.info("开始请求监听状态, probe=%s", probe)
-        params = {"probe": "true" if probe else "false"}
-        res = requests.get(listen_status_url, params=params, timeout=(2, 60))
+        LOG.info("开始get_listen_status监听状态")
+        res = requests.get(listen_status_url, params={}, timeout=(2, 60))
         res.raise_for_status()
         LOG.info("get_listen_status请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
         return res.json().get('data')
@@ -139,14 +177,14 @@ def get_listen_status(probe: bool = False) -> dict | None:
 def get_listen_list() -> list | None:
     """
     获取所有监听对象列表（从状态接口提取）
-    
+
     Returns:
         监听对象列表，失败返回 None
     """
-    status = get_listen_status(probe=False)
-    if status is None:
+    status = get_listen_status()
+    # 检查 status 是否有效（可能是 None、空字符串、或其他非字典类型）
+    if not status or not isinstance(status, dict):
         return None
-    # 从 listeners 中提取 chat 名称列表
     listeners = status.get('listeners', [])
     return [item.get('chat') for item in listeners if item.get('chat')]
 
@@ -154,10 +192,10 @@ def get_listen_list() -> list | None:
 def add_listen(chat_name: str) -> tuple[bool, str]:
     """
     添加监听对象
-    
+
     Args:
         chat_name: 要监听的聊天名称
-        
+
     Returns:
         (是否成功, 消息)
     """
@@ -183,10 +221,10 @@ def add_listen(chat_name: str) -> tuple[bool, str]:
 def remove_listen(chat_name: str) -> tuple[bool, str]:
     """
     删除监听对象
-    
+
     Args:
         chat_name: 要删除的聊天名称
-        
+
     Returns:
         (是否成功, 消息)
     """
@@ -212,7 +250,7 @@ def remove_listen(chat_name: str) -> tuple[bool, str]:
 def refresh_listen() -> tuple[bool, dict | None, str]:
     """
     刷新监听列表（智能刷新，以 DB 为基准）
-    
+
     Returns:
         (是否成功, 刷新结果数据, 消息)
         刷新结果数据包含:
@@ -224,7 +262,7 @@ def refresh_listen() -> tuple[bool, dict | None, str]:
     try:
         start_time = time.time()
         LOG.info("开始刷新监听列表")
-        res = requests.post(listen_refresh_url, timeout=(2, 120))  # 刷新可能需要更长时间
+        res = requests.post(listen_refresh_url, timeout=(2, 120))
         res.raise_for_status()
         result = res.json()
         LOG.info("refresh_listen请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, result)

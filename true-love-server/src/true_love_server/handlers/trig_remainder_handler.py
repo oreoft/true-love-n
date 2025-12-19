@@ -67,9 +67,9 @@ class TrigRemainderHandler:
             scheduler.add_job(self.send_reminder, 'date', run_date=reminder_time, args=[question, sender, at],
                               name=f"{at}-{question}")
         except Exception as e:
-            self.LOG.error("执行提醒时间失败", e)
-            return "设置提醒失败, 请重新检查表述是否包含有效时间"
-        return f"设置提醒成功, 将会在本地时间{[str(reminder_time)]}进行消息提醒"
+            self.LOG.error("执行提醒时间失败: %s", e)
+            return "呜呜~设置提醒失败了捏，检查一下表述是否包含有效时间吧~"
+        return f"好耶~设置提醒成功啦，将会在本地时间 {str(reminder_time)} 提醒你哦~"
 
     def send_reminder(self, content, sender, at):
         self.LOG.info("开始收到延迟执行消息, content:%s, sender:%s, at:%s", content, sender, at)
@@ -90,5 +90,5 @@ class TrigRemainderHandler:
             wix_job = job.name.split("-")
             if id == job.id:
                 job.remove()
-                return f"取消提醒成功, {wix_job[1]}-[{job.next_run_time}]不再提醒"
-        return "取消提醒失败, 没有找到这个id"
+                return f"好耶~取消提醒成功啦，{wix_job[1]}不再提醒了~"
+        return "呜呜~取消提醒失败了，找不到这个id捏~"

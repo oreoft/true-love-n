@@ -29,7 +29,7 @@ class TrigManageHandler:
         # 移除 $管理 前缀，获取子类命令
         cmd = question.replace("$管理", "").strip()
         if Config().BASE_SERVER.get("master_name") != sender:
-            return "只有管理员才能使用管理命令哦"
+            return "诶嘿~只有管理员才能使用管理命令哦~"
 
         if not cmd:
             return self._get_main_help()
@@ -80,9 +80,9 @@ class TrigManageHandler:
         LOG.info("开始查询监听列表")
         result = base_client.get_listen_list()
         if result is None:
-            return "查询监听列表失败，请稍后重试"
+            return "呜呜~查询监听列表失败了捏，稍后再试试吧~"
         if not result:
-            return "当前没有监听任何对象"
+            return "诶嘿~当前没有监听任何对象哦~"
 
         # 格式化输出
         listen_list = "\n".join([f"  {i + 1}. {name}" for i, name in enumerate(result)])
@@ -98,15 +98,15 @@ class TrigManageHandler:
         # 只拆分第一个 -，因为监听名称本身可能包含 -
         parts = action.split("-", 1)
         if len(parts) < 2 or not parts[1].strip():
-            return "请指定要添加的监听对象，格式: $管理监听 新增-监听名称"
+            return "诶嘿~请指定要添加的监听对象哦，格式: $管理监听 新增-监听名称"
 
         chat_name = parts[1].strip()
         LOG.info(f"开始添加监听: {chat_name}")
 
         success, msg = base_client.add_listen(chat_name)
         if success:
-            return f"添加监听成功: {chat_name}"
-        return f"添加监听失败: {msg}"
+            return f"好耶~添加监听成功: {chat_name}"
+        return f"呜呜~添加监听失败了: {msg}"
 
     def _remove_listen(self, action: str) -> str:
         """
@@ -118,15 +118,15 @@ class TrigManageHandler:
         # 只拆分第一个 -，因为监听名称本身可能包含 -
         parts = action.split("-", 1)
         if len(parts) < 2 or not parts[1].strip():
-            return "请指定要删除的监听对象，格式: $管理监听 删除-监听名称"
+            return "诶嘿~请指定要删除的监听对象哦，格式: $管理监听 删除-监听名称"
 
         chat_name = parts[1].strip()
         LOG.info(f"开始删除监听: {chat_name}")
 
         success, msg = base_client.remove_listen(chat_name)
         if success:
-            return f"删除监听成功: {chat_name}"
-        return f"删除监听失败: {msg}"
+            return f"好耶~删除监听成功: {chat_name}"
+        return f"呜呜~删除监听失败了: {msg}"
 
     def _refresh_listen(self) -> str:
         """
@@ -136,10 +136,10 @@ class TrigManageHandler:
         success, data, msg = base_client.refresh_listen()
         
         if not success:
-            return f"刷新监听列表失败: {msg}"
-        
+            return f"呜呜~刷新监听列表失败了: {msg}"
+
         if data is None:
-            return "刷新监听列表失败: 返回数据为空"
+            return "呜呜~刷新监听列表失败了，返回数据是空的捏~"
         
         # 解析新结构
         total = data.get('total', 0)

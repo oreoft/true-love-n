@@ -59,7 +59,7 @@ class TrigTaskHandler:
             return self.mc_cha_hao()
         if '抽签' in question:
             return self.chou_qian(room_id)
-        return '该执行任务无法找到'
+        return '诶嘿~没有找到这个执行任务呢，检查一下命令吧~'
 
     @staticmethod
     def do_job_process(question: str) -> str:
@@ -68,7 +68,7 @@ class TrigTaskHandler:
         method_to_call = getattr(job_process, method_name, None)
         if method_to_call:
             method_to_call()
-            return "执行成功"
+            return "好耶~执行成功啦~"
         else:
             result = f"Method {method_name} not found."
             LOG.info(result)
@@ -86,7 +86,7 @@ class TrigTaskHandler:
             'Content-Type': 'application/json'
         }
         LOG.info(requests.request("POST", url, headers=headers, data=payload))
-        return "命令发送成功, 请等待部署平台结果"
+        return "好耶~命令已经发送成功啦，等待部署平台的结果吧~"
 
     @staticmethod
     def query_cafeteria_card_record_all():
@@ -102,7 +102,7 @@ class TrigTaskHandler:
                 if record[wix] > 0:
                     result = f"当前还剩下[{record[wix]}]次"
                 else:
-                    result = "无效的卡号或次数不足"
+                    result = "呜呜~卡号无效或者次数不够了捏~"
 
                 recent_swipes = [r for r in swipe_records if r["cardNumber"] == wix][-5:]
                 recent_swipes.reverse()
@@ -127,7 +127,7 @@ class TrigTaskHandler:
             if wix in record and record[wix] >= 0:
                 result = f"当前还剩下[{record[wix]}]次"
             else:
-                result = "查询失败, 无效的卡号或次数不足"
+                result = "呜呜~查询失败了，卡号无效或者次数不够捏~"
 
             with open("cardSwipeRecords.json", "r") as file:
                 swipe_records = json.load(file)
@@ -136,13 +136,13 @@ class TrigTaskHandler:
             recent_swipes.reverse()
             result += f"\n最近的刷卡记录:\n" + "\n".join([f"{r['currentTime']}" for r in recent_swipes])
         except FileNotFoundError as e:
-            LOG.error("查询失败, 记录文件不存在", e)
-            result = "查询失败, 记录文件不存在"
+            LOG.error("查询失败, 记录文件不存在: %s", e)
+            result = "呜呜~查询失败了，找不到记录文件捏~"
         except json.JSONDecodeError as e:
-            LOG.error("查询失败, 记录文件格式错误", e)
-            result = "查询失败, 记录文件格式错误"
+            LOG.error("查询失败, 记录文件格式错误: %s", e)
+            result = "呜呜~查询失败了，记录文件格式有问题捏~"
         except KeyError:
-            result = "查询失败, 卡号不存在"
+            result = "呜呜~查询失败了，找不到这个卡号捏~"
         return result
 
     def deduct_cafeteria_card_record(self, wix):
@@ -154,15 +154,15 @@ class TrigTaskHandler:
                 self._record_card_swipe(wix, record[wix])
                 result = f"刷卡记录成功, 当前还剩下[{record[wix]}]次"
             else:
-                result = "刷卡失败, 无效的卡号或次数不足"
+                result = "呜呜~刷卡失败了，卡号无效或者次数不够捏~"
             with open("cardRecord.json", "w") as file:
                 json.dump(record, file)
         except FileNotFoundError:
-            result = "刷卡失败, 记录文件不存在"
+            result = "呜呜~刷卡失败了，找不到记录文件捏~"
         except json.JSONDecodeError:
-            result = "刷卡失败, 记录文件格式错误"
+            result = "呜呜~刷卡失败了，记录文件格式有问题捏~"
         except KeyError:
-            result = "刷卡失败, 卡号不存在"
+            result = "呜呜~刷卡失败了，找不到这个卡号捏~"
         return result
 
     @staticmethod
@@ -200,20 +200,20 @@ class TrigTaskHandler:
         if response.status_code == 200:
             return response.text
         else:
-            return "骚瑞, 发号遇到错误, 请重试或者暂时手动注册"
+            return "呜呜~发号遇到错误了捏，重试一下或者暂时手动注册吧~"
 
     def mc_xiao_hao(self, question):
         account_prefix = None
         if ":" in question:
             account_prefix = question.split(":")[1].strip()
         if not account_prefix:
-            return "请输入要释放的mc账户prefix, 格式: 执行发号:xxx, 其中xxx为你的设备id"
+            return "诶嘿~请输入要释放的mc账户prefix哦，格式: $执行销号:xxx"
         response = requests.get(
             f'https://mc-fahao.someget.work/mc-xiaohao?token={self.token}&account_prefix={account_prefix}')
         if response.status_code == 200:
             return response.text
         else:
-            return "骚瑞, 销号遇到错误, 请重试"
+            return "呜呜~销号遇到错误了捏，再试一次吧~"
 
     def mc_cha_hao(self):
         response = requests.get(
@@ -221,7 +221,7 @@ class TrigTaskHandler:
         if response.status_code == 200:
             return response.text
         else:
-            return "骚瑞, 查号遇到错误, 请重试"
+            return "呜呜~查号遇到错误了捏，再试一次吧~"
 
     @staticmethod
     def chou_qian(room_id):
@@ -240,7 +240,7 @@ class TrigTaskHandler:
         if response.status_code == 200:
             return response.text
         else:
-            return "骚瑞, 发号遇到错误, 请重试或者暂时手动注册"
+            return "呜呜~发号遇到错误了捏，重试一下或者暂时手动注册吧~"
 
     @staticmethod
     def get_device_id(question, sender):
@@ -260,6 +260,6 @@ class TrigTaskHandler:
                 device_id = row[0]
             else:
                 conn.close()
-                return "首次使用, 需要带上设备id, 否则无法在你的设备完成登陆, 格式: 执行发号:xxx, 其中xxx为你的设备id"
+                return "诶嘿~首次使用需要带上设备id哦，格式: $执行发号:xxx，其中xxx是你的设备id~"
         conn.close()
         return device_id

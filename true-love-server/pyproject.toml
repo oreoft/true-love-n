@@ -1,12 +1,14 @@
 [project]
 name = "true-love-server"
-version = "0.1.0"
+version = "0.2.0"
 description = "True Love Server - 真爱粉服务端"
 requires-python = ">=3.12"
 dependencies = [
     "apscheduler>=3.11.1",
     "bs4>=0.0.2",
-    "flask>=3.1.2",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.32.0",
+    "pydantic>=2.10.0",
     "pillow>=11.0.0",
     "pytz>=2025.2",
     "pyunit-time>=2024.7.3",

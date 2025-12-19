@@ -6,7 +6,17 @@ Services module - 服务模块
 """
 
 from . import base_client
-from . import chatgpt
 from .asr_utils import do_asr
+from .ai_client import AIClient
+from .chat_service import ChatService
+from .image_service import ImageService
+from .video_service import VideoService
 
-__all__ = ["base_client", "chatgpt", "do_asr"]
+__all__ = [
+    "base_client",
+    "do_asr",
+    "AIClient",
+    "ChatService",
+    "ImageService",
+    "VideoService",
+]

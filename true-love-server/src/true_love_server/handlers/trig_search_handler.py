@@ -33,7 +33,7 @@ class TrigSearchHandler:
             return self.search_aoyun_news()
         if '奥运奖牌' in question:
             return self.search_aoyun_medal()
-        return '该查询任务无法找到'
+        return '诶嘿~没有找到这个查询任务呢，换个关键词试试吧~'
 
     def library_schedule(self) -> str:
         url = "https://library.iit.edu/"
@@ -103,7 +103,7 @@ class TrigSearchHandler:
                         )
                         break
         except Exception as e:
-            self.LOG.error("search_meiyuan error", e)
+            self.LOG.error("search_meiyuan error: %s", e)
         return result
 
     def search_aoyun_news(self) -> str:
@@ -159,5 +159,5 @@ class TrigSearchHandler:
             hours = data[0][1][0][14][203][1]
             return "The gym is {} \n Today's Hours: {}".format(hours[-1][0].upper(), hours[0][3][0][0])
         except Exception as e:
-            self.LOG.error("gym_schedule error", e)
+            self.LOG.error("gym_schedule error: %s", e)
             return ""
