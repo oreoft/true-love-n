@@ -377,16 +377,27 @@ def reset_all_listeners():
 def before_request_logging():
     """请求前日志"""
     g.start_time = time.time()
+    # OPTIONS 请求不记录日志
+    if request.method == 'OPTIONS':
+        return
     body = request.get_data(as_text=True)
     LOG.info(f"Request: [{request.method} {request.path}], body: {body[:200]}")
 
 
 @app.after_request
-def after_request_logging(response):
-    """请求后日志"""
-    cost = (time.time() - g.start_time) * 1000
-    body = response.get_data(as_text=True)
-    LOG.info(f"Response: [{request.method} {request.path}], cost: {cost:.0f}ms, body: {body[:200]}")
+def after_request_handler(response):
+    """请求后处理：日志 + CORS"""
+    # CORS headers
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    
+    # 日志（OPTIONS 请求不记录）
+    if request.method != 'OPTIONS' and hasattr(g, 'start_time'):
+        cost = (time.time() - g.start_time) * 1000
+        body = response.get_data(as_text=True)
+        LOG.info(f"Response: [{request.method} {request.path}], cost: {cost:.0f}ms, body: {body[:200]}")
+    
     return response
 
 
