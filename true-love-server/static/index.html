@@ -181,6 +181,12 @@
             font-size: 11px;
         }
         
+        .btn-icon {
+            padding: 6px;
+            min-width: 32px;
+            justify-content: center;
+        }
+        
         /* Summary */
         .summary-bar {
             max-width: 800px;
@@ -238,7 +244,7 @@
         .list-container {
             max-width: 800px;
             margin: 0 auto;
-            padding: 0 20px 100px;
+            padding: 0 20px 60px;
         }
         
         .list-header {
@@ -454,7 +460,7 @@
             background: #f0fdf4;
         }
         
-        /* Tab Bar */
+        /* Tab Bar - Compact */
         .tab-bar {
             position: fixed;
             bottom: 0;
@@ -464,26 +470,26 @@
             border-top: 1px solid #e5e7eb;
             display: flex;
             justify-content: center;
-            padding: 8px 0;
-            padding-bottom: max(8px, env(safe-area-inset-bottom));
+            padding: 6px 0;
+            padding-bottom: max(6px, env(safe-area-inset-bottom));
             z-index: 100;
         }
         
         .tab-bar-inner {
             display: flex;
-            gap: 60px;
+            gap: 40px;
         }
         
         .tab-item {
             display: flex;
-            flex-direction: column;
             align-items: center;
-            gap: 4px;
-            padding: 8px 20px;
+            justify-content: center;
+            padding: 8px 12px;
             cursor: pointer;
             color: #6b7280;
             transition: all 0.2s;
             border-radius: 8px;
+            font-size: 20px;
         }
         
         .tab-item:hover {
@@ -492,48 +498,73 @@
         
         .tab-item.active {
             color: #10b981;
-        }
-        
-        .tab-icon {
-            font-size: 20px;
-        }
-        
-        .tab-label {
-            font-size: 12px;
-            font-weight: 500;
+            background: #f0fdf4;
         }
         
         /* Logs Page */
         .logs-container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 20px 20px 100px;
+            padding: 12px 20px 50px;
+            height: calc(100vh - 60px);
+            overflow: hidden;
         }
         
         .logs-header {
             background: white;
             border-radius: 10px;
-            padding: 16px 20px;
+            padding: 12px 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            margin-bottom: 16px;
+            margin-bottom: 12px;
             flex-wrap: wrap;
             gap: 12px;
         }
         
         .logs-controls {
             display: flex;
-            gap: 12px;
+            gap: 8px;
             align-items: center;
         }
         
+        /* Service Tabs */
+        .service-tabs {
+            display: flex;
+            gap: 4px;
+            background: #f3f4f6;
+            padding: 3px;
+            border-radius: 6px;
+        }
+        
+        .service-tab {
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #6b7280;
+            transition: all 0.2s;
+            border: none;
+            background: transparent;
+        }
+        
+        .service-tab:hover {
+            color: #1a1a1a;
+        }
+        
+        .service-tab.active {
+            background: white;
+            color: #10b981;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        
         .log-type-select {
-            padding: 8px 12px;
+            padding: 6px 10px;
             border: 1px solid #d1d5db;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 12px;
             background: white;
             cursor: pointer;
         }
@@ -545,9 +576,9 @@
         
         .logs-info {
             display: flex;
-            gap: 16px;
+            gap: 12px;
             align-items: center;
-            font-size: 13px;
+            font-size: 12px;
             color: #6b7280;
         }
         
@@ -558,8 +589,8 @@
         }
         
         .poll-indicator {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
             background: #10b981;
             animation: pulse 2s infinite;
@@ -580,8 +611,7 @@
             border-radius: 10px;
             padding: 16px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            min-height: 400px;
-            max-height: calc(100vh - 280px);
+            max-height: calc(100vh - 200px);
             overflow-y: auto;
         }
         
@@ -628,21 +658,21 @@
         /* Auto scroll button */
         .auto-scroll-btn {
             position: fixed;
-            bottom: 80px;
+            bottom: 60px;
             right: 20px;
             background: #1a1a1a;
             color: white;
             border: none;
             border-radius: 50%;
-            width: 44px;
-            height: 44px;
+            width: 40px;
+            height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
             transition: all 0.2s;
-            font-size: 18px;
+            font-size: 16px;
         }
         
         .auto-scroll-btn:hover {
@@ -679,8 +709,8 @@
                         </button>
                     </template>
                     <template v-else>
-                        <button class="btn btn-outline-light btn-xs" @click="refreshLogs" :disabled="logsLoading">
-                            {{ logsLoading ? '刷新中...' : '🔄 刷新' }}
+                        <button class="btn btn-outline-light btn-icon" @click="refreshLogs" :disabled="logsLoading" title="刷新">
+                            🔄
                         </button>
                     </template>
                 </div>
@@ -777,12 +807,25 @@
             <div class="logs-container">
                 <div class="logs-header">
                     <div class="logs-controls">
+                        <!-- Service Tabs -->
+                        <div class="service-tabs">
+                            <button 
+                                v-for="svc in services" 
+                                :key="svc.key"
+                                :class="['service-tab', { active: activeService === svc.key }]"
+                                @click="switchService(svc.key)"
+                            >
+                                {{ svc.label }}
+                            </button>
+                        </div>
+                        
                         <select v-model="logType" class="log-type-select" @change="switchLogType">
-                            <option value="info">INFO 日志</option>
-                            <option value="error">ERROR 日志</option>
+                            <option value="info">INFO</option>
+                            <option value="error">ERROR</option>
                         </select>
-                        <button class="btn btn-outline btn-sm" @click="clearLogs">
-                            清空显示
+                        
+                        <button class="btn btn-outline btn-xs" @click="clearCurrentLogs">
+                            清空
                         </button>
                     </div>
                     <div class="logs-info">
@@ -790,15 +833,14 @@
                             <span :class="['poll-indicator', { paused: !isPolling }]"></span>
                             {{ isPolling ? '轮询中' : '已暂停' }}
                         </span>
-                        <span>共 {{ logLines.length }} 行</span>
-                        <span>偏移: {{ sinceOffset }}</span>
+                        <span>{{ currentLogLines.length }} 行</span>
                     </div>
                 </div>
                 
                 <div class="logs-content" ref="logsContainer" @scroll="handleLogsScroll">
-                    <template v-if="logLines.length > 0">
+                    <template v-if="currentLogLines.length > 0">
                         <div 
-                            v-for="(line, index) in logLines" 
+                            v-for="(line, index) in currentLogLines" 
                             :key="index"
                             :class="['log-line', getLogLevel(line)]"
                         >{{ line }}</div>
@@ -826,16 +868,16 @@
                 <div 
                     :class="['tab-item', { active: activeTab === 'list' }]"
                     @click="switchTab('list')"
+                    title="列表"
                 >
-                    <span class="tab-icon">📋</span>
-                    <span class="tab-label">列表</span>
+                    📋
                 </div>
                 <div 
                     :class="['tab-item', { active: activeTab === 'logs' }]"
                     @click="switchTab('logs')"
+                    title="日志"
                 >
-                    <span class="tab-icon">📝</span>
-                    <span class="tab-label">日志</span>
+                    📝
                 </div>
             </div>
         </div>
@@ -874,10 +916,16 @@
     </div>
 
     <script>
-        const { createApp, ref, reactive, onMounted, onUnmounted, watch, nextTick } = Vue;
+        const { createApp, ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } = Vue;
         
         const BASE_HOST = 'http://localhost:5000';
-        const LOGS_HOST = 'http://localhost:8088';
+        
+        // 服务配置
+        const SERVICES = [
+            { key: 'server', label: 'Server', host: 'http://localhost:8088' },
+            { key: 'base', label: 'Base', host: 'http://localhost:5000' },
+            { key: 'ai', label: 'AI', host: 'https://tl-ai.someget.work' }
+        ];
         
         createApp({
             setup() {
@@ -904,15 +952,40 @@
                 });
                 
                 // Logs page state
+                const services = ref(SERVICES);
+                const activeService = ref('server');
                 const logType = ref('info');
-                const logLines = ref([]);
-                const sinceOffset = ref(0);
                 const logsLoading = ref(false);
                 const logsContainer = ref(null);
                 const autoScroll = ref(true);
                 const isPolling = ref(false);
                 let pollTimer = null;
-                let logsInitialized = false;
+                
+                // 为每个服务的每种日志类型保存状态
+                // key 格式: `${service}_${logType}`
+                const logsDataMap = reactive({});  // { server_info: { lines: [], offset: 0, initialized: false }, ... }
+                
+                // 获取存储 key
+                const getStoreKey = (service, type) => `${service}_${type}`;
+                
+                // 确保数据结构存在
+                const ensureLogsData = (service, type) => {
+                    const key = getStoreKey(service, type);
+                    if (!logsDataMap[key]) {
+                        logsDataMap[key] = {
+                            lines: [],
+                            offset: 0,
+                            initialized: false
+                        };
+                    }
+                    return logsDataMap[key];
+                };
+                
+                // 当前显示的日志行
+                const currentLogLines = computed(() => {
+                    const data = ensureLogsData(activeService.value, logType.value);
+                    return data.lines;
+                });
                 
                 const showConfirm = (title, message, onConfirm) => {
                     confirmModal.title = title;
@@ -1060,43 +1133,70 @@
                 
                 // ==================== Logs Page Methods ====================
                 
-                // Fetch logs
-                const fetchLogs = async (isInitial = false) => {
-                    if (logsLoading.value) return;
+                // 获取服务 host
+                const getServiceHost = (serviceKey) => {
+                    const svc = SERVICES.find(s => s.key === serviceKey);
+                    return svc ? svc.host : SERVICES[0].host;
+                };
+                
+                // Fetch logs for a specific service and log type
+                const fetchLogsFor = async (serviceKey, type, isInitial = false) => {
+                    const data = ensureLogsData(serviceKey, type);
+                    const host = getServiceHost(serviceKey);
                     
-                    logsLoading.value = true;
+                    // 标记为已初始化（即使请求失败也加入轮询）
+                    if (isInitial) {
+                        data.initialized = true;
+                    }
+                    
                     try {
-                        const offset = isInitial ? 0 : sinceOffset.value;
-                        const url = `/logs?log_type=${logType.value}&limit=500&since_offset=${offset}`;
-                        const data = await request(url, {}, LOGS_HOST);
+                        const offset = isInitial ? 0 : data.offset;
+                        const url = `/logs?log_type=${type}&limit=500&since_offset=${offset}`;
+                        const result = await request(url, {}, host);
                         
-                        if (data.data) {
+                        if (result.data) {
                             if (isInitial) {
-                                logLines.value = data.data.lines || [];
+                                data.lines = result.data.lines || [];
                             } else {
                                 // 增量追加
-                                const newLines = data.data.lines || [];
+                                const newLines = result.data.lines || [];
                                 if (newLines.length > 0) {
-                                    logLines.value = [...logLines.value, ...newLines];
+                                    data.lines = [...data.lines, ...newLines];
                                 }
                             }
-                            sinceOffset.value = data.data.next_offset || 0;
+                            data.offset = result.data.next_offset || 0;
                             
-                            // Auto scroll to bottom
-                            if (autoScroll.value) {
+                            // 如果是当前显示的，自动滚动
+                            if (serviceKey === activeService.value && type === logType.value && autoScroll.value) {
                                 nextTick(() => {
                                     scrollToBottom();
                                 });
                             }
                         }
                     } catch (error) {
-                        console.error('Fetch logs error:', error);
-                        // Don't show toast for polling errors to avoid spam
-                        if (isInitial) {
-                            showToast(error.message, 'error');
+                        console.error(`Fetch logs error for ${serviceKey}/${type}:`, error);
+                        // 首次加载才显示错误
+                        if (isInitial && serviceKey === activeService.value && type === logType.value) {
+                            showToast(`${serviceKey}: ${error.message}`, 'error');
                         }
-                    } finally {
-                        logsLoading.value = false;
+                    }
+                };
+                
+                // Fetch current service logs
+                const fetchLogs = async (isInitial = false) => {
+                    logsLoading.value = true;
+                    await fetchLogsFor(activeService.value, logType.value, isInitial);
+                    logsLoading.value = false;
+                };
+                
+                // 轮询所有服务的 info 日志（error 不轮询，并行请求）
+                const pollAllServices = () => {
+                    for (const svc of SERVICES) {
+                        const data = ensureLogsData(svc.key, 'info');
+                        if (data.initialized) {
+                            // 不用 await，并行请求各服务
+                            fetchLogsFor(svc.key, 'info', false);
+                        }
                     }
                 };
                 
@@ -1106,7 +1206,7 @@
                     isPolling.value = true;
                     pollTimer = setInterval(() => {
                         if (activeTab.value === 'logs') {
-                            fetchLogs(false);
+                            pollAllServices();
                         }
                     }, 5000);
                 };
@@ -1120,22 +1220,56 @@
                     isPolling.value = false;
                 };
                 
-                // Refresh logs (manual)
+                // Refresh logs (manual) - 只刷新当前的
                 const refreshLogs = () => {
                     fetchLogs(false);
                 };
                 
-                // Switch log type
-                const switchLogType = () => {
-                    logLines.value = [];
-                    sinceOffset.value = 0;
-                    fetchLogs(true);
+                // Switch service - 初始化该服务的 info 日志
+                const switchService = async (serviceKey) => {
+                    activeService.value = serviceKey;
+                    
+                    // 只初始化 info 日志（用于轮询）
+                    const infoData = ensureLogsData(serviceKey, 'info');
+                    if (!infoData.initialized) {
+                        await fetchLogsFor(serviceKey, 'info', true);
+                    }
+                    
+                    // 如果当前选的是 error 且未初始化，也拉取一次
+                    if (logType.value === 'error') {
+                        const errorData = ensureLogsData(serviceKey, 'error');
+                        if (!errorData.initialized) {
+                            await fetchLogsFor(serviceKey, 'error', true);
+                        }
+                    }
+                    
+                    // 滚动到底部
+                    nextTick(() => {
+                        if (autoScroll.value) {
+                            scrollToBottom();
+                        }
+                    });
                 };
                 
-                // Clear logs display
-                const clearLogs = () => {
-                    logLines.value = [];
-                    // Keep the offset so we continue from where we left off
+                // Switch log type
+                const switchLogType = () => {
+                    const data = ensureLogsData(activeService.value, logType.value);
+                    if (!data.initialized) {
+                        fetchLogs(true);
+                    } else {
+                        nextTick(() => {
+                            if (autoScroll.value) {
+                                scrollToBottom();
+                            }
+                        });
+                    }
+                };
+                
+                // Clear current logs display
+                const clearCurrentLogs = () => {
+                    const data = ensureLogsData(activeService.value, logType.value);
+                    data.lines = [];
+                    // 保留 offset，继续增量
                 };
                 
                 // Get log level for styling
@@ -1164,7 +1298,6 @@
                 const handleLogsScroll = () => {
                     if (!logsContainer.value) return;
                     const { scrollTop, scrollHeight, clientHeight } = logsContainer.value;
-                    // If user scrolls up more than 100px from bottom, disable auto scroll
                     autoScroll.value = scrollHeight - scrollTop - clientHeight < 100;
                 };
                 
@@ -1182,9 +1315,9 @@
                     activeTab.value = tab;
                     
                     if (tab === 'logs') {
-                        // Initialize logs if first time
-                        if (!logsInitialized) {
-                            logsInitialized = true;
+                        // 初始化当前服务的日志
+                        const data = ensureLogsData(activeService.value, logType.value);
+                        if (!data.initialized) {
                             fetchLogs(true);
                         }
                         startPolling();
@@ -1236,17 +1369,18 @@
                     resetAll,
                     
                     // Logs page
+                    services,
+                    activeService,
                     logType,
-                    logLines,
-                    sinceOffset,
+                    currentLogLines,
                     logsLoading,
                     logsContainer,
                     autoScroll,
                     isPolling,
-                    fetchLogs,
+                    switchService,
                     refreshLogs,
                     switchLogType,
-                    clearLogs,
+                    clearCurrentLogs,
                     getLogLevel,
                     handleLogsScroll,
                     toggleAutoScroll

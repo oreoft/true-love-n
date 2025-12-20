@@ -65,7 +65,7 @@ class LogQueryService:
         Returns:
             日志文件路径
         """
-        filename = f"{log_type.value}.log"
+        filename = f"server_{log_type.value}.log"
         return self._logs_dir / filename
     
     def _validate_limit(self, limit: Optional[int]) -> int:
