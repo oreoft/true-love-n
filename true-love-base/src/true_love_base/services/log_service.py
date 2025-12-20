@@ -6,7 +6,6 @@ Log Service - 日志查询服务
 """
 
 import logging
-import os
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -135,26 +134,16 @@ class LogQueryService:
     ) -> LogQueryResult:
         """
         从文件末尾读取最后 N 行
-        
-        Args:
-            log_file: 日志文件路径
-            limit: 最大行数
-            file_size: 文件大小
-            
-        Returns:
-            LogQueryResult: 查询结果
         """
         lines = []
         
         try:
             with open(log_file, 'rb') as f:
-                # 使用一个缓冲区从末尾开始读取
                 buffer_size = 8192
                 buffer = b''
                 position = file_size
                 
                 while len(lines) < limit and position > 0:
-                    # 计算要读取的位置和大小
                     read_size = min(buffer_size, position)
                     position -= read_size
                     
@@ -162,15 +151,11 @@ class LogQueryService:
                     chunk = f.read(read_size)
                     buffer = chunk + buffer
                     
-                    # 按行分割
                     buffer_lines = buffer.split(b'\n')
-                    
-                    # 保留第一个不完整的行继续往前读
                     buffer = buffer_lines[0]
                     
-                    # 添加完整的行（从后往前）
                     for line in reversed(buffer_lines[1:]):
-                        if line.strip():  # 忽略空行
+                        if line.strip():
                             try:
                                 lines.insert(0, line.decode('utf-8'))
                             except UnicodeDecodeError:
@@ -178,21 +163,19 @@ class LogQueryService:
                             if len(lines) >= limit:
                                 break
                 
-                # 处理最后剩余的 buffer（文件开头的内容）
                 if len(lines) < limit and buffer.strip():
                     try:
                         lines.insert(0, buffer.decode('utf-8'))
                     except UnicodeDecodeError:
                         lines.insert(0, buffer.decode('utf-8', errors='replace'))
             
-            # 只保留最后 limit 行
             lines = lines[-limit:]
             
             return LogQueryResult(
                 lines=lines,
-                next_offset=file_size,  # 下次从文件末尾开始查增量
+                next_offset=file_size,
                 total_lines=len(lines),
-                has_more=False  # 首次查询，后续增量通过轮询获取
+                has_more=False
             )
             
         except Exception as e:
@@ -213,15 +196,6 @@ class LogQueryService:
     ) -> LogQueryResult:
         """
         从指定偏移量开始读取
-        
-        Args:
-            log_file: 日志文件路径
-            offset: 起始偏移量
-            limit: 最大行数
-            file_size: 文件大小
-            
-        Returns:
-            LogQueryResult: 查询结果
         """
         lines = []
         next_offset = offset
@@ -233,21 +207,19 @@ class LogQueryService:
                 line_count = 0
                 while line_count < limit:
                     line = f.readline()
-                    if not line:  # 到达文件末尾
+                    if not line:
                         break
                     
                     next_offset = f.tell()
                     
-                    # 解码并添加到结果
                     line_str = line.rstrip(b'\n\r')
-                    if line_str:  # 忽略空行
+                    if line_str:
                         try:
                             lines.append(line_str.decode('utf-8'))
                         except UnicodeDecodeError:
                             lines.append(line_str.decode('utf-8', errors='replace'))
                         line_count += 1
                 
-                # 检查是否还有更多内容
                 has_more = f.tell() < file_size
             
             return LogQueryResult(
@@ -266,33 +238,6 @@ class LogQueryService:
                 has_more=False
             )
     
-    def get_log_file_info(self, log_type: LogType) -> dict:
-        """
-        获取日志文件信息
-        
-        Args:
-            log_type: 日志类型
-            
-        Returns:
-            文件信息字典
-        """
-        log_file = self._get_log_file_path(log_type)
-        
-        if not log_file.exists():
-            return {
-                "exists": False,
-                "path": str(log_file),
-                "size": 0
-            }
-        
-        stat = log_file.stat()
-        return {
-            "exists": True,
-            "path": str(log_file),
-            "size": stat.st_size,
-            "modified_time": stat.st_mtime
-        }
-    
     def truncate_log(self, log_type: LogType) -> bool:
         """
         清空日志文件内容
@@ -306,7 +251,6 @@ class LogQueryService:
         log_file = self._get_log_file_path(log_type)
         
         try:
-            # 以写模式打开文件会清空内容
             with open(log_file, 'w') as f:
                 pass
             LOG.info("已清空日志文件: %s", log_file)
@@ -323,12 +267,6 @@ _log_service: Optional[LogQueryService] = None
 def get_log_service(logs_dir: Optional[str] = None) -> LogQueryService:
     """
     获取日志查询服务实例（单例）
-    
-    Args:
-        logs_dir: 日志目录路径
-        
-    Returns:
-        LogQueryService 实例
     """
     global _log_service
     if _log_service is None:

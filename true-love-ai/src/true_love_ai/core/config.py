@@ -5,18 +5,17 @@
 使用 Pydantic Settings 进行类型安全的配置管理
 """
 import logging
-import logging.config
-import os
 from typing import Optional
 
 import yaml
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-LOG = logging.getLogger(__name__)
+from .logging_config import LoggingConfig
 
-# 确保 logs 目录存在
-if not os.path.exists("logs"):
-    os.makedirs("logs")
+# 初始化日志配置（在加载任何配置之前）
+LoggingConfig.setup("ai")
+
+LOG = logging.getLogger(__name__)
 
 
 class LLMConfig(BaseSettings):
@@ -125,9 +124,7 @@ class Config(BaseSettings):
         with open(path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
-        # 配置日志
-        if "logging" in data:
-            logging.config.dictConfig(data["logging"])
+        # 注意：日志配置已改用 LoggingConfig 类，不再从 YAML 加载
 
         return cls(**data)
 

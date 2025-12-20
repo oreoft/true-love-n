@@ -14,15 +14,6 @@ from true_love_ai.base_client import send_text
 LOG = logging.getLogger(__name__)
 
 
-def setup_logging():
-    """配置基础日志（配置文件加载前）"""
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
-    )
-
-
 def notice_master():
     """启动通知"""
     try:
@@ -47,10 +38,7 @@ def setup_signal_handlers():
 
 def main():
     """主入口"""
-    # 基础日志配置
-    setup_logging()
-    
-    # 加载配置（会重新配置日志）
+    # 加载配置（日志已在 config 模块初始化时配置）
     config = get_config()
     
     # 设置信号处理

@@ -708,11 +708,6 @@
                             重置
                         </button>
                     </template>
-                    <template v-else>
-                        <button class="btn btn-outline-light btn-icon" @click="refreshLogs" :disabled="logsLoading" title="刷新">
-                            🔄
-                        </button>
-                    </template>
                 </div>
             </div>
         </header>
@@ -824,8 +819,11 @@
                             <option value="error">ERROR</option>
                         </select>
                         
-                        <button class="btn btn-outline btn-xs" @click="clearCurrentLogs">
+                        <button class="btn btn-outline btn-xs" @click="clearCurrentLogs" title="清空显示">
                             清空
+                        </button>
+                        <button class="btn btn-danger btn-xs" @click="truncateLogFile" :disabled="truncating" title="清空服务端日志文件">
+                            {{ truncating ? '...' : '🗑️' }}
                         </button>
                     </div>
                     <div class="logs-info">
@@ -1225,14 +1223,19 @@
                     fetchLogs(false);
                 };
                 
-                // Switch service - 初始化该服务的 info 日志
+                // Switch service - 首次点击初始化并开启轮询，再次点击刷新
                 const switchService = async (serviceKey) => {
+                    const isCurrentService = activeService.value === serviceKey;
                     activeService.value = serviceKey;
                     
-                    // 只初始化 info 日志（用于轮询）
                     const infoData = ensureLogsData(serviceKey, 'info');
+                    
                     if (!infoData.initialized) {
+                        // 首次点击：初始化并开启轮询
                         await fetchLogsFor(serviceKey, 'info', true);
+                    } else if (isCurrentService) {
+                        // 再次点击当前 tab：刷新（增量拉取）
+                        await fetchLogsFor(serviceKey, 'info', false);
                     }
                     
                     // 如果当前选的是 error 且未初始化，也拉取一次
@@ -1240,6 +1243,8 @@
                         const errorData = ensureLogsData(serviceKey, 'error');
                         if (!errorData.initialized) {
                             await fetchLogsFor(serviceKey, 'error', true);
+                        } else if (isCurrentService) {
+                            await fetchLogsFor(serviceKey, 'error', false);
                         }
                     }
                     
@@ -1265,11 +1270,39 @@
                     }
                 };
                 
-                // Clear current logs display
+                // Clear current logs display (only UI)
                 const clearCurrentLogs = () => {
                     const data = ensureLogsData(activeService.value, logType.value);
                     data.lines = [];
                     // 保留 offset，继续增量
+                };
+                
+                // Truncate log file on server
+                const truncating = ref(false);
+                const truncateLogFile = () => {
+                    showConfirm(
+                        '清空日志文件',
+                        `确定要清空 ${activeService.value.toUpperCase()} 服务的 ${logType.value.toUpperCase()} 日志文件吗？此操作不可恢复！`,
+                        async () => {
+                            truncating.value = true;
+                            try {
+                                const host = getServiceHost(activeService.value);
+                                const url = `/logs?action=truncate&log_type=${logType.value}`;
+                                await request(url, {}, host);
+                                
+                                // 清空当前显示并重置 offset
+                                const data = ensureLogsData(activeService.value, logType.value);
+                                data.lines = [];
+                                data.offset = 0;
+                                
+                                showToast(`${activeService.value} ${logType.value} 日志已清空`, 'success');
+                            } catch (error) {
+                                showToast(error.message, 'error');
+                            } finally {
+                                truncating.value = false;
+                            }
+                        }
+                    );
                 };
                 
                 // Get log level for styling
@@ -1313,13 +1346,10 @@
                 
                 const switchTab = (tab) => {
                     activeTab.value = tab;
-                    
+
                     if (tab === 'logs') {
-                        // 初始化当前服务的日志
-                        const data = ensureLogsData(activeService.value, logType.value);
-                        if (!data.initialized) {
-                            fetchLogs(true);
-                        }
+                        // 进入日志页面，相当于点击第一个 tab（当前服务）
+                        switchService(activeService.value);
                         startPolling();
                     } else {
                         stopPolling();
@@ -1381,6 +1411,8 @@
                     refreshLogs,
                     switchLogType,
                     clearCurrentLogs,
+                    truncating,
+                    truncateLogFile,
                     getLogLevel,
                     handleLogsScroll,
                     toggleAutoScroll

@@ -1,22 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import logging.config
-import os
-import sys
+import logging
 
 import yaml
 
-# 修改 sys.stdout 的编码为 utf-8
-sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf-8', buffering=1)
+from .logging_config import LoggingConfig
 
-# 设置日志文件夹的路径
-logs_dir = "logs"
+# 初始化日志配置（在加载任何配置之前）
+LoggingConfig.setup("server")
+
 LOG = logging.getLogger("Configuration")
-# 检查logs文件夹是否存在
-if not os.path.exists(logs_dir):
-    # 如果不存在，则创建该文件夹
-    os.makedirs(logs_dir)
 
 
 class Config:
@@ -43,7 +37,7 @@ class Config:
     def reload(self) -> None:
         yconfig = self._load_config()
         if yconfig:
-            logging.config.dictConfig(yconfig.get("logging", {}))
+            # 注意：日志配置已改用 LoggingConfig 类，不再从 YAML 加载
             # 注意：groups/privates 的 allow_list 已移至 base 端
             # 这里保留是为了兼容 auto_notice 等功能
             self.GROUPS: dict = yconfig.get("groups", {})

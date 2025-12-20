@@ -103,26 +103,24 @@ async def get_chat(
 
 
 @router.get("/logs")
-async def query_logs(
+async def handle_logs(
+    action: str = Query(default="query", description="操作类型: query 查询日志, truncate 清空日志"),
     log_type: str = Query(default="info", description="日志类型: info 或 error"),
-    limit: Optional[int] = Query(default=100, ge=1, le=500, description="返回行数，最大500"),
-    since_offset: Optional[int] = Query(default=None, ge=0, description="从哪个字节偏移开始读取"),
+    limit: Optional[int] = Query(default=100, ge=1, le=500, description="返回行数，最大500 (仅 query)"),
+    since_offset: Optional[int] = Query(default=None, ge=0, description="从哪个字节偏移开始读取 (仅 query)"),
 ):
     """
-    查询日志接口
+    日志操作接口
     
-    支持增量查询，首次查询返回最后 N 行日志和 next_offset，
-    后续查询带上 since_offset 获取新增内容。
+    支持两种操作：
+    - **query**: 查询日志，支持增量查询
+    - **truncate**: 清空指定日志文件
     
+    参数:
+    - **action**: 操作类型，query 或 truncate
     - **log_type**: 日志类型，可选 info 或 error
-    - **limit**: 返回的最大行数，默认 100，最大 500
-    - **since_offset**: 上次查询返回的 next_offset，首次查询不传或传 0
-    
-    Returns:
-        - lines: 日志行列表
-        - next_offset: 下次查询的偏移量
-        - total_lines: 本次返回的行数
-        - has_more: 是否还有更多内容
+    - **limit**: 返回的最大行数，默认 100，最大 500 (仅 query 有效)
+    - **since_offset**: 上次查询返回的 next_offset (仅 query 有效)
     """
     # 校验日志类型
     try:
@@ -131,15 +129,31 @@ async def query_logs(
         raise ValidationException(f"呜呜~不支持的日志类型哦: {log_type}，只能是 info 或 error 呢~")
     
     log_service = get_log_service()
-    result = log_service.query_logs(
-        log_type=log_type_enum,
-        since_offset=since_offset,
-        limit=limit
-    )
+    action_lower = action.lower()
     
-    return ApiResponse(data={
-        "lines": result.lines,
-        "next_offset": result.next_offset,
-        "total_lines": result.total_lines,
-        "has_more": result.has_more
-    })
+    if action_lower == "query":
+        # 查询日志
+        result = log_service.query_logs(
+            log_type=log_type_enum,
+            since_offset=since_offset,
+            limit=limit
+        )
+        return ApiResponse(data={
+            "lines": result.lines,
+            "next_offset": result.next_offset,
+            "total_lines": result.total_lines,
+            "has_more": result.has_more
+        })
+    
+    elif action_lower == "truncate":
+        # 清空日志
+        success = log_service.truncate_log(log_type_enum)
+        if not success:
+            raise ValidationException(f"呜呜~清空 {log_type} 日志失败了捏~")
+        return ApiResponse(data={
+            "message": f"{log_type} 日志已清空",
+            "log_type": log_type
+        })
+    
+    else:
+        raise ValidationException(f"呜呜~不支持的操作类型哦: {action}，只能是 query 或 truncate 呢~")

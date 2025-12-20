@@ -4,6 +4,7 @@
 API 路由模块
 """
 import logging
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -14,6 +15,7 @@ from true_love_ai.models.response import APIResponse
 from true_love_ai.services.chat_service import ChatService
 from true_love_ai.services.image_service import ImageService
 from true_love_ai.services.video_service import VideoService, GEN_VIDEO_DIR
+from true_love_ai.services.log_service import LogType, get_log_service
 
 LOG = logging.getLogger(__name__)
 
@@ -212,3 +214,54 @@ async def download_video(
         media_type="video/mp4",
         filename=f"{video_id}.mp4"
     )
+
+
+@router.get("/logs")
+async def handle_logs(
+    action: str = Query(default="query", description="操作类型: query 查询日志, truncate 清空日志"),
+    log_type: str = Query(default="info", description="日志类型: info 或 error"),
+    limit: Optional[int] = Query(default=100, ge=1, le=500, description="返回行数，最大500 (仅 query)"),
+    since_offset: Optional[int] = Query(default=None, ge=0, description="从哪个字节偏移开始读取 (仅 query)"),
+):
+    """
+    日志操作接口
+    
+    支持两种操作：
+    - **query**: 查询日志，支持增量查询
+    - **truncate**: 清空指定日志文件
+    """
+    # 校验日志类型
+    try:
+        log_type_enum = LogType(log_type.lower())
+    except ValueError:
+        return APIResponse.error(100, f"不支持的日志类型: {log_type}")
+    
+    log_service = get_log_service()
+    action_lower = action.lower()
+    
+    if action_lower == "query":
+        # 查询日志
+        result = log_service.query_logs(
+            log_type=log_type_enum,
+            since_offset=since_offset,
+            limit=limit
+        )
+        return APIResponse.success({
+            "lines": result.lines,
+            "next_offset": result.next_offset,
+            "total_lines": result.total_lines,
+            "has_more": result.has_more
+        })
+    
+    elif action_lower == "truncate":
+        # 清空日志
+        success = log_service.truncate_log(log_type_enum)
+        if not success:
+            return APIResponse.error(101, f"清空 {log_type} 日志失败")
+        return APIResponse.success({
+            "message": f"{log_type} 日志已清空",
+            "log_type": log_type
+        })
+    
+    else:
+        return APIResponse.error(100, f"不支持的操作类型: {action}")
