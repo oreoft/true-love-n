@@ -136,9 +136,9 @@ class WxAutoClient(WeChatClientProtocol):
             if at_list:
                 at_str = " ".join([f"@{name}" for name in at_list])
                 content = f"{at_str}\n{content}"
-
-            result = self.wx.SendMsg(content, receiver)
             LOG.debug(f"SendMsg content: {content[:50]}...")
+            sub_window = self.wx.GetSubWindow(receiver)
+            result = sub_window.SendMsg(content) if sub_window else self.wx.SendMsg(content, receiver)
             return self._check_response(result, "SendMsg", receiver)
         except Exception as e:
             LOG.error(f"Failed to send text to [{receiver}]: {e}")
@@ -147,8 +147,9 @@ class WxAutoClient(WeChatClientProtocol):
     def send_image(self, receiver: str, image_path: str) -> bool:
         """发送图片"""
         try:
-            result = self.wx.SendFiles(image_path, receiver)
             LOG.debug(f"SendFiles(image) path: {image_path}")
+            sub_window = self.wx.GetSubWindow(receiver)
+            result = sub_window.SendFiles(image_path) if sub_window else self.wx.SendFiles(image_path, receiver)
             return self._check_response(result, "SendFiles(image)", receiver)
         except Exception as e:
             LOG.error(f"Failed to send image to [{receiver}]: {e}")
@@ -157,8 +158,9 @@ class WxAutoClient(WeChatClientProtocol):
     def send_file(self, receiver: str, file_path: str) -> bool:
         """发送文件"""
         try:
-            result = self.wx.SendFiles(file_path, receiver)
             LOG.debug(f"SendFiles path: {file_path}")
+            sub_window = self.wx.GetSubWindow(receiver)
+            result = sub_window.SendFiles(file_path) if sub_window else self.wx.SendFiles(file_path, receiver)
             return self._check_response(result, "SendFiles", receiver)
         except Exception as e:
             LOG.error(f"Failed to send file to [{receiver}]: {e}")
