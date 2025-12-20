@@ -11,6 +11,7 @@ from .ai_client import AIClient
 from .chat_service import ChatService
 from .image_service import ImageService
 from .video_service import VideoService
+from .log_service import LogQueryService, LogType, get_log_service
 
 __all__ = [
     "base_client",
@@ -19,4 +20,7 @@ __all__ = [
     "ChatService",
     "ImageService",
     "VideoService",
+    "LogQueryService",
+    "LogType",
+    "get_log_service",
 ]

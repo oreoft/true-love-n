@@ -6,13 +6,15 @@ Routes - 路由定义
 """
 
 import logging
+from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Query
 
 from .exception_handlers import ApiResponse, AuthException, ValidationException
 from .deps import get_msg_handler
 from ..models import ChatMsg
 from ..services import base_client
+from ..services.log_service import LogType, get_log_service
 from ..core import Config
 
 LOG = logging.getLogger("Routes")
@@ -98,3 +100,46 @@ async def get_chat(
     background_tasks.add_task(msg_handler.handle_msg_async, msg)
 
     return ApiResponse(data="")
+
+
+@router.get("/logs")
+async def query_logs(
+    log_type: str = Query(default="info", description="日志类型: info 或 error"),
+    limit: Optional[int] = Query(default=100, ge=1, le=500, description="返回行数，最大500"),
+    since_offset: Optional[int] = Query(default=None, ge=0, description="从哪个字节偏移开始读取"),
+):
+    """
+    查询日志接口
+    
+    支持增量查询，首次查询返回最后 N 行日志和 next_offset，
+    后续查询带上 since_offset 获取新增内容。
+    
+    - **log_type**: 日志类型，可选 info 或 error
+    - **limit**: 返回的最大行数，默认 100，最大 500
+    - **since_offset**: 上次查询返回的 next_offset，首次查询不传或传 0
+    
+    Returns:
+        - lines: 日志行列表
+        - next_offset: 下次查询的偏移量
+        - total_lines: 本次返回的行数
+        - has_more: 是否还有更多内容
+    """
+    # 校验日志类型
+    try:
+        log_type_enum = LogType(log_type.lower())
+    except ValueError:
+        raise ValidationException(f"呜呜~不支持的日志类型哦: {log_type}，只能是 info 或 error 呢~")
+    
+    log_service = get_log_service()
+    result = log_service.query_logs(
+        log_type=log_type_enum,
+        since_offset=since_offset,
+        limit=limit
+    )
+    
+    return ApiResponse(data={
+        "lines": result.lines,
+        "next_offset": result.next_offset,
+        "total_lines": result.total_lines,
+        "has_more": result.has_more
+    })

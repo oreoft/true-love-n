@@ -161,6 +161,16 @@
             background: #f3f4f6;
         }
         
+        .btn-outline-light {
+            background: transparent;
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .btn-outline-light:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
         .btn-sm {
             padding: 6px 12px;
             font-size: 12px;
@@ -443,6 +453,206 @@
             color: #10b981;
             background: #f0fdf4;
         }
+        
+        /* Tab Bar */
+        .tab-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: center;
+            padding: 8px 0;
+            padding-bottom: max(8px, env(safe-area-inset-bottom));
+            z-index: 100;
+        }
+        
+        .tab-bar-inner {
+            display: flex;
+            gap: 60px;
+        }
+        
+        .tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 20px;
+            cursor: pointer;
+            color: #6b7280;
+            transition: all 0.2s;
+            border-radius: 8px;
+        }
+        
+        .tab-item:hover {
+            background: #f3f4f6;
+        }
+        
+        .tab-item.active {
+            color: #10b981;
+        }
+        
+        .tab-icon {
+            font-size: 20px;
+        }
+        
+        .tab-label {
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        /* Logs Page */
+        .logs-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px 20px 100px;
+        }
+        
+        .logs-header {
+            background: white;
+            border-radius: 10px;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        
+        .logs-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        
+        .log-type-select {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+        
+        .log-type-select:focus {
+            outline: none;
+            border-color: #10b981;
+        }
+        
+        .logs-info {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 13px;
+            color: #6b7280;
+        }
+        
+        .logs-info span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .poll-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            animation: pulse 2s infinite;
+        }
+        
+        .poll-indicator.paused {
+            background: #6b7280;
+            animation: none;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        
+        .logs-content {
+            background: #1e1e1e;
+            border-radius: 10px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            min-height: 400px;
+            max-height: calc(100vh - 280px);
+            overflow-y: auto;
+        }
+        
+        .log-line {
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            color: #d4d4d4;
+            white-space: pre-wrap;
+            word-break: break-all;
+            padding: 2px 0;
+        }
+        
+        .log-line:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .log-line.error {
+            color: #f87171;
+        }
+        
+        .log-line.warn {
+            color: #fbbf24;
+        }
+        
+        .log-line.info {
+            color: #60a5fa;
+        }
+        
+        .logs-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            color: #6b7280;
+        }
+        
+        .logs-empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        /* Auto scroll button */
+        .auto-scroll-btn {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background: #1a1a1a;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s;
+            font-size: 18px;
+        }
+        
+        .auto-scroll-btn:hover {
+            background: #374151;
+            transform: scale(1.05);
+        }
+        
+        .auto-scroll-btn.active {
+            background: #10b981;
+        }
     </style>
 </head>
 <body>
@@ -463,92 +673,170 @@
             <div class="header-content">
                 <h1>📡 <span>真爱粉</span>管理</h1>
                 <div class="header-actions">
-                    <button class="btn btn-secondary btn-xs" @click="resetAll" :disabled="loading">
-                        重置
-                    </button>
+                    <template v-if="activeTab === 'list'">
+                        <button class="btn btn-secondary btn-xs" @click="resetAll" :disabled="loading">
+                            重置
+                        </button>
+                    </template>
+                    <template v-else>
+                        <button class="btn btn-outline-light btn-xs" @click="refreshLogs" :disabled="logsLoading">
+                            {{ logsLoading ? '刷新中...' : '🔄 刷新' }}
+                        </button>
+                    </template>
                 </div>
             </div>
         </header>
         
-        <!-- Summary Bar -->
-        <div class="summary-bar">
-            <div class="summary-content">
-                <div class="summary-stats">
-                    <div class="stat-item">
-                        <span class="stat-dot healthy"></span>
-                        <span class="stat-label">健康</span>
-                        <span class="stat-value">{{ summary.healthy }}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-dot unhealthy"></span>
-                        <span class="stat-label">异常</span>
-                        <span class="stat-value">{{ summary.unhealthy }}</span>
-                    </div>
-                </div>
-                <button class="btn btn-outline btn-sm" @click="refreshAll" :disabled="loading">
-                    {{ loading ? '刷新中...' : '刷新' }}
-                </button>
-            </div>
-        </div>
-        
-        <!-- List -->
-        <div class="list-container">
-            <div class="list-header">
-                <span class="list-title">监听列表 ({{ listeners.length }})</span>
-            </div>
-            
-            <!-- Loading -->
-            <div v-if="loading && listeners.length === 0" class="loading">
-                <div class="spinner"></div>
-                <p>加载中...</p>
-            </div>
-            
-            <!-- List Content -->
-            <div v-else class="listener-list">
-                <!-- Listener Items -->
-                <div 
-                    v-for="item in listeners" 
-                    :key="item.chat" 
-                    class="listener-item"
-                >
-                    <div class="listener-info">
-                        <span :class="['status-indicator', item.status]"></span>
-                        <div class="listener-details">
-                            <div class="listener-name">{{ item.chat }}</div>
-                            <div :class="['listener-status', item.status]">
-                                {{ item.status === 'healthy' ? '运行正常' : (item.reason || '状态异常') }}
-                            </div>
+        <!-- List Page -->
+        <template v-if="activeTab === 'list'">
+            <!-- Summary Bar -->
+            <div class="summary-bar">
+                <div class="summary-content">
+                    <div class="summary-stats">
+                        <div class="stat-item">
+                            <span class="stat-dot healthy"></span>
+                            <span class="stat-label">健康</span>
+                            <span class="stat-value">{{ summary.healthy }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-dot unhealthy"></span>
+                            <span class="stat-label">异常</span>
+                            <span class="stat-value">{{ summary.unhealthy }}</span>
                         </div>
                     </div>
-                    <div class="listener-actions">
-                        <button 
-                            class="btn btn-outline btn-sm" 
-                            @click="resetOne(item.chat)"
-                            :disabled="loadingItems[item.chat]"
-                        >
-                            {{ loadingItems[item.chat] === 'reset' ? '重置中...' : '重置' }}
-                        </button>
-                        <button 
-                            class="btn btn-danger btn-sm" 
-                            @click="removeOne(item.chat)"
-                            :disabled="loadingItems[item.chat]"
-                        >
-                            {{ loadingItems[item.chat] === 'remove' ? '删除中...' : '删除' }}
-                        </button>
+                    <button class="btn btn-outline btn-sm" @click="refreshAll" :disabled="loading">
+                        {{ loading ? '刷新中...' : '刷新' }}
+                    </button>
+                </div>
+            </div>
+            
+            <!-- List -->
+            <div class="list-container">
+                <div class="list-header">
+                    <span class="list-title">监听列表 ({{ listeners.length }})</span>
+                </div>
+                
+                <!-- Loading -->
+                <div v-if="loading && listeners.length === 0" class="loading">
+                    <div class="spinner"></div>
+                    <p>加载中...</p>
+                </div>
+                
+                <!-- List Content -->
+                <div v-else class="listener-list">
+                    <!-- Listener Items -->
+                    <div 
+                        v-for="item in listeners" 
+                        :key="item.chat" 
+                        class="listener-item"
+                    >
+                        <div class="listener-info">
+                            <span :class="['status-indicator', item.status]"></span>
+                            <div class="listener-details">
+                                <div class="listener-name">{{ item.chat }}</div>
+                                <div :class="['listener-status', item.status]">
+                                    {{ item.status === 'healthy' ? '运行正常' : (item.reason || '状态异常') }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="listener-actions">
+                            <button 
+                                class="btn btn-outline btn-sm" 
+                                @click="resetOne(item.chat)"
+                                :disabled="loadingItems[item.chat]"
+                            >
+                                {{ loadingItems[item.chat] === 'reset' ? '重置中...' : '重置' }}
+                            </button>
+                            <button 
+                                class="btn btn-danger btn-sm" 
+                                @click="removeOne(item.chat)"
+                                :disabled="loadingItems[item.chat]"
+                            >
+                                {{ loadingItems[item.chat] === 'remove' ? '删除中...' : '删除' }}
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Add Card -->
+                    <div class="add-card" @click="showAddModal = true">
+                        <span>➕</span>
+                        <span>添加监听</span>
                     </div>
                 </div>
                 
-                <!-- Add Card -->
-                <div class="add-card" @click="showAddModal = true">
-                    <span>➕</span>
-                    <span>添加监听</span>
+                <!-- Empty State (when not loading and no items) -->
+                <div v-if="!loading && listeners.length === 0" class="empty-state">
+                    <div class="empty-icon">📭</div>
+                    <p class="empty-text">暂无监听记录</p>
                 </div>
             </div>
-            
-            <!-- Empty State (when not loading and no items) -->
-            <div v-if="!loading && listeners.length === 0" class="empty-state">
-                <div class="empty-icon">📭</div>
-                <p class="empty-text">暂无监听记录</p>
+        </template>
+        
+        <!-- Logs Page -->
+        <template v-else-if="activeTab === 'logs'">
+            <div class="logs-container">
+                <div class="logs-header">
+                    <div class="logs-controls">
+                        <select v-model="logType" class="log-type-select" @change="switchLogType">
+                            <option value="info">INFO 日志</option>
+                            <option value="error">ERROR 日志</option>
+                        </select>
+                        <button class="btn btn-outline btn-sm" @click="clearLogs">
+                            清空显示
+                        </button>
+                    </div>
+                    <div class="logs-info">
+                        <span>
+                            <span :class="['poll-indicator', { paused: !isPolling }]"></span>
+                            {{ isPolling ? '轮询中' : '已暂停' }}
+                        </span>
+                        <span>共 {{ logLines.length }} 行</span>
+                        <span>偏移: {{ sinceOffset }}</span>
+                    </div>
+                </div>
+                
+                <div class="logs-content" ref="logsContainer" @scroll="handleLogsScroll">
+                    <template v-if="logLines.length > 0">
+                        <div 
+                            v-for="(line, index) in logLines" 
+                            :key="index"
+                            :class="['log-line', getLogLevel(line)]"
+                        >{{ line }}</div>
+                    </template>
+                    <div v-else class="logs-empty">
+                        <div class="logs-empty-icon">📜</div>
+                        <p>{{ logsLoading ? '加载中...' : '暂无日志' }}</p>
+                    </div>
+                </div>
+                
+                <!-- Auto scroll button -->
+                <button 
+                    :class="['auto-scroll-btn', { active: autoScroll }]"
+                    @click="toggleAutoScroll"
+                    :title="autoScroll ? '自动滚动开启' : '自动滚动关闭'"
+                >
+                    ⬇️
+                </button>
+            </div>
+        </template>
+        
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+            <div class="tab-bar-inner">
+                <div 
+                    :class="['tab-item', { active: activeTab === 'list' }]"
+                    @click="switchTab('list')"
+                >
+                    <span class="tab-icon">📋</span>
+                    <span class="tab-label">列表</span>
+                </div>
+                <div 
+                    :class="['tab-item', { active: activeTab === 'logs' }]"
+                    @click="switchTab('logs')"
+                >
+                    <span class="tab-icon">📝</span>
+                    <span class="tab-label">日志</span>
+                </div>
             </div>
         </div>
         
@@ -586,12 +874,17 @@
     </div>
 
     <script>
-        const { createApp, ref, reactive, onMounted, watch, nextTick } = Vue;
+        const { createApp, ref, reactive, onMounted, onUnmounted, watch, nextTick } = Vue;
         
         const BASE_HOST = 'http://localhost:5000';
+        const LOGS_HOST = 'http://localhost:8088';
         
         createApp({
             setup() {
+                // Tab state
+                const activeTab = ref('list');
+                
+                // List page state
                 const listeners = ref([]);
                 const summary = ref({ healthy: 0, unhealthy: 0 });
                 const loading = ref(false);
@@ -609,6 +902,17 @@
                     message: '',
                     onConfirm: () => {}
                 });
+                
+                // Logs page state
+                const logType = ref('info');
+                const logLines = ref([]);
+                const sinceOffset = ref(0);
+                const logsLoading = ref(false);
+                const logsContainer = ref(null);
+                const autoScroll = ref(true);
+                const isPolling = ref(false);
+                let pollTimer = null;
+                let logsInitialized = false;
                 
                 const showConfirm = (title, message, onConfirm) => {
                     confirmModal.title = title;
@@ -630,9 +934,9 @@
                 };
                 
                 // API Request
-                const request = async (url, options = {}) => {
+                const request = async (url, options = {}, host = BASE_HOST) => {
                     try {
-                        const response = await fetch(BASE_HOST + url, {
+                        const response = await fetch(host + url, {
                             headers: { 'Content-Type': 'application/json' },
                             ...options
                         });
@@ -643,11 +947,13 @@
                         return data;
                     } catch (error) {
                         if (error.message === 'Failed to fetch') {
-                            throw new Error('无法连接到服务器，请检查 Base 服务是否启动');
+                            throw new Error('无法连接到服务器');
                         }
                         throw error;
                     }
                 };
+                
+                // ==================== List Page Methods ====================
                 
                 // Fetch Status
                 const fetchStatus = async () => {
@@ -752,6 +1058,141 @@
                     });
                 };
                 
+                // ==================== Logs Page Methods ====================
+                
+                // Fetch logs
+                const fetchLogs = async (isInitial = false) => {
+                    if (logsLoading.value) return;
+                    
+                    logsLoading.value = true;
+                    try {
+                        const offset = isInitial ? 0 : sinceOffset.value;
+                        const url = `/logs?log_type=${logType.value}&limit=500&since_offset=${offset}`;
+                        const data = await request(url, {}, LOGS_HOST);
+                        
+                        if (data.data) {
+                            if (isInitial) {
+                                logLines.value = data.data.lines || [];
+                            } else {
+                                // 增量追加
+                                const newLines = data.data.lines || [];
+                                if (newLines.length > 0) {
+                                    logLines.value = [...logLines.value, ...newLines];
+                                }
+                            }
+                            sinceOffset.value = data.data.next_offset || 0;
+                            
+                            // Auto scroll to bottom
+                            if (autoScroll.value) {
+                                nextTick(() => {
+                                    scrollToBottom();
+                                });
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Fetch logs error:', error);
+                        // Don't show toast for polling errors to avoid spam
+                        if (isInitial) {
+                            showToast(error.message, 'error');
+                        }
+                    } finally {
+                        logsLoading.value = false;
+                    }
+                };
+                
+                // Start polling
+                const startPolling = () => {
+                    if (pollTimer) return;
+                    isPolling.value = true;
+                    pollTimer = setInterval(() => {
+                        if (activeTab.value === 'logs') {
+                            fetchLogs(false);
+                        }
+                    }, 5000);
+                };
+                
+                // Stop polling
+                const stopPolling = () => {
+                    if (pollTimer) {
+                        clearInterval(pollTimer);
+                        pollTimer = null;
+                    }
+                    isPolling.value = false;
+                };
+                
+                // Refresh logs (manual)
+                const refreshLogs = () => {
+                    fetchLogs(false);
+                };
+                
+                // Switch log type
+                const switchLogType = () => {
+                    logLines.value = [];
+                    sinceOffset.value = 0;
+                    fetchLogs(true);
+                };
+                
+                // Clear logs display
+                const clearLogs = () => {
+                    logLines.value = [];
+                    // Keep the offset so we continue from where we left off
+                };
+                
+                // Get log level for styling
+                const getLogLevel = (line) => {
+                    const lowerLine = line.toLowerCase();
+                    if (lowerLine.includes('error') || lowerLine.includes('exception') || lowerLine.includes('traceback')) {
+                        return 'error';
+                    }
+                    if (lowerLine.includes('warning') || lowerLine.includes('warn')) {
+                        return 'warn';
+                    }
+                    if (lowerLine.includes('info')) {
+                        return 'info';
+                    }
+                    return '';
+                };
+                
+                // Scroll to bottom
+                const scrollToBottom = () => {
+                    if (logsContainer.value) {
+                        logsContainer.value.scrollTop = logsContainer.value.scrollHeight;
+                    }
+                };
+                
+                // Handle logs scroll
+                const handleLogsScroll = () => {
+                    if (!logsContainer.value) return;
+                    const { scrollTop, scrollHeight, clientHeight } = logsContainer.value;
+                    // If user scrolls up more than 100px from bottom, disable auto scroll
+                    autoScroll.value = scrollHeight - scrollTop - clientHeight < 100;
+                };
+                
+                // Toggle auto scroll
+                const toggleAutoScroll = () => {
+                    autoScroll.value = !autoScroll.value;
+                    if (autoScroll.value) {
+                        scrollToBottom();
+                    }
+                };
+                
+                // ==================== Tab Switch ====================
+                
+                const switchTab = (tab) => {
+                    activeTab.value = tab;
+                    
+                    if (tab === 'logs') {
+                        // Initialize logs if first time
+                        if (!logsInitialized) {
+                            logsInitialized = true;
+                            fetchLogs(true);
+                        }
+                        startPolling();
+                    } else {
+                        stopPolling();
+                    }
+                };
+                
                 // Watch modal to focus input
                 watch(showAddModal, (val) => {
                     if (val) {
@@ -766,7 +1207,17 @@
                     fetchStatus();
                 });
                 
+                // Cleanup
+                onUnmounted(() => {
+                    stopPolling();
+                });
+                
                 return {
+                    // Tab
+                    activeTab,
+                    switchTab,
+                    
+                    // List page
                     listeners,
                     summary,
                     loading,
@@ -782,7 +1233,23 @@
                     removeOne,
                     resetOne,
                     refreshAll,
-                    resetAll
+                    resetAll,
+                    
+                    // Logs page
+                    logType,
+                    logLines,
+                    sinceOffset,
+                    logsLoading,
+                    logsContainer,
+                    autoScroll,
+                    isPolling,
+                    fetchLogs,
+                    refreshLogs,
+                    switchLogType,
+                    clearLogs,
+                    getLogLevel,
+                    handleLogsScroll,
+                    toggleAutoScroll
                 };
             }
         }).mount('#app');

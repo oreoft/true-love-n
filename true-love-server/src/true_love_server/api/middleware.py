@@ -10,6 +10,7 @@ import time
 import uuid
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 LOG = logging.getLogger("Middleware")
@@ -63,4 +64,13 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
 def setup_middleware(app: FastAPI):
     """设置所有中间件"""
+    # CORS 中间件（允许跨域）
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
     app.add_middleware(RequestLoggingMiddleware)
