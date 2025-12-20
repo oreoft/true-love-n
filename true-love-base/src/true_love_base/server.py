@@ -6,10 +6,11 @@ HTTP Server - 提供 HTTP API 服务
 使用 Waitress 作为生产级 WSGI 服务器。
 """
 
+import json
 import logging
 import time
 from threading import Thread
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Any
 
 from flask import Flask, g, request, jsonify
 from waitress import serve
@@ -31,6 +32,98 @@ _robot: Optional["Robot"] = None
 def get_robot() -> Optional["Robot"]:
     """获取 Robot 实例"""
     return _robot
+
+
+# ==================== 通用执行接口配置 ====================
+
+# 方法黑名单 - 禁止调用的方法
+METHOD_BLACKLIST = {
+    'ShutDown',       # 危险：会杀掉微信进程
+    'KeepRunning',    # 阻塞方法，不应通过 API 调用
+    'StartListening', # 阻塞方法
+    'StopListening',  # 可能影响正常监听
+}
+
+# 需要特殊处理的方法（需要 callback 参数）
+CALLBACK_METHODS = {'AddListenChat'}
+
+
+def is_method_allowed(method_name: str) -> bool:
+    """
+    检查方法是否允许调用
+    
+    Args:
+        method_name: 方法名
+        
+    Returns:
+        是否允许调用
+    """
+    # 过滤 __ 开头的系统方法
+    if method_name.startswith('__'):
+        return False
+    # 过滤 _ 开头的私有方法
+    if method_name.startswith('_'):
+        return False
+    # 过滤黑名单
+    if method_name in METHOD_BLACKLIST:
+        return False
+    return True
+
+
+def serialize_result(result: Any) -> Any:
+    """
+    通用序列化返回值
+    
+    Args:
+        result: 方法返回值
+        
+    Returns:
+        可 JSON 序列化的结果
+    """
+    if result is None:
+        return None
+    
+    # 基本类型直接返回
+    if isinstance(result, (str, int, float, bool)):
+        return result
+    
+    # dict 直接返回
+    if isinstance(result, dict):
+        return result
+    
+    # 列表递归处理
+    if isinstance(result, list):
+        return [serialize_result(item) for item in result]
+    
+    # WxResponse 类型（有 __bool__ 方法，可以当 dict 用）
+    # 尝试转换为 dict
+    if hasattr(result, 'get') and hasattr(result, '__getitem__'):
+        try:
+            return dict(result)
+        except (TypeError, ValueError):
+            pass
+    
+    # 其他对象尝试提取公开属性
+    try:
+        attrs = {}
+        for attr in dir(result):
+            if attr.startswith('_'):
+                continue
+            try:
+                value = getattr(result, attr)
+                if not callable(value):
+                    # 尝试 JSON 序列化测试
+                    json.dumps(value, ensure_ascii=False)
+                    attrs[attr] = value
+            except (TypeError, ValueError, AttributeError):
+                pass
+        if attrs:
+            return attrs
+    except Exception:
+        pass
+    
+    # 最后兜底：返回字符串表示
+    return str(result)
 
 
 # ==================== API Routes ====================
@@ -370,6 +463,156 @@ def reset_all_listeners():
     
     result = robot.reset_all_listeners()
     return jsonify(ApiResponse.success(result).to_dict())
+
+
+@app.route('/execute/wx', methods=['POST'])
+def execute_wx():
+    """
+    通用执行 WeChat 实例方法
+    
+    动态调用 WeChat 类的方法，支持大部分 wxautox4 提供的功能。
+    
+    Request Body:
+        - name: 方法名 (如 "SendMsg", "ChatWith", "GetMyInfo")
+        - params: 参数字典 (如 {"msg": "hello", "who": "xxx"})，可选
+        
+    Response:
+        - data: 方法执行结果
+        
+    Note:
+        - 不允许调用 __ 或 _ 开头的方法
+        - 不允许调用黑名单中的危险方法 (ShutDown, KeepRunning 等)
+        - AddListenChat 会自动注入 on_message 回调
+    """
+    robot = get_robot()
+    if robot is None:
+        return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
+    
+    data = request.json or {}
+    method_name = data.get('name', '')
+    params = data.get('params', {})
+    
+    if not method_name:
+        return jsonify(ApiResponse.error(103, "Missing 'name' parameter").to_dict())
+    
+    # 安全检查
+    if not is_method_allowed(method_name):
+        return jsonify(ApiResponse.error(106, f"Method '{method_name}' is not allowed").to_dict())
+    
+    # 获取 wx 实例
+    try:
+        wx = robot.client.wx
+    except Exception as e:
+        LOG.error(f"Failed to get wx instance: {e}")
+        return jsonify(ApiResponse.error(101, "WeChat client not ready").to_dict())
+    
+    # 检查方法是否存在且可调用
+    method = getattr(wx, method_name, None)
+    if method is None or not callable(method):
+        return jsonify(ApiResponse.error(106, f"Method '{method_name}' not found").to_dict())
+    
+    # 特殊处理需要 callback 的方法
+    if method_name in CALLBACK_METHODS:
+        if method_name == 'AddListenChat':
+            nickname = params.get('nickname', '')
+            if not nickname:
+                return jsonify(ApiResponse.error(103, "Missing 'nickname' in params for AddListenChat").to_dict())
+            try:
+                # 使用 robot 的标准流程添加监听
+                success = robot.add_listen_chat(nickname)
+                return jsonify(ApiResponse.success({"success": success}).to_dict())
+            except Exception as e:
+                LOG.error(f"AddListenChat failed for [{nickname}]: {e}")
+                return jsonify(ApiResponse.error(107, f"AddListenChat failed: {str(e)}").to_dict())
+    
+    # 执行普通方法
+    try:
+        LOG.info(f"Executing wx.{method_name}({params})")
+        result = method(**params) if params else method()
+        serialized = serialize_result(result)
+        LOG.info(f"wx.{method_name} result: {str(serialized)[:200]}")
+        return jsonify(ApiResponse.success(serialized).to_dict())
+    except TypeError as e:
+        # 参数错误
+        LOG.error(f"wx.{method_name} TypeError: {e}")
+        return jsonify(ApiResponse.error(103, f"Invalid params: {str(e)}").to_dict())
+    except Exception as e:
+        LOG.error(f"wx.{method_name} execution failed: {e}")
+        return jsonify(ApiResponse.error(107, f"Execution failed: {str(e)}").to_dict())
+
+
+@app.route('/execute/chat', methods=['POST'])
+def execute_chat():
+    """
+    通用执行 Chat 子窗口方法
+    
+    先通过 GetSubWindow 获取子窗口，再动态调用 Chat 类的方法。
+    
+    Request Body:
+        - chat_name: 聊天对象名称 (用于 GetSubWindow 获取子窗口)
+        - name: 方法名 (如 "SendMsg", "ChatInfo", "GetAllMessage")
+        - params: 参数字典，可选
+        
+    Response:
+        - data: 方法执行结果
+        
+    Note:
+        - 子窗口必须已经存在（通过 AddListenChat 创建）
+        - 不允许调用 __ 或 _ 开头的方法
+    """
+    robot = get_robot()
+    if robot is None:
+        return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
+    
+    data = request.json or {}
+    chat_name = data.get('chat_name', '')
+    method_name = data.get('name', '')
+    params = data.get('params', {})
+    
+    if not chat_name:
+        return jsonify(ApiResponse.error(103, "Missing 'chat_name' parameter").to_dict())
+    if not method_name:
+        return jsonify(ApiResponse.error(103, "Missing 'name' parameter").to_dict())
+    
+    # 安全检查
+    if not is_method_allowed(method_name):
+        return jsonify(ApiResponse.error(106, f"Method '{method_name}' is not allowed").to_dict())
+    
+    # 获取 wx 实例
+    try:
+        wx = robot.client.wx
+    except Exception as e:
+        LOG.error(f"Failed to get wx instance: {e}")
+        return jsonify(ApiResponse.error(101, "WeChat client not ready").to_dict())
+    
+    # 获取子窗口
+    try:
+        chat = wx.GetSubWindow(chat_name)
+        if chat is None:
+            return jsonify(ApiResponse.error(108, f"Sub window '{chat_name}' not found. Please add listener first.").to_dict())
+    except Exception as e:
+        LOG.error(f"GetSubWindow failed for [{chat_name}]: {e}")
+        return jsonify(ApiResponse.error(108, f"Failed to get sub window: {str(e)}").to_dict())
+    
+    # 检查方法是否存在且可调用
+    method = getattr(chat, method_name, None)
+    if method is None or not callable(method):
+        return jsonify(ApiResponse.error(106, f"Method '{method_name}' not found on Chat").to_dict())
+    
+    # 执行方法
+    try:
+        LOG.info(f"Executing chat[{chat_name}].{method_name}({params})")
+        result = method(**params) if params else method()
+        serialized = serialize_result(result)
+        LOG.info(f"chat.{method_name} result: {str(serialized)[:200]}")
+        return jsonify(ApiResponse.success(serialized).to_dict())
+    except TypeError as e:
+        # 参数错误
+        LOG.error(f"chat.{method_name} TypeError: {e}")
+        return jsonify(ApiResponse.error(103, f"Invalid params: {str(e)}").to_dict())
+    except Exception as e:
+        LOG.error(f"chat.{method_name} execution failed: {e}")
+        return jsonify(ApiResponse.error(107, f"Execution failed: {str(e)}").to_dict())
 
 
 @app.route('/logs', methods=['GET'])

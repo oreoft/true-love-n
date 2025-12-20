@@ -371,6 +371,190 @@
 						"description": "重置所有监听（基于 DB 配置）\n\n以 DB 中的配置为基准，不依赖内存状态"
 					},
 					"response": []
+				},
+				{
+					"name": "通用执行 - WeChat方法",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"GetMyInfo\",\n    \"params\": {}\n}"
+						},
+						"url": {
+							"raw": "{{base_host}}/execute/wx",
+							"host": ["{{base_host}}"],
+							"path": ["execute", "wx"]
+						},
+						"description": "通用执行 WeChat 实例方法\n\n支持的方法示例：\n- GetMyInfo: 获取个人信息\n- IsOnline: 是否在线\n- GetSession: 获取会话列表\n- ChatWith: 打开聊天 {\"who\": \"昵称\"}\n- SendMsg: 发送消息 {\"msg\": \"hello\", \"who\": \"昵称\"}\n- SendFiles: 发送文件 {\"filepath\": \"路径\", \"who\": \"昵称\"}\n- AddListenChat: 添加监听 {\"nickname\": \"昵称\"}\n- RemoveListenChat: 移除监听 {\"nickname\": \"昵称\"}\n- GetSubWindow: 获取子窗口 {\"nickname\": \"昵称\"}\n- GetAllSubWindow: 获取所有子窗口\n- SwitchToChat: 切换到聊天页\n- SwitchToContact: 切换到联系人页\n\n黑名单方法（禁止调用）：ShutDown, KeepRunning, StartListening, StopListening"
+					},
+					"response": []
+				},
+				{
+					"name": "通用执行 - WeChat.GetMyInfo",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"GetMyInfo\"\n}"
+						},
+						"url": {
+							"raw": "{{base_host}}/execute/wx",
+							"host": ["{{base_host}}"],
+							"path": ["execute", "wx"]
+						},
+						"description": "获取当前登录微信的个人信息"
+					},
+					"response": []
+				},
+				{
+					"name": "通用执行 - WeChat.SendMsg",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"SendMsg\",\n    \"params\": {\n        \"msg\": \"Hello World\",\n        \"who\": \"好友昵称\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_host}}/execute/wx",
+							"host": ["{{base_host}}"],
+							"path": ["execute", "wx"]
+						},
+						"description": "通过主窗口发送消息"
+					},
+					"response": []
+				},
+				{
+					"name": "通用执行 - WeChat.AddListenChat",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"AddListenChat\",\n    \"params\": {\n        \"nickname\": \"好友昵称\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_host}}/execute/wx",
+							"host": ["{{base_host}}"],
+							"path": ["execute", "wx"]
+						},
+						"description": "添加监听（自动注入 on_message 回调）"
+					},
+					"response": []
+				},
+				{
+					"name": "通用执行 - Chat方法",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"chat_name\": \"好友昵称\",\n    \"name\": \"ChatInfo\",\n    \"params\": {}\n}"
+						},
+						"url": {
+							"raw": "{{base_host}}/execute/chat",
+							"host": ["{{base_host}}"],
+							"path": ["execute", "chat"]
+						},
+						"description": "通用执行 Chat 子窗口方法\n\n前提：子窗口必须已存在（通过 AddListenChat 创建）\n\n支持的方法示例：\n- ChatInfo: 获取聊天信息\n- SendMsg: 发送消息 {\"msg\": \"hello\"}\n- SendFiles: 发送文件 {\"filepath\": \"路径\"}\n- GetAllMessage: 获取所有消息\n- GetNewMessage: 获取新消息\n- AtAll: @所有人 {\"msg\": \"通知内容\"}\n- Show: 显示窗口\n- Close: 关闭窗口"
+					},
+					"response": []
+				},
+				{
+					"name": "通用执行 - Chat.ChatInfo",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"chat_name\": \"好友昵称\",\n    \"name\": \"ChatInfo\"\n}"
+						},
+						"url": {
+							"raw": "{{base_host}}/execute/chat",
+							"host": ["{{base_host}}"],
+							"path": ["execute", "chat"]
+						},
+						"description": "获取聊天窗口信息（可用于健康检测）"
+					},
+					"response": []
+				},
+				{
+					"name": "通用执行 - Chat.SendMsg",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"chat_name\": \"好友昵称\",\n    \"name\": \"SendMsg\",\n    \"params\": {\n        \"msg\": \"Hello from sub window\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_host}}/execute/chat",
+							"host": ["{{base_host}}"],
+							"path": ["execute", "chat"]
+						},
+						"description": "通过子窗口发送消息"
+					},
+					"response": []
+				},
+				{
+					"name": "通用执行 - Chat.GetAllMessage",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"chat_name\": \"好友昵称\",\n    \"name\": \"GetAllMessage\"\n}"
+						},
+						"url": {
+							"raw": "{{base_host}}/execute/chat",
+							"host": ["{{base_host}}"],
+							"path": ["execute", "chat"]
+						},
+						"description": "获取聊天窗口的所有消息"
+					},
+					"response": []
 				}
 			],
 			"description": "Base 模块接口 - 提供微信消息发送、联系人管理、监听管理等功能"
