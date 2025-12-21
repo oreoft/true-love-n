@@ -44,7 +44,7 @@ class LLMConfig(BaseSettings):
     # 聊天模型
     deepseek_model: str = "deepseek/deepseek-chat"  # DeepSeek 模型
     claude_model: str = "claude-sonnet-4-5"  # Claude 模型
-    gemini_model: str = "gemini-3-pro"  # Gemini 模型
+    gemini_model: str = "gemini-3-pro-preview"  # Gemini 模型
 
     # 图像生成配置
     image_model: str = "dall-e-3"  # 图像生成模型
