@@ -48,7 +48,7 @@ class LLMConfig(BaseSettings):
 
     # 图像生成配置
     image_model: str = "dall-e-3"  # 图像生成模型
-    gemini_image_model: str = "gemini-3-pro-image"  # Gemini 图像模型
+    gemini_image_model: str = "gemini-3-pro-image-preview"  # Gemini 图像模型
 
     # 视频生成配置
     openai_video_model: str = "sora-2-pro"  # OpenAI 视频模型

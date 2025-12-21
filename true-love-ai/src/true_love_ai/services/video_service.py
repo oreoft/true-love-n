@@ -97,7 +97,7 @@ class VideoService:
             provider: 提供商
             model: 模型
         """
-        LOG.info(f"开始文生视频: {content[:50]}...")
+        LOG.info(f"开始文生视频: {content}...")
 
         # 使用新的提示词系统生成视频描述词
         video_prompt_text = await self._generate_video_prompt(
@@ -174,7 +174,7 @@ class VideoService:
                 model=model
             )
 
-            LOG.info(f"生成的视频描述词 (风格: {style_id}): {video_prompt_text[:100]}...")
+            LOG.info(f"生成的视频描述词 (风格: {style_id}): {video_prompt_text}...")
             return video_prompt_text
 
         except Exception as e:

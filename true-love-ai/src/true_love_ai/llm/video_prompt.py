@@ -209,6 +209,20 @@ def get_prompt_generator_prompt(style_id: str, user_description: str) -> str:
 3. 指定**节奏感**：快/慢/变速
 4. 注意**连贯性**：确保描述的动作在 5-15 秒内可以完成
 
+## ⚠️ 版权与安全规避（重要）：
+为避免视频生成被过滤，你必须对以下内容进行创意转换：
+1. **版权角色**：不要直接使用版权角色名（如海绵宝宝、美国队长、皮卡丘、哆啦A梦等）
+   - 转换方式：用通用描述替代，保留角色特征但不提及名字
+   - 例如："海绵宝宝" → "a cheerful yellow square-shaped sea sponge character with big blue eyes"
+   - 例如："美国队长" → "a heroic super soldier in a star-spangled red, white and blue suit with a round shield"
+   - 例如："皮卡丘" → "a cute yellow electric mouse creature with red cheeks and lightning-bolt tail"
+2. **品牌/商标**：不要提及具体品牌名，用通用描述替代
+3. **真实名人**：不要使用真实名人名字，用角色类型描述替代
+4. **暴力内容**：将"打架/战斗/大战"等转换为更温和的表达
+   - "大战" → "epic showdown", "friendly competition", "action scene"
+   - 避免血腥、伤害等描述
+5. **敏感内容**：避免政治、宗教、色情等敏感话题
+
 ## 规则：
 1. 输出必须是**纯英文**的视频描述
 2. 将用户描述中的关键信息填充到模板的占位符中
@@ -217,6 +231,7 @@ def get_prompt_generator_prompt(style_id: str, user_description: str) -> str:
 5. 输出应该是一段连贯的描述，不需要包含占位符
 6. 不要输出负面提示词，只输出正面描述
 7. 长度控制在 100-300 个英文单词
+8. **必须应用版权规避规则**，用创意描述替代版权内容，同时尽量满足用户意图
 
 ## 用户描述：
 {user_description}

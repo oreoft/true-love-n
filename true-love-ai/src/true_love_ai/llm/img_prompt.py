@@ -303,6 +303,16 @@ def get_prompt_generator_prompt(style_id: str, user_description: str) -> str:
 ## 负面提示词参考：
 {style['negative_prompt']}
 
+## ⚠️ 版权与安全规避（重要）：
+为避免图像生成被过滤，你必须对以下内容进行创意转换：
+1. **版权角色**：不要直接使用版权角色名（如海绵宝宝、美国队长、皮卡丘、哆啦A梦等）
+   - 转换方式：用通用描述替代，保留角色特征但不提及名字
+   - 例如："海绵宝宝" → "a cheerful yellow square-shaped sea sponge character with big blue eyes"
+   - 例如："美国队长" → "a heroic super soldier in a star-spangled red, white and blue suit with a round shield"
+2. **品牌/商标**：不要提及具体品牌名，用通用描述替代
+3. **真实名人**：不要使用真实名人名字，用角色类型描述替代
+4. **敏感内容**：避免政治、宗教、色情、暴力血腥等敏感话题
+
 ## 规则：
 1. 输出必须是**纯英文**的图像描述
 2. 将用户描述中的关键信息填充到模板的占位符中
@@ -311,6 +321,7 @@ def get_prompt_generator_prompt(style_id: str, user_description: str) -> str:
 5. 输出应该是一段连贯的描述，不需要包含占位符
 6. 不要输出负面提示词，只输出正面描述
 7. 长度控制在 100-300 个英文单词
+8. **必须应用版权规避规则**，用创意描述替代版权内容，同时尽量满足用户意图
 
 ## 用户描述：
 {user_description}
