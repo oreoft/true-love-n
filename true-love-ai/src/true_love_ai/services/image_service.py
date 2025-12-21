@@ -192,32 +192,27 @@ class ImageService:
             英文图像描述词
         """
         try:
-            # Step 1: 先尝试快速关键词匹配
-            style_id = img_prompt.quick_match_style(content)
-            
-            # Step 2: 如果快速匹配没有结果，使用 LLM 进行风格匹配
-            if not style_id:
-                LOG.info("快速匹配无结果，使用 LLM 进行风格匹配...")
-                style_matcher_prompt = img_prompt.get_style_matcher_prompt()
-                
-                style_id = await self.llm_router.chat(
-                    messages=[
-                        {"role": "system", "content": style_matcher_prompt},
-                        {"role": "user", "content": content}
-                    ],
-                    provider=provider,
-                    model=model
-                )
-                
-                # 清理 LLM 返回的风格 ID
-                style_id = style_id.strip().lower()
-                
-                # 验证风格 ID 是否有效
-                valid_ids = img_prompt.get_all_style_ids()
-                if style_id not in valid_ids:
-                    LOG.warning(f"LLM 返回的风格 ID 无效: {style_id}，使用 general")
-                    style_id = "general"
-            
+            # Step 1: 使用 LLM 进行风格匹配（比关键词匹配更准确）
+            style_matcher_prompt = img_prompt.get_style_matcher_prompt()
+
+            style_id = await self.llm_router.chat(
+                messages=[
+                    {"role": "system", "content": style_matcher_prompt},
+                    {"role": "user", "content": content}
+                ],
+                provider=provider,
+                model=model
+            )
+
+            # 清理 LLM 返回的风格 ID
+            style_id = style_id.strip().lower()
+
+            # 验证风格 ID 是否有效
+            valid_ids = img_prompt.get_all_style_ids()
+            if style_id not in valid_ids:
+                LOG.warning(f"LLM 返回的风格 ID 无效: {style_id}，使用 general")
+                style_id = "general"
+
             LOG.info(f"匹配到的风格: {style_id}")
             
             # Step 3: 使用匹配到的风格模板生成最终 prompt

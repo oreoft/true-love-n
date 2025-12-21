@@ -57,7 +57,7 @@ STYLE_CATEGORIES = [
     {
         "id": "anime_style",
         "name": "动画风格（Anime Style）",
-        "keywords": ["动画", "anime", "二次元", "卡通", "cartoon", "动漫", "吉卜力", "ghibli", "漫画"],
+        "keywords": ["动画", "anime", "二次元", "卡通", "cartoon", "动漫", "吉卜力", "ghibli", "漫画", "海绵宝宝", "派大星", "皮卡丘", "哆啦A梦", "蜡笔小新", "喜羊羊", "熊出没", "迪士尼"],
         "summary": "日式动画风格：手绘质感、流畅动画、标志性的动漫美学。",
         "best_for": ["创意表达", "角色动画", "奇幻场景"],
         "defaults": {"aspect_ratio": "16:9", "duration": "5-10s"},
@@ -67,7 +67,7 @@ STYLE_CATEGORIES = [
     {
         "id": "nature_landscape",
         "name": "自然风景（Nature Landscape）",
-        "keywords": ["风景", "自然", "nature", "landscape", "山", "海", "森林", "日落", "sunrise", "sunset", "mountain", "ocean", "forest"],
+        "keywords": ["风景", "自然", "nature", "landscape", "山脉", "大海", "海边", "海景", "森林", "日落", "sunrise", "sunset", "mountain", "ocean", "forest"],
         "summary": "自然风景视频：壮丽的自然景观、延时/慢动作、大气感光影。",
         "best_for": ["风景展示", "旅行记录", "冥想背景"],
         "defaults": {"aspect_ratio": "16:9", "duration": "10-20s"},
@@ -87,7 +87,7 @@ STYLE_CATEGORIES = [
     {
         "id": "action_sports",
         "name": "运动动态（Action Sports）",
-        "keywords": ["运动", "动作", "action", "sports", "跑步", "跳跃", "极限", "slow motion", "慢动作", "速度"],
+        "keywords": ["运动", "动作", "action", "sports", "跑步", "跳跃", "极限", "slow motion", "慢动作", "速度", "大战", "战斗", "打架", "fight", "battle", "对决", "PK"],
         "summary": "动态运动视频：高速动作、慢动作回放、动感张力、速度感。",
         "best_for": ["体育广告", "动作展示", "活力表达"],
         "defaults": {"aspect_ratio": "16:9", "duration": "5-10s"},

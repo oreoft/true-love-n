@@ -139,31 +139,26 @@ class VideoService:
             英文视频描述词
         """
         try:
-            # Step 1: 先尝试快速关键词匹配
-            style_id = video_prompt.quick_match_style(content)
+            # Step 1: 使用 LLM 进行风格匹配（比关键词匹配更准确）
+            style_matcher_prompt = video_prompt.get_style_matcher_prompt()
 
-            # Step 2: 如果快速匹配没有结果，使用 LLM 进行风格匹配
-            if not style_id:
-                LOG.info("快速匹配无结果，使用 LLM 进行风格匹配...")
-                style_matcher_prompt = video_prompt.get_style_matcher_prompt()
+            style_id = await self.llm_router.chat(
+                messages=[
+                    {"role": "system", "content": style_matcher_prompt},
+                    {"role": "user", "content": content}
+                ],
+                provider=provider,
+                model=model
+            )
 
-                style_id = await self.llm_router.chat(
-                    messages=[
-                        {"role": "system", "content": style_matcher_prompt},
-                        {"role": "user", "content": content}
-                    ],
-                    provider=provider,
-                    model=model
-                )
+            # 清理 LLM 返回的风格 ID
+            style_id = style_id.strip().lower()
 
-                # 清理 LLM 返回的风格 ID
-                style_id = style_id.strip().lower()
-
-                # 验证风格 ID 是否有效
-                valid_ids = video_prompt.get_all_style_ids()
-                if style_id not in valid_ids:
-                    LOG.warning(f"LLM 返回的风格 ID 无效: {style_id}，使用 general")
-                    style_id = "general"
+            # 验证风格 ID 是否有效
+            valid_ids = video_prompt.get_all_style_ids()
+            if style_id not in valid_ids:
+                LOG.warning(f"LLM 返回的风格 ID 无效: {style_id}，使用 general")
+                style_id = "general"
 
             LOG.info(f"匹配到的视频风格: {style_id}")
 
@@ -394,6 +389,7 @@ class VideoService:
             # Step 2: 轮询等待完成
             max_attempts = 120
             interval = 5.0
+            last_status_response = None  # 保存最后的状态响应用于调试
             for attempt in range(max_attempts):
                 try:
                     status_response = await litellm.avideo_status(video_id=video_id_remote, api_key=api_key)
@@ -401,6 +397,8 @@ class VideoService:
 
                     if status == "completed":
                         LOG.info(f"[{video_id_remote}] Gemini {task_type}完成, 开始下载...")
+                        # 保存状态响应用于下载失败时调试
+                        last_status_response = status_response
                         break
                     elif status == "failed":
                         LOG.error(f"[{video_id_remote}] Gemini {task_type}失败")
@@ -430,7 +428,35 @@ class VideoService:
                 raise ValueError(f"{task_type}超时，请稍后再试~")
 
             # Step 3: 下载视频内容并保存到本地
-            video_bytes = await litellm.avideo_content(video_id=video_id_remote, api_key=api_key)
+            try:
+                video_bytes = await litellm.avideo_content(video_id=video_id_remote, api_key=api_key)
+            except Exception as e:
+                error_str = str(e).lower()
+                # 下载失败时打印完整调试信息
+                LOG.error(f"[{video_id_remote}] Gemini 视频下载失败!")
+                LOG.error(f"[{video_id_remote}] 异常类型: {type(e).__name__}, 异常信息: {e}")
+                if hasattr(e, '__dict__'):
+                    LOG.error(f"[{video_id_remote}] 异常属性: {e.__dict__}")
+                # 打印最后的状态响应（如果有）
+                if 'last_status_response' in locals():
+                    LOG.error(f"[{video_id_remote}] 最后状态响应: {last_status_response}")
+                    if hasattr(last_status_response, '__dict__'):
+                        LOG.error(f"[{video_id_remote}] 状态响应属性: {last_status_response.__dict__}")
+                    if hasattr(last_status_response, 'model_dump'):
+                        try:
+                            LOG.error(f"[{video_id_remote}] 状态响应详情: {last_status_response.model_dump()}")
+                        except Exception:
+                            pass
+                # "No response data in completed operation" 通常是内容安全过滤导致的
+                if "no response data" in error_str or "completed operation" in error_str:
+                    raise ValueError("生成失败啦! 视频内容可能触发了安全过滤~")
+                if any(kw in error_str for kw in ["filtered", "safety", "policy", "blocked"]):
+                    raise ValueError("生成失败啦! 内容太不堪入目了吧~")
+                raise ValueError(f"视频下载失败啦! 稍后再试试吧~")
+
+            if not video_bytes:
+                LOG.error(f"[{video_id_remote}] Gemini 视频内容为空")
+                raise ValueError("生成失败啦! 视频内容为空，可能触发了安全过滤~")
 
             video_id = str(uuid.uuid4())
             video_path = GEN_VIDEO_DIR / f"{video_id}.mp4"
