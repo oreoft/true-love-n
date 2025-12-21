@@ -128,60 +128,73 @@ class ListenManager:
 
     # ==================== 增删接口 ====================
 
-    def add_listen(self, chat_name: str) -> dict:
+    def add_listen(self, chat_name: str, skip_store: bool = False) -> dict:
         """
         添加监听
         
         流程：
-        1. 调用 Base 添加 SDK 监听
-        2. 成功后写入本地 JSON
+        1. 切换 ChatWith（打开聊天窗口）
+        2. 调用 Base 添加 SDK 监听
+        3. 成功后写入本地 JSON（除非 skip_store=True）
         
         Args:
             chat_name: 聊天对象名称
+            skip_store: 是否跳过本地存储操作（用于 reset 场景，已有记录无需重复写入）
             
         Returns:
             {"success": bool, "message": str}
         """
-        # 检查是否已存在
-        if self._store.exists(chat_name):
+        # 检查是否已存在（仅在非 skip_store 模式下检查）
+        if not skip_store and self._store.exists(chat_name):
             LOG.info(f"[{chat_name}] already in listen list")
             return {"success": True, "message": f"[{chat_name}] already exists"}
 
-        # 调用 Base 的 /listen/add 添加监听
+        # Step 1: 切换到聊天窗口
+        chat_with_result = base_client.execute_wx("ChatWith", {"who": chat_name})
+        if not chat_with_result.get("success"):
+            LOG.error(f"ChatWith failed for [{chat_name}]: {chat_with_result.get('message')}")
+            return {"success": False, "message": f"ChatWith failed: {chat_with_result.get('message')}"}
+
+        # Step 2: 调用 Base 的 /listen/add 添加监听
         result = base_client.add_listen_chat(chat_name)
 
         if result.get("success"):
-            # SDK 添加成功，写入本地
-            self._store.add(chat_name)
+            # SDK 添加成功，写入本地（除非 skip_store）
+            if not skip_store:
+                self._store.add(chat_name)
             LOG.info(f"Added listener for [{chat_name}]")
             return {"success": True, "message": f"Added listener for [{chat_name}]"}
         else:
             LOG.error(f"Failed to add listener for [{chat_name}]: {result.get('message')}")
             return {"success": False, "message": result.get("message", "Unknown error")}
 
-    def remove_listen(self, chat_name: str) -> dict:
+    def remove_listen(self, chat_name: str, skip_store: bool = False) -> dict:
         """
         移除监听
         
         流程：
         1. 调用 Base 移除 SDK 监听
-        2. 无论是否成功都从本地 JSON 删除
+        2. 从本地 JSON 删除（除非 skip_store=True）
         
         Args:
             chat_name: 聊天对象名称
+            skip_store: 是否跳过本地存储操作（用于 reset 场景，不需要删除本地记录）
             
         Returns:
             {"success": bool, "message": str}
         """
         # 调用 Base 的 RemoveListenChat
-        result = base_client.execute_wx("RemoveListenChat", {"nickname": chat_name, "close_window": True})
+        result = base_client.execute_wx("RemoveListenChat", {"nickname": chat_name})
 
         if result.get("success"):
             LOG.info(f"Removed listener for [{chat_name}]")
-            self._store.remove(chat_name)
+            if not skip_store:
+                self._store.remove(chat_name)
             return {"success": True, "message": f"Removed listener for [{chat_name}]"}
         else:
-            LOG.warning(f"SDK remove failed for [{chat_name}], but removed from local store")
+            LOG.warning(f"SDK remove failed for [{chat_name}]: {result.get('message')}")
+            if not skip_store:
+                self._store.remove(chat_name)
             return {"success": True, "message": f"Removed from local (SDK: {result.get('message', 'failed')})"}
 
     # ==================== 刷新/重置接口 ====================
@@ -258,10 +271,11 @@ class ListenManager:
         重置单个监听
         
         流程：
-        1. 关闭子窗口
-        2. 移除监听
-        3. 等待 UI 稳定
-        4. 重新添加监听
+        1. 切换到 SwitchToChat
+        2. 关闭子窗口
+        3. 调用 remove_listen (skip_store=True)
+        4. 等待 UI 稳定
+        5. 调用 add_listen (skip_store=True)
         
         Args:
             chat_name: 聊天对象名称
@@ -274,35 +288,43 @@ class ListenManager:
 
         steps = []
 
-        # Step 1: 尝试关闭子窗口
+        # Step 1: 切换到聊天页面
+        try:
+            result = base_client.execute_wx("SwitchToChat", {})
+            steps.append({"step": "switch_to_chat", "success": result.get("success", False)})
+        except Exception as e:
+            steps.append({"step": "switch_to_chat", "success": False, "error": str(e)})
+
+        # Step 2: 尝试关闭子窗口（幂等操作）
         try:
             result = base_client.execute_chat(chat_name, "Close", {})
             steps.append({"step": "close_window", "success": result.get("success", False)})
         except Exception as e:
             steps.append({"step": "close_window", "success": False, "error": str(e)})
 
-        # Step 2: 移除监听（清理旧状态）
+        # Step 3: 移除监听（skip_store=True，不删除本地记录）
         try:
-            result = base_client.execute_wx("RemoveListenChat", {"nickname": chat_name, "close_window": True})
+            result = self.remove_listen(chat_name, skip_store=True)
             steps.append({"step": "remove_listen", "success": result.get("success", False)})
         except Exception as e:
             steps.append({"step": "remove_listen", "success": False, "error": str(e)})
 
-        # Step 3: 等待 UI 稳定
+        # Step 4: 等待 UI 稳定
         time.sleep(0.5)
         steps.append({"step": "wait", "success": True, "duration": 0.5})
 
-        # Step 4: 重新添加监听
+        # Step 5: 重新添加监听（skip_store=True，不重复写入本地记录）
         try:
-            result = base_client.add_listen_chat(chat_name)
+            result = self.add_listen(chat_name, skip_store=True)
             steps.append({"step": "add_listen", "success": result.get("success", False)})
 
             if result.get("success"):
                 LOG.info(f"Reset listener for [{chat_name}] succeeded")
                 return {"success": True, "message": f"Reset listener for [{chat_name}]", "steps": steps}
             else:
-                LOG.error(f"Failed to re-add listener for [{chat_name}]")
-                return {"success": False, "message": f"Failed to re-add listener", "steps": steps}
+                LOG.error(f"Failed to re-add listener for [{chat_name}]: {result.get('message')}")
+                return {"success": False, "message": f"Failed to re-add listener: {result.get('message')}",
+                        "steps": steps}
         except Exception as e:
             steps.append({"step": "add_listen", "success": False, "error": str(e)})
             LOG.error(f"Exception re-adding listener for [{chat_name}]: {e}")
@@ -313,9 +335,9 @@ class ListenManager:
         重置所有监听
         
         流程：
-        1. 关闭所有子窗口
-        2. 切换页面刷新 UI
-        3. 重新添加所有监听
+        1. 把所有子窗口都关掉
+        2. 切换页面刷新 UI（联系人和对话来回切一下）
+        3. 挨个调用 reset_listener（虽然里面也会关闭子窗口，但是没关系，幂等的）
         
         Returns:
             {"success": bool, "message": str, "total": int, "recovered": list, "failed": list, "steps": list}
@@ -356,7 +378,7 @@ class ListenManager:
             steps.append({"step": "close_all_windows", "success": False, "error": str(e)})
             LOG.warning(f"Failed to close sub windows: {e}")
 
-        # Step 2: 切换页面刷新 UI
+        # Step 2: 切换页面刷新 UI（联系人和对话来回切一下）
         try:
             base_client.execute_wx("SwitchToContact", {})
             time.sleep(0.3)
@@ -368,22 +390,22 @@ class ListenManager:
             steps.append({"step": "switch_pages", "success": False, "error": str(e)})
             LOG.warning(f"Failed to switch pages: {e}")
 
-        # Step 3: 重新添加所有监听
+        # Step 3: 挨个调用 reset_listener（幂等操作）
         for chat_name in db_chats:
             try:
-                result = base_client.add_listen_chat(chat_name)
+                result = self.reset_listener(chat_name)
                 if result.get("success"):
                     recovered.append(chat_name)
-                    LOG.info(f"Re-added listener for [{chat_name}]")
+                    LOG.info(f"Reset listener for [{chat_name}] succeeded")
                 else:
                     failed.append(chat_name)
-                    LOG.error(f"Failed to re-add listener for [{chat_name}]: {result.get('message')}")
+                    LOG.error(f"Reset listener for [{chat_name}] failed: {result.get('message')}")
             except Exception as e:
                 failed.append(chat_name)
-                LOG.error(f"Exception re-adding listener for [{chat_name}]: {e}")
+                LOG.error(f"Exception resetting listener for [{chat_name}]: {e}")
 
         steps.append({
-            "step": "re_add_listeners",
+            "step": "reset_listeners",
             "success": len(failed) == 0,
             "recovered": len(recovered),
             "failed": len(failed)
