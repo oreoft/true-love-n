@@ -71,7 +71,7 @@ async def get_img_type(
     - analyze_img: 分析
     - remove_background_img: 去背景
     """
-    LOG.info(f"get-img-type消息收到请求, req: {str(request.model_dump())[:200]}")
+    LOG.info(f"get-img-type消息收到请求, req: {str(request.model_dump())[:2000]}")
 
     # 鉴权
     if not verify_token(request.token):
@@ -100,7 +100,7 @@ async def gen_img(
     - 文生图：只传 content
     - 图生图：传 content + img_data
     """
-    LOG.info(f"gen-img消息收到请求, req: {str(request.model_dump())[:200]}")
+    LOG.info(f"gen-img消息收到请求, req: {str(request.model_dump())[:2000]}")
 
     # 鉴权
     if not verify_token(request.token):
@@ -129,7 +129,7 @@ async def get_analyze(
     """
     分析图像内容
     """
-    LOG.info(f"get-analyze消息收到请求, req: {str(request.model_dump())[:200]}")
+    LOG.info(f"get-analyze消息收到请求, req: {str(request.model_dump())[:2000]}")
 
     # 鉴权
     if not verify_token(request.token):
@@ -163,7 +163,7 @@ async def gen_video(
     
     支持提供商：openai (Sora) / gemini (Veo)
     """
-    LOG.info(f"gen-video消息收到请求, req: {str(request.model_dump())[:200]}")
+    LOG.info(f"gen-video消息收到请求, req: {str(request.model_dump())[:2000]}")
 
     # 鉴权
     if not verify_token(request.token):

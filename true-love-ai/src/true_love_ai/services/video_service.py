@@ -295,11 +295,11 @@ class VideoService:
                     error_str = str(e).lower()
                     # 检查是否是速率限制
                     if any(kw in error_str for kw in ["rate", "quota", "429", "resource_exhausted"]):
-                        LOG.warning(f"[{video_id_remote}] OpenAI 视频生成触发速率限制: {str(e)[:200]}")
+                        LOG.warning(f"[{video_id_remote}] OpenAI 视频生成触发速率限制: {str(e)}")
                         raise ValueError("呜呜~视频酱今天太累了，等一会再来找我玩吧~")
                     # 检查是否是内容安全过滤
                     if any(kw in error_str for kw in ["content_policy", "safety", "filtered", "moderation", "blocked"]):
-                        LOG.warning(f"[{video_id_remote}] OpenAI 内容安全过滤触发: {str(e)[:200]}")
+                        LOG.warning(f"[{video_id_remote}] OpenAI 内容安全过滤触发: {str(e)}")
                         raise ValueError("生成失败啦! 内容太不堪入目了吧~")
                     # 视频还在处理中
                     LOG.debug(
@@ -414,12 +414,12 @@ class VideoService:
                     error_str = str(e).lower()
                     # 检查是否是速率限制
                     if any(kw in error_str for kw in ["rate", "quota", "429", "resource_exhausted"]):
-                        LOG.warning(f"[{video_id_remote}] Gemini 视频生成触发速率限制: {str(e)[:200]}")
+                        LOG.warning(f"[{video_id_remote}] Gemini 视频生成触发速率限制: {str(e)}")
                         raise ValueError("呜呜~视频酱今天太累了，等一会再来找我玩吧~")
                     # 检查是否是内容安全过滤导致的错误
                     if any(kw in error_str for kw in
                            ["raimediafiltered", "filtered", "generatedsamples", "safety", "policy", "blocked"]):
-                        LOG.warning(f"[{video_id_remote}] Gemini 内容安全过滤触发: {str(e)[:200]}")
+                        LOG.warning(f"[{video_id_remote}] Gemini 内容安全过滤触发: {str(e)}")
                         raise ValueError("生成失败啦! 内容太不堪入目了吧~")
                     # 其他错误继续抛出
                     raise
@@ -449,14 +449,14 @@ class VideoService:
                             pass
                 # "No response data in completed operation" 通常是内容安全过滤导致的
                 if "no response data" in error_str or "completed operation" in error_str:
-                    raise ValueError("生成失败啦! 视频内容可能触发了安全过滤~")
+                    raise ValueError("生成失败啦! 触发了版权过滤~")
                 if any(kw in error_str for kw in ["filtered", "safety", "policy", "blocked"]):
                     raise ValueError("生成失败啦! 内容太不堪入目了吧~")
-                raise ValueError(f"视频下载失败啦! 稍后再试试吧~")
+                raise ValueError("视频下载失败啦! 稍后再试试吧~")
 
             if not video_bytes:
                 LOG.error(f"[{video_id_remote}] Gemini 视频内容为空")
-                raise ValueError("生成失败啦! 视频内容为空，可能触发了安全过滤~")
+                raise ValueError("生成失败啦! 触发了版权过滤~")
 
             video_id = str(uuid.uuid4())
             video_path = GEN_VIDEO_DIR / f"{video_id}.mp4"

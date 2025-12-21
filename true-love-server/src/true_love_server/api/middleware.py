@@ -35,7 +35,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         
         # 获取请求体（需要缓存以便后续使用）
         body = await request.body()
-        body_text = body.decode('utf-8')[:200] if body else ""
+        body_text = body.decode('utf-8')[:2000] if body else ""
         
         if not skip_log:
             LOG.info(

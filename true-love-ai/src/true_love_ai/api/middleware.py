@@ -45,7 +45,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         if not skip_log:
             LOG.info(
                 f"AI服务收到请求: [{request.method} {request.url.path}], "
-                f"req: [{body.decode()[:200] if body else 'empty'}]"
+                f"req: [{body.decode()[:2000] if body else 'empty'}]"
             )
         
         # 处理请求

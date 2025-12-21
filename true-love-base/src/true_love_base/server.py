@@ -283,7 +283,7 @@ def execute_wx():
         LOG.info(f"Executing wx.{method_name}({params})")
         result = method(**params) if params else method()
         serialized = serialize_result(result)
-        LOG.info(f"wx.{method_name} result: {str(serialized)[:200]}")
+        LOG.info(f"wx.{method_name} result: {str(serialized)}")
         return jsonify(ApiResponse.success(serialized).to_dict())
     except TypeError as e:
         # 参数错误
@@ -358,7 +358,7 @@ def execute_chat():
         LOG.info(f"Executing chat[{chat_name}].{method_name}({params})")
         result = method(**params) if params else method()
         serialized = serialize_result(result)
-        LOG.info(f"chat.{method_name} result: {str(serialized)[:200]}")
+        LOG.info(f"chat.{method_name} result: {str(serialized)}")
         return jsonify(ApiResponse.success(serialized).to_dict())
     except TypeError as e:
         # 参数错误
@@ -437,7 +437,7 @@ def before_request_logging():
     if request.method == 'OPTIONS' or request.path == '/logs':
         return
     body = request.get_data(as_text=True)
-    LOG.info(f"Request: [{request.method} {request.path}], body: {body[:200]}")
+    LOG.info(f"Request: [{request.method} {request.path}], body: {body[:2000]}")
 
 
 @app.after_request
@@ -452,7 +452,7 @@ def after_request_handler(response):
     if request.method != 'OPTIONS' and request.path != '/logs' and hasattr(g, 'start_time'):
         cost = (time.time() - g.start_time) * 1000
         body = response.get_data(as_text=True)
-        LOG.info(f"Response: [{request.method} {request.path}], cost: {cost:.0f}ms, body: {body[:200]}")
+        LOG.info(f"Response: [{request.method} {request.path}], cost: {cost:.0f}ms, body: {body[:2000]}")
 
     return response
 

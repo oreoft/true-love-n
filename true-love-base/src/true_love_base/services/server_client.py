@@ -139,7 +139,7 @@ def get_chat(msg: ChatMessage) -> str:
         request = ChatRequest(token=config.http_token, message=msg)
         payload = request.to_json()
         
-        LOG.info(f"Sending to server: {payload[:200]}...")
+        LOG.info(f"Sending to server: {payload[:2000]}...")
         
         # 使用 Session 发起请求（连接复用）
         session = _get_session()

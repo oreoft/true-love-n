@@ -81,7 +81,7 @@ def send_img(path, send_receiver, raise_on_error: bool = False) -> tuple[bool, s
 
     try:
         start_time = time.time()
-        LOG.info("开始请求base推送img内容, req:[%s]", payload[:200])
+        LOG.info("开始请求base推送img内容, req:[%s]", payload[:2000])
         res = requests.request("POST", text_file, headers=headers, data=payload, timeout=(2, 60))
         res.raise_for_status()
         LOG.info("send_img请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
@@ -115,7 +115,7 @@ def send_video(path, send_receiver, raise_on_error: bool = False) -> tuple[bool,
 
     try:
         start_time = time.time()
-        LOG.info("开始请求base推送video内容, req:[%s]", payload[:200])
+        LOG.info("开始请求base推送video内容, req:[%s]", payload[:2000])
         res = requests.request("POST", text_file, headers=headers, data=payload, timeout=(2, 60))
         res.raise_for_status()
         LOG.info("send_video请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
