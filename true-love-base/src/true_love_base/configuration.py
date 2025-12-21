@@ -14,6 +14,7 @@ from typing import Optional
 import yaml
 
 from .core.logging_config import LoggingConfig
+from .utils.path_resolver import get_listen_chats_file
 
 # 初始化日志配置（在加载任何配置之前，启用异步日志）
 LoggingConfig.setup("base", enable_async=True)
@@ -44,7 +45,7 @@ class Config:
         self.http_token = self.config["http_token"]
         
         # 监听列表文件路径（与 config.yaml 同级目录）
-        self.listen_chats_file = self._get_listen_chats_file()
+        self.listen_chats_file = get_listen_chats_file()
         
         Config._initialized = True
         

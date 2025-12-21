@@ -45,7 +45,7 @@ def _find_project_root() -> str:
     """
     # 使用 __file__ 定位，比 os.getcwd() 更可靠
     current = os.path.dirname(os.path.abspath(__file__))
-    
+
     # 往上查找 true-love-n 目录
     for _ in range(10):  # 最多查找 10 层
         if os.path.basename(current) == PROJECT_ROOT:
@@ -54,8 +54,16 @@ def _find_project_root() -> str:
         if parent == current:
             break
         current = parent
-    
+
     raise FileNotFoundError(f"找不到项目根目录: {PROJECT_ROOT}")
+
+
+def get_listen_chats_file():
+    try:
+        return os.path.join(_find_project_root(), SERVER_DIR, "listen_chats.json")
+    except FileNotFoundError:
+        # 降级：使用当前目录（兼容旧配置）
+        return "listen_chats.json"
 
 
 def get_wx_imgs_dir() -> str:
@@ -73,12 +81,12 @@ def get_wx_imgs_dir() -> str:
         LOG.info(f"Project root: {project_root}")
         wx_imgs_path = os.path.join(project_root, SERVER_DIR, WX_IMGS_DIR)
         LOG.info(f"wx_imgs_path: {wx_imgs_path}")
-        
+
         # 如果目录不存在，创建它
         if not os.path.exists(wx_imgs_path):
             os.makedirs(wx_imgs_path)
             LOG.info(f"Created wx_imgs directory: {wx_imgs_path}")
-        
+
         return wx_imgs_path
     except FileNotFoundError as e:
         LOG.warning(f"Failed to get wx_imgs dir: {e}")
@@ -105,7 +113,7 @@ def to_server_path(full_path: str, subdir: str = WX_IMGS_DIR) -> str:
     """
     if not full_path:
         return None
-    
+
     # 提取文件名
     filename = os.path.basename(str(full_path))
     # 返回相对路径

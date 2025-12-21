@@ -22,6 +22,8 @@ listen_status_url = f"{host}/listen/status"
 listen_add_url = f"{host}/listen/add"
 listen_remove_url = f"{host}/listen/remove"
 listen_refresh_url = f"{host}/listen/refresh"
+execute_wx_url = f"{host}/execute/wx"
+execute_chat_url = f"{host}/execute/chat"
 LOG = logging.getLogger("BaseClient")
 
 
@@ -269,3 +271,79 @@ def refresh_listen() -> tuple[bool, dict | None, str]:
     except Exception as e:
         LOG.exception("refresh_listen 失败: %s", e)
     return False, None, str(e)
+
+
+# ==================== 通用执行接口 ====================
+
+def execute_wx(method_name: str, params: dict = None) -> dict:
+    """
+    调用 Base 的 /execute/wx 接口
+    
+    动态调用 WeChat 实例的方法。
+    
+    Args:
+        method_name: 方法名（如 "GetAllSubWindow", "AddListenChat"）
+        params: 参数字典（可选）
+    
+    Returns:
+        {"success": bool, "data": any, "message": str}
+    """
+    payload = json.dumps({
+        "name": method_name,
+        "params": params or {}
+    }, ensure_ascii=False)
+    headers = {'Content-Type': 'application/json'}
+    
+    try:
+        start_time = time.time()
+        LOG.info(f"execute_wx: {method_name}({params})")
+        res = requests.post(execute_wx_url, headers=headers, data=payload, timeout=(2, 60))
+        res.raise_for_status()
+        result = res.json()
+        LOG.info(f"execute_wx 成功, cost:[{(time.time() - start_time) * 1000:.0f}ms], code:[{result.get('code')}]")
+        return {
+            "success": result.get("code") == 0,
+            "data": result.get("data"),
+            "message": result.get("msg", "")
+        }
+    except Exception as e:
+        LOG.exception(f"execute_wx 失败: {e}")
+        return {"success": False, "data": None, "message": str(e)}
+
+
+def execute_chat(chat_name: str, method_name: str, params: dict = None) -> dict:
+    """
+    调用 Base 的 /execute/chat 接口
+    
+    动态调用 Chat 子窗口的方法。
+    
+    Args:
+        chat_name: 聊天对象名称（用于获取子窗口）
+        method_name: 方法名（如 "ChatInfo", "Close", "SendMsg"）
+        params: 参数字典（可选）
+    
+    Returns:
+        {"success": bool, "data": any, "message": str}
+    """
+    payload = json.dumps({
+        "chat_name": chat_name,
+        "name": method_name,
+        "params": params or {}
+    }, ensure_ascii=False)
+    headers = {'Content-Type': 'application/json'}
+    
+    try:
+        start_time = time.time()
+        LOG.info(f"execute_chat[{chat_name}]: {method_name}({params})")
+        res = requests.post(execute_chat_url, headers=headers, data=payload, timeout=(2, 60))
+        res.raise_for_status()
+        result = res.json()
+        LOG.info(f"execute_chat 成功, cost:[{(time.time() - start_time) * 1000:.0f}ms], code:[{result.get('code')}]")
+        return {
+            "success": result.get("code") == 0,
+            "data": result.get("data"),
+            "message": result.get("msg", "")
+        }
+    except Exception as e:
+        LOG.exception(f"execute_chat 失败: {e}")
+        return {"success": False, "data": None, "message": str(e)}
