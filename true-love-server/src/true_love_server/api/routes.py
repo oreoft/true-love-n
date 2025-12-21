@@ -35,12 +35,6 @@ def _verify_token(token: str) -> bool:
     return True
 
 
-@router.get("/")
-async def root():
-    """健康检查"""
-    return "pong"
-
-
 @router.get("/ping")
 async def ping():
     """健康检查"""

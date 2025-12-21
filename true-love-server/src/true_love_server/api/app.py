@@ -9,6 +9,8 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from .routes import router
 from .middleware import setup_middleware
@@ -33,14 +35,22 @@ def create_app() -> FastAPI:
         version="0.2.0",
         lifespan=lifespan,
     )
-    
+
     # 设置中间件
     setup_middleware(app)
-    
+
     # 设置异常处理器
     setup_exception_handlers(app)
-    
+
     # 注册路由
     app.include_router(router)
-    
+
+    # 根路径返回 index.html
+    @app.get("/", include_in_schema=False)
+    async def root():
+        return FileResponse("static/index.html")
+
+    # 挂载静态文件目录（放在最后，避免覆盖其他路由）
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+
     return app
