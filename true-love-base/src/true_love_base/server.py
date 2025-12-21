@@ -42,10 +42,8 @@ METHOD_BLACKLIST = {
     'KeepRunning',  # 阻塞方法，不应通过 API 调用
     'StartListening',  # 阻塞方法
     'StopListening',  # 可能影响正常监听
+    'AddListenChat',  # 需要 callback，使用 /listen/add 独立接口
 }
-
-# 需要特殊处理的方法（需要 callback 参数）
-CALLBACK_METHODS = {'AddListenChat'}
 
 
 def is_method_allowed(method_name: str) -> bool:
@@ -203,6 +201,37 @@ def send_file():
     return jsonify(ApiErrors.SEND_FAILED.to_dict())
 
 
+@app.route('/listen/add', methods=['POST'])
+def add_listen():
+    """
+    添加聊天监听
+    
+    使用 Robot 的标准流程添加监听，会自动注入 on_message 回调。
+    
+    Request Body:
+        - nickname: 聊天对象昵称
+        
+    Response:
+        - data: {"success": bool}
+    """
+    robot = get_robot()
+    if robot is None:
+        return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
+
+    data = request.json or {}
+    nickname = data.get('nickname', '')
+
+    if not nickname:
+        return jsonify(ApiErrors.INVALID_PARAMS.to_dict())
+
+    try:
+        success = robot.add_listen_chat(nickname)
+        return jsonify(ApiResponse.success({"success": success}).to_dict())
+    except Exception as e:
+        LOG.error(f"AddListenChat failed for [{nickname}]: {e}")
+        return jsonify(ApiResponse.error(107, f"AddListenChat failed: {str(e)}").to_dict())
+
+
 @app.route('/execute/wx', methods=['POST'])
 def execute_wx():
     """
@@ -220,7 +249,7 @@ def execute_wx():
     Note:
         - 不允许调用 __ 或 _ 开头的方法
         - 不允许调用黑名单中的危险方法 (ShutDown, KeepRunning 等)
-        - AddListenChat 会自动注入 on_message 回调
+        - AddListenChat 请使用 /listen/add 独立接口
     """
     robot = get_robot()
     if robot is None:
@@ -248,20 +277,6 @@ def execute_wx():
     method = getattr(wx, method_name, None)
     if method is None or not callable(method):
         return jsonify(ApiResponse.error(106, f"Method '{method_name}' not found").to_dict())
-
-    # 特殊处理需要 callback 的方法
-    if method_name in CALLBACK_METHODS:
-        if method_name == 'AddListenChat':
-            nickname = params.get('nickname', '')
-            if not nickname:
-                return jsonify(ApiResponse.error(103, "Missing 'nickname' in params for AddListenChat").to_dict())
-            try:
-                # 使用 robot 的标准流程添加监听
-                success = robot.add_listen_chat(nickname)
-                return jsonify(ApiResponse.success({"success": success}).to_dict())
-            except Exception as e:
-                LOG.error(f"AddListenChat failed for [{nickname}]: {e}")
-                return jsonify(ApiResponse.error(107, f"AddListenChat failed: {str(e)}").to_dict())
 
     # 执行普通方法
     try:

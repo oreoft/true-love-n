@@ -18,6 +18,7 @@ host = config.BASE_SERVER["host"]
 text_url = f"{host}/send/text"
 text_file = f"{host}/send/file"
 get_by_room_id_url = f"{host}/get/by/room-id"
+add_listen_url = f"{host}/listen/add"
 execute_wx_url = f"{host}/execute/wx"
 execute_chat_url = f"{host}/execute/chat"
 LOG = logging.getLogger("BaseClient")
@@ -145,6 +146,42 @@ def get_by_room_id(room_id) -> dict:
     return {}
 
 
+# ==================== 监听管理接口 ====================
+
+def add_listen_chat(nickname: str) -> dict:
+    """
+    添加聊天监听
+    
+    调用 Base 的 /listen/add 接口，会自动注入 on_message 回调。
+    
+    Args:
+        nickname: 聊天对象昵称
+    
+    Returns:
+        {"success": bool, "data": any, "message": str}
+    """
+    payload = json.dumps({
+        "nickname": nickname
+    }, ensure_ascii=False)
+    headers = {'Content-Type': 'application/json'}
+    
+    try:
+        start_time = time.time()
+        LOG.info(f"add_listen_chat: [{nickname}]")
+        res = requests.post(add_listen_url, headers=headers, data=payload, timeout=(2, 60))
+        res.raise_for_status()
+        result = res.json()
+        LOG.info(f"add_listen_chat 成功, cost:[{(time.time() - start_time) * 1000:.0f}ms], code:[{result.get('code')}]")
+        return {
+            "success": result.get("code") == 0,
+            "data": result.get("data"),
+            "message": result.get("msg", "")
+        }
+    except Exception as e:
+        LOG.exception(f"add_listen_chat 失败: {e}")
+        return {"success": False, "data": None, "message": str(e)}
+
+
 # ==================== 通用执行接口 ====================
 
 def execute_wx(method_name: str, params: dict = None) -> dict:
@@ -154,11 +191,14 @@ def execute_wx(method_name: str, params: dict = None) -> dict:
     动态调用 WeChat 实例的方法。
     
     Args:
-        method_name: 方法名（如 "GetAllSubWindow", "AddListenChat"）
+        method_name: 方法名（如 "GetAllSubWindow", "RemoveListenChat"）
         params: 参数字典（可选）
     
     Returns:
         {"success": bool, "data": any, "message": str}
+        
+    Note:
+        AddListenChat 请使用 add_listen_chat() 函数
     """
     payload = json.dumps({
         "name": method_name,
