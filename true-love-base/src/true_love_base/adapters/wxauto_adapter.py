@@ -144,17 +144,6 @@ class WxAutoClient(WeChatClientProtocol):
             LOG.error(f"Failed to send text to [{receiver}]: {e}")
             return False
 
-    def send_image(self, receiver: str, image_path: str) -> bool:
-        """发送图片"""
-        try:
-            LOG.debug(f"SendFiles(image) path: {image_path}")
-            sub_window = self.wx.GetSubWindow(receiver)
-            result = sub_window.SendFiles(image_path) if sub_window else self.wx.SendFiles(image_path, receiver)
-            return self._check_response(result, "SendFiles(image)", receiver)
-        except Exception as e:
-            LOG.error(f"Failed to send image to [{receiver}]: {e}")
-            return False
-
     def send_file(self, receiver: str, file_path: str) -> bool:
         """发送文件"""
         try:

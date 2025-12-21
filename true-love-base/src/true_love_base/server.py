@@ -38,9 +38,9 @@ def get_robot() -> Optional["Robot"]:
 
 # 方法黑名单 - 禁止调用的方法
 METHOD_BLACKLIST = {
-    'ShutDown',       # 危险：会杀掉微信进程
-    'KeepRunning',    # 阻塞方法，不应通过 API 调用
-    'StartListening', # 阻塞方法
+    'ShutDown',  # 危险：会杀掉微信进程
+    'KeepRunning',  # 阻塞方法，不应通过 API 调用
+    'StartListening',  # 阻塞方法
     'StopListening',  # 可能影响正常监听
 }
 
@@ -82,19 +82,19 @@ def serialize_result(result: Any) -> Any:
     """
     if result is None:
         return None
-    
+
     # 基本类型直接返回
     if isinstance(result, (str, int, float, bool)):
         return result
-    
+
     # dict 直接返回
     if isinstance(result, dict):
         return result
-    
+
     # 列表递归处理
     if isinstance(result, list):
         return [serialize_result(item) for item in result]
-    
+
     # WxResponse 类型（有 __bool__ 方法，可以当 dict 用）
     # 尝试转换为 dict
     if hasattr(result, 'get') and hasattr(result, '__getitem__'):
@@ -102,7 +102,7 @@ def serialize_result(result: Any) -> Any:
             return dict(result)
         except (TypeError, ValueError):
             pass
-    
+
     # 其他对象尝试提取公开属性
     try:
         attrs = {}
@@ -121,7 +121,7 @@ def serialize_result(result: Any) -> Any:
             return attrs
     except Exception:
         pass
-    
+
     # 最后兜底：返回字符串表示
     return str(result)
 
@@ -153,51 +153,17 @@ def send_text():
     robot = get_robot()
     if robot is None:
         return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
-    
+
     data = request.json or {}
     receiver = data.get('sendReceiver', '')
     content = data.get('content', '')
     at_receiver = data.get('atReceiver', '')
-    
+
     if not receiver or not content:
         return jsonify(ApiErrors.INVALID_PARAMS.to_dict())
-    
+
     success = robot.send_text_msg(content, receiver, at_receiver if at_receiver else None)
-    
-    if success:
-        return jsonify(ApiResponse.success().to_dict())
-    return jsonify(ApiErrors.SEND_FAILED.to_dict())
 
-
-@app.route('/send/img', methods=['POST'])
-def send_img():
-    """
-    发送图片消息
-    
-    Request Body:
-        - sendReceiver: 接收者
-        - path: 图片路径（可以是 Server 的相对路径，会自动在 true-love-server 目录下查找）
-    """
-    robot = get_robot()
-    if robot is None:
-        return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
-    
-    data = request.json or {}
-    path = data.get('path', '')
-    receiver = data.get('sendReceiver', '')
-    
-    if not receiver or not path:
-        return jsonify(ApiErrors.INVALID_PARAMS.to_dict())
-    
-    # 解析 Server 相对路径
-    try:
-        resolved_path = resolve_path(path)
-    except FileNotFoundError as e:
-        LOG.error(f"Failed to send image to [{receiver}]: {e}")
-        return jsonify(ApiErrors.SEND_FAILED.to_dict())
-    
-    success = robot.send_img_msg(resolved_path, receiver)
-    
     if success:
         return jsonify(ApiResponse.success().to_dict())
     return jsonify(ApiErrors.SEND_FAILED.to_dict())
@@ -215,58 +181,23 @@ def send_file():
     robot = get_robot()
     if robot is None:
         return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
-    
+
     data = request.json or {}
     path = data.get('path', '')
     receiver = data.get('sendReceiver', '')
-    
+
     if not receiver or not path:
         return jsonify(ApiErrors.INVALID_PARAMS.to_dict())
-    
+
     # 解析 Server 相对路径
     try:
         resolved_path = resolve_path(path)
     except FileNotFoundError as e:
         LOG.error(f"Failed to send file to [{receiver}]: {e}")
         return jsonify(ApiErrors.SEND_FAILED.to_dict())
-    
-    success = robot.send_file_msg(resolved_path, receiver)
-    
-    if success:
-        return jsonify(ApiResponse.success().to_dict())
-    return jsonify(ApiErrors.SEND_FAILED.to_dict())
 
-
-@app.route('/send/video', methods=['POST'])
-def send_video():
-    """
-    发送视频消息
-    
-    Request Body:
-        - sendReceiver: 接收者
-        - path: 视频文件路径（可以是 Server 的相对路径，会自动在 true-love-server 目录下查找）
-    """
-    robot = get_robot()
-    if robot is None:
-        return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
-    
-    data = request.json or {}
-    path = data.get('path', '')
-    receiver = data.get('sendReceiver', '')
-    
-    if not receiver or not path:
-        return jsonify(ApiErrors.INVALID_PARAMS.to_dict())
-    
-    # 解析 Server 相对路径
-    try:
-        resolved_path = resolve_path(path)
-    except FileNotFoundError as e:
-        LOG.error(f"Failed to send video to [{receiver}]: {e}")
-        return jsonify(ApiErrors.SEND_FAILED.to_dict())
-    
-    # 视频使用 send_file 发送
     success = robot.send_file_msg(resolved_path, receiver)
-    
+
     if success:
         return jsonify(ApiResponse.success().to_dict())
     return jsonify(ApiErrors.SEND_FAILED.to_dict())
@@ -282,7 +213,7 @@ def get_all_contacts():
     robot = get_robot()
     if robot is None:
         return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
-    
+
     contacts = robot.get_all_contacts()
     return jsonify(ApiResponse.success(contacts).to_dict())
 
@@ -300,13 +231,13 @@ def get_contacts_by_room_id():
     robot = get_robot()
     if robot is None:
         return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
-    
+
     data = request.json or {}
     room_id = data.get('room_id', '')
-    
+
     if not room_id:
         return jsonify(ApiErrors.INVALID_PARAMS.to_dict())
-    
+
     members = robot.get_contacts_by_chat_name(room_id)
     return jsonify(ApiResponse.success(members).to_dict())
 
@@ -331,7 +262,7 @@ def get_listener_status():
     robot = get_robot()
     if robot is None:
         return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
-    
+
     result = robot.get_listener_status()
     return jsonify(ApiResponse.success(result).to_dict())
 
@@ -347,15 +278,15 @@ def add_listen_chat():
     robot = get_robot()
     if robot is None:
         return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
-    
+
     data = request.json or {}
     chat_name = data.get('chat_name', '')
-    
+
     if not chat_name:
         return jsonify(ApiErrors.INVALID_PARAMS.to_dict())
-    
+
     success = robot.add_listen_chat(chat_name)
-    
+
     if success:
         return jsonify(ApiResponse.success().to_dict())
     return jsonify(ApiResponse.error(104, "Failed to add listener").to_dict())
@@ -372,15 +303,15 @@ def remove_listen_chat():
     robot = get_robot()
     if robot is None:
         return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
-    
+
     data = request.json or {}
     chat_name = data.get('chat_name', '')
-    
+
     if not chat_name:
         return jsonify(ApiErrors.INVALID_PARAMS.to_dict())
-    
+
     success = robot.remove_listen_chat(chat_name)
-    
+
     if success:
         return jsonify(ApiResponse.success().to_dict())
     return jsonify(ApiResponse.error(105, "Failed to remove listener").to_dict())
@@ -413,7 +344,7 @@ def refresh_listen_chats():
     robot = get_robot()
     if robot is None:
         return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
-    
+
     result = robot.refresh_listen_chats()
     return jsonify(ApiResponse.success(result).to_dict())
 
@@ -435,13 +366,13 @@ def reset_listener():
     robot = get_robot()
     if robot is None:
         return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
-    
+
     data = request.json or {}
     chat_name = data.get('chat_name', '')
-    
+
     if not chat_name:
         return jsonify(ApiErrors.INVALID_PARAMS.to_dict())
-    
+
     result = robot.reset_listener(chat_name)
     return jsonify(ApiResponse.success(result).to_dict())
 
@@ -460,7 +391,7 @@ def reset_all_listeners():
     robot = get_robot()
     if robot is None:
         return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
-    
+
     result = robot.reset_all_listeners()
     return jsonify(ApiResponse.success(result).to_dict())
 
@@ -487,30 +418,30 @@ def execute_wx():
     robot = get_robot()
     if robot is None:
         return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
-    
+
     data = request.json or {}
     method_name = data.get('name', '')
     params = data.get('params', {})
-    
+
     if not method_name:
         return jsonify(ApiResponse.error(103, "Missing 'name' parameter").to_dict())
-    
+
     # 安全检查
     if not is_method_allowed(method_name):
         return jsonify(ApiResponse.error(106, f"Method '{method_name}' is not allowed").to_dict())
-    
+
     # 获取 wx 实例
     try:
         wx = robot.client.wx
     except Exception as e:
         LOG.error(f"Failed to get wx instance: {e}")
         return jsonify(ApiResponse.error(101, "WeChat client not ready").to_dict())
-    
+
     # 检查方法是否存在且可调用
     method = getattr(wx, method_name, None)
     if method is None or not callable(method):
         return jsonify(ApiResponse.error(106, f"Method '{method_name}' not found").to_dict())
-    
+
     # 特殊处理需要 callback 的方法
     if method_name in CALLBACK_METHODS:
         if method_name == 'AddListenChat':
@@ -524,7 +455,7 @@ def execute_wx():
             except Exception as e:
                 LOG.error(f"AddListenChat failed for [{nickname}]: {e}")
                 return jsonify(ApiResponse.error(107, f"AddListenChat failed: {str(e)}").to_dict())
-    
+
     # 执行普通方法
     try:
         LOG.info(f"Executing wx.{method_name}({params})")
@@ -563,42 +494,43 @@ def execute_chat():
     robot = get_robot()
     if robot is None:
         return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
-    
+
     data = request.json or {}
     chat_name = data.get('chat_name', '')
     method_name = data.get('name', '')
     params = data.get('params', {})
-    
+
     if not chat_name:
         return jsonify(ApiResponse.error(103, "Missing 'chat_name' parameter").to_dict())
     if not method_name:
         return jsonify(ApiResponse.error(103, "Missing 'name' parameter").to_dict())
-    
+
     # 安全检查
     if not is_method_allowed(method_name):
         return jsonify(ApiResponse.error(106, f"Method '{method_name}' is not allowed").to_dict())
-    
+
     # 获取 wx 实例
     try:
         wx = robot.client.wx
     except Exception as e:
         LOG.error(f"Failed to get wx instance: {e}")
         return jsonify(ApiResponse.error(101, "WeChat client not ready").to_dict())
-    
+
     # 获取子窗口
     try:
         chat = wx.GetSubWindow(chat_name)
         if chat is None:
-            return jsonify(ApiResponse.error(108, f"Sub window '{chat_name}' not found. Please add listener first.").to_dict())
+            return jsonify(
+                ApiResponse.error(108, f"Sub window '{chat_name}' not found. Please add listener first.").to_dict())
     except Exception as e:
         LOG.error(f"GetSubWindow failed for [{chat_name}]: {e}")
         return jsonify(ApiResponse.error(108, f"Failed to get sub window: {str(e)}").to_dict())
-    
+
     # 检查方法是否存在且可调用
     method = getattr(chat, method_name, None)
     if method is None or not callable(method):
         return jsonify(ApiResponse.error(106, f"Method '{method_name}' not found on Chat").to_dict())
-    
+
     # 执行方法
     try:
         LOG.info(f"Executing chat[{chat_name}].{method_name}({params})")
@@ -632,33 +564,33 @@ def handle_logs():
     """
     action = request.args.get('action', 'query').lower()
     log_type_str = request.args.get('log_type', 'info').lower()
-    
+
     # 校验日志类型
     try:
         log_type = LogType(log_type_str)
     except ValueError:
         return jsonify(ApiResponse.error(100, f"不支持的日志类型: {log_type_str}").to_dict())
-    
+
     log_service = get_log_service()
-    
+
     if action == 'query':
         # 查询日志
         limit = request.args.get('limit', 100, type=int)
         since_offset = request.args.get('since_offset', 0, type=int)
-        
+
         result = log_service.query_logs(
             log_type=log_type,
             since_offset=since_offset if since_offset > 0 else None,
             limit=limit
         )
-        
+
         return jsonify(ApiResponse.success({
             "lines": result.lines,
             "next_offset": result.next_offset,
             "total_lines": result.total_lines,
             "has_more": result.has_more
         }).to_dict())
-    
+
     elif action == 'truncate':
         # 清空日志
         success = log_service.truncate_log(log_type)
@@ -668,7 +600,7 @@ def handle_logs():
             "message": f"{log_type_str} 日志已清空",
             "log_type": log_type_str
         }).to_dict())
-    
+
     else:
         return jsonify(ApiResponse.error(100, f"不支持的操作类型: {action}").to_dict())
 
@@ -693,13 +625,13 @@ def after_request_handler(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    
+
     # 日志（OPTIONS 请求不记录）
     if request.method != 'OPTIONS' and hasattr(g, 'start_time'):
         cost = (time.time() - g.start_time) * 1000
         body = response.get_data(as_text=True)
         LOG.info(f"Response: [{request.method} {request.path}], cost: {cost:.0f}ms, body: {body[:200]}")
-    
+
     return response
 
 
@@ -721,7 +653,7 @@ def enable_http(robot: "Robot", host: str = "0.0.0.0", port: int = 5000):
     """
     global _robot
     _robot = robot
-    
+
     def run_server():
         """运行 Waitress 服务器"""
         serve(
@@ -732,14 +664,14 @@ def enable_http(robot: "Robot", host: str = "0.0.0.0", port: int = 5000):
             channel_timeout=WAITRESS_CHANNEL_TIMEOUT,
             _quiet=True,  # 禁用 Waitress 默认日志，使用我们自己的
         )
-    
+
     t = Thread(
         target=run_server,
         name="HttpServer",
         daemon=True,  # 守护线程，主线程退出时自动结束
     )
     t.start()
-    
+
     LOG.info(f"HTTP server (Waitress) started on {host}:{port}, threads={WAITRESS_THREADS}")
 
 

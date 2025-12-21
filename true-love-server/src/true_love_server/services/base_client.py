@@ -16,8 +16,7 @@ from ..core import Config
 config = Config()
 host = config.BASE_SERVER["host"]
 text_url = f"{host}/send/text"
-text_img = f"{host}/send/img"
-text_video = f"{host}/send/video"
+text_file = f"{host}/send/file"
 get_by_room_id_url = f"{host}/get/by/room-id"
 listen_status_url = f"{host}/listen/status"
 listen_add_url = f"{host}/listen/add"
@@ -84,7 +83,7 @@ def send_img(path, send_receiver, raise_on_error: bool = False) -> tuple[bool, s
     try:
         start_time = time.time()
         LOG.info("开始请求base推送img内容, req:[%s]", payload[:200])
-        res = requests.request("POST", text_img, headers=headers, data=payload, timeout=(2, 60))
+        res = requests.request("POST", text_file, headers=headers, data=payload, timeout=(2, 60))
         res.raise_for_status()
         LOG.info("send_img请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
         return True, ""
@@ -118,7 +117,7 @@ def send_video(path, send_receiver, raise_on_error: bool = False) -> tuple[bool,
     try:
         start_time = time.time()
         LOG.info("开始请求base推送video内容, req:[%s]", payload[:200])
-        res = requests.request("POST", text_video, headers=headers, data=payload, timeout=(2, 60))
+        res = requests.request("POST", text_file, headers=headers, data=payload, timeout=(2, 60))
         res.raise_for_status()
         LOG.info("send_video请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
         return True, ""
