@@ -8,7 +8,7 @@ Trigger Manage Handler - 管理触发处理器
 import logging
 
 from .. import Config
-from ..services import base_client
+from ..services.listen_manager import get_listen_manager
 
 LOG = logging.getLogger("TrigManageHandler")
 
@@ -78,9 +78,8 @@ class TrigManageHandler:
     def _query_listen_list(self) -> str:
         """查询所有监听对象"""
         LOG.info("开始查询监听列表")
-        result = base_client.get_listen_list()
-        if result is None:
-            return "呜呜~查询监听列表失败了捏，稍后再试试吧~"
+        listen_manager = get_listen_manager()
+        result = listen_manager.get_listen_list()
         if not result:
             return "诶嘿~当前没有监听任何对象哦~"
 
@@ -103,10 +102,11 @@ class TrigManageHandler:
         chat_name = parts[1].strip()
         LOG.info(f"开始添加监听: {chat_name}")
 
-        success, msg = base_client.add_listen(chat_name)
-        if success:
+        listen_manager = get_listen_manager()
+        result = listen_manager.add_listen(chat_name)
+        if result.get("success"):
             return f"好耶~添加监听成功: {chat_name}"
-        return f"呜呜~添加监听失败了: {msg}"
+        return f"呜呜~添加监听失败了: {result.get('message', '未知错误')}"
 
     def _remove_listen(self, action: str) -> str:
         """
@@ -123,29 +123,28 @@ class TrigManageHandler:
         chat_name = parts[1].strip()
         LOG.info(f"开始删除监听: {chat_name}")
 
-        success, msg = base_client.remove_listen(chat_name)
-        if success:
+        listen_manager = get_listen_manager()
+        result = listen_manager.remove_listen(chat_name)
+        if result.get("success"):
             return f"好耶~删除监听成功: {chat_name}"
-        return f"呜呜~删除监听失败了: {msg}"
+        return f"呜呜~删除监听失败了: {result.get('message', '未知错误')}"
 
     def _refresh_listen(self) -> str:
         """
         刷新监听列表（智能刷新，以 DB 为基准）
         """
         LOG.info("开始刷新监听列表")
-        success, data, msg = base_client.refresh_listen()
+        listen_manager = get_listen_manager()
+        data = listen_manager.refresh_listen()
         
-        if not success:
-            return f"呜呜~刷新监听列表失败了: {msg}"
-
-        if data is None:
-            return "呜呜~刷新监听列表失败了，返回数据是空的捏~"
-        
-        # 解析新结构
+        # 解析结构
         total = data.get('total', 0)
         success_count = data.get('success_count', 0)
         fail_count = data.get('fail_count', 0)
         listeners = data.get('listeners', [])
+        
+        if total == 0:
+            return "诶嘿~当前没有监听任何对象哦~"
         
         # 分类统计
         skipped = [l for l in listeners if l.get('action') == 'skip']

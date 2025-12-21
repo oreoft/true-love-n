@@ -916,7 +916,8 @@
     <script>
         const { createApp, ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } = Vue;
         
-        const BASE_HOST = 'http://localhost:5000';
+        // Listen 接口已迁移到 Server 端
+        const SERVER_HOST = 'http://localhost:8088';
         
         // 服务配置
         const SERVICES = [
@@ -1005,7 +1006,7 @@
                 };
                 
                 // API Request
-                const request = async (url, options = {}, host = BASE_HOST) => {
+                const request = async (url, options = {}, host = SERVER_HOST) => {
                     try {
                         const response = await fetch(host + url, {
                             headers: { 'Content-Type': 'application/json' },
