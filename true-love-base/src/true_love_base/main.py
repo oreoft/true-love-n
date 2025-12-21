@@ -13,8 +13,8 @@ from threading import Thread, Event
 from typing import Callable
 
 from true_love_base import server
-from true_love_base.adapters import WxAutoClient
 from true_love_base.configuration import Config
+from true_love_base.core import WxAutoClient
 from true_love_base.services.listen_store import ListenStore
 from true_love_base.services.robot import Robot
 

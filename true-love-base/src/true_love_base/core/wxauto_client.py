@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-WxAuto Adapter - wxautox4 SDK 适配器
+WxAuto WxAutoClient - wxautox4 SDK 封装客户端
 
 实现 WeChatClientProtocol 接口，封装 wxautox4 的具体调用。
 """
@@ -17,7 +17,7 @@ from true_love_base.models.message_converter import convert_message
 from true_love_base.models import ChatMessage
 from true_love_base.utils.path_resolver import get_wx_imgs_dir
 
-LOG = logging.getLogger("WxAutoAdapter")
+LOG = logging.getLogger("WxAutoClient")
 
 # 设置 wxauto 默认文件保存路径到 server 的 wx_imgs 目录
 _wx_imgs_dir = get_wx_imgs_dir()
