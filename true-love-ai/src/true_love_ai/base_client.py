@@ -78,7 +78,7 @@ async def send_text_async(send_receiver: str, at_receiver: str, content: str) ->
     
     try:
         start_time = time.time()
-        LOG.info(f"开始异步请求 base 推送内容")
+        LOG.info("开始异步请求 base 推送内容")
         
         async with httpx.AsyncClient() as client:
             res = await client.post(

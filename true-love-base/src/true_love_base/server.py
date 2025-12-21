@@ -433,8 +433,8 @@ def handle_logs():
 def before_request_logging():
     """请求前日志"""
     g.start_time = time.time()
-    # OPTIONS 请求不记录日志
-    if request.method == 'OPTIONS':
+    # OPTIONS 请求和 /logs 接口不记录日志
+    if request.method == 'OPTIONS' or request.path == '/logs':
         return
     body = request.get_data(as_text=True)
     LOG.info(f"Request: [{request.method} {request.path}], body: {body[:200]}")
@@ -448,8 +448,8 @@ def after_request_handler(response):
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
 
-    # 日志（OPTIONS 请求不记录）
-    if request.method != 'OPTIONS' and hasattr(g, 'start_time'):
+    # 日志（OPTIONS 请求和 /logs 接口不记录）
+    if request.method != 'OPTIONS' and request.path != '/logs' and hasattr(g, 'start_time'):
         cost = (time.time() - g.start_time) * 1000
         body = response.get_data(as_text=True)
         LOG.info(f"Response: [{request.method} {request.path}], cost: {cost:.0f}ms, body: {body[:200]}")
