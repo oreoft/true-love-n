@@ -208,6 +208,8 @@ async def remove_listen(request: dict):
         raise ValidationException("chat_name 不能为空哦~")
     
     result = listen_manager.remove_listen(chat_name)
+    if not result.get("success"):
+        raise ValidationException(result.get("message", "移除监听失败"))
     return ApiResponse(data=result)
 
 
@@ -227,6 +229,9 @@ async def refresh_listen():
         - listeners: 每个监听的详情列表
     """
     result = listen_manager.refresh_listen()
+    # refresh 返回的是统计结果，根据 fail_count 判断是否有失败
+    if result.get("fail_count", 0) > 0:
+        raise ValidationException(f"刷新部分失败: {result.get('fail_count')} 个监听恢复失败")
     return ApiResponse(data=result)
 
 
@@ -250,6 +255,8 @@ async def reset_listen(request: dict):
         raise ValidationException("chat_name 不能为空哦~")
     
     result = listen_manager.reset_listener(chat_name)
+    if not result.get("success"):
+        raise ValidationException(result.get("message", "重置监听失败"))
     return ApiResponse(data=result)
 
 
@@ -269,4 +276,31 @@ async def reset_all_listen():
         - steps: 各步骤执行情况
     """
     result = listen_manager.reset_all_listeners()
+    if not result.get("success"):
+        raise ValidationException(result.get("message", "重置所有监听失败"))
+    return ApiResponse(data=result)
+
+
+@router.post("/listen/get-all-message")
+async def get_all_message(request: dict):
+    """
+    测活接口 - 获取聊天窗口的所有消息
+    
+    调用 Base 的 execute/chat 接口，执行 GetAllMessage 方法。
+    
+    Request Body:
+        - chat_name: 聊天对象名称
+        
+    Returns:
+        - success: 是否成功
+        - data: 消息列表
+        - message: 结果描述
+    """
+    chat_name = request.get('chat_name', '')
+    if not chat_name:
+        raise ValidationException("chat_name 不能为空哦~")
+    
+    result = base_client.execute_chat(chat_name, "GetAllMessage", {})
+    if not result.get("success"):
+        raise ValidationException(result.get("message", "获取消息失败"))
     return ApiResponse(data=result)

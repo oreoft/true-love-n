@@ -100,6 +100,13 @@
                         </div>
                         <div class="listener-actions">
                             <button 
+                                class="btn btn-secondary btn-sm" 
+                                @click="testAlive(item.chat)"
+                                :disabled="loadingItems[item.chat]"
+                            >
+                                {{ loadingItems[item.chat] === 'test' ? '测试中...' : '测活' }}
+                            </button>
+                            <button 
                                 class="btn btn-outline btn-sm" 
                                 @click="resetOne(item.chat)"
                                 :disabled="loadingItems[item.chat]"
@@ -226,6 +233,35 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Test Alive Result Modal -->
+        <div v-if="testAliveModal.show" class="modal-overlay" @click.self="testAliveModal.show = false">
+            <div class="modal modal-lg modal-tall">
+                <button class="modal-close-btn" @click="testAliveModal.show = false">×</button>
+                <h3 class="modal-title">🔍 测活结果 - {{ testAliveModal.chatName }}</h3>
+                <div class="test-result-content">
+                    <div v-if="testAliveModal.loading" class="test-loading">
+                        <div class="spinner"></div>
+                        <p>正在测试...</p>
+                    </div>
+                    <div v-else-if="testAliveModal.error" class="test-error">
+                        <p>❌ {{ testAliveModal.error }}</p>
+                    </div>
+                    <div v-else class="test-success">
+                        <div class="test-status" :class="testAliveModal.result?.success ? 'success' : 'fail'">
+                            <span>{{ testAliveModal.result?.success ? '✅ 连接正常' : '❌ 连接异常' }}</span>
+                        </div>
+                        <div v-if="testAliveModal.result?.message" class="test-message">
+                            <strong>消息：</strong>{{ testAliveModal.result.message }}
+                        </div>
+                        <div v-if="testAliveModal.result?.data" class="test-data">
+                            <strong>返回数据：</strong>
+                            <pre>{{ JSON.stringify(testAliveModal.result.data, null, 2) }}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -263,6 +299,14 @@
                     title: '',
                     message: '',
                     onConfirm: () => {}
+                });
+                
+                const testAliveModal = reactive({
+                    show: false,
+                    chatName: '',
+                    loading: false,
+                    error: null,
+                    result: null
                 });
                 
                 // Logs page state
@@ -443,6 +487,29 @@
                             loading.value = false;
                         }
                     });
+                };
+                
+                // Test Alive - 测活
+                const testAlive = async (chatName) => {
+                    testAliveModal.show = true;
+                    testAliveModal.chatName = chatName;
+                    testAliveModal.loading = true;
+                    testAliveModal.error = null;
+                    testAliveModal.result = null;
+                    loadingItems[chatName] = 'test';
+                    
+                    try {
+                        const data = await request('/listen/get-all-message', {
+                            method: 'POST',
+                            body: JSON.stringify({ chat_name: chatName })
+                        });
+                        testAliveModal.result = data.data;
+                    } catch (error) {
+                        testAliveModal.error = error.message;
+                    } finally {
+                        testAliveModal.loading = false;
+                        delete loadingItems[chatName];
+                    }
                 };
                 
                 // ==================== Logs Page Methods ====================
@@ -707,12 +774,14 @@
                     addLoading,
                     addInput,
                     confirmModal,
+                    testAliveModal,
                     fetchStatus,
                     addListener,
                     removeOne,
                     resetOne,
                     refreshAll,
                     resetAll,
+                    testAlive,
                     
                     // Logs page
                     services,

@@ -640,3 +640,112 @@ body {
     background: #10b981;
 }
 
+/* Test Alive Modal */
+.modal-lg {
+    max-width: 600px;
+    position: relative;
+}
+
+.modal-tall {
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-close-btn {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 4px 8px;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.modal-close-btn:hover {
+    color: #1a1a1a;
+}
+
+.test-result-content {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.test-loading {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6b7280;
+}
+
+.test-loading .spinner {
+    margin-bottom: 12px;
+}
+
+.test-error {
+    background: #fef2f2;
+    color: #dc2626;
+    padding: 16px;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.test-success {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.test-status {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.test-status.success {
+    background: #f0fdf4;
+    color: #16a34a;
+}
+
+.test-status.fail {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.test-message {
+    font-size: 14px;
+    color: #4b5563;
+    padding: 12px;
+    background: #f9fafb;
+    border-radius: 8px;
+}
+
+.test-data {
+    font-size: 13px;
+    color: #374151;
+}
+
+.test-data strong {
+    display: block;
+    margin-bottom: 8px;
+    color: #1a1a1a;
+}
+
+.test-data pre {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
