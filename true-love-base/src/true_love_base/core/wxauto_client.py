@@ -20,6 +20,7 @@ from true_love_base.utils.path_resolver import get_wx_imgs_dir
 LOG = logging.getLogger("WxAutoClient")
 
 # 设置 wxauto 默认文件保存路径到 server 的 wx_imgs 目录
+WxParam.CHAT_WINDOW_SIZE = (8000, 6000)
 _wx_imgs_dir = get_wx_imgs_dir()
 if _wx_imgs_dir:
     WxParam.DEFAULT_SAVE_PATH = _wx_imgs_dir
