@@ -52,6 +52,10 @@ class ImageService:
 
         # Stability AI API Key
         self.sd_api_key = self.config.platform_key.sd if self.config.platform_key else ""
+        self.litellm_base_url = None
+        # self.litellm_base_url = self.config.platform_key.litellm_base_url
+        self.litellm_api_key = None
+        # self.litellm_api_key = self.config.platform_key.litellm_api_key
 
     async def get_img_type(
             self,
@@ -164,7 +168,7 @@ class ImageService:
             session.add_message("assistant", f"[生成图片] {image_prompt}")
 
         # 根据 provider 选择生图服务（未指定时随机选择）
-        provider = provider or random.choice(["openai", "stability", "gemini"])
+        provider = provider or random.choice(["openai", "gemini"])
         LOG.info(f"使用 {provider} 生成图像")
 
         if provider.lower() == "openai":
@@ -289,7 +293,8 @@ class ImageService:
                 n=1,
                 size="1024x1024",
                 response_format="b64_json",
-                api_key=api_key
+                api_key=api_key,
+                api_base=self.litellm_base_url
             )
 
             # LiteLLM 返回格式
@@ -344,7 +349,8 @@ class ImageService:
                 model=litellm_model,
                 prompt=prompt,
                 n=1,
-                api_key=api_key
+                api_key=api_key,
+                api_base=self.litellm_base_url
             )
 
             # LiteLLM 返回格式 - Gemini 返回 URL 或 b64_json

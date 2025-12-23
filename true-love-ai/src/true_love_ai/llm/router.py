@@ -21,27 +21,30 @@ litellm.drop_params = True
 
 class LLMRouter:
     """LLM 路由器 - 使用 LiteLLM 实现多模型支持和负载均衡"""
-    
+
     def __init__(self):
         self.config = get_config().chatgpt
+        self.platform_key = get_config().platform_key
         self.router = self._init_router()
-    
+
     def _init_router(self) -> Optional[Router]:
         """初始化 LiteLLM 路由器"""
         if not self.config:
             return None
-        
+
         model_list = []
-        
+
         # OpenAI 多 Key 负载均衡
         openai_keys = [getattr(self.config, f'key{i}', '') for i in range(1, 4)]
         for key in filter(None, openai_keys):
             for model in [self.config.default_model, self.config.vision_model]:
                 model_list.append({
                     "model_name": model,
-                    "litellm_params": {"model": model, "api_key": key}
+                    "litellm_params": {"model": model,
+                                       "api_key": self.platform_key.litellm_api_key,
+                                       "base_url": self.platform_key.litellm_base_url}
                 })
-        
+
         # 其他提供商（单 Key）
         providers = [
             ("claude_key1", self.config.claude_model, None),
@@ -56,17 +59,19 @@ class LLMRouter:
                 litellm_model = f"{prefix}{model}" if prefix else model
                 model_list.append({
                     "model_name": model,
-                    "litellm_params": {"model": litellm_model, "api_key": key}
+                    "litellm_params": {"model": litellm_model,
+                                       "api_key": self.platform_key.litellm_api_key,
+                                       "base_url": self.platform_key.litellm_base_url}
                 })
-        
+
         LOG.info(f"LLM Router 初始化，共 {len(model_list)} 个模型配置")
         return Router(model_list=model_list) if model_list else None
-    
+
     def _resolve_model(self, provider: Optional[str] = None, model: Optional[str] = None) -> str:
         """解析模型名称：优先用指定 model，其次按 provider 选择，最后用默认"""
         if model:
             return model
-        
+
         if provider and self.config:
             provider_map = {
                 "openai": self.config.default_model,
@@ -75,31 +80,31 @@ class LLMRouter:
                 "gemini": self.config.gemini_model,
             }
             return provider_map.get(provider.lower(), self.config.default_model)
-        
+
         return self.config.default_model if self.config else "gpt-4o"
-    
+
     async def chat(
-        self,
-        messages: list[dict],
-        provider: Optional[str] = None,
-        model: Optional[str] = None,
-        stream: bool = False,
-        **kwargs
+            self,
+            messages: list[dict],
+            provider: Optional[str] = None,
+            model: Optional[str] = None,
+            stream: bool = False,
+            **kwargs
     ) -> str:
         """发送聊天请求"""
-        resolved_model = self._resolve_model(provider, model)
+        resolved_model = self._resolve_model("openai", model)
         LOG.info(f"LLM chat: model={resolved_model}, messages_count={len(messages)}")
-        
+
         if not self.router:
             raise RuntimeError("LLM Router 未初始化，请检查配置")
-        
+
         response = await self.router.acompletion(
             model=resolved_model,
             messages=messages,
             stream=stream,
             **kwargs
         )
-        
+
         if stream:
             # 流式响应：拼接完整内容
             result = ""
@@ -107,25 +112,25 @@ class LLMRouter:
                 if chunk.choices[0].delta.content:
                     result += chunk.choices[0].delta.content
             return result
-        
+
         return response.choices[0].message.content
-    
+
     async def chat_with_tools(
-        self,
-        messages: list[dict],
-        tools: list[dict],
-        tool_choice: dict,
-        provider: Optional[str] = None,
-        model: Optional[str] = None,
-        **kwargs
+            self,
+            messages: list[dict],
+            tools: list[dict],
+            tool_choice: dict,
+            provider: Optional[str] = None,
+            model: Optional[str] = None,
+            **kwargs
     ) -> str:
         """带工具调用的聊天，返回工具调用参数"""
         resolved_model = self._resolve_model(provider, model)
         LOG.info(f"LLM chat_with_tools: model={resolved_model}")
-        
+
         if not self.router:
             raise RuntimeError("LLM Router 未初始化，请检查配置")
-        
+
         response = await self.router.acompletion(
             model=resolved_model,
             messages=messages,
@@ -134,7 +139,7 @@ class LLMRouter:
             stream=True,
             **kwargs
         )
-        
+
         # 提取工具调用参数
         result = ""
         async for chunk in response:
@@ -143,14 +148,14 @@ class LLMRouter:
                 if tool_call.function.arguments:
                     result += tool_call.function.arguments
         return result
-    
+
     async def vision(
-        self,
-        prompt: str,
-        image_data: str,
-        provider: Optional[str] = None,
-        model: Optional[str] = None,
-        **kwargs
+            self,
+            prompt: str,
+            image_data: str,
+            provider: Optional[str] = None,
+            model: Optional[str] = None,
+            **kwargs
     ) -> str:
         """视觉理解 - 分析图像内容"""
         # 确定 vision 模型
@@ -161,9 +166,9 @@ class LLMRouter:
             resolved_model = vision_map.get(provider.lower(), self.config.vision_model)
         else:
             resolved_model = self.config.vision_model if self.config else "gpt-4o"
-        
+
         LOG.info(f"LLM vision: model={resolved_model}")
-        
+
         # 构建 vision 消息格式
         messages = [{
             "role": "user",
@@ -172,7 +177,7 @@ class LLMRouter:
                 {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_data}"}}
             ]
         }]
-        
+
         return await self.chat(messages, model=resolved_model, **kwargs)
 
 

@@ -82,6 +82,8 @@ class SessionConfig(BaseSettings):
 class PlatformKeyConfig(BaseSettings):
     """第三方平台 Key"""
     sd: str = ""  # Stability AI
+    litellm_api_key: str = ""
+    litellm_base_url: str = ""
 
 
 class BaseServerConfig(BaseSettings):
