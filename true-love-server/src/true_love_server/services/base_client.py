@@ -21,7 +21,9 @@ get_by_room_id_url = f"{host}/get/by/room-id"
 add_listen_url = f"{host}/listen/add"
 execute_wx_url = f"{host}/execute/wx"
 execute_chat_url = f"{host}/execute/chat"
+batch_chat_info_url = f"{host}/execute/batch-chat-info"
 LOG = logging.getLogger("BaseClient")
+time_out = (2, 10)
 
 
 def send_text(send_receiver, at_receiver, content, raise_on_error: bool = False) -> tuple[bool, str]:
@@ -48,7 +50,7 @@ def send_text(send_receiver, at_receiver, content, raise_on_error: bool = False)
     try:
         start_time = time.time()
         LOG.info("开始请求base推送text内容, req:[%s]", payload)
-        res = requests.request("POST", text_url, headers=headers, data=payload, timeout=(2, 60))
+        res = requests.request("POST", text_url, headers=headers, data=payload, timeout=time_out)
         res.raise_for_status()
         LOG.info("请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
         return True, ""
@@ -82,7 +84,7 @@ def send_img(path, send_receiver, raise_on_error: bool = False) -> tuple[bool, s
     try:
         start_time = time.time()
         LOG.info("开始请求base推送img内容, req:[%s]", payload[:2000])
-        res = requests.request("POST", text_file, headers=headers, data=payload, timeout=(2, 60))
+        res = requests.request("POST", text_file, headers=headers, data=payload, timeout=time_out)
         res.raise_for_status()
         LOG.info("send_img请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
         return True, ""
@@ -116,7 +118,7 @@ def send_video(path, send_receiver, raise_on_error: bool = False) -> tuple[bool,
     try:
         start_time = time.time()
         LOG.info("开始请求base推送video内容, req:[%s]", payload[:2000])
-        res = requests.request("POST", text_file, headers=headers, data=payload, timeout=(2, 60))
+        res = requests.request("POST", text_file, headers=headers, data=payload, timeout=time_out)
         res.raise_for_status()
         LOG.info("send_video请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
         return True, ""
@@ -137,7 +139,7 @@ def get_by_room_id(room_id) -> dict:
     try:
         start_time = time.time()
         LOG.info("开始请求get_all内容")
-        res = requests.request("POST", get_by_room_id_url, headers=headers, data=payload, timeout=(2, 60))
+        res = requests.request("POST", get_by_room_id_url, headers=headers, data=payload, timeout=time_out)
         res.raise_for_status()
         LOG.info("get_all请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
         return res.json()['data']
@@ -164,11 +166,11 @@ def add_listen_chat(nickname: str) -> dict:
         "nickname": nickname
     }, ensure_ascii=False)
     headers = {'Content-Type': 'application/json'}
-    
+
     try:
         start_time = time.time()
         LOG.info(f"add_listen_chat: [{nickname}]")
-        res = requests.post(add_listen_url, headers=headers, data=payload, timeout=(2, 60))
+        res = requests.post(add_listen_url, headers=headers, data=payload, timeout=time_out)
         res.raise_for_status()
         result = res.json()
         LOG.info(f"add_listen_chat 成功, cost:[{(time.time() - start_time) * 1000:.0f}ms], code:[{result.get('code')}]")
@@ -205,11 +207,11 @@ def execute_wx(method_name: str, params: dict = None) -> dict:
         "params": params or {}
     }, ensure_ascii=False)
     headers = {'Content-Type': 'application/json'}
-    
+
     try:
         start_time = time.time()
         LOG.info(f"execute_wx: {method_name}({params})")
-        res = requests.post(execute_wx_url, headers=headers, data=payload, timeout=(2, 60))
+        res = requests.post(execute_wx_url, headers=headers, data=payload, timeout=time_out)
         res.raise_for_status()
         result = res.json()
         LOG.info(f"execute_wx 成功, cost:[{(time.time() - start_time) * 1000:.0f}ms], code:[{result.get('code')}]")
@@ -243,11 +245,11 @@ def execute_chat(chat_name: str, method_name: str, params: dict = None) -> dict:
         "params": params or {}
     }, ensure_ascii=False)
     headers = {'Content-Type': 'application/json'}
-    
+
     try:
         start_time = time.time()
         LOG.info(f"execute_chat[{chat_name}]: {method_name}({params})")
-        res = requests.post(execute_chat_url, headers=headers, data=payload, timeout=(2, 60))
+        res = requests.post(execute_chat_url, headers=headers, data=payload, timeout=time_out)
         res.raise_for_status()
         result = res.json()
         LOG.info(f"execute_chat 成功, cost:[{(time.time() - start_time) * 1000:.0f}ms], code:[{result.get('code')}]")
@@ -258,4 +260,51 @@ def execute_chat(chat_name: str, method_name: str, params: dict = None) -> dict:
         }
     except Exception as e:
         LOG.exception(f"execute_chat 失败: {e}")
+        return {"success": False, "data": None, "message": str(e)}
+
+
+def batch_chat_info(chat_names: list[str]) -> dict:
+    """
+    批量获取 Chat 的 ChatInfo
+    
+    一次性获取多个聊天窗口的状态信息，避免多次请求。
+    
+    Args:
+        chat_names: 聊天对象名称列表
+    
+    Returns:
+        {
+            "success": bool,
+            "data": {
+                "results": {
+                    "chat_name1": {"success": true, "data": {...}},
+                    "chat_name2": {"success": false, "reason": "window_not_found"},
+                    ...
+                }
+            },
+            "message": str
+        }
+    """
+    if not chat_names:
+        return {"success": True, "data": {"results": {}}, "message": ""}
+    
+    payload = json.dumps({
+        "chat_names": chat_names
+    }, ensure_ascii=False)
+    headers = {'Content-Type': 'application/json'}
+
+    try:
+        start_time = time.time()
+        LOG.info(f"batch_chat_info: {len(chat_names)} chats")
+        res = requests.post(batch_chat_info_url, headers=headers, data=payload, timeout=time_out)
+        res.raise_for_status()
+        result = res.json()
+        LOG.info(f"batch_chat_info 成功, cost:[{(time.time() - start_time) * 1000:.0f}ms], code:[{result.get('code')}]")
+        return {
+            "success": result.get("code") == 0,
+            "data": result.get("data"),
+            "message": result.get("msg", "")
+        }
+    except Exception as e:
+        LOG.exception(f"batch_chat_info 失败: {e}")
         return {"success": False, "data": None, "message": str(e)}

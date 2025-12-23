@@ -8,6 +8,8 @@ HTTP Server - 提供 HTTP API 服务
 
 import json
 import logging
+import random
+
 import time
 from threading import Thread
 from typing import Optional, TYPE_CHECKING, Any
@@ -369,6 +371,65 @@ def execute_chat():
         return jsonify(ApiResponse.error(107, f"Execution failed: {str(e)}").to_dict())
 
 
+@app.route('/execute/batch-chat-info', methods=['POST'])
+def batch_chat_info():
+    """
+    批量获取 Chat 的 ChatInfo
+    
+    一次性获取多个聊天窗口的状态信息，避免多次请求。
+    
+    Request Body:
+        - chat_names: 聊天对象名称列表
+        
+    Response:
+        - data: {
+            "results": {
+                "chat_name1": {"success": true, "data": {...}},
+                "chat_name2": {"success": false, "reason": "window_not_found"},
+                ...
+            }
+        }
+    """
+    robot = get_robot()
+    if robot is None:
+        return jsonify(ApiErrors.ROBOT_NOT_READY.to_dict())
+
+    data = request.json or {}
+    chat_names = data.get('chat_names', [])
+
+    if not chat_names or not isinstance(chat_names, list):
+        return jsonify(ApiResponse.error(103, "Missing or invalid 'chat_names' parameter").to_dict())
+
+    # 获取 wx 实例
+    try:
+        wx = robot.client.wx
+    except Exception as e:
+        LOG.error(f"Failed to get wx instance: {e}")
+        return jsonify(ApiResponse.error(101, "WeChat client not ready").to_dict())
+
+    results = {}
+
+    for chat_name in chat_names:
+        try:
+            # 获取子窗口
+            chat = wx.GetSubWindow(chat_name)
+            if chat is None:
+                results[chat_name] = {"success": False, "reason": "window_not_found"}
+                continue
+
+            # 调用 ChatInfo
+            chat_info = chat.ChatInfo()
+            serialized = serialize_result(chat_info)
+            results[chat_name] = {"success": True, "data": serialized}
+
+        except Exception as e:
+            LOG.error(f"batch_chat_info failed for [{chat_name}]: {e}")
+            results[chat_name] = {"success": False, "reason": str(e)}
+
+    LOG.info(f"batch_chat_info completed for {len(chat_names)} chats")
+    return jsonify(ApiResponse.success({"results": results}).to_dict())
+
+
 @app.route('/logs', methods=['GET'])
 def handle_logs():
     """
@@ -453,14 +514,16 @@ def after_request_handler(response):
         cost = (time.time() - g.start_time) * 1000
         body = response.get_data(as_text=True)
         LOG.info(f"Response: [{request.method} {request.path}], cost: {cost:.0f}ms, body: {body[:2000]}")
-
+    # 操作完成后，让 UI 稳定一下（仅对实际操作的接口）
+    if request.path in ['/send/text', '/send/file']:
+        time.sleep(random.uniform(0.05, 0.15))  # 150-200ms
     return response
 
 
 # ==================== Server Control ====================
 
 # Waitress 配置
-WAITRESS_THREADS = 8  # 工作线程数
+WAITRESS_THREADS = 1  # 工作线程数
 WAITRESS_CHANNEL_TIMEOUT = 120  # 通道超时（秒）
 
 

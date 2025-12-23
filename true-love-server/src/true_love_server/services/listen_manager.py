@@ -97,28 +97,42 @@ class ListenManager:
 
         LOG.debug(f"GetAllSubWindow returned {len(window_names)} windows: {window_names}")
 
+        # 筛选出存在子窗口的 chat，用于批量查询 ChatInfo
+        chats_with_window = [c for c in db_chats if c in window_names]
+        chats_without_window = [c for c in db_chats if c not in window_names]
+
+        # 批量获取 ChatInfo（一次请求获取所有）
+        chat_info_results = {}
+        if chats_with_window:
+            batch_result = base_client.batch_chat_info(chats_with_window)
+            if batch_result.get("success") and batch_result.get("data"):
+                chat_info_results = batch_result["data"].get("results", {})
+            else:
+                LOG.warning(f"batch_chat_info failed: {batch_result.get('message')}")
+
         listeners = []
         summary = {"healthy": 0, "unhealthy": 0}
 
-        for chat_name in db_chats:
+        # 处理没有子窗口的 chat
+        for chat_name in chats_without_window:
+            listeners.append({
+                "chat": chat_name, 
+                "status": "unhealthy", 
+                "reason": "window_not_found"
+            })
+            summary["unhealthy"] += 1
+
+        # 处理有子窗口的 chat
+        for chat_name in chats_with_window:
             status_info = {"chat": chat_name, "status": None, "reason": None}
-
-            # Step 1: 检查子窗口是否存在
-            if chat_name not in window_names:
-                status_info["status"] = "unhealthy"
-                status_info["reason"] = "window_not_found"
-                summary["unhealthy"] += 1
-                listeners.append(status_info)
-                continue
-
-            # Step 2: 检查 ChatInfo 是否能响应
-            chat_result = base_client.execute_chat(chat_name, "ChatInfo", {})
+            
+            chat_result = chat_info_results.get(chat_name, {})
             if chat_result.get("success") and chat_result.get("data"):
                 status_info["status"] = "healthy"
                 summary["healthy"] += 1
             else:
                 status_info["status"] = "unhealthy"
-                status_info["reason"] = "chat_info_failed"
+                status_info["reason"] = chat_result.get("reason", "chat_info_failed")
                 summary["unhealthy"] += 1
 
             listeners.append(status_info)
