@@ -8,15 +8,10 @@ import logging
 from typing import Optional
 
 import litellm
-from litellm import Router
 
 from true_love_ai.core.config import get_config
 
 LOG = logging.getLogger(__name__)
-
-# LiteLLM 配置
-litellm.modify_params = True
-litellm.drop_params = True
 
 
 class LLMRouter:
@@ -25,47 +20,6 @@ class LLMRouter:
     def __init__(self):
         self.config = get_config().chatgpt
         self.platform_key = get_config().platform_key
-        self.router = self._init_router()
-
-    def _init_router(self) -> Optional[Router]:
-        """初始化 LiteLLM 路由器"""
-        if not self.config:
-            return None
-
-        model_list = []
-
-        # OpenAI 多 Key 负载均衡
-        openai_keys = [getattr(self.config, f'key{i}', '') for i in range(1, 4)]
-        for key in filter(None, openai_keys):
-            for model in [self.config.default_model, self.config.vision_model]:
-                model_list.append({
-                    "model_name": model,
-                    "litellm_params": {"model": model,
-                                       "api_key": self.platform_key.litellm_api_key,
-                                       "base_url": self.platform_key.litellm_base_url}
-                })
-
-        # 其他提供商（单 Key）
-        providers = [
-            ("claude_key1", self.config.claude_model, None),
-            ("ds_key1", self.config.deepseek_model, None),
-            # Gemini 需要加 gemini/ 前缀使用 Google AI Studio API（而不是 Vertex AI）
-            ("gemini_key1", self.config.gemini_model, "gemini/"),
-        ]
-        for key_attr, model, prefix in providers:
-            key = getattr(self.config, key_attr, '')
-            if key:
-                # litellm_params.model 可能需要前缀，但 model_name 保持原样
-                litellm_model = f"{prefix}{model}" if prefix else model
-                model_list.append({
-                    "model_name": model,
-                    "litellm_params": {"model": litellm_model,
-                                       "api_key": self.platform_key.litellm_api_key,
-                                       "base_url": self.platform_key.litellm_base_url}
-                })
-
-        LOG.info(f"LLM Router 初始化，共 {len(model_list)} 个模型配置")
-        return Router(model_list=model_list) if model_list else None
 
     def _resolve_model(self, provider: Optional[str] = None, model: Optional[str] = None) -> str:
         """解析模型名称：优先用指定 model，其次按 provider 选择，最后用默认"""
@@ -95,10 +49,7 @@ class LLMRouter:
         resolved_model = self._resolve_model("openai", model)
         LOG.info(f"LLM chat: model={resolved_model}, messages_count={len(messages)}")
 
-        if not self.router:
-            raise RuntimeError("LLM Router 未初始化，请检查配置")
-
-        response = await self.router.acompletion(
+        response = await litellm.acompletion(
             model=resolved_model,
             messages=messages,
             stream=stream,
@@ -128,10 +79,7 @@ class LLMRouter:
         resolved_model = self._resolve_model(provider, model)
         LOG.info(f"LLM chat_with_tools: model={resolved_model}")
 
-        if not self.router:
-            raise RuntimeError("LLM Router 未初始化，请检查配置")
-
-        response = await self.router.acompletion(
+        response = await litellm.acompletion(
             model=resolved_model,
             messages=messages,
             tools=tools,

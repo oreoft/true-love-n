@@ -11,12 +11,13 @@ from io import BytesIO
 from typing import Optional
 
 import httpx
+import litellm
 
 from true_love_ai.core.config import get_config
 from true_love_ai.core.session import get_session_manager
-from true_love_ai.llm.router import get_llm_router
-from true_love_ai.llm.intent import IntentRouter, ImageOperationType
 from true_love_ai.llm import img_prompt
+from true_love_ai.llm.intent import IntentRouter
+from true_love_ai.llm.router import get_llm_router
 from true_love_ai.models.response import ImageResponse
 
 LOG = logging.getLogger(__name__)
@@ -52,10 +53,8 @@ class ImageService:
 
         # Stability AI API Key
         self.sd_api_key = self.config.platform_key.sd if self.config.platform_key else ""
-        self.litellm_base_url = None
-        # self.litellm_base_url = self.config.platform_key.litellm_base_url
-        self.litellm_api_key = None
-        # self.litellm_api_key = self.config.platform_key.litellm_api_key
+        self.litellm_api_key = self.config.platform_key.litellm_api_key
+        self.litellm_base_url = self.config.platform_key.litellm_base_url
 
     async def get_img_type(
             self,
@@ -218,10 +217,10 @@ class ImageService:
                 style_id = "general"
 
             LOG.info(f"匹配到的风格: {style_id}")
-            
+
             # Step 3: 使用匹配到的风格模板生成最终 prompt
             generator_prompt = img_prompt.get_prompt_generator_prompt(style_id, content)
-            
+
             image_prompt = await self.llm_router.chat(
                 messages=[
                     {"role": "system", "content": generator_prompt},
@@ -230,10 +229,10 @@ class ImageService:
                 provider=provider,
                 model=model
             )
-            
+
             LOG.info(f"生成的图像描述词 (风格: {style_id}): {image_prompt[:100]}...")
             return image_prompt
-            
+
         except Exception as e:
             LOG.warning(f"生成描述词失败，使用原始内容: {e}")
             return content
@@ -272,7 +271,6 @@ class ImageService:
         使用 OpenAI 生成图像 - 通过 LiteLLM
         支持 gpt-image-1, dall-e-3, dall-e-2
         """
-        import litellm
 
         # 获取 API Key
         api_key = None
@@ -291,10 +289,9 @@ class ImageService:
                 model=image_model,
                 prompt=prompt,
                 n=1,
-                size="1024x1024",
+                api_key=self.litellm_api_key,
+                api_base=self.litellm_base_url,
                 response_format="b64_json",
-                api_key=api_key,
-                api_base=self.litellm_base_url
             )
 
             # LiteLLM 返回格式
@@ -329,7 +326,6 @@ class ImageService:
         使用 Gemini 生成图像 - 通过 LiteLLM
         支持 imagen-4.0-generate-001, gemini-3-pro-image-preview 等
         """
-        import litellm
 
         # 获取 API Key
         api_key = None
@@ -341,16 +337,17 @@ class ImageService:
 
         # Gemini Image 模型，LiteLLM 需要 gemini/ 前缀
         model_name = self.config.chatgpt.gemini_image_model if self.config.chatgpt else "imagen-4.0-generate-001"
-        litellm_model = f"gemini/{model_name}"
+        litellm_model = f"gemini/gemini/{model_name}"
         LOG.info(f"Gemini 生成图像 (LiteLLM), model: {litellm_model}, prompt: {prompt[:50]}...")
 
         try:
             response = await litellm.aimage_generation(
                 model=litellm_model,
                 prompt=prompt,
+                api_key=self.litellm_api_key,
+                api_base=self.litellm_base_url,
+                response_format="b64_json",
                 n=1,
-                api_key=api_key,
-                api_base=self.litellm_base_url
             )
 
             # LiteLLM 返回格式 - Gemini 返回 URL 或 b64_json
