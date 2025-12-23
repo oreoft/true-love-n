@@ -113,6 +113,7 @@ def send_daily_notice(room_id, content='早上好☀️家人萌~', tz: str = "A
     if check_image_openable(moyu_file_path):
         moyu_res = base_client.send_img(moyu_file_path, room_id)
         LOG.info(f"send_image: {moyu_file_path}, result: {moyu_res}")
+        time.sleep(2)
     if check_image_openable(zao_bao_file_path):
         zao_bao_res = base_client.send_img(zao_bao_file_path, room_id)
         LOG.info(f"send_image: {moyu_file_path}, result: {zao_bao_res}")
