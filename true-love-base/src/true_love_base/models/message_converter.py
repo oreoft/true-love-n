@@ -54,7 +54,6 @@ def convert_message(
     """
     try:
         msg_type = getattr(raw_msg, 'type', 'text')
-        sender = getattr(raw_msg, 'sender', chat_name)
         msg_id = getattr(raw_msg, 'id', '')
         msg_hash = getattr(raw_msg, 'hash', '')
         content = getattr(raw_msg, 'content', str(raw_msg))
@@ -62,6 +61,8 @@ def convert_message(
         # 使用 chat_info.chat_type 判断群聊（更可靠）
         chat_info = getattr(raw_msg, 'chat_info', {}) or {}
         is_group = chat_info.get('chat_type') == 'group'
+        # 如果是群聊，使用 sender 作为发送者, 否则使用 chat_name, 防止系统sender发一些奇怪的名字
+        sender = getattr(raw_msg, 'sender', chat_name) if is_group else chat_name
         is_at_me = is_group and ('@真爱粉' in content or 'zaf' in content.lower())
 
         # 构建基础消息
