@@ -515,8 +515,10 @@ def after_request_handler(response):
         body = response.get_data(as_text=True)
         LOG.info(f"Response: [{request.method} {request.path}], cost: {cost:.0f}ms, body: {body[:2000]}")
     # 操作完成后，让 UI 稳定一下（仅对实际操作的接口）
-    if request.path in ['/send/text', '/send/file']:
-        time.sleep(random.uniform(0.05, 0.15))  # 150-200ms
+    if request.path in ['/send/text']:
+        time.sleep(random.uniform(0.02, 0.05))
+    if request.path in ['/send/file']:
+        time.sleep(random.uniform(0.1, 0.2))
     return response
 
 
