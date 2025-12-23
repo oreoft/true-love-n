@@ -19,7 +19,7 @@ LOG = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
-    LOG.info("真爱粉 AI 服务启动中...")
+    LOG.info("真爱粉 AI 服务启动成功...")
     yield
     LOG.info("真爱粉 AI 服务关闭中...")
 
