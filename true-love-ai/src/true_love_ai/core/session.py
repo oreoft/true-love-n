@@ -98,7 +98,14 @@ class Session:
         """
         messages = []
         
-        # 只提供时间信息，让 LLM 自己推理
+        # 系统 prompt（角色设定等）
+        if self.system_prompt:
+            messages.append({
+                "role": "system",
+                "content": self.system_prompt
+            })
+        
+        # 时间信息
         messages.append({
             "role": "system", 
             "content": self.get_current_time_context()
