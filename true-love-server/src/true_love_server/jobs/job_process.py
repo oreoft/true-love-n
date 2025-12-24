@@ -264,7 +264,7 @@ def send_to_jina(link):
                 found_target = True
                 continue
 
-            if found_target and element.name == 'img' and element.get('data-src'):
+            if found_target and element.name == 'img' and element.get('data-src') and float(element.get("data-ratio", 0)) >= 1:
                 image_url = element['data-src']
                 if not image_url.startswith('http'):
                     image_url = 'https:' + image_url
@@ -295,3 +295,7 @@ def check_image_openable(image_path):
         LOG.error(f"Cannot open image: {e}")
         return False
 
+
+
+if __name__ == '__main__':
+    download_moyu_file();
