@@ -45,9 +45,9 @@ def create_app() -> FastAPI:
     # 注册路由
     app.include_router(router)
 
-    # 根路径返回 index.html
-    @app.get("/", include_in_schema=False)
-    async def root():
+    # /admin 路径返回管理页面
+    @app.get("/admin", include_in_schema=False)
+    async def admin_page():
         return FileResponse("static/index.html")
 
     # 挂载静态文件目录（放在最后，避免覆盖其他路由）

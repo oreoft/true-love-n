@@ -390,7 +390,7 @@
                 const fetchStatus = async () => {
                     loading.value = true;
                     try {
-                        const data = await request('/listen/status');
+                        const data = await request('/admin/listen/status');
                         listeners.value = data.data?.listeners || [];
                         summary.value = data.data?.summary || { healthy: 0, unhealthy: 0 };
                     } catch (error) {
@@ -406,7 +406,7 @@
                     
                     addLoading.value = true;
                     try {
-                        await request('/listen/add', {
+                        await request('/admin/listen/add', {
                             method: 'POST',
                             body: JSON.stringify({ chat_name: newChatName.value.trim() })
                         });
@@ -426,7 +426,7 @@
                     showConfirm('删除确认', `确定要删除「${chatName}」的监听吗？`, async () => {
                         loadingItems[chatName] = 'remove';
                         try {
-                            await request('/listen/remove', {
+                            await request('/admin/listen/remove', {
                                 method: 'POST',
                                 body: JSON.stringify({ chat_name: chatName })
                             });
@@ -444,7 +444,7 @@
                 const resetOne = async (chatName) => {
                     loadingItems[chatName] = 'reset';
                     try {
-                        const data = await request('/listen/reset', {
+                        const data = await request('/admin/listen/reset', {
                             method: 'POST',
                             body: JSON.stringify({ chat_name: chatName })
                         });
@@ -461,7 +461,7 @@
                 const refreshAll = async () => {
                     loading.value = true;
                     try {
-                        const data = await request('/listen/refresh', { method: 'POST' });
+                        const data = await request('/admin/listen/refresh', { method: 'POST' });
                         const result = data.data;
                         showToast(`刷新完成：成功 ${result?.success_count || 0}，失败 ${result?.fail_count || 0}`, 'success');
                         await fetchStatus();
@@ -477,7 +477,7 @@
                     showConfirm('重置确认', '确定要重置所有监听吗？这将重启所有监听连接。', async () => {
                         loading.value = true;
                         try {
-                            const data = await request('/listen/reset-all', { method: 'POST' });
+                            const data = await request('/admin/listen/reset-all', { method: 'POST' });
                             const result = data.data;
                             showToast(result?.message || '重置全部完成', 'success');
                             await fetchStatus();
@@ -499,7 +499,7 @@
                     loadingItems[chatName] = 'test';
                     
                     try {
-                        const data = await request('/listen/get-all-message', {
+                        const data = await request('/admin/listen/get-all-message', {
                             method: 'POST',
                             body: JSON.stringify({ chat_name: chatName })
                         });
@@ -532,7 +532,9 @@
                     
                     try {
                         const offset = isInitial ? 0 : data.offset;
-                        const url = `/logs?log_type=${type}&limit=500&since_offset=${offset}`;
+                        // Server 服务用 /admin/logs，其他服务用 /logs
+                        const logsPath = serviceKey === 'server' ? '/admin/logs' : '/logs';
+                        const url = `${logsPath}?log_type=${type}&limit=500&since_offset=${offset}`;
                         const result = await request(url, {}, host);
                         
                         if (result.data) {
@@ -670,7 +672,9 @@
                             truncating.value = true;
                             try {
                                 const host = getServiceHost(activeService.value);
-                                const url = `/logs?action=truncate&log_type=${logType.value}`;
+                                // Server 服务用 /admin/logs，其他服务用 /logs
+                                const logsPath = activeService.value === 'server' ? '/admin/logs' : '/logs';
+                                const url = `${logsPath}?action=truncate&log_type=${logType.value}`;
                                 await request(url, {}, host);
                                 
                                 // 清空当前显示并重置 offset

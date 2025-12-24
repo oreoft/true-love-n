@@ -100,7 +100,7 @@ async def get_chat(
     return ApiResponse(data="")
 
 
-@router.get("/logs")
+@router.get("/admin/logs")
 async def handle_logs(
     action: str = Query(default="query", description="操作类型: query 查询日志, truncate 清空日志"),
     log_type: str = Query(default="info", description="日志类型: info 或 error"),
@@ -159,7 +159,7 @@ async def handle_logs(
 
 # ==================== Listen 监听管理接口 ====================
 
-@router.get("/listen/status")
+@router.get("/admin/listen/status")
 async def get_listen_status():
     """
     获取监听状态
@@ -176,7 +176,7 @@ async def get_listen_status():
     return ApiResponse(data=result)
 
 
-@router.post("/listen/add")
+@router.post("/admin/listen/add")
 async def add_listen(request: dict):
     """
     添加监听的聊天对象
@@ -195,7 +195,7 @@ async def add_listen(request: dict):
     return ApiResponse(data=result)
 
 
-@router.post("/listen/remove")
+@router.post("/admin/listen/remove")
 async def remove_listen(request: dict):
     """
     移除监听的聊天对象
@@ -213,7 +213,7 @@ async def remove_listen(request: dict):
     return ApiResponse(data=result)
 
 
-@router.post("/listen/refresh")
+@router.post("/admin/listen/refresh")
 async def refresh_listen():
     """
     智能刷新监听列表
@@ -235,7 +235,7 @@ async def refresh_listen():
     return ApiResponse(data=result)
 
 
-@router.post("/listen/reset")
+@router.post("/admin/listen/reset")
 async def reset_listen(request: dict):
     """
     重置单个监听
@@ -260,7 +260,7 @@ async def reset_listen(request: dict):
     return ApiResponse(data=result)
 
 
-@router.post("/listen/reset-all")
+@router.post("/admin/listen/reset-all")
 async def reset_all_listen():
     """
     重置所有监听
@@ -281,7 +281,7 @@ async def reset_all_listen():
     return ApiResponse(data=result)
 
 
-@router.post("/listen/get-all-message")
+@router.post("/admin/listen/get-all-message")
 async def get_all_message(request: dict):
     """
     测活接口 - 获取聊天窗口的所有消息
