@@ -25,6 +25,8 @@ class TrigSearchHandler:
             return self.search_currency('澳大利亚元')
         if '日元汇率' in question:
             return self.search_currency('日元')
+        if '黄金汇率' in question:
+            return self.search_aua()
         if '图书馆时间' in question:
             return self.library_schedule()
         if any(e in question for e in ['gym时间', '健身房时间']):
@@ -68,6 +70,58 @@ class TrigSearchHandler:
         else:
             return json.dumps(data, indent=4)
 
+    def search_aua(self) -> str:
+        """查询中国银行积利金（黄金）价格"""
+        result = ''
+        try:
+            url = "https://openapi.boc.cn/unlogin/finance/query_market_price"
+            headers = {
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'Content-Type': 'application/json;charset=UTF-8',
+                'Origin': 'https://openapi.boc.cn',
+                'Referer': 'https://openapi.boc.cn/erh/jljBank/EBank.html',
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1',
+                'clentid': '540',
+            }
+            payload = {"rateCode": "AUA/CNY"}
+
+            response = requests.post(url, headers=headers, json=payload)
+            if response.status_code == 200:
+                data = response.json()
+                info = data.get('xpadgjlInfo', {})
+                if info:
+                    rate_name = info.get('rateName', '积利金/人民币')
+                    bid_price = info.get('bid1', '--')  # 买入价
+                    ask_price = info.get('ask1', '--')  # 卖出价
+                    sh_price = info.get('shPrice', '--')  # 上海金午盘价
+                    up_down_value = info.get('upDownValue', 0)  # 涨跌值
+                    up_down_rate = info.get('upDownRate', 0)  # 涨跌幅
+                    quote_date = info.get('quoteDate', '')
+                    quote_time = info.get('quoteTime', '')
+
+                    # 格式化日期时间
+                    date_str = f"{quote_date[:4]}-{quote_date[4:6]}-{quote_date[6:]}" if len(
+                        quote_date) == 8 else quote_date
+                    time_str = f"{quote_time[:2]}:{quote_time[2:4]}:{quote_time[4:]}" if len(
+                        quote_time) == 6 else quote_time
+
+                    # 涨跌显示
+                    trend = "↑" if up_down_value > 0 else ("↓" if up_down_value < 0 else "-")
+
+                    result = (
+                        f"品种: {"中银积利金"}\n"
+                        f"实时买入价: {bid_price} 元/克\n"
+                        f"实时卖出价: {ask_price} 元/克\n"
+                        f"当日涨跌: {trend} {abs(up_down_value)} ({up_down_rate}%)\n"
+                        f"报价时间: {date_str} {time_str}"
+                    )
+        except Exception as e:
+            self.LOG.error("search_aua error: %s", e)
+        return result
+
     def search_currency(self, currency) -> str:
         result = ''
         try:
@@ -93,12 +147,12 @@ class TrigSearchHandler:
                         boc_rate = cells[5].text.strip()
                         date = cells[6].text.strip()
                         result = (
-                            f"货币名称: {currency_name},\n"
+                            f"货币名称: {"中银" + currency_name},\n"
                             f"现汇买入价: {cash_buy},\n"
                             f"现钞买入价: {note_buy},\n"
                             f"现汇卖出价: {cash_sell},\n"
                             f"现钞卖出价: {note_sell},\n"
-                            f"中行折算价: {boc_rate},\n"
+                            f"中银折算价: {boc_rate},\n"
                             f"发布日期: {date}"
                         )
                         break
@@ -161,3 +215,7 @@ class TrigSearchHandler:
         except Exception as e:
             self.LOG.error("gym_schedule error: %s", e)
             return ""
+
+
+if __name__ == '__main__':
+    print(TrigSearchHandler().search_aua())

@@ -108,7 +108,11 @@ def send_daily_notice(room_id, content='早上好☀️家人萌~', tz: str = "A
     moyu_file_path = f'moyu-jpg/{current_date}.jpg'
     zao_bao_file_path = f'zaobao-jpg/{current_date}.jpg'
     r_resp = trig_search_handler.run("查询日元汇率")
-    if r_resp != "": content += "\n\n今日日元汇率情况：\n" + r_resp
+    if r_resp != "":
+        content += "\n\n今日日元汇率情况：\n" + r_resp
+    r_resp2 = trig_search_handler.run("查询黄金汇率")
+    if r_resp2 != "":
+        content += "\n\n今日黄金汇率情况：\n" + r_resp2
     base_client.send_text(room_id, '', content)
     if check_image_openable(moyu_file_path):
         time.sleep(2)
@@ -265,7 +269,8 @@ def send_to_jina(link):
                 found_target = True
                 continue
 
-            if found_target and element.name == 'img' and element.get('data-src') and float(element.get("data-ratio", 0)) >= 1:
+            if found_target and element.name == 'img' and element.get('data-src') and float(
+                    element.get("data-ratio", 0)) >= 1:
                 image_url = element['data-src']
                 if not image_url.startswith('http'):
                     image_url = 'https:' + image_url
@@ -297,6 +302,5 @@ def check_image_openable(image_path):
         return False
 
 
-
 if __name__ == '__main__':
-    download_moyu_file();
+    notice_usa_moyu_schedule();
