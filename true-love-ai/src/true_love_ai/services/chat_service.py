@@ -14,9 +14,10 @@ from true_love_ai.core.session import get_session_manager
 from true_love_ai.llm.router import get_llm_router
 from true_love_ai.llm.intent import IntentRouter, IntentType
 from true_love_ai.models.response import ChatResponse
-from true_love_ai.services.search_service import fetch_baidu_references
+from true_love_ai.services.search_service import fetch_baidu_references, SearchService
 
 LOG = logging.getLogger(__name__)
+search_client = SearchService('baidu', None)
 
 
 class ChatService:
@@ -149,7 +150,7 @@ class ChatService:
         LOG.info(f"搜索增强: query={search_query}")
 
         # 执行百度搜索
-        reference_list = fetch_baidu_references(search_query)
+        reference_list = await search_client.search(search_query)
         LOG.info(f"搜索结果数量: {len(reference_list)}")
 
         # 构建搜索增强消息
