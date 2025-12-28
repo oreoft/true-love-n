@@ -6,6 +6,7 @@ Routes - 路由定义
 """
 
 import logging
+import time
 
 from fastapi import APIRouter, BackgroundTasks
 
@@ -15,6 +16,7 @@ from ..core import Config
 from ..models import ChatMsg
 from ..services import base_client
 from ..services.listen_manager import get_listen_manager
+from ..services.loki_client import get_loki_client
 
 LOG = logging.getLogger("Routes")
 
@@ -242,3 +244,59 @@ async def get_all_message(request: dict):
     if not result.get("success"):
         raise ValidationException(result.get("message", "获取消息失败"))
     return ApiResponse(data=result)
+
+
+# ==================== Loki 日志查询接口 ====================
+
+@router.get("/admin/loki/logs")
+async def query_loki_logs(
+    start_ms: int = None,
+    end_ms: int = None,
+    limit: int = 500,
+    direction: str = 'backward'
+):
+    """
+    查询 Loki 日志
+    
+    Query Parameters:
+        - start_ms: 开始时间（毫秒时间戳），默认为 end_ms 前 5 分钟
+        - end_ms: 结束时间（毫秒时间戳），默认为当前时间
+        - limit: 最大返回条数，默认 500
+        - direction: 排序方向 forward(旧→新) / backward(新→旧)，默认 backward
+    
+    Returns:
+        - logs: 日志列表 [{timestamp, time_str, level, service, content, raw}, ...]
+        - earliest_ms: 返回数据中最早的毫秒时间戳
+        - latest_ms: 返回数据中最新的毫秒时间戳
+        - query_start_ms: 本次查询的开始时间
+        - query_end_ms: 本次查询的结束时间
+    """
+    now_ms = int(time.time() * 1000)
+    
+    # 默认值处理
+    if end_ms is None:
+        end_ms = now_ms
+    if start_ms is None:
+        start_ms = end_ms - 60 * 60 * 1000  # 默认 1 小时
+    
+    # 转换为纳秒
+    start_ns = start_ms * 1_000_000
+    end_ns = end_ms * 1_000_000
+    
+    loki_client = get_loki_client()
+    result = loki_client.query_range(start_ns, end_ns, limit, direction)
+    
+    if not result["success"]:
+        raise ValidationException(result["message"])
+    
+    # 转换 LogEntry 为 dict
+    logs = [entry.to_dict() for entry in result["logs"]]
+    
+    return ApiResponse(data={
+        "logs": logs,
+        "earliest_ms": result["earliest_ns"] // 1_000_000,
+        "latest_ms": result["latest_ns"] // 1_000_000,
+        "query_start_ms": start_ms,
+        "query_end_ms": end_ms,
+        "count": len(logs)
+    })

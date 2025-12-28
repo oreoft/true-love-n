@@ -45,6 +45,18 @@ asr:
 alapi:
   token: "your_alapi_token"
 
+# Loki configuration (通过 Grafana Cloud 代理查询日志)
+loki:
+  # Grafana Cloud 地址
+  grafana_url: "https://your-org.grafana.net"
+  # Grafana Service Account Token (需要 Viewer 权限)
+  # 获取方式: Grafana -> Administration -> Service accounts -> Add token
+  api_token: "glsa_xxxxx"
+  # Loki 数据源 UID (在 Grafana 数据源页面可以看到)
+  datasource_uid: "grafanacloud-logs"
+  # 要查询的服务列表
+  services: ["ai", "base", "server"]
+
 # Auto notification settings (for scheduled notifications)
 auto_notice: {}
 

@@ -13,7 +13,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from .logging_config import LoggingConfig
 
 # 初始化日志配置（在加载任何配置之前）
-LoggingConfig.setup("ai")
+LoggingConfig.setup("tl-ai")
 
 LOG = logging.getLogger(__name__)
 

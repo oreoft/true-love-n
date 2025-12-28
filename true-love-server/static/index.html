@@ -130,7 +130,7 @@
                     </div>
                 </div>
                 
-                <!-- Empty State (when not loading and no items) -->
+                <!-- Empty State -->
                 <div v-if="!loading && listeners.length === 0" class="empty-state">
                     <div class="empty-icon">📭</div>
                     <p class="empty-text">暂无监听记录</p>
@@ -138,69 +138,93 @@
             </div>
         </template>
         
-        <!-- Logs Page -->
+        <!-- Logs Page (Loki) -->
         <template v-else-if="activeTab === 'logs'">
-            <div class="logs-container">
-                <div class="logs-header">
+            <div class="loki-logs-container">
+                <div class="loki-logs-header">
                     <div class="logs-controls">
-                        <!-- Service Tabs -->
-                        <div class="service-tabs">
-                            <button 
-                                v-for="svc in services" 
-                                :key="svc.key"
-                                :class="['service-tab', { active: activeService === svc.key }]"
-                                @click="switchService(svc.key)"
+                        <!-- 服务过滤 -->
+                        <div class="service-filter-tags">
+                            <span 
+                                v-for="svc in lokiServices" 
+                                :key="svc"
+                                :class="['service-filter-tag', { active: lokiServiceFilter.includes(svc) }]"
+                                @click="toggleServiceFilter(svc)"
                             >
-                                {{ svc.label }}
-                            </button>
+                                {{ svc }}
+                            </span>
                         </div>
                         
-                        <select v-model="logType" class="log-type-select" @change="switchLogType">
-                            <option value="info">INFO</option>
-                            <option value="error">ERROR</option>
-                        </select>
-                        
-                        <button class="btn btn-outline btn-xs" @click="clearCurrentLogs" title="清空显示">
+                        <button class="btn btn-outline btn-xs" @click="refreshLokiLogs" :disabled="lokiLoading" title="刷新">
+                            {{ lokiLoading ? '加载中...' : '🔄 刷新' }}
+                        </button>
+                        <button class="btn btn-outline btn-xs" @click="clearLokiLogs" title="清空显示">
                             清空
                         </button>
-                        <button class="btn btn-danger btn-xs" @click="truncateLogFile" :disabled="truncating" title="清空服务端日志文件">
-                            {{ truncating ? '...' : '🗑️' }}
-                        </button>
                     </div>
-                    <div class="logs-info">
+                    <div class="loki-logs-info">
                         <span>
-                            <span :class="['poll-indicator', { paused: !isPolling }]"></span>
-                            {{ isPolling ? '轮询中' : '已暂停' }}
+                            <span :class="['poll-indicator', { paused: !lokiPolling }]"></span>
+                            {{ lokiPolling ? '轮询中' : '已暂停' }}
                         </span>
-                        <span>{{ currentLogLines.length }} 行</span>
+                        <span>{{ filteredLokiLogs.length }} 条</span>
+                        <span v-if="lokiTimeRange" class="time-range-display">
+                            {{ lokiTimeRange }}
+                        </span>
                     </div>
                 </div>
                 
-                <div class="logs-content" ref="logsContainer" @scroll="handleLogsScroll">
-                    <template v-if="currentLogLines.length > 0">
+                <div class="loki-logs-content" ref="lokiLogsContainer" @scroll="handleLokiScroll">
+                    <!-- 加载更早日志的提示 -->
+                    <div v-if="lokiCanLoadOlder" class="load-more-hint" :class="{ loading: lokiLoadingOlder }">
+                        {{ lokiLoadingOlder ? '加载中...' : '↑ 滚动到顶部加载更早日志' }}
+                    </div>
+                    
+                    <template v-if="filteredLokiLogs.length > 0">
                         <div 
-                            v-for="(line, index) in currentLogLines" 
-                            :key="index"
-                            :class="['log-line', getLogLevel(line)]"
-                        >{{ line }}</div>
+                            v-for="log in filteredLokiLogs" 
+                            :key="log.timestamp + log.raw"
+                            :class="['loki-log-item', { 'error-row': log.level === 'ERROR', 'warn-row': log.level === 'WARN' }]"
+                        >
+                            <span class="loki-log-dots">⋮</span>
+                            <span class="loki-log-time">{{ log.time_str }}</span>
+                            <span :class="['loki-log-level', log.level]">{{ log.level }}</span>
+                            <span class="loki-log-service">{{ log.service }}</span>
+                            <span class="loki-log-separator">|</span>
+                            <span class="loki-log-content">{{ log.content }}</span>
+                        </div>
                     </template>
-                    <div v-else class="logs-empty">
-                        <div class="logs-empty-icon">📜</div>
-                        <p>{{ logsLoading ? '加载中...' : '暂无日志' }}</p>
+                    
+                    <div v-else class="loki-logs-empty">
+                        <div class="loki-logs-empty-icon">📜</div>
+                        <p>{{ lokiLoading ? '加载中...' : '暂无日志' }}</p>
+                    </div>
+                    
+                    <!-- 加载最新日志的提示 -->
+                    <div v-if="lokiLogs.length > 0 && !lokiLoading" class="load-more-hint" :class="{ loading: lokiLoadingNewer }">
+                        {{ lokiLoadingNewer ? '加载中...' : '↓ 滚动到底部加载最新日志' }}
                     </div>
                 </div>
                 
-                <!-- Auto scroll button -->
-                <button 
-                    :class="['auto-scroll-btn', { active: autoScroll }]"
-                    @click="toggleAutoScroll"
-                    :title="autoScroll ? '自动滚动开启' : '自动滚动关闭'"
-                >
-                    ⬇️
-                </button>
+                <!-- 滚动按钮 -->
+                <div class="scroll-btns">
+                    <button 
+                        class="scroll-btn"
+                        @click="scrollToTop"
+                        title="滚动到顶部"
+                    >
+                        ⬆️
+                    </button>
+                    <button 
+                        :class="['scroll-btn', { active: lokiAutoScroll }]"
+                        @click="toggleLokiAutoScroll"
+                        :title="lokiAutoScroll ? '自动滚动开启' : '自动滚动关闭'"
+                    >
+                        ⬇️
+                    </button>
+                </div>
             </div>
         </template>
-        
         
         <!-- Add Modal -->
         <div v-if="showAddModal" class="modal-overlay" @click.self="showAddModal = false">
@@ -264,550 +288,7 @@
         </div>
     </div>
 
-    <script>
-        const { createApp, ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } = Vue;
-        
-        // 服务配置 - Server 使用当前页面地址（页面和接口在同一服务）
-        const SERVICES = [
-            { key: 'server', label: 'Server', host: window.location.origin },
-            { key: 'base', label: 'Base', host: 'http://127.0.0.1:5000' },
-            { key: 'ai', label: 'AI', host: 'https://tl-ai.someget.work' }
-        ];
-        
-        // 默认服务地址（用于 Listen 等接口）
-        const SERVER_HOST = SERVICES[0].host;
-        
-        createApp({
-            setup() {
-                // Tab state
-                const activeTab = ref('list');
-                
-                // List page state
-                const listeners = ref([]);
-                const summary = ref({ healthy: 0, unhealthy: 0 });
-                const loading = ref(false);
-                const loadingItems = reactive({});
-                const toasts = ref([]);
-                
-                const showAddModal = ref(false);
-                const newChatName = ref('');
-                const addLoading = ref(false);
-                const addInput = ref(null);
-                
-                const confirmModal = reactive({
-                    show: false,
-                    title: '',
-                    message: '',
-                    onConfirm: () => {}
-                });
-                
-                const testAliveModal = reactive({
-                    show: false,
-                    chatName: '',
-                    loading: false,
-                    error: null,
-                    result: null
-                });
-                
-                // Logs page state
-                const services = ref(SERVICES);
-                const activeService = ref('server');
-                const logType = ref('info');
-                const logsLoading = ref(false);
-                const logsContainer = ref(null);
-                const autoScroll = ref(true);
-                const isPolling = ref(false);
-                let pollTimer = null;
-                
-                // 为每个服务的每种日志类型保存状态
-                // key 格式: `${service}_${logType}`
-                const logsDataMap = reactive({});  // { server_info: { lines: [], offset: 0, initialized: false }, ... }
-                
-                // 获取存储 key
-                const getStoreKey = (service, type) => `${service}_${type}`;
-                
-                // 确保数据结构存在
-                const ensureLogsData = (service, type) => {
-                    const key = getStoreKey(service, type);
-                    if (!logsDataMap[key]) {
-                        logsDataMap[key] = {
-                            lines: [],
-                            offset: 0,
-                            initialized: false
-                        };
-                    }
-                    return logsDataMap[key];
-                };
-                
-                // 当前显示的日志行
-                const currentLogLines = computed(() => {
-                    const data = ensureLogsData(activeService.value, logType.value);
-                    return data.lines;
-                });
-                
-                const showConfirm = (title, message, onConfirm) => {
-                    confirmModal.title = title;
-                    confirmModal.message = message;
-                    confirmModal.onConfirm = () => {
-                        confirmModal.show = false;
-                        onConfirm();
-                    };
-                    confirmModal.show = true;
-                };
-                
-                // Toast
-                const showToast = (message, type = 'info') => {
-                    const id = Date.now();
-                    toasts.value.push({ id, message, type });
-                    setTimeout(() => {
-                        toasts.value = toasts.value.filter(t => t.id !== id);
-                    }, 3000);
-                };
-                
-                // API Request
-                const request = async (url, options = {}, host = SERVER_HOST) => {
-                    try {
-                        const response = await fetch(host + url, {
-                            headers: { 'Content-Type': 'application/json' },
-                            ...options
-                        });
-                        const data = await response.json();
-                        if (data.code !== 0) {
-                            throw new Error(data.message || '请求失败');
-                        }
-                        return data;
-                    } catch (error) {
-                        if (error.message === 'Failed to fetch') {
-                            throw new Error('无法连接到服务器');
-                        }
-                        throw error;
-                    }
-                };
-                
-                // ==================== List Page Methods ====================
-                
-                // Fetch Status
-                const fetchStatus = async () => {
-                    loading.value = true;
-                    try {
-                        const data = await request('/admin/listen/status');
-                        listeners.value = data.data?.listeners || [];
-                        summary.value = data.data?.summary || { healthy: 0, unhealthy: 0 };
-                    } catch (error) {
-                        showToast(error.message, 'error');
-                    } finally {
-                        loading.value = false;
-                    }
-                };
-                
-                // Add Listener
-                const addListener = async () => {
-                    if (!newChatName.value.trim()) return;
-                    
-                    addLoading.value = true;
-                    try {
-                        await request('/admin/listen/add', {
-                            method: 'POST',
-                            body: JSON.stringify({ chat_name: newChatName.value.trim() })
-                        });
-                        showToast('添加成功', 'success');
-                        showAddModal.value = false;
-                        newChatName.value = '';
-                        await fetchStatus();
-                    } catch (error) {
-                        showToast(error.message, 'error');
-                    } finally {
-                        addLoading.value = false;
-                    }
-                };
-                
-                // Remove Listener
-                const removeOne = (chatName) => {
-                    showConfirm('删除确认', `确定要删除「${chatName}」的监听吗？`, async () => {
-                        loadingItems[chatName] = 'remove';
-                        try {
-                            await request('/admin/listen/remove', {
-                                method: 'POST',
-                                body: JSON.stringify({ chat_name: chatName })
-                            });
-                            showToast('删除成功', 'success');
-                            await fetchStatus();
-                        } catch (error) {
-                            showToast(error.message, 'error');
-                        } finally {
-                            delete loadingItems[chatName];
-                        }
-                    });
-                };
-                
-                // Reset One
-                const resetOne = async (chatName) => {
-                    loadingItems[chatName] = 'reset';
-                    try {
-                        const data = await request('/admin/listen/reset', {
-                            method: 'POST',
-                            body: JSON.stringify({ chat_name: chatName })
-                        });
-                        showToast(data.data?.message || '重置成功', 'success');
-                        await fetchStatus();
-                    } catch (error) {
-                        showToast(error.message, 'error');
-                    } finally {
-                        delete loadingItems[chatName];
-                    }
-                };
-                
-                // Refresh All
-                const refreshAll = async () => {
-                    loading.value = true;
-                    try {
-                        const data = await request('/admin/listen/refresh', { method: 'POST' });
-                        const result = data.data;
-                        showToast(`刷新完成：成功 ${result?.success_count || 0}，失败 ${result?.fail_count || 0}`, 'success');
-                        await fetchStatus();
-                    } catch (error) {
-                        showToast(error.message, 'error');
-                    } finally {
-                        loading.value = false;
-                    }
-                };
-                
-                // Reset All
-                const resetAll = () => {
-                    showConfirm('重置确认', '确定要重置所有监听吗？这将重启所有监听连接。', async () => {
-                        loading.value = true;
-                        try {
-                            const data = await request('/admin/listen/reset-all', { method: 'POST' });
-                            const result = data.data;
-                            showToast(result?.message || '重置全部完成', 'success');
-                            await fetchStatus();
-                        } catch (error) {
-                            showToast(error.message, 'error');
-                        } finally {
-                            loading.value = false;
-                        }
-                    });
-                };
-                
-                // Test Alive - 测活
-                const testAlive = async (chatName) => {
-                    testAliveModal.show = true;
-                    testAliveModal.chatName = chatName;
-                    testAliveModal.loading = true;
-                    testAliveModal.error = null;
-                    testAliveModal.result = null;
-                    loadingItems[chatName] = 'test';
-                    
-                    try {
-                        const data = await request('/admin/listen/get-all-message', {
-                            method: 'POST',
-                            body: JSON.stringify({ chat_name: chatName })
-                        });
-                        testAliveModal.result = data.data;
-                    } catch (error) {
-                        testAliveModal.error = error.message;
-                    } finally {
-                        testAliveModal.loading = false;
-                        delete loadingItems[chatName];
-                    }
-                };
-                
-                // ==================== Logs Page Methods ====================
-                
-                // 获取服务 host
-                const getServiceHost = (serviceKey) => {
-                    const svc = SERVICES.find(s => s.key === serviceKey);
-                    return svc ? svc.host : SERVICES[0].host;
-                };
-                
-                // Fetch logs for a specific service and log type
-                const fetchLogsFor = async (serviceKey, type, isInitial = false) => {
-                    const data = ensureLogsData(serviceKey, type);
-                    const host = getServiceHost(serviceKey);
-                    
-                    // 标记为已初始化（即使请求失败也加入轮询）
-                    if (isInitial) {
-                        data.initialized = true;
-                    }
-                    
-                    try {
-                        const offset = isInitial ? 0 : data.offset;
-                        // Server 服务用 /admin/logs，其他服务用 /logs
-                        const logsPath = serviceKey === 'server' ? '/admin/logs' : '/logs';
-                        const url = `${logsPath}?log_type=${type}&limit=500&since_offset=${offset}`;
-                        const result = await request(url, {}, host);
-                        
-                        if (result.data) {
-                            if (isInitial) {
-                                data.lines = result.data.lines || [];
-                            } else {
-                                // 增量追加
-                                const newLines = result.data.lines || [];
-                                if (newLines.length > 0) {
-                                    data.lines = [...data.lines, ...newLines];
-                                }
-                            }
-                            data.offset = result.data.next_offset || 0;
-                            
-                            // 如果是当前显示的，自动滚动
-                            if (serviceKey === activeService.value && type === logType.value && autoScroll.value) {
-                                nextTick(() => {
-                                    scrollToBottom();
-                                });
-                            }
-                        }
-                    } catch (error) {
-                        console.error(`Fetch logs error for ${serviceKey}/${type}:`, error);
-                        // 首次加载才显示错误
-                        if (isInitial && serviceKey === activeService.value && type === logType.value) {
-                            showToast(`${serviceKey}: ${error.message}`, 'error');
-                        }
-                    }
-                };
-                
-                // Fetch current service logs
-                const fetchLogs = async (isInitial = false) => {
-                    logsLoading.value = true;
-                    await fetchLogsFor(activeService.value, logType.value, isInitial);
-                    logsLoading.value = false;
-                };
-                
-                // 轮询所有服务的 info 日志（error 不轮询，并行请求）
-                const pollAllServices = () => {
-                    for (const svc of SERVICES) {
-                        const data = ensureLogsData(svc.key, 'info');
-                        if (data.initialized) {
-                            // 不用 await，并行请求各服务
-                            fetchLogsFor(svc.key, 'info', false);
-                        }
-                    }
-                };
-                
-                // Start polling
-                const startPolling = () => {
-                    if (pollTimer) return;
-                    isPolling.value = true;
-                    pollTimer = setInterval(() => {
-                        if (activeTab.value === 'logs') {
-                            pollAllServices();
-                        }
-                    }, 5000);
-                };
-                
-                // Stop polling
-                const stopPolling = () => {
-                    if (pollTimer) {
-                        clearInterval(pollTimer);
-                        pollTimer = null;
-                    }
-                    isPolling.value = false;
-                };
-                
-                // Refresh logs (manual) - 只刷新当前的
-                const refreshLogs = () => {
-                    fetchLogs(false);
-                };
-                
-                // Switch service - 首次点击初始化并开启轮询，再次点击刷新
-                const switchService = async (serviceKey) => {
-                    const isCurrentService = activeService.value === serviceKey;
-                    activeService.value = serviceKey;
-                    
-                    const infoData = ensureLogsData(serviceKey, 'info');
-                    
-                    if (!infoData.initialized) {
-                        // 首次点击：初始化并开启轮询
-                        await fetchLogsFor(serviceKey, 'info', true);
-                    } else if (isCurrentService) {
-                        // 再次点击当前 tab：刷新（增量拉取）
-                        await fetchLogsFor(serviceKey, 'info', false);
-                    }
-                    
-                    // 如果当前选的是 error 且未初始化，也拉取一次
-                    if (logType.value === 'error') {
-                        const errorData = ensureLogsData(serviceKey, 'error');
-                        if (!errorData.initialized) {
-                            await fetchLogsFor(serviceKey, 'error', true);
-                        } else if (isCurrentService) {
-                            await fetchLogsFor(serviceKey, 'error', false);
-                        }
-                    }
-                    
-                    // 滚动到底部
-                    nextTick(() => {
-                        if (autoScroll.value) {
-                            scrollToBottom();
-                        }
-                    });
-                };
-                
-                // Switch log type
-                const switchLogType = () => {
-                    const data = ensureLogsData(activeService.value, logType.value);
-                    if (!data.initialized) {
-                        fetchLogs(true);
-                    } else {
-                        nextTick(() => {
-                            if (autoScroll.value) {
-                                scrollToBottom();
-                            }
-                        });
-                    }
-                };
-                
-                // Clear current logs display (only UI)
-                const clearCurrentLogs = () => {
-                    const data = ensureLogsData(activeService.value, logType.value);
-                    data.lines = [];
-                    // 保留 offset，继续增量
-                };
-                
-                // Truncate log file on server
-                const truncating = ref(false);
-                const truncateLogFile = () => {
-                    showConfirm(
-                        '清空日志文件',
-                        `确定要清空 ${activeService.value.toUpperCase()} 服务的 ${logType.value.toUpperCase()} 日志文件吗？此操作不可恢复！`,
-                        async () => {
-                            truncating.value = true;
-                            try {
-                                const host = getServiceHost(activeService.value);
-                                // Server 服务用 /admin/logs，其他服务用 /logs
-                                const logsPath = activeService.value === 'server' ? '/admin/logs' : '/logs';
-                                const url = `${logsPath}?action=truncate&log_type=${logType.value}`;
-                                await request(url, {}, host);
-                                
-                                // 清空当前显示并重置 offset
-                                const data = ensureLogsData(activeService.value, logType.value);
-                                data.lines = [];
-                                data.offset = 0;
-                                
-                                showToast(`${activeService.value} ${logType.value} 日志已清空`, 'success');
-                            } catch (error) {
-                                showToast(error.message, 'error');
-                            } finally {
-                                truncating.value = false;
-                            }
-                        }
-                    );
-                };
-                
-                // Get log level for styling
-                const getLogLevel = (line) => {
-                    const lowerLine = line.toLowerCase();
-                    if (lowerLine.includes('error') || lowerLine.includes('exception') || lowerLine.includes('traceback')) {
-                        return 'error';
-                    }
-                    if (lowerLine.includes('warning') || lowerLine.includes('warn')) {
-                        return 'warn';
-                    }
-                    if (lowerLine.includes('info')) {
-                        return 'info';
-                    }
-                    return '';
-                };
-                
-                // Scroll to bottom
-                const scrollToBottom = () => {
-                    if (logsContainer.value) {
-                        logsContainer.value.scrollTop = logsContainer.value.scrollHeight;
-                    }
-                };
-                
-                // Handle logs scroll
-                const handleLogsScroll = () => {
-                    if (!logsContainer.value) return;
-                    const { scrollTop, scrollHeight, clientHeight } = logsContainer.value;
-                    autoScroll.value = scrollHeight - scrollTop - clientHeight < 100;
-                };
-                
-                // Toggle auto scroll
-                const toggleAutoScroll = () => {
-                    autoScroll.value = !autoScroll.value;
-                    if (autoScroll.value) {
-                        scrollToBottom();
-                    }
-                };
-                
-                // ==================== Tab Switch ====================
-                
-                const switchTab = (tab) => {
-                    activeTab.value = tab;
-
-                    if (tab === 'logs') {
-                        // 进入日志页面，相当于点击第一个 tab（当前服务）
-                        switchService(activeService.value);
-                        startPolling();
-                    } else {
-                        stopPolling();
-                    }
-                };
-                
-                // Watch modal to focus input
-                watch(showAddModal, (val) => {
-                    if (val) {
-                        nextTick(() => {
-                            addInput.value?.focus();
-                        });
-                    }
-                });
-                
-                // Init
-                onMounted(() => {
-                    fetchStatus();
-                });
-                
-                // Cleanup
-                onUnmounted(() => {
-                    stopPolling();
-                });
-                
-                return {
-                    // Tab
-                    activeTab,
-                    switchTab,
-                    
-                    // List page
-                    listeners,
-                    summary,
-                    loading,
-                    loadingItems,
-                    toasts,
-                    showAddModal,
-                    newChatName,
-                    addLoading,
-                    addInput,
-                    confirmModal,
-                    testAliveModal,
-                    fetchStatus,
-                    addListener,
-                    removeOne,
-                    resetOne,
-                    refreshAll,
-                    resetAll,
-                    testAlive,
-                    
-                    // Logs page
-                    services,
-                    activeService,
-                    logType,
-                    currentLogLines,
-                    logsLoading,
-                    logsContainer,
-                    autoScroll,
-                    isPolling,
-                    switchService,
-                    refreshLogs,
-                    switchLogType,
-                    clearCurrentLogs,
-                    truncating,
-                    truncateLogFile,
-                    getLogLevel,
-                    handleLogsScroll,
-                    toggleAutoScroll
-                };
-            }
-        }).mount('#app');
-    </script>
+    <script type="module" src="/static/js/app.js"></script>
 </body>
 </html>
+

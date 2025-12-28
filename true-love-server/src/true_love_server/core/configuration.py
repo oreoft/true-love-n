@@ -8,7 +8,7 @@ import yaml
 from .logging_config import LoggingConfig
 
 # 初始化日志配置（在加载任何配置之前）
-LoggingConfig.setup("server")
+LoggingConfig.setup("tl-server")
 
 LOG = logging.getLogger("Configuration")
 
@@ -50,3 +50,4 @@ class Config:
             self.BROWSERLESS: str = yconfig.get("browserless", "")
             self.AI_SERVICE: dict = yconfig.get("ai_service", {})
             self.ALAPI: dict = yconfig.get("alapi", {})
+            self.LOKI: dict = yconfig.get("loki", {})

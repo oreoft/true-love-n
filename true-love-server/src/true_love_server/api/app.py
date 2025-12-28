@@ -22,9 +22,9 @@ LOG = logging.getLogger("FastAPIApp")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
-    LOG.info("FastAPI 应用启动中...")
+    LOG.info("FastAPI 应用已启动...")
     yield
-    LOG.info("FastAPI 应用关闭中...")
+    LOG.info("FastAPI 应用已关闭...")
 
 
 def create_app() -> FastAPI:

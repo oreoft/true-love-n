@@ -17,7 +17,7 @@ from .core.logging_config import LoggingConfig
 from .utils.path_resolver import get_listen_chats_file
 
 # 初始化日志配置（在加载任何配置之前）
-LoggingConfig.setup("base")
+LoggingConfig.setup("tl-base")
 
 
 class Config:
