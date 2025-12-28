@@ -29,7 +29,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     """请求日志中间件"""
     
     # 不记录日志的路径
-    SKIP_LOG_PATHS = {"/logs"}
+    SKIP_LOG_PATHS = {"/logs", "/health"}
     # 响应日志最大长度
     MAX_RESP_LOG_LEN = 200
     
