@@ -1,0 +1,62 @@
+# ============================================
+# Docker ignore file for true-love-ai
+# ============================================
+
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info
+.eggs
+*.egg
+
+# Virtual environments
+.venv
+venv
+ENV
+
+# IDE
+.idea
+.vscode
+*.iml
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov
+.tox
+
+# Linting
+.ruff_cache
+.mypy_cache
+
+# Build
+build
+dist
+
+# Local config (will be mounted)
+config.yaml
+
+# Logs (will be mounted)
+logs/
+
+# Generated files (will be mounted)
+gen_video/
+
+# macOS
+.DS_Store
+
+# Documentation
+*.md
+docs/
+
+# Development files
+*.example
+tests/
+

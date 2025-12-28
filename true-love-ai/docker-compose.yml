@@ -1,0 +1,82 @@
+# ============================================
+# True Love AI - Docker Compose
+# ============================================
+#
+# 使用方式：
+#   cd /root/tl-ai
+#   docker compose pull      # 拉取最新镜像
+#   docker compose up -d     # 启动/更新容器
+#   docker compose logs -f   # 查看日志
+#   docker compose ps        # 查看状态
+#   docker compose down      # 停止并删除容器
+#
+# ============================================
+# 等效的 docker 命令：
+# ============================================
+#
+# docker pull ghcr.io/oreoft/true-love-ai:latest
+#
+# docker run -d \
+#   --name true-love-ai \
+#   --restart unless-stopped \
+#   -p 8088:8088 \
+#   -v /root/tl-ai/config.yaml:/app/config.yaml:ro \
+#   -v /root/tl-ai/logs:/app/logs \
+#   -v /root/tl-ai/gen_video:/app/gen_video \
+#   -e APP_ENV=prod \
+#   --health-cmd="curl -f http://localhost:8088/health || exit 1" \
+#   --health-interval=30s \
+#   --health-timeout=10s \
+#   --health-retries=3 \
+#   --health-start-period=10s \
+#   --log-driver=json-file \
+#   --log-opt max-size=10m \
+#   --log-opt max-file=3 \
+#   ghcr.io/oreoft/true-love-ai:latest
+#
+# ============================================
+
+services:
+  true-love-ai:
+    # 镜像地址（对应 docker run 最后的镜像参数）
+    image: ghcr.io/oreoft/true-love-ai:latest
+    
+    # 容器名称（对应 --name）
+    container_name: true-love-ai
+    
+    # 重启策略（对应 --restart）
+    restart: unless-stopped
+    
+    # 端口映射（对应 -p）
+    # 格式：宿主机端口:容器端口
+    ports:
+      - "8088:8088"
+    
+    # 卷挂载（对应 -v）
+    # 格式：宿主机路径:容器路径[:ro]
+    volumes:
+      # 配置文件（只读挂载）
+      - /root/tl-ai/config.yaml:/app/config.yaml:ro
+      # 日志目录
+      - /root/tl-ai/logs:/app/logs
+      # 生成的视频目录
+      - /root/tl-ai/gen_video:/app/gen_video
+    
+    # 环境变量（对应 -e）
+    environment:
+      - APP_ENV=prod
+    
+    # 健康检查（对应 --health-*）
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/health"]
+      interval: 30s      # 检查间隔
+      timeout: 10s       # 超时时间
+      retries: 3         # 失败重试次数
+      start_period: 10s  # 启动等待时间
+    
+    # 日志配置（对应 --log-driver 和 --log-opt）
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"  # 单个日志文件最大 10MB
+        max-file: "3"    # 最多保留 3 个日志文件

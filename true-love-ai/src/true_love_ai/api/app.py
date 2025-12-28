@@ -9,9 +9,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from true_love_ai.api.routes import router
 from true_love_ai.api.middleware import LoggingMiddleware, TimingMiddleware
-from true_love_ai.core.config import get_config
+from true_love_ai.api.routes import router
 
 LOG = logging.getLogger(__name__)
 
@@ -58,6 +57,11 @@ def create_app() -> FastAPI:
     @application.get("/ping")
     async def ping():
         return "pong"
+
+    @application.get("/health")
+    async def health():
+        """健康检查端点，供 Docker/K8s 使用"""
+        return {"status": "healthy", "service": "true-love-ai"}
 
     return application
 
