@@ -21,7 +21,6 @@
 #   --restart unless-stopped \
 #   -p 8088:8088 \
 #   -v /root/tl-ai/config.yaml:/app/config.yaml:ro \
-#   -v /root/tl-ai/logs:/app/logs \
 #   -v /root/tl-ai/gen_video:/app/gen_video \
 #   -e APP_ENV=prod \
 #   --health-cmd="curl -f http://localhost:8088/health || exit 1" \
@@ -42,7 +41,7 @@ services:
     image: ghcr.io/oreoft/true-love-ai:latest
     
     # 容器名称（对应 --name）
-    container_name: true-love-ai
+    container_name: tl-ai
     
     # 重启策略（对应 --restart）
     restart: unless-stopped
@@ -57,8 +56,6 @@ services:
     volumes:
       # 配置文件（只读挂载）
       - /root/tl-ai/config.yaml:/app/config.yaml:ro
-      # 日志目录
-      - /root/tl-ai/logs:/app/logs
       # 生成的视频目录
       - /root/tl-ai/gen_video:/app/gen_video
     

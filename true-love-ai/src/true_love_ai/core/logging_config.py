@@ -2,38 +2,77 @@
 """
 Logging Config - 日志配置模块
 
-提供统一的日志配置，支持：
-- 控制台输出
-- INFO 级别文件日志（RotatingFileHandler）
-- ERROR 级别文件日志（RotatingFileHandler）
-- 可选的异步日志支持
+适配 Docker + Loki 环境：
+- 仅输出到 stdout（Docker 自动捕获）
+- 支持 JSON 格式输出（Loki 友好）
+- 支持可选的异步日志
 """
 
 import atexit
+import json
 import logging
 import logging.handlers
-import os
 import sys
-from pathlib import Path
+from datetime import datetime, timezone
 from queue import Queue
-from typing import Optional
+from typing import Any, Optional
+
+
+class JsonFormatter(logging.Formatter):
+    """
+    JSON 格式化器
+    
+    输出结构化日志，便于 Loki/Grafana 查询和过滤
+    """
+    
+    def __init__(self, service_name: str = "unknown"):
+        super().__init__()
+        self.service_name = service_name
+    
+    def format(self, record: logging.LogRecord) -> str:
+        log_data: dict[str, Any] = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "service": self.service_name,
+        }
+        
+        # 添加位置信息（仅在 WARNING 及以上级别）
+        if record.levelno >= logging.WARNING:
+            log_data["location"] = {
+                "file": record.filename,
+                "function": record.funcName,
+                "line": record.lineno,
+            }
+        
+        # 添加异常信息
+        if record.exc_info:
+            log_data["exception"] = self.formatException(record.exc_info)
+        
+        # 添加额外字段
+        if hasattr(record, "extra_fields"):
+            log_data["extra"] = record.extra_fields
+        
+        return json.dumps(log_data, ensure_ascii=False)
 
 
 class LoggingConfig:
     """
-    日志配置类
+    日志配置类（Docker + Loki 优化版）
     
     Usage:
-        # 基本用法
+        # 基本用法（JSON 格式，推荐用于 Docker/Loki）
         LoggingConfig.setup("ai")
+        
+        # 开发环境（可读格式）
+        LoggingConfig.setup("ai", json_format=False)
         
         # 自定义配置
         LoggingConfig.setup(
             service_name="ai",
-            logs_dir="logs",
             log_level=logging.INFO,
-            max_bytes=10 * 1024 * 1024,  # 10MB
-            backup_count=20,
+            json_format=True,
             enable_async=False
         )
     """
@@ -43,37 +82,27 @@ class LoggingConfig:
     _log_listener: Optional[logging.handlers.QueueListener] = None
     _initialized: bool = False
     
-    # 日志格式
-    SIMPLE_FORMAT = "%(asctime)s %(message)s"
-    DETAIL_FORMAT = "%(asctime)s %(name)s %(levelname)s %(filename)s::%(funcName)s[%(lineno)d]: %(message)s"
+    # 日志格式（非 JSON 模式使用）
+    SIMPLE_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
+    DETAIL_FORMAT = "%(asctime)s %(levelname)s %(name)s %(filename)s::%(funcName)s[%(lineno)d]: %(message)s"
     DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
     
     @classmethod
     def setup(
         cls,
         service_name: str,
-        logs_dir: str = "logs",
         log_level: int = logging.INFO,
-        max_bytes: int = 10 * 1024 * 1024,  # 10MB
-        backup_count: int = 20,
+        json_format: bool = True,
         enable_async: bool = False,
-        console_level: int = logging.INFO,
-        file_level: int = logging.INFO,
-        error_level: int = logging.ERROR,
     ) -> None:
         """
         设置日志配置
         
         Args:
-            service_name: 服务名称，用于日志文件名前缀（如 server, base, ai）
-            logs_dir: 日志目录，默认 "logs"
-            log_level: 根日志级别，默认 INFO
-            max_bytes: 单个日志文件最大字节数，默认 10MB
-            backup_count: 保留的备份文件数量，默认 20
+            service_name: 服务名称，用于标识日志来源（如 server, base, ai）
+            log_level: 日志级别，默认 INFO
+            json_format: 是否使用 JSON 格式输出，默认 True（适合 Loki）
             enable_async: 是否启用异步日志，默认 False
-            console_level: 控制台日志级别，默认 INFO
-            file_level: INFO 文件日志级别，默认 INFO
-            error_level: ERROR 文件日志级别，默认 ERROR
         """
         if cls._initialized:
             return
@@ -81,45 +110,16 @@ class LoggingConfig:
         # 确保 stdout 使用 UTF-8 编码
         cls._ensure_utf8_stdout()
         
-        # 确保日志目录存在
-        cls._ensure_logs_dir(logs_dir)
+        # 创建 formatter
+        if json_format:
+            formatter = JsonFormatter(service_name)
+        else:
+            formatter = logging.Formatter(cls.SIMPLE_FORMAT, cls.DATE_FORMAT)
         
-        # 创建 formatters
-        simple_formatter = logging.Formatter(cls.SIMPLE_FORMAT, cls.DATE_FORMAT)
-        detail_formatter = logging.Formatter(cls.DETAIL_FORMAT, cls.DATE_FORMAT)
-        
-        # 创建 handlers
-        handlers = []
-        
-        # 1. 控制台 Handler
+        # 创建控制台 Handler（输出到 stdout）
         console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(console_level)
-        console_handler.setFormatter(simple_formatter)
-        handlers.append(console_handler)
-        
-        # 2. INFO 文件 Handler
-        info_file = Path(logs_dir) / "info.log"
-        info_handler = logging.handlers.RotatingFileHandler(
-            filename=str(info_file),
-            maxBytes=max_bytes,
-            backupCount=backup_count,
-            encoding="utf-8"
-        )
-        info_handler.setLevel(file_level)
-        info_handler.setFormatter(simple_formatter)
-        handlers.append(info_handler)
-        
-        # 3. ERROR 文件 Handler
-        error_file = Path(logs_dir) / "error.log"
-        error_handler = logging.handlers.RotatingFileHandler(
-            filename=str(error_file),
-            maxBytes=max_bytes,
-            backupCount=backup_count,
-            encoding="utf-8"
-        )
-        error_handler.setLevel(error_level)
-        error_handler.setFormatter(detail_formatter)
-        handlers.append(error_handler)
+        console_handler.setLevel(log_level)
+        console_handler.setFormatter(formatter)
         
         # 配置根日志
         root_logger = logging.getLogger()
@@ -130,17 +130,16 @@ class LoggingConfig:
         
         if enable_async:
             # 异步日志模式
-            cls._setup_async_logging(root_logger, handlers)
+            cls._setup_async_logging(root_logger, [console_handler])
         else:
             # 同步日志模式
-            for handler in handlers:
-                root_logger.addHandler(handler)
+            root_logger.addHandler(console_handler)
         
         cls._initialized = True
         
         # 记录初始化完成
         logger = logging.getLogger("LoggingConfig")
-        logger.info(f"日志配置完成: service={service_name}, async={enable_async}")
+        logger.info(f"日志配置完成: service={service_name}, json={json_format}, async={enable_async}")
     
     @classmethod
     def _ensure_utf8_stdout(cls) -> None:
@@ -152,12 +151,6 @@ class LoggingConfig:
                 sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf-8', buffering=1)
         except Exception:
             pass  # 忽略编码设置失败
-    
-    @classmethod
-    def _ensure_logs_dir(cls, logs_dir: str) -> None:
-        """确保日志目录存在"""
-        if not os.path.exists(logs_dir):
-            os.makedirs(logs_dir)
     
     @classmethod
     def _setup_async_logging(

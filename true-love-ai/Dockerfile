@@ -52,8 +52,8 @@ COPY --from=builder /app/.venv /app/.venv
 # 复制源代码
 COPY --from=builder /app/src /app/src
 
-# 创建日志目录
-RUN mkdir -p /app/logs /app/gen_video
+# 创建生成视频目录
+RUN mkdir -p /app/gen_video
 
 # 设置 PATH 使用虚拟环境
 ENV PATH="/app/.venv/bin:$PATH"
