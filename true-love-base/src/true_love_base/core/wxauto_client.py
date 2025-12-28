@@ -223,7 +223,7 @@ class WxAutoClient():
                 LOG.info('------------ Raw chat info ------------\n%s', self._dump_obj_attrs(chat))
                 # 滚动消息到可见区域，避免某些情况下获取不到内容， 循环 10次拉
                 for _i in range(10):
-                    res = self.wx.roll_into_view(raw_msg)
+                    res = raw_msg.roll_into_view()
                     LOG.info(f"roll_into_view result: {res}")
                     if res:
                         break
