@@ -88,7 +88,7 @@ jobs:
           
           # 通过跳板机连接服务器并部署
           ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-              -o "ProxyCommand=ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${{ env.JUMP_PORT }} -W %h:%p root@${JUMP}" \
+              -o "ProxyCommand=ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${{ env.JUMP_PORT }} -W %h:%p server@${JUMP}" \
               -i ~/.ssh/id_rsa ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
               "TOKEN=${TOKEN}" "USER=${USER}" bash << 'EOF'
             set -e
