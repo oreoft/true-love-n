@@ -2,11 +2,9 @@
  * Loki 日志页面 composable
  */
 
-import * as api from './api.js';
-
-const { ref, computed, nextTick } = Vue;
-
-export function useLokiLogs(showToast) {
+window.useLokiLogs = function(showToast) {
+    const { ref, computed, nextTick } = Vue;
+    
     // State
     const lokiServices = ref(['ai', 'base', 'server']);
     const lokiServiceFilter = ref(['ai', 'base', 'server']);
@@ -117,9 +115,6 @@ export function useLokiLogs(showToast) {
         
         lokiLoadingOlder.value = true;
         
-        const container = lokiLogsContainer.value;
-        const prevScrollHeight = container ? container.scrollHeight : 0;
-        
         const endMs = lokiEarliestMs.value - 1;
         const startMs = endMs - 60 * 60 * 1000;  // 往前 1 小时
         
@@ -128,14 +123,6 @@ export function useLokiLogs(showToast) {
         if (count === 0) {
             lokiCanLoadOlder.value = false;
         }
-        
-        // 保持滚动位置
-        nextTick(() => {
-            if (container) {
-                const newScrollHeight = container.scrollHeight;
-                container.scrollTop = newScrollHeight - prevScrollHeight;
-            }
-        });
         
         lokiLoadingOlder.value = false;
     };
@@ -187,34 +174,28 @@ export function useLokiLogs(showToast) {
         }
     };
     
-    // 滚动控制
+    // 滚动控制 - 使用页面滚动
     const scrollLokiToBottom = () => {
-        if (lokiLogsContainer.value) {
-            lokiLogsContainer.value.scrollTop = lokiLogsContainer.value.scrollHeight;
-        }
+        window.scrollTo({
+            top: document.body.scrollHeight,
+            behavior: 'smooth'
+        });
+    };
+    
+    const scrollToBottom = () => {
+        scrollLokiToBottom();
     };
     
     const scrollToTop = () => {
-        if (lokiLogsContainer.value) {
-            lokiLogsContainer.value.scrollTop = 0;
-        }
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
     };
     
-    // 滚动事件处理
+    // 滚动事件处理（页面滚动）- 不再自动触发加载，改为点击按钮加载
     const handleLokiScroll = () => {
-        if (!lokiLogsContainer.value) return;
-        const { scrollTop, scrollHeight, clientHeight } = lokiLogsContainer.value;
-        
-        const atBottom = scrollHeight - scrollTop - clientHeight < 100;
-        lokiAutoScroll.value = atBottom;
-        
-        if (atBottom && !lokiLoadingNewer.value) {
-            loadNewerLogs();
-        }
-        
-        if (scrollTop < 50 && !lokiLoadingOlder.value && lokiCanLoadOlder.value) {
-            loadOlderLogs();
-        }
+        // 现在改为点击按钮加载，不再监听滚动
     };
     
     const toggleLokiAutoScroll = () => {
@@ -255,6 +236,7 @@ export function useLokiLogs(showToast) {
         lokiCanLoadOlder,
         lokiTimeRange,
         initLokiLogs,
+        loadOlderLogs,
         loadNewerLogs,
         refreshLokiLogs,
         clearLokiLogs,
@@ -262,8 +244,8 @@ export function useLokiLogs(showToast) {
         handleLokiScroll,
         toggleLokiAutoScroll,
         scrollToTop,
+        scrollToBottom,
         startLokiPolling,
         stopLokiPolling
     };
-}
-
+};

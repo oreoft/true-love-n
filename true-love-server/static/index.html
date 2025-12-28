@@ -141,6 +141,7 @@
         <!-- Logs Page (Loki) -->
         <template v-else-if="activeTab === 'logs'">
             <div class="loki-logs-container">
+                <!-- 固定在顶部的控制栏 -->
                 <div class="loki-logs-header">
                     <div class="logs-controls">
                         <!-- 服务过滤 -->
@@ -174,10 +175,14 @@
                     </div>
                 </div>
                 
-                <div class="loki-logs-content" ref="lokiLogsContainer" @scroll="handleLokiScroll">
+                <!-- 日志列表 - 直接在页面滚动 -->
+                <div class="loki-logs-list" ref="lokiLogsContainer">
                     <!-- 加载更早日志的提示 -->
-                    <div v-if="lokiCanLoadOlder" class="load-more-hint" :class="{ loading: lokiLoadingOlder }">
-                        {{ lokiLoadingOlder ? '加载中...' : '↑ 滚动到顶部加载更早日志' }}
+                    <div v-if="lokiCanLoadOlder && filteredLokiLogs.length > 0" 
+                         class="load-more-hint top" 
+                         :class="{ loading: lokiLoadingOlder }"
+                         @click="loadOlderLogs">
+                        {{ lokiLoadingOlder ? '加载中...' : '↑ 点击加载更早日志' }}
                     </div>
                     
                     <template v-if="filteredLokiLogs.length > 0">
@@ -187,10 +192,12 @@
                             :class="['loki-log-item', { 'error-row': log.level === 'ERROR', 'warn-row': log.level === 'WARN' }]"
                         >
                             <span class="loki-log-dots">⋮</span>
-                            <span class="loki-log-time">{{ log.time_str }}</span>
-                            <span :class="['loki-log-level', log.level]">{{ log.level }}</span>
-                            <span class="loki-log-service">{{ log.service }}</span>
-                            <span class="loki-log-separator">|</span>
+                            <div class="loki-log-meta">
+                                <span class="loki-log-time">{{ log.time_str }}</span>
+                                <span :class="['loki-log-level', log.level]">{{ log.level }}</span>
+                                <span class="loki-log-service">{{ log.service }}</span>
+                                <span class="loki-log-separator">|</span>
+                            </div>
                             <span class="loki-log-content">{{ log.content }}</span>
                         </div>
                     </template>
@@ -201,8 +208,11 @@
                     </div>
                     
                     <!-- 加载最新日志的提示 -->
-                    <div v-if="lokiLogs.length > 0 && !lokiLoading" class="load-more-hint" :class="{ loading: lokiLoadingNewer }">
-                        {{ lokiLoadingNewer ? '加载中...' : '↓ 滚动到底部加载最新日志' }}
+                    <div v-if="filteredLokiLogs.length > 0 && !lokiLoading" 
+                         class="load-more-hint bottom" 
+                         :class="{ loading: lokiLoadingNewer }"
+                         @click="loadNewerLogs">
+                        {{ lokiLoadingNewer ? '加载中...' : '↓ 点击加载最新日志' }}
                     </div>
                 </div>
                 
@@ -217,8 +227,8 @@
                     </button>
                     <button 
                         :class="['scroll-btn', { active: lokiAutoScroll }]"
-                        @click="toggleLokiAutoScroll"
-                        :title="lokiAutoScroll ? '自动滚动开启' : '自动滚动关闭'"
+                        @click="scrollToBottom"
+                        :title="lokiAutoScroll ? '自动滚动开启' : '滚动到底部'"
                     >
                         ⬇️
                     </button>
@@ -288,7 +298,13 @@
         </div>
     </div>
 
-    <script type="module" src="/static/js/app.js"></script>
+    <!-- 按顺序加载 JS 文件（依赖顺序：api -> composables -> app） -->
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/useToast.js"></script>
+    <script src="/static/js/useConfirm.js"></script>
+    <script src="/static/js/useListPage.js"></script>
+    <script src="/static/js/useLokiLogs.js"></script>
+    <script src="/static/js/app.js"></script>
 </body>
 </html>
 

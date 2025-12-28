@@ -2,11 +2,9 @@
  * 列表页面 composable
  */
 
-import * as api from './api.js';
-
-const { ref, reactive, watch, nextTick } = Vue;
-
-export function useListPage(showToast, showConfirm) {
+window.useListPage = function(showToast, showConfirm) {
+    const { ref, reactive, watch, nextTick } = Vue;
+    
     // State
     const listeners = ref([]);
     const summary = ref({ healthy: 0, unhealthy: 0 });
@@ -169,5 +167,4 @@ export function useListPage(showToast, showConfirm) {
         resetAll,
         testAlive
     };
-}
-
+};

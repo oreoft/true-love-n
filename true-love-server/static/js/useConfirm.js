@@ -2,9 +2,8 @@
  * 确认弹窗 composable
  */
 
-const { reactive } = Vue;
-
-export function useConfirm() {
+window.useConfirm = function() {
+    const { reactive } = Vue;
     const confirmModal = reactive({
         show: false,
         title: '',
@@ -26,5 +25,5 @@ export function useConfirm() {
         confirmModal,
         showConfirm
     };
-}
+};
 

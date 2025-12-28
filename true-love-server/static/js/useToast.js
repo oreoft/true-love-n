@@ -2,9 +2,8 @@
  * Toast 通知 composable
  */
 
-const { ref } = Vue;
-
-export function useToast() {
+window.useToast = function() {
+    const { ref } = Vue;
     const toasts = ref([]);
     
     const showToast = (message, type = 'info') => {
@@ -19,5 +18,5 @@ export function useToast() {
         toasts,
         showToast
     };
-}
+};
 

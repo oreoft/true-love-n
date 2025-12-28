@@ -7,7 +7,7 @@ const SERVER_HOST = window.location.origin;
 /**
  * 通用请求方法
  */
-export async function request(url, options = {}, host = SERVER_HOST) {
+async function apiRequest(url, options = {}, host = SERVER_HOST) {
     try {
         const response = await fetch(host + url, {
             headers: { 'Content-Type': 'application/json' },
@@ -26,51 +26,39 @@ export async function request(url, options = {}, host = SERVER_HOST) {
     }
 }
 
-// ==================== Listen API ====================
-
-export async function fetchListenStatus() {
-    return request('/admin/listen/status');
-}
-
-export async function addListen(chatName) {
-    return request('/admin/listen/add', {
+// 导出为全局对象
+window.api = {
+    request: apiRequest,
+    
+    // Listen API
+    fetchListenStatus: () => apiRequest('/admin/listen/status'),
+    
+    addListen: (chatName) => apiRequest('/admin/listen/add', {
         method: 'POST',
         body: JSON.stringify({ chat_name: chatName })
-    });
-}
-
-export async function removeListen(chatName) {
-    return request('/admin/listen/remove', {
+    }),
+    
+    removeListen: (chatName) => apiRequest('/admin/listen/remove', {
         method: 'POST',
         body: JSON.stringify({ chat_name: chatName })
-    });
-}
-
-export async function resetListen(chatName) {
-    return request('/admin/listen/reset', {
+    }),
+    
+    resetListen: (chatName) => apiRequest('/admin/listen/reset', {
         method: 'POST',
         body: JSON.stringify({ chat_name: chatName })
-    });
-}
-
-export async function refreshListen() {
-    return request('/admin/listen/refresh', { method: 'POST' });
-}
-
-export async function resetAllListen() {
-    return request('/admin/listen/reset-all', { method: 'POST' });
-}
-
-export async function getAllMessage(chatName) {
-    return request('/admin/listen/get-all-message', {
+    }),
+    
+    refreshListen: () => apiRequest('/admin/listen/refresh', { method: 'POST' }),
+    
+    resetAllListen: () => apiRequest('/admin/listen/reset-all', { method: 'POST' }),
+    
+    getAllMessage: (chatName) => apiRequest('/admin/listen/get-all-message', {
         method: 'POST',
         body: JSON.stringify({ chat_name: chatName })
-    });
-}
-
-// ==================== Loki API ====================
-
-export async function fetchLokiLogs(startMs, endMs, limit = 500, direction = 'backward') {
-    return request(`/admin/loki/logs?start_ms=${startMs}&end_ms=${endMs}&limit=${limit}&direction=${direction}`);
-}
+    }),
+    
+    // Loki API
+    fetchLokiLogs: (startMs, endMs, limit = 500, direction = 'backward') => 
+        apiRequest(`/admin/loki/logs?start_ms=${startMs}&end_ms=${endMs}&limit=${limit}&direction=${direction}`)
+};
 
