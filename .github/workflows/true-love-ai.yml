@@ -93,15 +93,20 @@ jobs:
           ssh-private-key: ${{ env.SERVER_SSH_KEY }}
 
       - name: Deploy via SSH
+        env:
+          GHCR_TOKEN: ${{ env.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
         run: |
           ssh -o StrictHostKeyChecking=no \
-              -J root@${{ env.JUMP_HOST }}:${{ env.JUMP_PORT }} \
+              -o UserKnownHostsFile=/dev/null \
+              -o "ProxyCommand=ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${{ env.JUMP_PORT }} -W %h:%p root@${{ env.JUMP_HOST }}" \
               -p ${{ env.SERVER_PORT }} \
-              ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << EOF
+              ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
+              "GHCR_TOKEN=${GHCR_TOKEN}" "GHCR_USER=${GHCR_USER}" bash << 'EOF'
             set -e
             
-            # 登录 GitHub Container Registry
-            docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+            # 登录 GitHub Container Registry（通过环境变量传递，不会出现在命令行）
+            printenv GHCR_TOKEN | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             
             # 进入项目目录（docker compose 自动读取 docker-compose.yml）
             cd /root/tl-ai
