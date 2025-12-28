@@ -162,7 +162,28 @@ def send_text():
     if not receiver or not content:
         return jsonify(ApiErrors.INVALID_PARAMS.to_dict())
 
-    success = robot.send_text_msg(content, receiver, at_receiver if at_receiver else None)
+    # 支持按行分批发送：每次最多 15 行(超过 130个字符也算一行)
+    lines = content.splitlines()
+    expanded_lines = []
+    for ln in lines:
+        if len(ln) <= 130:
+            expanded_lines.append(ln)
+        else:
+            for i in range(0, len(ln), 130):
+                expanded_lines.append(ln[i:i + 130])
+    success = True
+
+    if len(expanded_lines) <= 18:
+        success = robot.send_text_msg(content, receiver, at_receiver if at_receiver else None)
+    else:
+        for i in range(0, len(lines), 15):
+            chunk = '\n'.join(lines[i:i + 15])
+            mention = at_receiver if i == 0 and at_receiver else None
+            ok = robot.send_text_msg(chunk, receiver, mention)
+            if not ok:
+                LOG.error(f"Failed to send text chunk starting at line {i} to [{receiver}]")
+                success = False
+                break
 
     if success:
         return jsonify(ApiResponse.success().to_dict())
