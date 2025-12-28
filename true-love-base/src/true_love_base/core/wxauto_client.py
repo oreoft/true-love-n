@@ -225,8 +225,6 @@ class WxAutoClient():
                 for _i in range(10):
                     res = raw_msg.roll_into_view()
                     LOG.info(f"roll_into_view result: {res}")
-                    if res:
-                        break
                 # 使用 chat_info.chat_type 判断群聊（更可靠）
                 chat_info = getattr(raw_msg, 'chat_info', {}) or {}
                 is_group = chat_info.get('chat_type') == 'group'
