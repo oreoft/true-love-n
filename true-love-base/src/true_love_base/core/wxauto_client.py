@@ -221,16 +221,17 @@ class WxAutoClient():
                     return
                 LOG.info('------------ Raw message info ------------\n%s', self._dump_obj_attrs(raw_msg))
                 LOG.info('------------ Raw chat info ------------\n%s', self._dump_obj_attrs(chat))
-                # 滚动消息到可见区域，避免某些情况下获取不到内容， 循环 10次拉
-                for _i in range(10):
-                    res = raw_msg.roll_into_view()
-                    LOG.info(f"roll_into_view result: {res}")
                 # 使用 chat_info.chat_type 判断群聊（更可靠）
                 chat_info = getattr(raw_msg, 'chat_info', {}) or {}
                 is_group = chat_info.get('chat_type') == 'group'
                 content = getattr(raw_msg, 'content', str(raw_msg))
                 trigger_word = "真爱粉" if raw_msg.type == 'voice' else "@真爱粉"
                 is_at_me = is_group and (trigger_word in content or 'zaf' in content.lower())
+                # 判断content是否超过 15行
+                if is_group and content.count('\n') > 15:
+                    res = raw_msg.tickle()
+                    LOG.info(f"Message too long in group, tickle result: {res}")
+
                 if is_group and not is_at_me:
                     LOG.info(
                         f"ignored group message without @ from [{getattr(raw_msg, 'sender', '')}] and chat [{chat_name}]")
