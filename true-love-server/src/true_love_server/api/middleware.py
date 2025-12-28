@@ -20,7 +20,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """请求日志中间件"""
     
     # 不记录日志的路径
-    SKIP_LOG_PATHS = {"/logs"}
+    SKIP_LOG_PATHS = {"/admin/logs"}
     
     async def dispatch(self, request: Request, call_next):
         # 生成请求 ID
