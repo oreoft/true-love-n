@@ -55,7 +55,7 @@ class AIClient:
     
     def __init__(self):
         config = Config()
-        self.token = config.HTTP_TOKEN
+        self.token = config.HTTP_TOKEN[0]
         self.ai_host = config.AI_SERVICE.get("host", "https://notice.someget.work")
     
     def _request(
