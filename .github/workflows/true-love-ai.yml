@@ -84,7 +84,9 @@ jobs:
           USER: ${{ github.actor }}
         run: |
           # 设置 SSH key
-          mkdir -p ~/.ssh && printf "%s" "$SSH_KEY" > ~/.ssh/id_rsa && chmod 600 ~/.ssh/id_rsa
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
           
           # 通过跳板机连接服务器并部署
           ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
@@ -104,7 +106,7 @@ jobs:
       - name: Notify - Success
         if: success()
         env:
-          NOTIFY_URL: ${{ secrets.TL_NOTIFY_URL }}
+          NOTIFY_URL: ${{ secrets.TL_NOTIFY_PATH }}
           NOTIFY_TOKEN: ${{ secrets.TL_NOTIFY_TOKEN }}
         run: |
           curl --location "$NOTIFY_URL" \
@@ -119,7 +121,7 @@ jobs:
       - name: Notify - Failure
         if: failure()
         env:
-          NOTIFY_URL: ${{ secrets.TL_NOTIFY_URL }}
+          NOTIFY_URL: ${{ secrets.TL_NOTIFY_PATH }}
           NOTIFY_TOKEN: ${{ secrets.TL_NOTIFY_TOKEN }}
         run: |
           curl --location "$NOTIFY_URL" \
