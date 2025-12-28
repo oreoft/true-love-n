@@ -20,8 +20,7 @@ def verify_token(token: str) -> bool:
     从请求 body 中获取 token 并验证。
     """
     from ..core import Config
-    http_config = Config().HTTP_TOKEN or {}
-    valid_tokens = http_config.get("token", [])
+    valid_tokens = Config().HTTP_TOKEN or []
     if token not in valid_tokens:
         raise AuthException("failed token check")
 
