@@ -25,8 +25,11 @@ services:
     # 重启策略
     restart: unless-stopped
 
-    # 端口不映射直接使用 host 网络模式， 可以访问宿主端口
-    network_mode: "host"
+    ports:
+      - "8080:8080"
+    extra_hosts:
+      - "host.docker.internal:192.168.0.102"
+
 
     # 卷挂载
     # 配置文件在 true-love-server 目录
