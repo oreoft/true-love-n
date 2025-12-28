@@ -452,12 +452,16 @@ def batch_chat_info():
 
 # ==================== Middleware ====================
 
+# 不记录日志的路径（健康检查等高频接口）
+SKIP_LOG_PATHS = {"/health", "/ping"}
+
+
 @app.before_request
 def before_request_logging():
     """请求前日志"""
     g.start_time = time.time()
-    # OPTIONS 请求不记录日志
-    if request.method == 'OPTIONS':
+    # OPTIONS 请求和健康检查不记录日志
+    if request.method == 'OPTIONS' or request.path in SKIP_LOG_PATHS:
         return
     body = request.get_data(as_text=True)
     LOG.info(f"Request: [{request.method} {request.path}], body: {body[:2000]}")
@@ -471,8 +475,8 @@ def after_request_handler(response):
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
 
-    # 日志（OPTIONS 请求不记录）
-    if request.method != 'OPTIONS' and hasattr(g, 'start_time'):
+    # 日志（OPTIONS 请求和健康检查不记录）
+    if request.method != 'OPTIONS' and request.path not in SKIP_LOG_PATHS and hasattr(g, 'start_time'):
         cost = (time.time() - g.start_time) * 1000
         body = response.get_data(as_text=True)
         LOG.info(f"Response: [{request.method} {request.path}], cost: {cost:.0f}ms, body: {body[:2000]}")

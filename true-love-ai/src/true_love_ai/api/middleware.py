@@ -28,8 +28,8 @@ class TimingMiddleware(BaseHTTPMiddleware):
 class LoggingMiddleware(BaseHTTPMiddleware):
     """请求日志中间件"""
     
-    # 不记录日志的路径
-    SKIP_LOG_PATHS = {"/logs", "/health"}
+    # 不记录日志的路径（健康检查等高频接口）
+    SKIP_LOG_PATHS = {"/health"}
     # 响应日志最大长度
     MAX_RESP_LOG_LEN = 200
     
