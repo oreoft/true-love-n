@@ -42,6 +42,9 @@ services:
       # 数据库文件（持久化）
       - /mnt/c/Users/admin/Desktop/true-love-n/true-love-server/mc_devices.db:/app/mc_devices.db
       
+      # 微信图片目录（与 base 共享）
+      - /mnt/c/Users/admin/Desktop/true-love-n/true-love-base/wx_imgs:/app/wx_imgs
+      
       # 摸鱼图片目录（与 base 共享）
       - /mnt/c/Users/admin/Desktop/true-love-n/true-love-base/moyu-jpg:/app/moyu-jpg
       
