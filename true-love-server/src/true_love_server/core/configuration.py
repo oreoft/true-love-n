@@ -37,11 +37,7 @@ class Config:
     def reload(self) -> None:
         yconfig = self._load_config()
         if yconfig:
-            # 注意：日志配置已改用 LoggingConfig 类，不再从 YAML 加载
-            # 注意：groups/privates 的 allow_list 已移至 base 端
-            # 这里保留是为了兼容 auto_notice 等功能
-            # 也支持新的顶层 auto_notice 配置
-            self.AUTO_NOTICE: dict = yconfig.get("auto_notice", self.GROUPS.get("auto_notice", {}))
+            self.AUTO_NOTICE: dict = yconfig.get("auto_notice")
             self.ENABLE_BOT: dict = yconfig["enable_bot"]
             self.LLM_BOT: dict = yconfig.get(self.ENABLE_BOT, None)
             self.HTTP_TOKEN: dict = yconfig.get("http_token")
