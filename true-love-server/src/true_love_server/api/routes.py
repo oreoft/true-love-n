@@ -48,7 +48,7 @@ async def send_msg(request: dict):
     LOG.info("推送消息收到请求, req: %s", request)
 
     # 验证 token
-    await verify_token(request.get('token', ''))
+    verify_token(request.get('token', ''))
 
     http_config = Config().HTTP or {}
     send_receiver = request.get('sendReceiver')
@@ -86,7 +86,7 @@ async def get_chat(
     LOG.info("聊天消息收到请求, req: %s", request)
 
     # 验证 token
-    await verify_token(request.get('token', ''))
+    verify_token(request.get('token', ''))
 
     msg = ChatMsg.from_dict(request)
     msg_handler = get_msg_handler()

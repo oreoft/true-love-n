@@ -13,7 +13,7 @@ from fastapi import Request, Body
 from .exception_handlers import AuthException
 
 
-async def verify_token(request: Request, body: dict = Body(...)) -> bool:
+def verify_token(token: str) -> bool:
     """
     验证 token
     
@@ -21,10 +21,7 @@ async def verify_token(request: Request, body: dict = Body(...)) -> bool:
     """
     from ..core import Config
     http_config = Config().HTTP_TOKEN or {}
-
-    token = body.get('token')
     valid_tokens = http_config.get("token", [])
-
     if token not in valid_tokens:
         raise AuthException("failed token check")
 
