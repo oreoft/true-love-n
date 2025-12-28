@@ -1,8 +1,7 @@
 #Requires -RunAsAdministrator
 
 $TaskName = "UIA-TL-BASE"
-$WorkDir = "\\wsl.localhost\Ubuntu\root\true-love-n\true-love-base"
-$VenvPath = "C:\Users\admin\.venvs\true-love-base"
+$WorkDir = "C:\Users\admin\Desktop\true-love-n\true-love-base"
 $ScriptDir = "C:\Users\admin\uia-scripts"
 $RunnerScript = Join-Path $ScriptDir "run-true-love-base.ps1"
 
@@ -16,11 +15,8 @@ if (!(Test-Path $ScriptDir))
 $ScriptLines = @(
     "`$Host.UI.RawUI.WindowTitle = `"UIA-TL-BASE`""
     "Set-Location `"$WorkDir`""
-    "`$env:UV_PROJECT_ENVIRONMENT = `"$VenvPath`""
-    "`$env:UV_VENV_PATH = `"$VenvPath`""
     "Write-Host `"Starting true-love-base at `$(Get-Date)`" -ForegroundColor Cyan"
     "Write-Host `"WorkDir: $WorkDir`" -ForegroundColor Gray"
-    "Write-Host `"VenvPath: $VenvPath`" -ForegroundColor Gray"
     "Write-Host `"========================================`" -ForegroundColor Gray"
     "git pull; uv sync; uv run -m true_love_base"
 )
