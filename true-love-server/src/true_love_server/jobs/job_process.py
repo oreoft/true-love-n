@@ -188,6 +188,8 @@ def download_moyu_file():
             file_url = get_moyu_url_by_wx()
             if file_url:
                 break
+            LOG.warning("download_moyu_file 未能获取到数据，重试中... Retry count:%d", i + 1)
+            time.sleep(30)
         except Exception as e:
             LOG.error(f"download_moyu_file Failed to fetch data. Retry count:{i}, Error:{e}")
             time.sleep(5)
