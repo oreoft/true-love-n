@@ -24,11 +24,10 @@ services:
     
     # 重启策略
     restart: unless-stopped
-    
-    # 端口映射
-    ports:
-      - "8088:8088"
-    
+
+    # 端口不映射直接使用 host 网络模式， 可以访问宿主端口
+    network_mode: "host"
+
     # 卷挂载
     # 配置文件在 true-love-server 目录
     # 资源文件与 true-love-base 共享
@@ -70,7 +69,4 @@ services:
       options:
         max-size: "10m"  # 单个日志文件最大 10MB
         max-file: "3"    # 最多保留 3 个日志文件
-
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
