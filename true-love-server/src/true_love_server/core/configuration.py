@@ -39,8 +39,11 @@ class Config:
         if yconfig:
             self.AUTO_NOTICE: dict = yconfig.get("auto_notice")
             self.ENABLE_BOT: dict = yconfig["enable_bot"]
+            self.GITHUB: dict = yconfig.get("github", {})
             self.LLM_BOT: dict = yconfig.get(self.ENABLE_BOT, None)
             self.HTTP_TOKEN: dict = yconfig.get("http_token")
+            self.HTTP = yconfig.get("http")
+            self.CARD: dict = yconfig.get("card", {})
             self.BASE_SERVER: dict = yconfig.get("base_server")
             self.REMAINDER: dict = yconfig.get("remainder", {})
             self.ASR: dict = yconfig.get("asr", {})
