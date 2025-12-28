@@ -8,16 +8,27 @@ on:
       - ".github/workflows/true-love-ai.yml"
 
 env:
-  # Docker 镜像配置（这些不依赖 secrets，可以放全局）
+  # ========== Docker 镜像配置 ==========
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/true-love-ai
   
-  # 固定配置
-  JUMP_PORT: 2233
+  # ========== 目标服务器配置 ==========
   SERVER_HOST: ser3
   SERVER_PORT: 22
   SERVER_USER: root
-
+  SERVER_DEPLOY_PATH: /root/tl-ai
+  
+  # ========== 跳板机配置 ==========
+  JUMP_HOST: ${{ secrets.SER_GW_HOST }}
+  JUMP_PORT: 2233
+  JUMP_USER: server
+  
+  # ========== SSH 密钥 ==========
+  SSH_KEY: ${{ secrets.SER_SSH_DOOR_KEY }}
+  
+  # ========== 通知配置 ==========
+  NOTIFY_PATH: ${{ secrets.TL_NOTIFY_PATH }}
+  NOTIFY_TOKEN: ${{ secrets.TL_NOTIFY_TOKEN }}
 permissions:
   contents: read
   packages: write
@@ -79,38 +90,33 @@ jobs:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
-          # 目标服务器
-          host: ser3
-          username: root
-          key: ${{ secrets.SER_SSH_DOOR_KEY }}
-          # 跳板机配置
-          proxy_host: ${{ secrets.US_JUMP_HOST }}
-          proxy_port: 2233
-          proxy_username: server
-          proxy_key: ${{ secrets.SER_SSH_DOOR_KEY }}
-          # 部署命令
-          envs: GITHUB_TOKEN,GITHUB_ACTOR
+          host: ${{ env.SERVER_HOST }}
+          username: ${{ env.SERVER_USER }}
+          key: ${{ env.SSH_KEY }}
+          proxy_host: ${{ env.JUMP_HOST }}
+          proxy_port: ${{ env.JUMP_PORT }}
+          proxy_username: ${{ env.JUMP_USER }}
+          proxy_key: ${{ env.SSH_KEY }}
+          envs: GITHUB_TOKEN,GITHUB_ACTOR,SERVER_DEPLOY_PATH
           script: |
             set -e
             echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-            cd /root/tl-ai
+            cd $SERVER_DEPLOY_PATH
             docker compose pull && docker compose up -d
             docker image prune -f
             sleep 3 && docker compose ps
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_ACTOR: ${{ github.actor }}
+          SERVER_DEPLOY_PATH: ${{ env.SERVER_DEPLOY_PATH }}
 
       - name: Notify - Success
         if: success()
-        env:
-          NOTIFY_URL: ${{ secrets.TL_NOTIFY_PATH }}
-          NOTIFY_TOKEN: ${{ secrets.TL_NOTIFY_TOKEN }}
         run: |
-          curl --location "$NOTIFY_URL" \
+          curl --location "${{ env.NOTIFY_PATH }}" \
           --header 'Content-Type: application/json' \
           --data "{
-            \"token\": \"$NOTIFY_TOKEN\",
+            \"token\": \"${{ env.NOTIFY_TOKEN }}\",
             \"sendReceiver\": \"master\",
             \"atReceiver\": \"\",
             \"content\": \"真爱粉ai模块(Docker)已经成功部署 🐳\"
@@ -118,14 +124,11 @@ jobs:
 
       - name: Notify - Failure
         if: failure()
-        env:
-          NOTIFY_URL: ${{ secrets.TL_NOTIFY_PATH }}
-          NOTIFY_TOKEN: ${{ secrets.TL_NOTIFY_TOKEN }}
         run: |
-          curl --location "$NOTIFY_URL" \
+          curl --location "${{ env.NOTIFY_PATH }}" \
           --header 'Content-Type: application/json' \
           --data "{
-            \"token\": \"$NOTIFY_TOKEN\",
+            \"token\": \"${{ env.NOTIFY_TOKEN }}\",
             \"sendReceiver\": \"master\",
             \"atReceiver\": \"\",
             \"content\": \"⚠️ 真爱粉ai模块(Docker)部署失败，请检查\"

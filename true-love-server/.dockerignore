@@ -1,0 +1,50 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+venv
+ENV
+
+# IDE
+.idea
+.vscode
+*.iml
+
+# Build
+build
+dist
+*.egg-info
+
+# Tests
+.pytest_cache
+.coverage
+htmlcov
+
+# Logs (不需要本地日志)
+logs
+*.log
+
+# Local data (运行时挂载)
+moyu-jpg
+zaobao-jpg
+*.db
+listen_chats.json
+
+# Config (运行时挂载)
+config.yaml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cache
+.ruff_cache
+.mypy_cache
+

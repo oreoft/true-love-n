@@ -1,0 +1,70 @@
+# ============================================
+# True Love Server - Docker Compose (WSL)
+# ============================================
+#
+# 部署在 WSL 环境，资源文件与 true-love-base 共享
+#
+# 使用方式：
+#   cd /mnt/c/Users/admin/Desktop/true-love-n/true-love-server
+#   docker compose pull      # 拉取最新镜像
+#   docker compose up -d     # 启动/更新容器
+#   docker compose logs -f   # 查看日志
+#   docker compose ps        # 查看状态
+#   docker compose down      # 停止并删除容器
+#
+# ============================================
+
+services:
+  true-love-server:
+    # 镜像地址
+    image: ghcr.io/oreoft/true-love-server:latest
+    
+    # 容器名称
+    container_name: tl-server
+    
+    # 重启策略
+    restart: unless-stopped
+    
+    # 端口映射
+    ports:
+      - "8088:8088"
+    
+    # 卷挂载
+    # 配置文件在 true-love-server 目录
+    # 资源文件与 true-love-base 共享
+    volumes:
+      # 配置文件（只读挂载）
+      - /mnt/c/Users/admin/Desktop/true-love-n/true-love-server/config.yaml:/app/config.yaml:ro
+      
+      # 监听配置（与 base 共享）
+      - /mnt/c/Users/admin/Desktop/true-love-n/true-love-base/listen_chats.json:/app/listen_chats.json
+      
+      # 数据库文件（持久化）
+      - /mnt/c/Users/admin/Desktop/true-love-n/true-love-server/mc_devices.db:/app/mc_devices.db
+      
+      # 摸鱼图片目录（与 base 共享）
+      - /mnt/c/Users/admin/Desktop/true-love-n/true-love-base/moyu-jpg:/app/moyu-jpg
+      
+      # 早报图片目录（与 base 共享）
+      - /mnt/c/Users/admin/Desktop/true-love-n/true-love-base/zaobao-jpg:/app/zaobao-jpg
+    
+    # 环境变量
+    environment:
+      - APP_ENV=prod
+      - TZ=Asia/Shanghai
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/health"]
+      interval: 30s      # 检查间隔
+      timeout: 10s       # 超时时间
+      retries: 3         # 失败重试次数
+      start_period: 10s  # 启动等待时间
+    
+    # 日志配置（Docker 自动收集，上传到 Loki）
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"  # 单个日志文件最大 10MB
+        max-file: "3"    # 最多保留 3 个日志文件
+

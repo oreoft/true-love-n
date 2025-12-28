@@ -8,10 +8,10 @@ on:
       - ".github/workflows/true-love-base.yml"
 
 env:
-  SERVER_IP: ${{ secrets.M8S_PROXY_HOST }}
+  SERVER_IP: ${{ secrets.M8S_GW_HOST }}
   SERVER_PORT: 2233
   SERVER_USER: admin
-  SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+  SERVER_SSH_KEY: ${{ secrets.M8S_SSH_DOOR_KEY }}
 
 permissions:
   contents: read
@@ -55,10 +55,10 @@ jobs:
       - name: Notify - base Success
         if: success()
         run: |
-          curl --location ${{ secrets.TURE_LOVE_URL_PATH }} \
+          curl --location ${{ secrets.TL_NOTIFY_PATH }} \
           --header 'Content-Type: application/json' \
           --data '{
-            "token": "${{ secrets.TURE_LOVE_TOKEN }}",
+            "token": "${{ secrets.TL_NOTIFY_TOKEN }}",
             "sendReceiver": "master",
             "atReceiver": "",
             "content": "真爱粉 base 模块已经成功启动"

@@ -37,8 +37,14 @@ def _verify_token(token: str) -> bool:
 
 @router.get("/ping")
 async def ping():
-    """健康检查"""
+    """简单存活检查"""
     return "pong"
+
+
+@router.get("/health")
+async def health():
+    """Docker 健康检查接口"""
+    return {"status": "ok", "service": "true-love-server"}
 
 
 @router.post("/send-msg")
