@@ -58,7 +58,7 @@ services:
     
     # 健康检查
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8088/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8088/health" ]
       interval: 30s      # 检查间隔
       timeout: 10s       # 超时时间
       retries: 3         # 失败重试次数
@@ -70,4 +70,7 @@ services:
       options:
         max-size: "10m"  # 单个日志文件最大 10MB
         max-file: "3"    # 最多保留 3 个日志文件
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 

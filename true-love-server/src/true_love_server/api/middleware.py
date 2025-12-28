@@ -19,16 +19,10 @@ LOG = logging.getLogger("Middleware")
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """请求日志中间件"""
     
-    # 不记录日志的路径
-    SKIP_LOG_PATHS = {"/admin/logs"}
-    
     async def dispatch(self, request: Request, call_next):
         # 生成请求 ID
         request_id = str(uuid.uuid4())[:8]
         request.state.request_id = request_id
-        
-        # 检查是否跳过日志
-        skip_log = request.url.path in self.SKIP_LOG_PATHS
         
         # 记录请求开始时间
         start_time = time.time()
@@ -37,14 +31,13 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         body = await request.body()
         body_text = body.decode('utf-8')[:2000] if body else ""
         
-        if not skip_log:
-            LOG.info(
-                "Request:[%s] [%s %s], req:[%s]",
-                request_id,
-                request.method,
-                request.url.path,
-                body_text
-            )
+        LOG.info(
+            "Request:[%s] [%s %s], req:[%s]",
+            request_id,
+            request.method,
+            request.url.path,
+            body_text
+        )
         
         # 重新设置请求体（因为已经被读取）
         async def receive():
@@ -57,15 +50,14 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         # 计算耗时
         cost = (time.time() - start_time) * 1000
         
-        if not skip_log:
-            LOG.info(
-                "Response:[%s] [%s %s, cost:%.0fms], status:[%s]",
-                request_id,
-                request.method,
-                request.url.path,
-                cost,
-                response.status_code
-            )
+        LOG.info(
+            "Response:[%s] [%s %s, cost:%.0fms], status:[%s]",
+            request_id,
+            request.method,
+            request.url.path,
+            cost,
+            response.status_code
+        )
         
         return response
 

@@ -19,7 +19,6 @@ from waitress import serve
 
 from true_love_base.models.api import ApiResponse, ApiErrors
 from true_love_base.utils.path_resolver import resolve_path
-from true_love_base.services.log_service import LogType, get_log_service
 
 if TYPE_CHECKING:
     from true_love_base.services.robot import Robot
@@ -451,72 +450,14 @@ def batch_chat_info():
     return jsonify(ApiResponse.success({"results": results}).to_dict())
 
 
-@app.route('/logs', methods=['GET'])
-def handle_logs():
-    """
-    日志操作接口
-    
-    支持两种操作：
-    - query: 查询日志，支持增量查询
-    - truncate: 清空指定日志文件
-    
-    Query Params:
-        - action: 操作类型，query 或 truncate（默认 query）
-        - log_type: 日志类型，info 或 error（默认 info）
-        - limit: 返回的最大行数，默认 100，最大 500（仅 query 有效）
-        - since_offset: 上次查询返回的 next_offset（仅 query 有效）
-    """
-    action = request.args.get('action', 'query').lower()
-    log_type_str = request.args.get('log_type', 'info').lower()
-
-    # 校验日志类型
-    try:
-        log_type = LogType(log_type_str)
-    except ValueError:
-        return jsonify(ApiResponse.error(100, f"不支持的日志类型: {log_type_str}").to_dict())
-
-    log_service = get_log_service()
-
-    if action == 'query':
-        # 查询日志
-        limit = request.args.get('limit', 100, type=int)
-        since_offset = request.args.get('since_offset', 0, type=int)
-
-        result = log_service.query_logs(
-            log_type=log_type,
-            since_offset=since_offset if since_offset > 0 else None,
-            limit=limit
-        )
-
-        return jsonify(ApiResponse.success({
-            "lines": result.lines,
-            "next_offset": result.next_offset,
-            "total_lines": result.total_lines,
-            "has_more": result.has_more
-        }).to_dict())
-
-    elif action == 'truncate':
-        # 清空日志
-        success = log_service.truncate_log(log_type)
-        if not success:
-            return jsonify(ApiResponse.error(101, f"清空 {log_type_str} 日志失败").to_dict())
-        return jsonify(ApiResponse.success({
-            "message": f"{log_type_str} 日志已清空",
-            "log_type": log_type_str
-        }).to_dict())
-
-    else:
-        return jsonify(ApiResponse.error(100, f"不支持的操作类型: {action}").to_dict())
-
-
 # ==================== Middleware ====================
 
 @app.before_request
 def before_request_logging():
     """请求前日志"""
     g.start_time = time.time()
-    # OPTIONS 请求和 /logs 接口不记录日志
-    if request.method == 'OPTIONS' or request.path == '/logs':
+    # OPTIONS 请求不记录日志
+    if request.method == 'OPTIONS':
         return
     body = request.get_data(as_text=True)
     LOG.info(f"Request: [{request.method} {request.path}], body: {body[:2000]}")
@@ -530,8 +471,8 @@ def after_request_handler(response):
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
 
-    # 日志（OPTIONS 请求和 /logs 接口不记录）
-    if request.method != 'OPTIONS' and request.path != '/logs' and hasattr(g, 'start_time'):
+    # 日志（OPTIONS 请求不记录）
+    if request.method != 'OPTIONS' and hasattr(g, 'start_time'):
         cost = (time.time() - g.start_time) * 1000
         body = response.get_data(as_text=True)
         LOG.info(f"Response: [{request.method} {request.path}], cost: {cost:.0f}ms, body: {body[:2000]}")

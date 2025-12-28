@@ -6,9 +6,8 @@ Routes - 路由定义
 """
 
 import logging
-from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Query
+from fastapi import APIRouter, BackgroundTasks
 
 from .deps import get_msg_handler, verify_token
 from .exception_handlers import ApiResponse, ValidationException
@@ -16,7 +15,6 @@ from ..core import Config
 from ..models import ChatMsg
 from ..services import base_client
 from ..services.listen_manager import get_listen_manager
-from ..services.log_service import LogType, get_log_service
 
 LOG = logging.getLogger("Routes")
 
@@ -95,63 +93,6 @@ async def get_chat(
     background_tasks.add_task(msg_handler.handle_msg_async, msg)
 
     return ApiResponse(data="")
-
-
-@router.get("/admin/logs")
-async def handle_logs(
-        action: str = Query(default="query", description="操作类型: query 查询日志, truncate 清空日志"),
-        log_type: str = Query(default="info", description="日志类型: info 或 error"),
-        limit: Optional[int] = Query(default=100, ge=1, le=500, description="返回行数，最大500 (仅 query)"),
-        since_offset: Optional[int] = Query(default=None, ge=0, description="从哪个字节偏移开始读取 (仅 query)"),
-):
-    """
-    日志操作接口
-    
-    支持两种操作：
-    - **query**: 查询日志，支持增量查询
-    - **truncate**: 清空指定日志文件
-    
-    参数:
-    - **action**: 操作类型，query 或 truncate
-    - **log_type**: 日志类型，可选 info 或 error
-    - **limit**: 返回的最大行数，默认 100，最大 500 (仅 query 有效)
-    - **since_offset**: 上次查询返回的 next_offset (仅 query 有效)
-    """
-    # 校验日志类型
-    try:
-        log_type_enum = LogType(log_type.lower())
-    except ValueError:
-        raise ValidationException(f"呜呜~不支持的日志类型哦: {log_type}，只能是 info 或 error 呢~")
-
-    log_service = get_log_service()
-    action_lower = action.lower()
-
-    if action_lower == "query":
-        # 查询日志
-        result = log_service.query_logs(
-            log_type=log_type_enum,
-            since_offset=since_offset,
-            limit=limit
-        )
-        return ApiResponse(data={
-            "lines": result.lines,
-            "next_offset": result.next_offset,
-            "total_lines": result.total_lines,
-            "has_more": result.has_more
-        })
-
-    elif action_lower == "truncate":
-        # 清空日志
-        success = log_service.truncate_log(log_type_enum)
-        if not success:
-            raise ValidationException(f"呜呜~清空 {log_type} 日志失败了捏~")
-        return ApiResponse(data={
-            "message": f"{log_type} 日志已清空",
-            "log_type": log_type
-        })
-
-    else:
-        raise ValidationException(f"呜呜~不支持的操作类型哦: {action}，只能是 query 或 truncate 呢~")
 
 
 # ==================== Listen 监听管理接口 ====================

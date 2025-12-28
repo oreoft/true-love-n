@@ -11,7 +11,6 @@ from .ai_client import AIClient
 from .chat_service import ChatService
 from .image_service import ImageService
 from .video_service import VideoService
-from .log_service import LogQueryService, LogType, get_log_service
 from .listen_store import ListenStore, get_listen_store
 from .listen_manager import ListenManager, get_listen_manager
 
@@ -22,9 +21,6 @@ __all__ = [
     "ChatService",
     "ImageService",
     "VideoService",
-    "LogQueryService",
-    "LogType",
-    "get_log_service",
     "ListenStore",
     "get_listen_store",
     "ListenManager",
