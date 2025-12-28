@@ -60,6 +60,7 @@ def main():
         host=host,
         port=port,
         log_level="info",
+        access_log=False,  # 使用自定义日志中间件，关闭 uvicorn 访问日志
     )
 
 
