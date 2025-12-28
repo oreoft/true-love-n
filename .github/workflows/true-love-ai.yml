@@ -87,28 +87,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.5.3
-        with:
-          ssh-private-key: ${{ env.SERVER_SSH_KEY }}
-
       - name: Deploy via SSH
         env:
+          SSH_PRIVATE_KEY: ${{ secrets.SER_SSH_DOOR_KEY }}
           GHCR_TOKEN: ${{ env.GITHUB_TOKEN }}
           GHCR_USER: ${{ github.actor }}
         run: |
+          # 设置 SSH key
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          
+          # SSH 连接并部署
           ssh -o StrictHostKeyChecking=no \
               -o UserKnownHostsFile=/dev/null \
-              -o "ProxyCommand=ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${{ env.JUMP_PORT }} -W %h:%p root@${{ env.JUMP_HOST }}" \
+              -o "ProxyCommand=ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${{ env.JUMP_PORT }} -W %h:%p root@${{ env.JUMP_HOST }}" \
+              -i ~/.ssh/id_rsa \
               -p ${{ env.SERVER_PORT }} \
               ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
               "GHCR_TOKEN=${GHCR_TOKEN}" "GHCR_USER=${GHCR_USER}" bash << 'EOF'
             set -e
             
-            # 登录 GitHub Container Registry（通过环境变量传递，不会出现在命令行）
+            # 登录 GitHub Container Registry
             printenv GHCR_TOKEN | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             
-            # 进入项目目录（docker compose 自动读取 docker-compose.yml）
+            # 进入项目目录
             cd /root/tl-ai
             
             # 拉取最新镜像并重启容器
@@ -122,6 +125,9 @@ jobs:
             sleep 3
             docker compose ps
           EOF
+          
+          # 清理 key
+          rm -f ~/.ssh/id_rsa
 
       - name: Notify - Success
         if: success()
