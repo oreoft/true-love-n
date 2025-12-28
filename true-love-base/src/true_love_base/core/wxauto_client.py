@@ -229,8 +229,8 @@ class WxAutoClient():
                 is_at_me = is_group and (trigger_word in content or 'zaf' in content.lower())
                 # 判断content是否超过 15行
                 if is_group and content.count('\n') > 15:
-                    res = raw_msg.tickle()
-                    LOG.info(f"Message too long in group, tickle result: {res}")
+                    # 随便回复点二次元内容，把消息顶上去
+                    raw_msg.quote("(｡･ω･｡)ﾉ♡")
 
                 if is_group and not is_at_me:
                     LOG.info(
