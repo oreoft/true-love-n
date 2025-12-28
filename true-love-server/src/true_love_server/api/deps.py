@@ -20,7 +20,7 @@ async def verify_token(request: Request, body: dict = Body(...)) -> bool:
     从请求 body 中获取 token 并验证。
     """
     from ..core import Config
-    http_config = Config().HTTP or {}
+    http_config = Config().HTTP_TOKEN or {}
 
     token = body.get('token')
     valid_tokens = http_config.get("token", [])

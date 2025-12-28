@@ -10,13 +10,13 @@ from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Query
 
-from .exception_handlers import ApiResponse, AuthException, ValidationException
-from .deps import get_msg_handler
+from .deps import get_msg_handler, verify_token
+from .exception_handlers import ApiResponse, ValidationException
+from ..core import Config
 from ..models import ChatMsg
 from ..services import base_client
-from ..services.log_service import LogType, get_log_service
 from ..services.listen_manager import get_listen_manager
-from ..core import Config
+from ..services.log_service import LogType, get_log_service
 
 LOG = logging.getLogger("Routes")
 
@@ -24,15 +24,6 @@ router = APIRouter()
 
 # 获取 ListenManager 单例
 listen_manager = get_listen_manager()
-
-
-def _verify_token(token: str) -> bool:
-    """验证 token"""
-    http_config = Config().HTTP or {}
-    valid_tokens = http_config.get("token", [])
-    if token not in valid_tokens:
-        raise AuthException("呜呜~身份验证失败了捏，token 不对哦~")
-    return True
 
 
 @router.get("/ping")
@@ -57,7 +48,7 @@ async def send_msg(request: dict):
     LOG.info("推送消息收到请求, req: %s", request)
 
     # 验证 token
-    _verify_token(request.get('token', ''))
+    await verify_token(request.get('token', ''))
 
     http_config = Config().HTTP or {}
     send_receiver = request.get('sendReceiver')
@@ -84,8 +75,8 @@ async def send_msg(request: dict):
 
 @router.post("/get-chat")
 async def get_chat(
-    request: dict,
-    background_tasks: BackgroundTasks,
+        request: dict,
+        background_tasks: BackgroundTasks,
 ):
     """
     聊天消息接口
@@ -95,7 +86,7 @@ async def get_chat(
     LOG.info("聊天消息收到请求, req: %s", request)
 
     # 验证 token
-    _verify_token(request.get('token', ''))
+    await verify_token(request.get('token', ''))
 
     msg = ChatMsg.from_dict(request)
     msg_handler = get_msg_handler()
@@ -108,10 +99,10 @@ async def get_chat(
 
 @router.get("/admin/logs")
 async def handle_logs(
-    action: str = Query(default="query", description="操作类型: query 查询日志, truncate 清空日志"),
-    log_type: str = Query(default="info", description="日志类型: info 或 error"),
-    limit: Optional[int] = Query(default=100, ge=1, le=500, description="返回行数，最大500 (仅 query)"),
-    since_offset: Optional[int] = Query(default=None, ge=0, description="从哪个字节偏移开始读取 (仅 query)"),
+        action: str = Query(default="query", description="操作类型: query 查询日志, truncate 清空日志"),
+        log_type: str = Query(default="info", description="日志类型: info 或 error"),
+        limit: Optional[int] = Query(default=100, ge=1, le=500, description="返回行数，最大500 (仅 query)"),
+        since_offset: Optional[int] = Query(default=None, ge=0, description="从哪个字节偏移开始读取 (仅 query)"),
 ):
     """
     日志操作接口
@@ -131,10 +122,10 @@ async def handle_logs(
         log_type_enum = LogType(log_type.lower())
     except ValueError:
         raise ValidationException(f"呜呜~不支持的日志类型哦: {log_type}，只能是 info 或 error 呢~")
-    
+
     log_service = get_log_service()
     action_lower = action.lower()
-    
+
     if action_lower == "query":
         # 查询日志
         result = log_service.query_logs(
@@ -148,7 +139,7 @@ async def handle_logs(
             "total_lines": result.total_lines,
             "has_more": result.has_more
         })
-    
+
     elif action_lower == "truncate":
         # 清空日志
         success = log_service.truncate_log(log_type_enum)
@@ -158,7 +149,7 @@ async def handle_logs(
             "message": f"{log_type} 日志已清空",
             "log_type": log_type
         })
-    
+
     else:
         raise ValidationException(f"呜呜~不支持的操作类型哦: {action}，只能是 query 或 truncate 呢~")
 
@@ -193,11 +184,11 @@ async def add_listen(request: dict):
     chat_name = request.get('chat_name', '')
     if not chat_name:
         raise ValidationException("chat_name 不能为空哦~")
-    
+
     result = listen_manager.add_listen(chat_name)
     if not result.get("success"):
         raise ValidationException(result.get("message", "添加监听失败"))
-    
+
     return ApiResponse(data=result)
 
 
@@ -212,7 +203,7 @@ async def remove_listen(request: dict):
     chat_name = request.get('chat_name', '')
     if not chat_name:
         raise ValidationException("chat_name 不能为空哦~")
-    
+
     result = listen_manager.remove_listen(chat_name)
     if not result.get("success"):
         raise ValidationException(result.get("message", "移除监听失败"))
@@ -259,7 +250,7 @@ async def reset_listen(request: dict):
     chat_name = request.get('chat_name', '')
     if not chat_name:
         raise ValidationException("chat_name 不能为空哦~")
-    
+
     result = listen_manager.reset_listener(chat_name)
     if not result.get("success"):
         raise ValidationException(result.get("message", "重置监听失败"))
@@ -305,7 +296,7 @@ async def get_all_message(request: dict):
     chat_name = request.get('chat_name', '')
     if not chat_name:
         raise ValidationException("chat_name 不能为空哦~")
-    
+
     result = base_client.execute_chat(chat_name, "GetAllMessage", {})
     if not result.get("success"):
         raise ValidationException(result.get("message", "获取消息失败"))
