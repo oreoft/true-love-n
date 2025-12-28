@@ -77,31 +77,29 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deploy via SSH
-        env:
-          SSH_KEY: ${{ secrets.SER_SSH_DOOR_KEY }}
-          JUMP: ${{ secrets.US_JUMP_HOST }}
-          TOKEN: ${{ github.token }}
-          USER: ${{ github.actor }}
-        run: |
-          # 设置 SSH key
-          mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          
-          # 通过跳板机连接服务器并部署
-          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-              -o "ProxyCommand=ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${{ env.JUMP_PORT }} -W %h:%p server@${JUMP}" \
-              -i ~/.ssh/id_rsa ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
-              "TOKEN=${TOKEN}" "USER=${USER}" bash << 'EOF'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          # 目标服务器
+          host: ser3
+          username: root
+          key: ${{ secrets.SER_SSH_DOOR_KEY }}
+          # 跳板机配置
+          proxy_host: ${{ secrets.US_JUMP_HOST }}
+          proxy_port: 2233
+          proxy_username: server
+          proxy_key: ${{ secrets.SER_SSH_DOOR_KEY }}
+          # 部署命令
+          envs: GITHUB_TOKEN,GITHUB_ACTOR
+          script: |
             set -e
-            printenv TOKEN | docker login ghcr.io -u "$USER" --password-stdin
+            echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
             cd /root/tl-ai
             docker compose pull && docker compose up -d
             docker image prune -f
             sleep 3 && docker compose ps
-          EOF
-          
-          rm -f ~/.ssh/id_rsa
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_ACTOR: ${{ github.actor }}
 
       - name: Notify - Success
         if: success()
