@@ -13,22 +13,21 @@ env:
   IMAGE_NAME: ${{ github.repository_owner }}/true-love-ai
   
   # 跳板机配置
-  JUMP_HOST: ${{ secrets.JUMP_HOST }}
+  JUMP_HOST: ${{ secrets.US_JUMP_HOST }}
   JUMP_PORT: 2233
   
   # 目标服务器配置
   SERVER_HOST: ser3
   SERVER_PORT: 22
   SERVER_USER: root
-  SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+  SERVER_SSH_KEY: ${{ secrets.SER_SSH_DOOR_KEY }}
   
   # GitHub 认证
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  GHCR_PAT: ${{ secrets.GHCR_PAT }}
+  GITHUB_TOKEN: ${{ github.token }}
   
   # 通知配置
-  NOTIFY_URL: ${{ secrets.TURE_LOVE_URL_PATH }}
-  NOTIFY_TOKEN: ${{ secrets.TURE_LOVE_TOKEN }}
+  NOTIFY_URL: ${{ secrets.TL_NOTIFY_URL }}
+  NOTIFY_TOKEN: ${{ secrets.TL_NOTIFY_TOKEN }}
 
 permissions:
   contents: read
@@ -102,8 +101,7 @@ jobs:
             set -e
             
             # 登录 GitHub Container Registry
-            # 注意：需要在 GitHub Secrets 中配置 GHCR_PAT（Personal Access Token，需要 read:packages 权限）
-            echo "${{ env.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+            docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
             
             # 进入项目目录（docker compose 自动读取 docker-compose.yml）
             cd /root/tl-ai
