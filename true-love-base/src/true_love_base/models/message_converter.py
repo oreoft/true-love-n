@@ -41,6 +41,7 @@ QUOTE_TYPE_MAP = {
 def convert_message(
         raw_msg: Any,
         chat_name: str,
+        is_at_me: bool,
 ) -> ChatMessage:
     """
     将 wxautox4 消息转换为 ChatMessage
@@ -48,7 +49,8 @@ def convert_message(
     Args:
         raw_msg: wxautox4 的原始消息对象
         chat_name: 聊天对象名称
-        
+        is_at_me: 是否 @ 了我
+
     Returns:
         ChatMessage 实例
     """
@@ -63,7 +65,6 @@ def convert_message(
         is_group = chat_info.get('chat_type') == 'group'
         # 如果是群聊，使用 sender 作为发送者, 否则使用 chat_name, 防止系统sender发一些奇怪的名字
         sender = getattr(raw_msg, 'sender', chat_name) if is_group else chat_name
-        is_at_me = is_group and ('@真爱粉' in content or 'zaf' in content.lower())
 
         # 构建基础消息
         msg = ChatMessage(
