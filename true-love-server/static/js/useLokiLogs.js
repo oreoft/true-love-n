@@ -135,10 +135,18 @@ window.useLokiLogs = function(showToast) {
         
         lokiLoadingNewer.value = true;
         
-        const startMs = lokiLatestMs.value > 0 ? lokiLatestMs.value + 1 : Date.now() - 60 * 60 * 1000;
         const endMs = Date.now();
+        let count = 0;
         
-        const count = await fetchLokiLogs(startMs, endMs, 'forward', false);
+        if (lokiLatestMs.value > 0) {
+            // 已有日志，从最后一条之后开始用 forward 查询（连续加载）
+            const startMs = lokiLatestMs.value + 1;
+            count = await fetchLokiLogs(startMs, endMs, 'forward', false);
+        } else {
+            // 没有日志（比如清空后），用 backward 获取最新的 50 条
+            const startMs = endMs - 60 * 60 * 1000;
+            count = await fetchLokiLogs(startMs, endMs, 'backward', false);
+        }
         
         if (count > 0 && lokiAutoScroll.value) {
             nextTick(() => {
