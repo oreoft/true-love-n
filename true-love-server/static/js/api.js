@@ -58,7 +58,7 @@ window.api = {
     }),
     
     // Loki API
-    fetchLokiLogs: (startMs, endMs, limit = 500, direction = 'backward') => 
+    fetchLokiLogs: (startMs, endMs, limit = 50, direction = 'backward') =>
         apiRequest(`/admin/loki/logs?start_ms=${startMs}&end_ms=${endMs}&limit=${limit}&direction=${direction}`)
 };
 

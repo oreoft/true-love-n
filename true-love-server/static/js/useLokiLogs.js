@@ -46,7 +46,7 @@ window.useLokiLogs = function(showToast) {
     // 查询 Loki 日志
     const fetchLokiLogs = async (startMs, endMs, direction = 'backward', prepend = false) => {
         try {
-            const result = await api.fetchLokiLogs(startMs, endMs, 500, direction);
+            const result = await api.fetchLokiLogs(startMs, endMs, 50, direction);
             
             if (result.data && result.data.logs) {
                 const newLogs = result.data.logs;

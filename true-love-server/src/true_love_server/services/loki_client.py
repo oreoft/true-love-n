@@ -105,7 +105,7 @@ class LokiClient:
             self,
             start_ns: int,
             end_ns: int,
-            limit: int = 500,
+            limit: int = 50,
             direction: str = 'backward'
     ) -> dict:
         """
