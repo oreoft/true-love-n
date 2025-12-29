@@ -53,7 +53,7 @@ class LokiClient:
         self.grafana_url = loki_config.get('grafana_url', '').rstrip('/')
         self.api_token = loki_config.get('api_token', '')
         self.datasource_uid = loki_config.get('datasource_uid', 'grafanacloud-logs')
-        self.services = loki_config.get('services', ['ai', 'base', 'server'])
+        self.services = loki_config.get('services', ['tl-ai', 'tl-base', 'tl-server'])
         
         self._initialized = True
         LOG.info(f"LokiClient 初始化完成, grafana_url: {self.grafana_url}, datasource: {self.datasource_uid}")
