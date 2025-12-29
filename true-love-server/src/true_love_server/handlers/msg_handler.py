@@ -52,7 +52,7 @@ class MsgHandler:
         cleaned_content = msg.content.replace("@真爱粉", "").replace("zaf", "").strip()
 
         # 设置上下文（用于追踪）
-        local_msg_id.set(f"{msg.sender}_{msg.chat_id}")
+        local_msg_id.set(f"{msg.sender}_{msg.msg_hash}")
 
         # 从注册表获取处理器
         handler = registry.get_handler(msg, cleaned_content)
