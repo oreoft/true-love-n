@@ -45,7 +45,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         if not skip_log:
             LOG.info(
                 f"AI服务收到请求: [{request.method} {request.url.path}], "
-                f"req: [{body.decode()[:2000] if body else 'empty'}]"
+                f"req: [{body.decode('utf-8')[:2000] if body else 'empty'}]"
             )
         
         # 处理请求
@@ -64,7 +64,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 resp_log = f"[binary {response.media_type}, {len(response_body)} bytes]"
             else:
                 try:
-                    resp_text = response_body.decode() if response_body else 'empty'
+                    resp_text = response_body.decode('utf-8') if response_body else 'empty'
                     # 截断过长的响应（可能包含 base64 等大数据）
                     if len(resp_text) > self.MAX_RESP_LOG_LEN:
                         resp_log = f"{resp_text[:self.MAX_RESP_LOG_LEN]}...[truncated, total {len(resp_text)} chars]"
