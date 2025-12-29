@@ -91,16 +91,17 @@ window.useLokiLogs = function(showToast) {
         }
     };
     
-    // 初始化加载（最近 1 小时）
+    // 初始化加载（最近 50 条，使用 backward 从最新开始取）
     const initLokiLogs = async () => {
         lokiLoading.value = true;
         lokiLogs.value = [];
         lokiCanLoadOlder.value = true;
         
         const now = Date.now();
-        const oneHourAgo = now - 60 * 60 * 1000;  // 1 小时
+        const oneHourAgo = now - 60 * 60 * 1000;  // 1 小时范围
         
-        await fetchLokiLogs(oneHourAgo, now, 'forward', false);
+        // 使用 backward 方向，Loki 会从 end 时间往前取 limit 条，即最新的日志
+        await fetchLokiLogs(oneHourAgo, now, 'backward', false);
         
         lokiLoading.value = false;
         
@@ -118,7 +119,8 @@ window.useLokiLogs = function(showToast) {
         const endMs = lokiEarliestMs.value - 1;
         const startMs = endMs - 60 * 60 * 1000;  // 往前 1 小时
         
-        const count = await fetchLokiLogs(startMs, endMs, 'forward', true);
+        // 使用 backward 从 endMs 往前取，即取这个范围内最新的 50 条（离当前日志最近的）
+        const count = await fetchLokiLogs(startMs, endMs, 'backward', true);
         
         if (count === 0) {
             lokiCanLoadOlder.value = false;
