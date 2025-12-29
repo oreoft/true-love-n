@@ -92,7 +92,7 @@ class LoggingConfig:
     def setup(
         cls,
         service_name: str,
-        logs_dir: str = "logs",
+        logs_dir: str = r"\\wsl$\Ubuntu\var\log\true-love\logs",
         log_level: int = logging.INFO,
         max_bytes: int = 10 * 1024 * 1024,  # 10MB
         backup_count: int = 3,
