@@ -20,7 +20,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """请求日志中间件"""
 
     # 不记录日志的路径（健康检查等高频接口）
-    SKIP_LOG_PATHS = {"/health", "/ping"}
+    SKIP_LOG_PATHS = {"/health", "/ping", "/admin/loki/logs"}
 
     async def dispatch(self, request: Request, call_next):
         # 生成请求 ID
