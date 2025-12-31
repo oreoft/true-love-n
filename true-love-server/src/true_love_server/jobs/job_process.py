@@ -107,12 +107,19 @@ def send_daily_notice(room_id, content='早上好☀️家人萌~', tz: str = "A
     current_date = get_current_date(tz)
     moyu_file_path = f'moyu-jpg/{current_date}.jpg'
     zao_bao_file_path = f'zaobao-jpg/{current_date}.jpg'
+
     r_resp = trig_search_handler.run("查询日元汇率")
     if r_resp != "":
         content += "\n\n今日日元汇率情况：\n" + r_resp
-    r_resp2 = trig_search_handler.run("查询黄金汇率")
+
+    r_resp2 = trig_search_handler.run("查询美元汇率")
     if r_resp2 != "":
-        content += "\n\n今日黄金汇率情况：\n" + r_resp2
+        content += "\n\n今日美元汇率情况：\n" + r_resp2
+
+    r_resp3 = trig_search_handler.run("查询黄金汇率")
+    if r_resp3 != "":
+        content += "\n\n今日黄金汇率情况：\n" + r_resp3
+
     base_client.send_text(room_id, '', content)
     if check_image_openable(moyu_file_path):
         time.sleep(2)
