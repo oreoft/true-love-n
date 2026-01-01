@@ -45,16 +45,16 @@ asr:
 alapi:
   token: "your_alapi_token"
 
-# Loki configuration (通过 Grafana Cloud 代理查询日志)
+# Loki configuration (直接访问 Grafana Cloud Loki)
 loki:
-  # Grafana Cloud 地址
-  grafana_url: "https://your-org.grafana.net"
-  # Grafana Service Account Token (需要 Viewer 权限)
-  # 获取方式: Grafana -> Administration -> Service accounts -> Add token
-  api_token: "glsa_xxxxx"
-  # Loki 数据源 UID (在 Grafana 数据源页面可以看到)
-  datasource_uid: "grafanacloud-logs"
-  # 要查询的服务列表
+  # Grafana Cloud Loki 地址 (在 Grafana Cloud -> Loki -> Details 中查看)
+  loki_url: "https://logs-prod-xxx.grafana.net"
+  # Grafana Cloud User ID (在 Grafana Cloud 账号设置中查看)
+  user_id: "123456"
+  # Grafana Cloud API Key (创建时选择 MetricsPublisher 或 logs:read 权限)
+  # 获取方式: Grafana Cloud -> Access Policies -> Create access policy -> Add token
+  api_key: "glc_xxxxx"
+  # 要查询的服务列表 (对应日志的 service_name label)
   services: ["ai", "base", "server"]
 
 # Auto notification settings (for scheduled notifications)

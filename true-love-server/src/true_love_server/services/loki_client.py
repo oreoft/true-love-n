@@ -2,7 +2,7 @@
 """
 Loki Client - Loki 日志查询客户端
 
-通过 Grafana Cloud API 代理查询 Loki 日志。
+直接访问 Grafana Cloud Loki API（使用 Basic Auth）。
 """
 
 import logging
@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Optional, List
 
 import requests
+from requests.auth import HTTPBasicAuth
 
 from ..core import Config
 
@@ -33,7 +34,7 @@ class LogEntry:
 
 
 class LokiClient:
-    """Loki 客户端 - 通过 Grafana API 代理访问"""
+    """Loki 客户端 - 直接访问 Grafana Cloud Loki"""
 
     _instance = None
 
@@ -50,20 +51,17 @@ class LokiClient:
         config = Config()
         loki_config = getattr(config, 'LOKI', {}) or {}
 
-        self.grafana_url = loki_config.get('grafana_url', '').rstrip('/')
-        self.api_token = loki_config.get('api_token', '')
-        self.datasource_uid = loki_config.get('datasource_uid', 'grafanacloud-logs')
+        self.loki_url = loki_config.get('loki_url', '').rstrip('/')
+        self.user_id = loki_config.get('user_id', '')
+        self.api_key = loki_config.get('api_key', '')
         self.services = loki_config.get('services', ['tl-ai', 'tl-base', 'tl-server'])
 
         self._initialized = True
-        LOG.info(f"LokiClient 初始化完成, grafana_url: {self.grafana_url}, datasource: {self.datasource_uid}")
+        LOG.info(f"LokiClient 初始化完成, loki_url: {self.loki_url}, user_id: {self.user_id}")
 
-    def _get_headers(self) -> dict:
-        """获取请求头"""
-        return {
-            'Authorization': f'Bearer {self.api_token}',
-            'Content-Type': 'application/json'
-        }
+    def _get_auth(self) -> HTTPBasicAuth:
+        """获取 Basic Auth 认证"""
+        return HTTPBasicAuth(self.user_id, self.api_key)
 
     def _build_query(self) -> str:
         """构建 LogQL 查询语句"""
@@ -126,7 +124,7 @@ class LokiClient:
                 "message": str
             }
         """
-        if not self.grafana_url or not self.api_token:
+        if not self.loki_url or not self.user_id or not self.api_key:
             return {
                 "success": False,
                 "logs": [],
@@ -137,8 +135,8 @@ class LokiClient:
 
         query = self._build_query()
 
-        # Grafana 数据源代理 API
-        url = f"{self.grafana_url}/api/datasources/proxy/uid/{self.datasource_uid}/loki/api/v1/query_range"
+        # 直接访问 Loki API
+        url = f"{self.loki_url}/loki/api/v1/query_range"
 
         params = {
             'query': query,
@@ -151,7 +149,7 @@ class LokiClient:
         try:
             start_time = time.time()
 
-            resp = requests.get(url, headers=self._get_headers(), params=params, timeout=(5, 30))
+            resp = requests.get(url, auth=self._get_auth(), params=params, timeout=(5, 30))
             resp.raise_for_status()
 
             data = resp.json()
