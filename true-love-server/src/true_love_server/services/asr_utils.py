@@ -194,3 +194,4 @@ def get_result(task_id, polling_interval=2):
             logging.exception("asr get_result error")
             return "语言识别失败, 让用户再试一次"
 
+

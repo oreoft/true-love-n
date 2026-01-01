@@ -38,8 +38,8 @@ services:
       # 监听配置（与 base 共享）
       - /mnt/c/Users/admin/Desktop/true-love-n/true-love-base/listen_chats.json:/app/listen_chats.json
       
-      # 数据库文件（持久化）
-      - /mnt/c/Users/admin/Desktop/true-love-n/true-love-server/mc_devices.db:/app/mc_devices.db
+      # 数据库目录（持久化所有 .db 文件）
+      - /mnt/c/Users/admin/Desktop/true-love-n/true-love-server/dbs:/app/dbs
       
       # 微信图片目录（与 base 共享）
       - /mnt/c/Users/admin/Desktop/true-love-n/true-love-base/wx_imgs:/app/wx_imgs

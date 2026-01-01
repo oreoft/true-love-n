@@ -8,15 +8,18 @@ Routes - 路由定义
 import logging
 import time
 
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends
+from sqlalchemy.orm import Session
 
 from .deps import get_msg_handler, verify_token
 from .exception_handlers import ApiResponse, ValidationException
 from ..core import Config
+from ..core.db_engine import get_db
 from ..models import ChatMsg
 from ..services import base_client
 from ..services.listen_manager import get_listen_manager
 from ..services.loki_client import get_loki_client
+from ..services.group_message_repository import GroupMessageRepository
 
 LOG = logging.getLogger("Routes")
 
@@ -95,6 +98,54 @@ async def get_chat(
     background_tasks.add_task(msg_handler.handle_msg_async, msg)
 
     return ApiResponse(data="")
+
+
+@router.post("/record-group-message")
+async def record_group_message(
+        request: dict,
+        db: Session = Depends(get_db),
+):
+    """
+    记录群消息接口（fire-and-forget）
+
+    接收 Base 端发送的未@我的群聊消息，存储到数据库。
+    此接口设计为静默失败，不影响调用方。
+
+    Request Body:
+        - token: 验证令牌
+        - message: ChatMessage 对象的字典形式
+    """
+    try:
+        LOG.debug("收到群消息记录请求, req: %s", request)
+
+        # 验证 token
+        verify_token(request.get('token', ''))
+
+        # 解析消息
+        message_dict = request.get('message', {})
+        if not message_dict:
+            LOG.warning("群消息记录请求缺少 message 字段")
+            return ApiResponse(data="ok")  # 返回成功，避免影响调用方
+
+        # 将字典转换为 ChatMsg 对象
+        msg = ChatMsg.from_dict({"message": message_dict})
+
+        # 保存到数据库
+        repository = GroupMessageRepository(db)
+        success = repository.save(msg)
+
+        if success:
+            LOG.debug(f"成功记录群消息: chat_id={msg.chat_id}, sender={msg.sender}")
+        else:
+            LOG.warning(f"记录群消息失败: chat_id={msg.chat_id}, sender={msg.sender}")
+
+        # 无论成功失败都返回成功，避免影响调用方
+        return ApiResponse(data="ok")
+
+    except Exception as e:
+        # 捕获所有异常，静默处理
+        LOG.error(f"记录群消息时发生异常: {e}", exc_info=True)
+        return ApiResponse(data="ok")  # 依然返回成功
 
 
 # ==================== Listen 监听管理接口 ====================

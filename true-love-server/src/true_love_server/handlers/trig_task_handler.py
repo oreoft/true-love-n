@@ -248,7 +248,9 @@ class TrigTaskHandler:
         if ":" in question:
             device_id = question.split(":")[1].strip()
 
-        conn = sqlite3.connect('mc_devices.db')
+        import os
+        db_path = os.path.join('dbs', 'mc_devices.db')
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         if device_id:
             cursor.execute('REPLACE INTO mc_devices (sender, device_id) VALUES (?, ?)', (sender, device_id))

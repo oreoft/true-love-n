@@ -9,7 +9,7 @@ Server Client - 与后端 AI 服务通信
 import logging
 import threading
 import time
-from typing import Optional
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 
@@ -23,11 +23,11 @@ LOG = logging.getLogger("ServerClient")
 # 服务端配置
 SERVER_HOST = "http://localhost:8088"
 CHAT_ENDPOINT = f"{SERVER_HOST}/get-chat"
-
+RECORD_GROUP_MESSAGE_ENDPOINT = f"{SERVER_HOST}/record-group-message"
 
 # ==================== HTTP Session 连接复用 ====================
 
-_session: Optional[requests.Session] = None
+_session = None
 _session_lock = threading.Lock()
 
 
@@ -56,7 +56,7 @@ class CircuitBreaker:
     当连续失败次数超过阈值时，熔断器打开，
     在重置超时后自动尝试恢复。
     """
-    
+
     def __init__(self, threshold: int = 3, reset_timeout: int = 60):
         """
         初始化熔断器
@@ -70,14 +70,14 @@ class CircuitBreaker:
         self._last_fail_time = 0.0
         self._threshold = threshold
         self._reset_timeout = reset_timeout
-    
+
     def record_failure(self) -> None:
         """记录一次失败"""
         with self._lock:
             self._fail_count += 1
             self._last_fail_time = time.time()
             LOG.warning(f"Circuit breaker: failure recorded, count={self._fail_count}")
-    
+
     def record_success(self) -> None:
         """记录一次成功，重置失败计数"""
         with self._lock:
@@ -85,7 +85,7 @@ class CircuitBreaker:
                 LOG.info("Circuit breaker: success recorded, resetting")
             self._fail_count = 0
             self._last_fail_time = 0.0
-    
+
     def is_open(self) -> bool:
         """
         检查熔断器是否打开
@@ -96,16 +96,16 @@ class CircuitBreaker:
         with self._lock:
             if self._fail_count < self._threshold:
                 return False
-            
+
             # 检查是否超过重置时间
             if time.time() - self._last_fail_time >= self._reset_timeout:
                 LOG.info("Circuit breaker: reset timeout reached, allowing retry")
                 self._fail_count = 0
                 self._last_fail_time = 0.0
                 return False
-            
+
             return True
-    
+
     @property
     def fail_count(self) -> int:
         """获取当前失败次数"""
@@ -115,6 +115,15 @@ class CircuitBreaker:
 
 # 全局熔断器实例
 _circuit_breaker = CircuitBreaker(threshold=3, reset_timeout=60)
+
+# ==================== 线程池（用于异步记录群消息）====================
+
+# 全局线程池实例，用于异步记录群消息
+_record_executor = ThreadPoolExecutor(
+    max_workers=3,
+    thread_name_prefix="GroupMsgRecord"
+)
+LOG.info("Thread pool created for group message recording")
 
 
 # ==================== API 函数 ====================
@@ -133,14 +142,14 @@ def get_chat(msg: ChatMessage) -> str:
     if _circuit_breaker.is_open():
         LOG.warning("Circuit breaker is open, request rejected")
         return _get_error_message()
-    
+
     try:
         # 构建请求
         request = ChatRequest(token=config.http_token, message=msg)
         payload = request.to_json()
-        
+
         LOG.info(f"Sending to server: {payload[:2000]}...")
-        
+
         # 使用 Session 发起请求（连接复用）
         session = _get_session()
         start_time = time.time()
@@ -149,34 +158,34 @@ def get_chat(msg: ChatMessage) -> str:
             data=payload,
             timeout=(2, 60),  # 连接超时2秒，读取超时60秒
         )
-        
+
         cost_ms = (time.time() - start_time) * 1000
         LOG.info(f"Server response received, cost: {cost_ms:.0f}ms")
-        
+
         # 检查 HTTP 状态
         response.raise_for_status()
-        
+
         # 解析响应
         resp_data = response.json()
         chat_response = ChatResponse.from_dict(resp_data)
-        
+
         if chat_response.is_success:
             _circuit_breaker.record_success()
             return chat_response.data or ""
         else:
             LOG.error(f"Server returned error: {resp_data}")
             return _get_error_message()
-            
+
     except requests.exceptions.Timeout:
         LOG.error("Request timeout")
         _circuit_breaker.record_failure()
         return _get_error_message()
-        
+
     except requests.exceptions.RequestException as e:
         LOG.error(f"Request failed: {e}")
         _circuit_breaker.record_failure()
         return _get_error_message()
-        
+
     except Exception as e:
         LOG.error(f"Unexpected error: {e}")
         _circuit_breaker.record_failure()
@@ -188,3 +197,44 @@ def _get_error_message() -> str:
     if _circuit_breaker.fail_count < 3:
         return "啊哦~，可能内容太长搬运超时，再试试捏"
     return "啊哦~, 服务正在重新调整，请稍后重试再试"
+
+
+# ==================== 群消息异步记录（fire-and-forget）====================
+
+def record_group_message_async(msg: ChatMessage) -> None:
+    """
+    异步记录群消息（fire-and-forget 模式）
+    
+    使用线程池发送请求，失败直接忽略，不影响主流程。
+    
+    Args:
+        msg: 群消息对象
+    """
+
+    def _record_in_background():
+        """后台线程执行记录"""
+        try:
+            # 构建请求
+            request = ChatRequest(token=config.http_token, message=msg)
+            payload = request.to_json()
+
+            LOG.debug(f"异步记录群消息: chat_id={msg.chat_id}, sender={msg.sender}")
+
+            # 使用 Session 发起请求（连接复用）
+            session = _get_session()
+            response = session.post(
+                RECORD_GROUP_MESSAGE_ENDPOINT,
+                data=payload,
+                timeout=(2, 5),  # 连接超时2秒，读取超时5秒
+            )
+
+            # 检查 HTTP 状态
+            response.raise_for_status()
+            LOG.info(f"群消息记录成功: chat_id={msg.chat_id}, sender={msg.sender}")
+
+        except Exception as e:
+            # 静默处理所有异常，只打印 DEBUG 日志
+            LOG.error(f"群消息记录失败（已忽略）: {e}")
+
+    # 使用线程池提交任务（fire-and-forget，不等待结果）
+    _record_executor.submit(_record_in_background)

@@ -53,7 +53,7 @@ COPY --from=builder /app/src /app/src
 COPY static/ /app/static/
 
 # 创建数据目录（用于挂载）
-RUN mkdir -p /app/moyu-jpg /app/zaobao-jpg /app/moyu-jpg
+RUN mkdir -p /app/moyu-jpg /app/zaobao-jpg /app/dbs
 
 # 设置 PATH 使用虚拟环境
 ENV PATH="/app/.venv/bin:$PATH"
@@ -67,4 +67,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # 启动命令
 CMD ["python", "-m", "true_love_server"]
+
 

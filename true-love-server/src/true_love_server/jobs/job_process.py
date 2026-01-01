@@ -323,3 +323,4 @@ def check_image_openable(image_path):
 
 if __name__ == '__main__':
     download_moyu_file();
+

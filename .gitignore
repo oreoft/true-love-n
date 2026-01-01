@@ -26,3 +26,4 @@ token.pickle
 /**/sd-img
 /**/wx_imgs
 /**/gen_video
+/**/*.db

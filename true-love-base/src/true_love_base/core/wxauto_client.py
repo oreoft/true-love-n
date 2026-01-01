@@ -16,6 +16,7 @@ from wxautox4.param import WxParam
 from true_love_base.models.message_converter import convert_message
 from true_love_base.models import ChatMessage
 from true_love_base.utils.path_resolver import get_wx_imgs_dir
+from true_love_base.services import server_client
 
 LOG = logging.getLogger("WxAutoClient")
 
@@ -233,15 +234,18 @@ class WxAutoClient():
                     res = self.wx.SendMsg("(｡･ω･｡)ﾉ♡", chat_name)
                     LOG.info("Replied to long message in group to push it up: %r", res)
 
-                if is_group and not is_at_me:
-                    LOG.info(
-                        f"ignored group message without @ from [{getattr(raw_msg, 'sender', '')}] and chat [{chat_name}]")
-                    return
-
                 # 转换消息
                 message = convert_message(raw_msg, chat_name, is_at_me)
                 LOG.info('Converted message: %r', message.to_dict())
                 LOG.info('---------------END-----------------')
+
+                # 异步记录群消息（不阻塞主流程）
+                server_client.record_group_message_async(message)
+
+                if is_group and not is_at_me:
+                    LOG.info(
+                        f"ignored group message without @ from [{getattr(raw_msg, 'sender', '')}] and chat [{chat_name}]")
+                    return
 
                 # 调用用户回调
                 callback(message, chat_name)
