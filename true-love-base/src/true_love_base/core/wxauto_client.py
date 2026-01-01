@@ -16,7 +16,6 @@ from wxautox4.param import WxParam
 from true_love_base.models.message_converter import convert_message
 from true_love_base.models import ChatMessage
 from true_love_base.utils.path_resolver import get_wx_imgs_dir
-from true_love_base.services import server_client
 
 LOG = logging.getLogger("WxAutoClient")
 
@@ -240,6 +239,7 @@ class WxAutoClient():
                 LOG.info('---------------END-----------------')
 
                 # 异步记录群消息（不阻塞主流程）
+                from true_love_base.services import server_client
                 server_client.record_group_message_async(message)
 
                 if is_group and not is_at_me:
