@@ -113,7 +113,7 @@ async def record_group_message(
 
     Request Body:
         - token: 验证令牌
-        - message: ChatMessage 对象的字典形式
+        - 其他字段: ChatMessage 的所有字段（平铺在顶层）
     """
     try:
         LOG.debug("收到群消息记录请求, req: %s", request)
@@ -121,14 +121,9 @@ async def record_group_message(
         # 验证 token
         verify_token(request.get('token', ''))
 
-        # 解析消息
-        message_dict = request.get('message', {})
-        if not message_dict:
-            LOG.warning("群消息记录请求缺少 message 字段")
-            return ApiResponse(data="ok")  # 返回成功，避免影响调用方
-
-        # 将字典转换为 ChatMsg 对象
-        msg = ChatMsg.from_dict({"message": message_dict})
+        # Base 端发送的数据格式是平铺的（所有字段在顶层）
+        # 直接传递 request 给 ChatMsg.from_dict
+        msg = ChatMsg.from_dict(request)
 
         # 保存到数据库
         repository = GroupMessageRepository(db)
