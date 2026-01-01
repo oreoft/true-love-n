@@ -281,11 +281,10 @@ def send_to_jina(link):
 
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, 'html.parser')
-        target_text = "今天你摸鱼了吗？"
         found_target = False
 
         for element in soup.descendants:
-            if isinstance(element, str) and target_text in element:
+            if isinstance(element, str):
                 found_target = True
                 continue
 
