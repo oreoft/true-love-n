@@ -9,7 +9,7 @@ import signal
 import uvicorn
 
 from true_love_ai.core.config import get_config
-from true_love_ai.base_client import send_text
+from true_love_ai.server_client import send_text
 from true_love_ai.llm.llm_bootstrap import init_litellm
 
 LOG = logging.getLogger(__name__)
