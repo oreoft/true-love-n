@@ -330,7 +330,8 @@ class TrigTaskHandler:
             # 处理响应
             if response.status_code == 200:
                 result = response.json()
-                if result.get("code") == 200 and result.get("data"):
+                # code == 0 表示业务成功，非 0 表示业务异常
+                if result.get("code") == 0 and result.get("data"):
                     codes = result["data"].get("codes", [])
                     if codes:
                         cdk_code = codes[0]
@@ -338,7 +339,10 @@ class TrigTaskHandler:
                     else:
                         return "呜呜~生成失败了，API 返回的 CDK 列表为空~"
                 else:
+                    # code 非 0 是业务异常
                     error_msg = result.get("message", "未知错误")
+                    error_code = result.get("code", "unknown")
+                    LOG.error("Muninn API 业务异常: code=%s, message=%s", error_code, error_msg)
                     return f"呜呜~生成失败了: {error_msg}"
             else:
                 LOG.error("Muninn API 调用失败: status=%d, response=%s", 
