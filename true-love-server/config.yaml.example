@@ -88,6 +88,13 @@ github:
 card:
   card_user: {}
 
+# Muninn integration (Muninn CDK 生成配置)
+# NOTE: allow_user now uses NICKNAMES instead of wxid!
+muninn:
+  allow_user: []  # 允许生成 CDK 的用户昵称列表
+  api_base_url: ""
+  admin_token: "your_muninn_admin_token"
+
 # Logging configuration
 logging:
   version: 1

@@ -51,3 +51,4 @@ class Config:
             self.AI_SERVICE: dict = yconfig.get("ai_service", {})
             self.ALAPI: dict = yconfig.get("alapi", {})
             self.LOKI: dict = yconfig.get("loki", {})
+            self.MUNINN: dict = yconfig.get("muninn", {})

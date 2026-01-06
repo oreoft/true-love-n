@@ -25,6 +25,9 @@ class TrigTaskHandler:
         self.allowUser = config.GITHUB.get("allow_user", [])
         self.token: str = config.GITHUB.get("token")
         self.card_user: dict = config.CARD.get("card_user", {})
+        self.muninn_allow_user = config.MUNINN.get("allow_user", [])
+        self.muninn_api_base_url = config.MUNINN.get("api_base_url", "")
+        self.muninn_admin_token = config.MUNINN.get("admin_token", "")
 
     def run(self, question: str, sender: str, room_id: str) -> str:
         if 'prod1' in question:
@@ -59,6 +62,8 @@ class TrigTaskHandler:
             return self.mc_cha_hao()
         if '抽签' in question:
             return self.chou_qian(room_id)
+        if '生成muninn' in question:
+            return self.generate_muninn_cdk(question, sender)
         return '诶嘿~没有找到这个执行任务呢，检查一下命令吧~'
 
     @staticmethod
@@ -265,3 +270,87 @@ class TrigTaskHandler:
                 return "诶嘿~首次使用需要带上设备id哦，格式: $执行发号:xxx，其中xxx是你的设备id~"
         conn.close()
         return device_id
+
+    def generate_muninn_cdk(self, question: str, sender: str) -> str:
+        """
+        生成 Muninn CDK
+        命令格式: $执行 生成muninn cdk-<level>-<days>
+        示例: $执行 生成muninn cdk-pro-30
+        """
+        # 权限检查
+        if sender not in self.muninn_allow_user:
+            return "该执行任务您没有执行权限哦"
+        
+        # 检查配置
+        if not self.muninn_api_base_url or not self.muninn_admin_token:
+            LOG.error("Muninn 配置不完整: api_base_url=%s, admin_token=%s", 
+                     self.muninn_api_base_url, bool(self.muninn_admin_token))
+            return "呜呜~Muninn 配置不完整，请联系管理员~"
+        
+        try:
+            # 解析参数: 从 "生成muninn cdk-pro-30" 提取
+            # 找到 "cdk-" 开始的部分
+            cdk_part = None
+            for part in question.split():
+                if part.startswith("cdk-"):
+                    cdk_part = part
+                    break
+            
+            if not cdk_part:
+                return "诶嘿~命令格式不对哦，正确格式: $执行 生成muninn cdk-<等级>-<天数>\n示例: $执行 生成muninn cdk-pro-30"
+            
+            # 移除 "cdk-" 前缀，然后按 "-" 分割
+            # cdk-pro-30 -> ["pro", "30"]
+            parts = cdk_part[4:].split("-")
+            
+            if len(parts) != 2:
+                return "诶嘿~命令格式不对哦，正确格式: $执行 生成muninn cdk-<等级>-<天数>\n示例: $执行 生成muninn cdk-pro-30"
+            
+            level = parts[0]
+            try:
+                duration_days = int(parts[1])
+            except ValueError:
+                return f"呜呜~天数必须是数字哦，您输入的是: {parts[1]}"
+            
+            # 调用 Muninn API
+            url = f"{self.muninn_api_base_url}/membership/admin/cdk/generate"
+            headers = {
+                "X-Admin-Token": self.muninn_admin_token,
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "level": level,
+                "duration_days": duration_days,
+                "count": 1
+            }
+            
+            LOG.info("正在调用 Muninn API 生成 CDK: level=%s, days=%d", level, duration_days)
+            response = requests.post(url, headers=headers, json=payload, timeout=10)
+            
+            # 处理响应
+            if response.status_code == 200:
+                result = response.json()
+                if result.get("code") == 200 and result.get("data"):
+                    codes = result["data"].get("codes", [])
+                    if codes:
+                        cdk_code = codes[0]
+                        return f"✅ Muninn CDK 生成成功！\n\n等级: {level}\n天数: {duration_days}天\nCDK: {cdk_code}\n\n请妥善保管 CDK 码~"
+                    else:
+                        return "呜呜~生成失败了，API 返回的 CDK 列表为空~"
+                else:
+                    error_msg = result.get("message", "未知错误")
+                    return f"呜呜~生成失败了: {error_msg}"
+            else:
+                LOG.error("Muninn API 调用失败: status=%d, response=%s", 
+                         response.status_code, response.text)
+                return f"呜呜~生成失败了，API 返回状态码: {response.status_code}"
+        
+        except requests.exceptions.Timeout:
+            LOG.error("Muninn API 调用超时")
+            return "呜呜~生成失败了，API 调用超时~"
+        except requests.exceptions.RequestException as e:
+            LOG.error("Muninn API 调用异常: %s", e)
+            return f"呜呜~生成失败了，网络错误: {str(e)}"
+        except Exception as e:
+            LOG.error("生成 Muninn CDK 时发生未知错误: %s", e)
+            return f"呜呜~生成失败了，发生未知错误: {str(e)}"
