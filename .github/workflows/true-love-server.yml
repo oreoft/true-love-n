@@ -83,7 +83,7 @@ jobs:
       - name: Deploy via SSH
         shell: bash
         run: |
-          ssh -o StrictHostKeyChecking=no -p "${{ env.SERVER_PORT }}" "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" "powershell.exe -Command \"[Environment]::SetEnvironmentVariable('DOCKER_CONFIG','C:\Users\admin\.docker-ci','Process'); New-Item -ItemType Directory -Force -Path C:\Users\admin\.docker-ci | Out-Null; Set-Content -Path C:\Users\admin\.docker-ci\config.json -Value '{}'; echo '${{ github.token }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin; [Environment]::SetEnvironmentVariable('SMB_PASSWORD','${{ env.SMB_PASSWORD }}','Process'); cd C:\Users\admin\Desktop\true-love-n\true-love-server; docker compose pull; docker compose up -d; docker image prune -f; docker logout ghcr.io; Remove-Item -Recurse -Force C:\Users\admin\.docker-ci\""
+          ssh -o StrictHostKeyChecking=no -p "${{ env.SERVER_PORT }}" "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" "powershell.exe -Command \"[Environment]::SetEnvironmentVariable('SMB_PASSWORD','${{ env.SMB_PASSWORD }}','Process'); cd C:\Users\admin\Desktop\true-love-n\true-love-server; docker compose pull; docker compose up -d; docker image prune -f\""
 
       - name: Notify - Success
         if: success()
