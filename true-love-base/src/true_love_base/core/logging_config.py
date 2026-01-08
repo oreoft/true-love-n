@@ -75,7 +75,11 @@ class LoggingConfig:
             log_level=logging.INFO,
             max_bytes=10 * 1024 * 1024,  # 10MB
             backup_count=20,
-            enable_async=True
+            enable_async=True,
+            enable_loki=True,
+            loki_url="https://logs-prod-xxx.grafana.net",
+            loki_user_id="123456",
+            loki_api_key="glc_xxxxx"
         )
     """
     
@@ -92,24 +96,33 @@ class LoggingConfig:
     def setup(
         cls,
         service_name: str,
-        logs_dir: str = r"\\wsl$\Ubuntu\var\log\true-love\logs",
+        logs_dir: str = "logs",  # 改为本地目录，不再使用 WSL 路径
         log_level: int = logging.INFO,
         max_bytes: int = 10 * 1024 * 1024,  # 10MB
         backup_count: int = 3,
         enable_async: bool = False,
         json_format: bool = True,
+        # Loki 推送配置
+        enable_loki: bool = False,
+        loki_url: str = "",
+        loki_user_id: str = "",
+        loki_api_key: str = "",
     ) -> None:
         """
         设置日志配置
         
         Args:
             service_name: 服务名称，用于标识日志来源（如 server, base, ai）
-            logs_dir: 日志目录，默认 "logs"
+            logs_dir: 日志目录，默认 "logs"（本地目录）
             log_level: 日志级别，默认 INFO
             max_bytes: 单个日志文件最大字节数，默认 10MB
-            backup_count: 保留的备份文件数量，默认 20
+            backup_count: 保留的备份文件数量，默认 3
             enable_async: 是否启用异步日志，默认 False
             json_format: 是否使用 JSON 格式输出，默认 True（适合 Loki）
+            enable_loki: 是否启用 Loki 直接推送，默认 False
+            loki_url: Loki API 地址（如 https://logs-prod-xxx.grafana.net）
+            loki_user_id: Grafana Cloud User ID
+            loki_api_key: Grafana Cloud API Key（需要 logs:write 权限）
         """
         if cls._initialized:
             return
@@ -135,7 +148,7 @@ class LoggingConfig:
         console_handler.setFormatter(formatter)
         handlers.append(console_handler)
         
-        # 2. 文件 Handler（单文件，包含所有级别）
+        # 2. 文件 Handler（本地备份，包含所有级别）
         log_file = Path(logs_dir) / "app.log"
         file_handler = logging.handlers.RotatingFileHandler(
             filename=str(log_file),
@@ -146,6 +159,28 @@ class LoggingConfig:
         file_handler.setLevel(log_level)
         file_handler.setFormatter(formatter)
         handlers.append(file_handler)
+        
+        # 3. Loki Handler（如果启用）
+        if enable_loki and loki_url and loki_user_id and loki_api_key:
+            try:
+                from logging_loki import LokiHandler
+                
+                loki_handler = LokiHandler(
+                    url=f"{loki_url.rstrip('/')}/loki/api/v1/push",
+                    tags={"service_name": service_name},
+                    auth=(loki_user_id, loki_api_key),
+                    version="1",  # 使用 Loki v1 API
+                )
+                loki_handler.setLevel(log_level)
+                handlers.append(loki_handler)
+                
+                # 先记录到控制台，因为 logger 还没初始化
+                print(f"[LoggingConfig] Loki Handler 已启用: {loki_url}")
+            except ImportError:
+                print("[LoggingConfig] 警告: 未安装 python-logging-loki，Loki 推送已禁用")
+                print("[LoggingConfig] 请运行: pip install python-logging-loki")
+            except Exception as e:
+                print(f"[LoggingConfig] 警告: 无法创建 LokiHandler: {e}")
         
         # 配置根日志
         root_logger = logging.getLogger()
@@ -166,7 +201,10 @@ class LoggingConfig:
         
         # 记录初始化完成
         logger = logging.getLogger("LoggingConfig")
-        logger.info(f"日志配置完成: service={service_name}, json={json_format}, async={enable_async}")
+        logger.info(
+            f"日志配置完成: service={service_name}, json={json_format}, "
+            f"async={enable_async}, loki={enable_loki}"
+        )
     
     @classmethod
     def _ensure_utf8_stdout(cls) -> None:

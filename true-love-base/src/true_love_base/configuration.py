@@ -16,9 +16,6 @@ import yaml
 from .core.logging_config import LoggingConfig
 from .utils.path_resolver import get_listen_chats_file
 
-# 初始化日志配置（在加载任何配置之前）
-LoggingConfig.setup("tl-base")
-
 
 class Config:
     """
@@ -41,6 +38,9 @@ class Config:
         
         self.config = self._load_config()
         
+        # 先初始化日志系统（使用配置文件中的 loki 配置）
+        self._setup_logging()
+        
         self.master_wix = self.config["master_wix"]
         self.http_token = self.config["http_token"]
         
@@ -53,6 +53,21 @@ class Config:
         LOG = logging.getLogger("Config")
         LOG.info(f"Config loaded: master_wix={self.master_wix}")
         LOG.info(f"Config loaded: listen_chats_file={self.listen_chats_file}")
+    
+    def _setup_logging(self) -> None:
+        """设置日志系统（从配置文件读取 Loki 配置）"""
+        loki_config = self.config.get("loki", {}) or {}
+        
+        LoggingConfig.setup(
+            service_name="tl-base",
+            logs_dir="logs",
+            log_level=logging.INFO,
+            json_format=True,
+            enable_loki=loki_config.get("enable", False),
+            loki_url=loki_config.get("loki_url", ""),
+            loki_user_id=loki_config.get("user_id", ""),
+            loki_api_key=loki_config.get("api_key", ""),
+        )
 
     @staticmethod
     def _load_config() -> dict:
