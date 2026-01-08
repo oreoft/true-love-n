@@ -80,13 +80,9 @@ services:
       retries: 3         # 失败重试次数
       start_period: 10s  # 启动等待时间
 
-# SMB 卷定义
+# SMB 卷定义（使用预先创建的外部卷）
+# 创建命令：docker volume create --driver local --opt type=cifs --opt device="//host.docker.internal/true-love-n" --opt "o=username=admin,password=YOUR_PASSWORD,uid=0,gid=0,file_mode=0777,dir_mode=0777,vers=3.0" true-love-server_true-love-smb
 volumes:
   true-love-smb:
-    driver: local
-    driver_opts:
-      type: cifs
-      # host.docker.internal 在 Docker Desktop 中指向宿主机
-      # 也可以用 Win11 的实际 IP 地址替换
-      device: "//host.docker.internal/true-love-n"
-      o: "username=admin,password=${SMB_PASSWORD:-},uid=0,gid=0,file_mode=0777,dir_mode=0777,vers=3.0"
+    external: true
+    name: true-love-server_true-love-smb
