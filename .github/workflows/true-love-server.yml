@@ -94,7 +94,7 @@ jobs:
           ssh -o StrictHostKeyChecking=no \
               -p "${{ env.SERVER_PORT }}" \
               "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" \
-              "powershell.exe -Command \"\$ErrorActionPreference='Stop'; echo '${{ github.token }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin; \$env:SMB_PASSWORD='${{ env.SMB_PASSWORD }}'; cd C:\Users\admin\Desktop\true-love-n\true-love-server; docker compose pull; docker compose up -d; docker image prune -f; docker logout ghcr.io; Write-Host 'Deploy completed!'\"" 
+              "powershell.exe -Command \"echo '${{ github.token }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin; \`$env:SMB_PASSWORD='${{ env.SMB_PASSWORD }}'; cd C:\Users\admin\Desktop\true-love-n\true-love-server; docker compose pull; docker compose up -d; docker image prune -f; docker logout ghcr.io; Write-Host 'Deploy completed!'\"" 
 
       - name: Notify - Success
         if: success()
