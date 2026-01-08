@@ -60,9 +60,7 @@ class Config:
         
         LoggingConfig.setup(
             service_name="tl-base",
-            logs_dir="logs",
             log_level=logging.INFO,
-            enable_async=True,
             json_format=True,
             enable_loki=loki_config.get("enable", False),
             loki_url=loki_config.get("loki_url", ""),

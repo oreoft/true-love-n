@@ -209,7 +209,7 @@ class LoggingConfig:
         cls._cleanup_logging()
         cls._initialized = False
         cls._handlers.clear()
-        
+
         # 清除根日志的所有 handlers
         root_logger = logging.getLogger()
         root_logger.handlers.clear()
