@@ -325,7 +325,7 @@ class TrigTaskHandler:
             }
             
             LOG.info("正在调用 Muninn API 生成 CDK: level=%s, days=%d", level, duration_days)
-            response = requests.post(url, headers=headers, json=payload, timeout=10)
+            response = requests.post(url, headers=headers, json=payload, timeout=30)
             
             # 处理响应
             if response.status_code == 200:
