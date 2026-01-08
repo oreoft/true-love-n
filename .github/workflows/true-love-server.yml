@@ -83,7 +83,7 @@ jobs:
       - name: Deploy via SSH
         shell: bash
         run: |
-          ssh -o StrictHostKeyChecking=no -p "${{ env.SERVER_PORT }}" "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" "powershell.exe -Command \"echo '${{ github.token }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin; \$env:SMB_PASSWORD='${{ env.SMB_PASSWORD }}'; cd C:\Users\admin\Desktop\true-love-n\true-love-server; docker compose pull; docker compose up -d; docker image prune -f; docker logout ghcr.io\""
+          ssh -o StrictHostKeyChecking=no -p "${{ env.SERVER_PORT }}" "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" "powershell.exe -Command \"echo '${{ github.token }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin; [Environment]::SetEnvironmentVariable('SMB_PASSWORD','${{ env.SMB_PASSWORD }}','Process'); cd C:\Users\admin\Desktop\true-love-n\true-love-server; docker compose pull; docker compose up -d; docker image prune -f; docker logout ghcr.io\""
 
       - name: Notify - Success
         if: success()
