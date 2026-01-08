@@ -79,13 +79,6 @@ services:
       timeout: 10s       # 超时时间
       retries: 3         # 失败重试次数
       start_period: 10s  # 启动等待时间
-    
-    # 日志配置（Docker 自动收集，上传到 Loki）
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"  # 单个日志文件最大 10MB
-        max-file: "3"    # 最多保留 3 个日志文件
 
 # SMB 卷定义
 volumes:
