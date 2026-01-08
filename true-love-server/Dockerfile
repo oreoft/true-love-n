@@ -53,7 +53,7 @@ COPY --from=builder /app/src /app/src
 COPY static/ /app/static/
 
 # 创建数据目录（用于挂载）
-RUN mkdir -p /app/moyu-jpg /app/zaobao-jpg /app/dbs
+RUN mkdir -p /app/moyu-jpg /app/zaobao-jpg /app/dbs /app/gen-img
 
 # 设置 PATH 使用虚拟环境
 ENV PATH="/app/.venv/bin:$PATH"

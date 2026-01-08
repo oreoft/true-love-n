@@ -49,7 +49,10 @@ services:
       
       # 早报图片目录（与 base 共享）
       - /mnt/c/Users/admin/Desktop/true-love-n/true-love-base/zaobao-jpg:/app/zaobao-jpg
-    
+
+      # 生成图片
+      - /mnt/c/Users/admin/Desktop/true-love-n/true-love-base/gen-img:/app/gen-img
+
     # 环境变量
     environment:
       - APP_ENV=prod
