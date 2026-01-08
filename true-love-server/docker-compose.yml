@@ -36,36 +36,32 @@ services:
 
     network_mode: "host"
 
-    # 卷挂载
-    # 通过 SMB 共享挂载 Win11 文件系统，避免 WSL2 文件系统性能问题
+    # 卷挂载 - 只挂载 SMB 卷，通过软链接访问文件
     volumes:
-      # SMB 根目录挂载
       - type: volume
         source: true-love-smb
         target: /mnt/true-love-n
         volume:
           nocopy: true
-      
-      # 配置文件（只读挂载）
-      - /mnt/true-love-n/true-love-server/config.yaml:/app/config.yaml:ro
-      
-      # 监听配置（与 base 共享）
-      - /mnt/true-love-n/true-love-base/listen_chats.json:/app/listen_chats.json
-      
-      # 数据库目录（持久化所有 .db 文件）
-      - /mnt/true-love-n/true-love-server/dbs:/app/dbs
-      
-      # 微信图片目录（与 base 共享）
-      - /mnt/true-love-n/true-love-base/wx_imgs:/app/wx_imgs
-      
-      # 摸鱼图片目录（与 base 共享）
-      - /mnt/true-love-n/true-love-base/moyu-jpg:/app/moyu-jpg
-      
-      # 早报图片目录（与 base 共享）
-      - /mnt/true-love-n/true-love-base/zaobao-jpg:/app/zaobao-jpg
 
-      # 生成图片
-      - /mnt/true-love-n/true-love-base/gen-img:/app/gen-img
+    # 启动前创建软链接，将 SMB 挂载点的文件链接到 /app 目录
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        # 等待 SMB 挂载就绪
+        sleep 2
+        # 删除可能存在的空目录/文件
+        rm -rf /app/config.yaml /app/listen_chats.json /app/dbs /app/wx_imgs /app/moyu-jpg /app/zaobao-jpg /app/gen-img 2>/dev/null || true
+        # 创建软链接
+        ln -sf /mnt/true-love-n/true-love-server/config.yaml /app/config.yaml
+        ln -sf /mnt/true-love-n/true-love-base/listen_chats.json /app/listen_chats.json
+        ln -sf /mnt/true-love-n/true-love-server/dbs /app/dbs
+        ln -sf /mnt/true-love-n/true-love-base/wx_imgs /app/wx_imgs
+        ln -sf /mnt/true-love-n/true-love-base/moyu-jpg /app/moyu-jpg
+        ln -sf /mnt/true-love-n/true-love-base/zaobao-jpg /app/zaobao-jpg
+        ln -sf /mnt/true-love-n/true-love-base/gen-img /app/gen-img
+        # 启动应用
+        exec python -m true_love_server
 
     # 环境变量
     environment:
