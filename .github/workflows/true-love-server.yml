@@ -18,6 +18,9 @@ env:
   SERVER_USER: admin
   SERVER_SSH_KEY: ${{ secrets.M8S_SSH_DOOR_KEY }}
   
+  # SMB 共享配置（Win11 用户密码）
+  SMB_PASSWORD: ${{ secrets.WIN11_USER_PASSWORD }}
+  
   # 通知配置
   NOTIFY_URL: ${{ secrets.TL_NOTIFY_PATH }}
   NOTIFY_TOKEN: ${{ secrets.TL_NOTIFY_TOKEN }}
@@ -66,7 +69,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy:
-    name: Deploy to WSL
+    name: Deploy to Win11
     runs-on: ubuntu-latest
     needs: build
     environment: production
@@ -83,23 +86,20 @@ jobs:
           set -euo pipefail
           echo "SSH env ready"
           
-          # 目标机是 Win11，SSH 进去默认是 PowerShell/CMD；应用在 WSL 里
-          ssh -o StrictHostKeyChecking=no -p "${{ env.SERVER_PORT }}" "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" "wsl.exe -u root -e bash -s" <<'EOS'
-          set -euo pipefail
-          
-          cd /mnt/c/Users/admin/Desktop/true-love-n/true-love-server
-          
-          # 拉取最新镜像
-          docker compose pull
-          
-          # 重启容器
-          docker compose up -d
-          
-          # 清理旧镜像
-          docker image prune -f
-          
-          echo "Deploy completed!"
-          EOS
+          # 直接在 Win11 PowerShell 中执行 Docker 命令
+          # 设置 SMB_PASSWORD 环境变量后执行 docker compose
+          ssh -o StrictHostKeyChecking=no \
+              -p "${{ env.SERVER_PORT }}" \
+              "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" \
+              "powershell.exe -Command \"
+                \$ErrorActionPreference='Stop';
+                \$env:SMB_PASSWORD='${{ env.SMB_PASSWORD }}';
+                cd C:\Users\admin\Desktop\true-love-n\true-love-server;
+                docker compose pull;
+                docker compose up -d;
+                docker image prune -f;
+                Write-Host 'Deploy completed!'
+              \"" 
 
       - name: Notify - Success
         if: success()

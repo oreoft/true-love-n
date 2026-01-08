@@ -1,11 +1,20 @@
 # ============================================
-# True Love Server - Docker Compose (WSL)
+# True Love Server - Docker Compose (Win11 + SMB)
 # ============================================
 #
-# 部署在 WSL 环境，资源文件与 true-love-base 共享
+# 部署在 Win11 Docker Desktop (WSL2)，通过 SMB 共享挂载文件
+#
+# 前置准备：
+#   1. 在 Win11 上启用文件共享：
+#      - 右键 C:\Users\admin\Desktop\true-love-n 文件夹
+#      - 选择"属性" -> "共享" -> "高级共享"
+#      - 勾选"共享此文件夹"，共享名设置为 "true-love-n"
+#      - 点击"权限"，确保用户 admin 有完全控制权限
+#   
+#   2. 确保 Windows 防火墙允许文件共享（SMB 端口 445）
 #
 # 使用方式：
-#   cd /mnt/c/Users/admin/Desktop/true-love-n/true-love-server
+#   cd C:\Users\admin\Desktop\true-love-n\true-love-server
 #   docker compose pull      # 拉取最新镜像
 #   docker compose up -d     # 启动/更新容器
 #   docker compose logs -f   # 查看日志
@@ -27,31 +36,36 @@ services:
 
     network_mode: "host"
 
-
     # 卷挂载
-    # 配置文件在 true-love-server 目录
-    # 资源文件与 true-love-base 共享
+    # 通过 SMB 共享挂载 Win11 文件系统，避免 WSL2 文件系统性能问题
     volumes:
+      # SMB 根目录挂载
+      - type: volume
+        source: true-love-smb
+        target: /mnt/true-love-n
+        volume:
+          nocopy: true
+      
       # 配置文件（只读挂载）
-      - /mnt/c/Users/admin/Desktop/true-love-n/true-love-server/config.yaml:/app/config.yaml:ro
+      - /mnt/true-love-n/true-love-server/config.yaml:/app/config.yaml:ro
       
       # 监听配置（与 base 共享）
-      - /mnt/c/Users/admin/Desktop/true-love-n/true-love-base/listen_chats.json:/app/listen_chats.json
+      - /mnt/true-love-n/true-love-base/listen_chats.json:/app/listen_chats.json
       
       # 数据库目录（持久化所有 .db 文件）
-      - /mnt/c/Users/admin/Desktop/true-love-n/true-love-server/dbs:/app/dbs
+      - /mnt/true-love-n/true-love-server/dbs:/app/dbs
       
       # 微信图片目录（与 base 共享）
-      - /mnt/c/Users/admin/Desktop/true-love-n/true-love-base/wx_imgs:/app/wx_imgs
+      - /mnt/true-love-n/true-love-base/wx_imgs:/app/wx_imgs
       
       # 摸鱼图片目录（与 base 共享）
-      - /mnt/c/Users/admin/Desktop/true-love-n/true-love-base/moyu-jpg:/app/moyu-jpg
+      - /mnt/true-love-n/true-love-base/moyu-jpg:/app/moyu-jpg
       
       # 早报图片目录（与 base 共享）
-      - /mnt/c/Users/admin/Desktop/true-love-n/true-love-base/zaobao-jpg:/app/zaobao-jpg
+      - /mnt/true-love-n/true-love-base/zaobao-jpg:/app/zaobao-jpg
 
       # 生成图片
-      - /mnt/c/Users/admin/Desktop/true-love-n/true-love-base/gen-img:/app/gen-img
+      - /mnt/true-love-n/true-love-base/gen-img:/app/gen-img
 
     # 环境变量
     environment:
@@ -73,3 +87,13 @@ services:
         max-size: "10m"  # 单个日志文件最大 10MB
         max-file: "3"    # 最多保留 3 个日志文件
 
+# SMB 卷定义
+volumes:
+  true-love-smb:
+    driver: local
+    driver_opts:
+      type: cifs
+      # host.docker.internal 在 Docker Desktop 中指向宿主机
+      # 也可以用 Win11 的实际 IP 地址替换
+      device: "//host.docker.internal/true-love-n"
+      o: "username=admin,password=${SMB_PASSWORD:-},uid=0,gid=0,file_mode=0777,dir_mode=0777,vers=3.0"
