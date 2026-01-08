@@ -83,7 +83,7 @@ jobs:
       - name: Deploy via SSH
         shell: bash
         run: |
-          set -euo pipefail
+          set -eo pipefail
           echo "SSH env ready"
           
           # 直接在 Win11 PowerShell 中执行 Docker 命令
