@@ -17,7 +17,8 @@ from ..core import local_msg_id
 LOG = logging.getLogger("ImageService")
 
 # 图像生成支持的 provider
-IMAGE_PROVIDERS = ["openai", "gemini"]
+IMAGE_PROVIDERS = ["gemini"]
+# IMAGE_PROVIDERS = ["openai", "gemini"]
 # IMAGE_PROVIDERS = ["openai", "stability", "gemini"]
 
 # 线程池
