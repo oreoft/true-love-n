@@ -54,7 +54,6 @@ services:
     command: >
       /bin/sh -c "
       sleep 2 &&
-      rm -rf /app/config.yaml /app/listen_chats.json /app/dbs /app/wx_imgs /app/moyu-jpg /app/zaobao-jpg /app/gen-img 2>/dev/null;
       ln -sf /mnt/true-love-n/true-love-server/config.yaml /app/config.yaml &&
       ln -sf /mnt/true-love-n/true-love-base/listen_chats.json /app/listen_chats.json &&
       ln -sf /mnt/true-love-n/true-love-server/dbs /app/dbs &&
