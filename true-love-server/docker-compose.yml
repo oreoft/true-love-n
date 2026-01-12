@@ -42,13 +42,16 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-    # 卷挂载 - 只挂载 SMB 卷，通过软链接访问文件
+    # 卷挂载
     volumes:
+      # SMB 卷 - 配置文件和图片
       - type: volume
         source: true-love-smb
         target: /mnt/true-love-n
         volume:
           nocopy: true
+      # 本地卷 - SQLite 数据库（不能放在 SMB 上）
+      - tl-server-dbs:/app/dbs
 
     # 启动前创建软链接，将 SMB 挂载点的文件链接到 /app 目录
     command: >
@@ -56,7 +59,6 @@ services:
       sleep 2 &&
       ln -sf /mnt/true-love-n/true-love-server/config.yaml /app/config.yaml &&
       ln -sf /mnt/true-love-n/true-love-base/listen_chats.json /app/listen_chats.json &&
-      ln -sf /mnt/true-love-n/true-love-server/dbs /app/dbs &&
       ln -sf /mnt/true-love-n/true-love-base/wx_imgs /app/wx_imgs &&
       ln -sf /mnt/true-love-n/true-love-base/moyu-jpg /app/moyu-jpg &&
       ln -sf /mnt/true-love-n/true-love-base/zaobao-jpg /app/zaobao-jpg &&
@@ -77,9 +79,12 @@ services:
       retries: 3         # 失败重试次数
       start_period: 10s  # 启动等待时间
 
-# SMB 卷定义（使用预先创建的外部卷）
-# 创建命令：docker volume create --driver local --opt type=cifs --opt device="//host.docker.internal/true-love-n" --opt "o=username=admin,password=YOUR_PASSWORD,uid=0,gid=0,file_mode=0777,dir_mode=0777,vers=3.0" true-love-server_true-love-smb
+# 卷定义
 volumes:
+  # SMB 卷（使用预先创建的外部卷）
+  # 创建命令：docker volume create --driver local --opt type=cifs --opt device="//host.docker.internal/true-love-n" --opt "o=username=admin,password=YOUR_PASSWORD,uid=0,gid=0,file_mode=0777,dir_mode=0777,vers=3.0" true-love-server_true-love-smb
   true-love-smb:
     external: true
     name: true-love-server_true-love-smb
+  # 本地卷 - SQLite 数据库存储（Docker 管理，不受 SMB 限制）
+  tl-server-dbs:
