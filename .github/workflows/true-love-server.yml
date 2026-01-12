@@ -80,7 +80,7 @@ jobs:
       - name: Deploy via SSH
         shell: bash
         run: |
-          ssh -o StrictHostKeyChecking=no -p "${{ env.SERVER_PORT }}" "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" "powershell.exe -Command \"cd C:\Users\admin\Desktop\true-love-n\true-love-server; docker compose pull; docker compose up -d; docker image prune -f\""
+          ssh -o StrictHostKeyChecking=no -p "${{ env.SERVER_PORT }}" "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" "powershell.exe -Command \"cd C:\Users\admin\Desktop\true-love-n\true-love-server; git pull; docker compose pull; docker compose up -d; docker image prune -f\""
 
       - name: Notify - Success
         if: success()
