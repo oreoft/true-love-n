@@ -63,13 +63,13 @@ class GroupMessageRepository:
             self.session.add(group_msg)
             self.session.commit()
             
-            LOG.debug(f"Successfully saved group message: msg_hash={chat_message.msg_hash}")
+            LOG.info(f"Successfully saved group message: msg_hash={chat_message.msg_hash}")
             return True
             
         except IntegrityError:
             # 唯一索引冲突（重复消息），回滚并忽略
             self.session.rollback()
-            LOG.debug(f"Duplicate message ignored: msg_hash={chat_message.msg_hash}")
+            LOG.warning(f"Duplicate message ignored: msg_hash={chat_message.msg_hash}")
             return True  # 重复消息也算成功
             
         except Exception as e:
