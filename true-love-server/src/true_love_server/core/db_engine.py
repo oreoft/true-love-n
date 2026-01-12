@@ -66,22 +66,33 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def init_db():
-    """初始化数据库，创建所有表"""
-    try:
-        Base.metadata.create_all(bind=engine)
-        
-        # 启用 WAL 模式，大幅改善并发写入性能
-        # WAL 模式允许读写同时进行，减少 "database is locked" 错误
-        with engine.connect() as conn:
-            conn.execute(text("PRAGMA journal_mode=WAL"))
-            conn.execute(text("PRAGMA busy_timeout=30000"))  # 30秒超时
-            conn.execute(text("PRAGMA synchronous=NORMAL"))  # 平衡性能和安全
-            conn.commit()
-        
-        LOG.info("Database initialized successfully with WAL mode: %s", DATABASE_URL)
-    except Exception as e:
-        LOG.error("Failed to initialize database: %s", e)
-        raise
+    """初始化数据库，创建所有表（带重试）"""
+    import time
+    max_retries = 5
+    retry_delay = 2  # 秒
+    
+    for attempt in range(max_retries):
+        try:
+            Base.metadata.create_all(bind=engine)
+            
+            # 启用 WAL 模式，大幅改善并发写入性能
+            # WAL 模式允许读写同时进行，减少 "database is locked" 错误
+            with engine.connect() as conn:
+                conn.execute(text("PRAGMA journal_mode=WAL"))
+                conn.execute(text("PRAGMA busy_timeout=30000"))  # 30秒超时
+                conn.execute(text("PRAGMA synchronous=NORMAL"))  # 平衡性能和安全
+                conn.commit()
+            
+            LOG.info("Database initialized successfully with WAL mode: %s", DATABASE_URL)
+            return  # 成功，退出
+            
+        except Exception as e:
+            if "database is locked" in str(e) and attempt < max_retries - 1:
+                LOG.warning(f"Database locked during init, retrying ({attempt + 1}/{max_retries})...")
+                time.sleep(retry_delay)
+                continue
+            LOG.error("Failed to initialize database: %s", e)
+            raise
 
 
 def get_db() -> Generator[Session, None, None]:
