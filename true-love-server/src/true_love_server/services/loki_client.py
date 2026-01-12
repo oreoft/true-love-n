@@ -149,7 +149,7 @@ class LokiClient:
         try:
             start_time = time.time()
 
-            resp = requests.get(url, auth=self._get_auth(), params=params, timeout=(5, 30))
+            resp = requests.get(url, auth=self._get_auth(), params=params, timeout=(10, 120))
             resp.raise_for_status()
 
             data = resp.json()
