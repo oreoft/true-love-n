@@ -141,17 +141,13 @@ class TrigSearchHandler:
                     if len(cells) > 0 and currency in cells[0].text:
                         currency_name = cells[0].text.strip()
                         cash_buy = cells[1].text.strip()
-                        note_buy = cells[2].text.strip()
                         cash_sell = cells[3].text.strip()
-                        note_sell = cells[4].text.strip()
                         boc_rate = cells[5].text.strip()
                         date = cells[6].text.strip()
                         result = (
                             f"货币名称: {"中银" + currency_name},\n"
                             f"现汇买入价: {cash_buy},\n"
-                            f"现钞买入价: {note_buy},\n"
                             f"现汇卖出价: {cash_sell},\n"
-                            f"现钞卖出价: {note_sell},\n"
                             f"中银折算价: {boc_rate},\n"
                             f"发布日期: {date}"
                         )
