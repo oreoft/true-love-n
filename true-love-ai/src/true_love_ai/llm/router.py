@@ -35,7 +35,7 @@ class LLMRouter:
             }
             return "openai/" + provider.lower() + "/" + provider_map.get(provider.lower(), self.config.default_model)
 
-        return self.config.default_model if self.config else "gpt-4o"
+        return "openai/" + self.config.default_model if self.config else "gpt-4o"
 
     async def chat(
             self,
