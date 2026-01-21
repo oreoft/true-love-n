@@ -229,9 +229,10 @@ class WxAutoClient():
                 is_at_me = is_group and (trigger_word in content or 'zaf' in content.lower())
                 # 判断content是否超过 15行
                 if is_group and content.count('\n') > 15:
+                    pass
                     # 随便回复点二次元内容，把消息顶上去
                     # res = self.wx.SendMsg("(｡･ω･｡)ﾉ♡", chat_name)
-                    LOG.info("Replied to long message in group to push it up: %r", res)
+                    # LOG.info("Replied to long message in group to push it up: %r", res)
 
                 # 转换消息
                 message = convert_message(raw_msg, chat_name, is_at_me)
