@@ -96,11 +96,7 @@ class IntentRouter:
             
         except Exception as e:
             LOG.exception(f"意图识别失败: {e}")
-            # 降级为普通 chat，返回空答案让后续流程处理
-            return ChatIntent(
-                type=IntentType.CHAT,
-                answer=""
-            )
+            raise
     
     async def route_image(
         self,
