@@ -37,7 +37,7 @@ class LLMConfig(BaseSettings):
     gemini_key1: str = ""
 
     # 模型配置
-    default_model: str = "gpt-5.2"  # 默认聊天模型
+    default_model: str = "openai/gpt-5.2"  # 默认聊天模型
     # 图像多态配置
     vision_model: str = "gpt-5.2"  # 图像分析模型
 
