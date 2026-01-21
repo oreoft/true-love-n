@@ -33,7 +33,7 @@ class LLMRouter:
                 "deepseek": self.config.deepseek_model,
                 "gemini": self.config.gemini_model,
             }
-            return provider_map.get(provider.lower(), self.config.default_model)
+            return "openai/" + provider.lower() + "/" + provider_map.get(provider.lower(), self.config.default_model)
 
         return self.config.default_model if self.config else "gpt-4o"
 
