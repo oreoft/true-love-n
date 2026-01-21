@@ -172,7 +172,8 @@ def send_text():
                 expanded_lines.append(ln[i:i + 130])
     success = True
 
-    if len(expanded_lines) <= 18:
+    # 之前需要分批，现在bug 修复了， 但是代码逻辑保留
+    if True or len(expanded_lines) <= 18:
         success = robot.send_text_msg(content, receiver, at_receiver if at_receiver else None)
     else:
         for i in range(0, len(lines), 15):
