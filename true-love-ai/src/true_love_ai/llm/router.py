@@ -24,7 +24,7 @@ class LLMRouter:
     def _resolve_model(self, provider: Optional[str] = None, model: Optional[str] = None) -> str:
         """解析模型名称：优先用指定 model，其次按 provider 选择，最后用默认"""
         if model:
-            return model
+            return "openai/" + model
 
         if provider and self.config:
             provider_map = {
