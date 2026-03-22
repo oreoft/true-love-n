@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 
 from true_love_ai.api.deps import verify_token, get_chat_service, get_image_service, get_video_service
-from true_love_ai.models.request import ChatRequest, ImageRequest, ImageTypeRequest, AnalyzeRequest, VideoRequest
+from true_love_ai.models.request import ChatRequest, ImageRequest, ImageTypeRequest, AnalyzeRequest, VideoRequest, AnalyzeSpeechRequest
 from true_love_ai.models.response import APIResponse
 from true_love_ai.services.chat_service import ChatService
 from true_love_ai.services.image_service import ImageService
@@ -51,6 +51,30 @@ async def get_llm(
         return APIResponse.success(result.model_dump(exclude_none=True))
     except Exception as e:
         LOG.exception(f"llm处理失败: {e}")
+        return APIResponse.internal_error(str(e))
+
+
+@router.post("/get-analyze-speech")
+async def get_analyze_speech(
+        request: AnalyzeSpeechRequest,
+        service: ChatService = Depends(get_chat_service)
+) -> APIResponse:
+    """提供历史记录并由 LLM 生成发言分析"""
+    LOG.info(f"get-analyze-speech请求, target: {request.target}")
+
+    if not verify_token(request.token):
+        return APIResponse.token_error()
+
+    try:
+        result = await service.analyze_speech(
+            target=request.target,
+            history_text=request.history_text,
+            provider=request.provider,
+            model=request.model
+        )
+        return APIResponse.success(result.model_dump(exclude_none=True))
+    except Exception as e:
+        LOG.exception(f"get-analyze-speech处理失败: {e}")
         return APIResponse.internal_error(str(e))
 
 

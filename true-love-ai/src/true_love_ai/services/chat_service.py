@@ -112,50 +112,13 @@ class ChatService:
             response_type = "gen-video"
 
         elif intent_result.type == IntentType.ANALYZE_SPEECH:
-            from true_love_ai.server_client import fetch_user_history, send_text_async
-            from true_love_ai.llm.analyze_speech_prompt import get_analyze_system_prompt
-            import asyncio
-            import random
-            
-            # 随机挑选一句等待语
-            wait_msgs = [
-                "正在戴上老花镜，翻阅你在群里所有的发言，请稍等哈...",
-                "收到！正在在群里扒你的黑历史，稍微等我一下哦~",
-                "正在分析你的海量发言记录，给我一点时间酝酿一下...",
-                "好滴，我正在连夜读你的群聊消息，等我出个报告！"
-            ]
-            wait_msg = random.choice(wait_msgs)
-            
-            # 发送中间等待消息（不阻塞主流程）
-            asyncio.create_task(send_text_async(session_id, sender, wait_msg))
-            
-            # 先去查询该用户的历史发言
-            history = fetch_user_history(session_id, sender, limit=100)
-            
-            if not history:
-                answer = "我没能获取到你在群里以前的发言记录哦，所以我没有足够的信息分析呢~"
-            else:
-                # 拼接用户的过往发言作为分析材料
-                speech_history_text = "\n".join([f"[{item['created_at']}] {item['content']}" for item in history])
-                analyze_target = intent_result.answer or "请分析该用户的发言特点、性格或意图"
-                
-                analyze_system_prompt = get_analyze_system_prompt(analyze_target, speech_history_text)
-                
-                analyze_messages = [
-                    {"role": "system", "content": analyze_system_prompt},
-                    {"role": "user", "content": clean_content}
-                ]
-                
-                LOG.info(f"开始请求分析发言, 条数={len(history)}")
-                answer = await self.llm_router.chat(
-                    messages=analyze_messages,
-                    provider=provider,
-                    model=model
-                )
-            
+            # 仅仅识别出意图并把目标传回给 Server，不再主动去查库
+            analyze_target = intent_result.answer or "请分析该用户的发言特点、性格或意图"
+            answer = analyze_target
+            response_type = "analyze-speech"
+            # 存入到历史
             session.add_message("user", clean_content)
-            session.add_message("assistant", answer)
-            response_type = "chat"
+            session.add_message("assistant", f"[已转交发言分析请求] {analyze_target}")
 
         else:
             answer = intent_result.answer or "呜呜，我不太明白你的意思呢~"
@@ -262,3 +225,32 @@ class ChatService:
         )
 
         return answer
+
+    async def analyze_speech(
+            self,
+            target: str,
+            history_text: str,
+            provider: Optional[str] = None,
+            model: Optional[str] = None
+    ) -> ChatResponse:
+        """根据提供的历史记录生成发言分析报告"""
+        start_time = time.time()
+        LOG.info(f"开始生成发言分析报告, 目标: {target}, 历史记录长度: {len(history_text)}")
+        
+        from true_love_ai.llm.analyze_speech_prompt import get_analyze_system_prompt
+        analyze_system_prompt = get_analyze_system_prompt(target, history_text)
+                
+        analyze_messages = [
+            {"role": "system", "content": analyze_system_prompt},
+            {"role": "user", "content": target}
+        ]
+        
+        answer = await self.llm_router.chat(
+            messages=analyze_messages,
+            provider=provider,
+            model=model
+        )
+        
+        cost = round(time.time() - start_time, 2)
+        LOG.info(f"发言分析耗时: {cost}s")
+        return ChatResponse(type="chat", answer=answer)

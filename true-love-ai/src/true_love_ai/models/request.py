@@ -66,3 +66,13 @@ class VideoRequest(BaseModel):
     # 可选：指定模型提供商和模型
     provider: Optional[str] = Field(default=None, description="视频提供商: openai/gemini")
     model: Optional[str] = Field(default=None, description="指定模型名称")
+
+
+class AnalyzeSpeechRequest(BaseModel):
+    """带历史记录的发言分析请求"""
+    token: str = Field(..., description="鉴权 Token")
+    target: str = Field(..., description="分析目标")
+    history_text: str = Field(..., description="拼装好的历史发言记录文本")
+    
+    provider: Optional[str] = Field(default=None, description="模型提供商")
+    model: Optional[str] = Field(default=None, description="模型名称")

@@ -83,6 +83,13 @@ class ChatService:
                 sender
             )
             return
+            
+        if 'type' in result and result['type'] == 'analyze-speech':
+            # 异步处理以免阻塞消息循环
+            from concurrent.futures import ThreadPoolExecutor
+            _executor = ThreadPoolExecutor(max_workers=5)
+            _executor.submit(self._handle_analyze_speech, result['answer'], wxid, sender)
+            return
         
         # 普通聊天回复
         rsp = result.get('answer', '')
@@ -110,3 +117,49 @@ class ChatService:
         
         LOG.info("get_answer_type 回答时间为：%ss, result: %s", response.io_cost, result)
         return result
+
+    def _handle_analyze_speech(self, target: str, wxid: str, sender: str) -> None:
+        """
+        在 Server 端处理发言分析请求
+        包含：发安抚语 -> 查 DB -> 请求 AI 端汇总分析 -> 发送结果回群
+        """
+        at_user = sender if wxid != sender else ""
+        
+        # 1. 发送安抚语
+        wait_msgs = [
+            "正在戴上老花镜，翻阅你在群里所有的发言，请稍等哈...",
+            "收到！正在在群里扒你的黑历史，稍微等我一下哦~",
+            "正在检索你最近的发言数据，看我稍后怎么评价你...",
+            "好滴，我正在连夜查数据库记录，等我出个报告！"
+        ]
+        base_client.send_text(wxid, at_user, random.choice(wait_msgs))
+        
+        # 2. 查询数据库
+        from ..core.db_engine import SessionLocal
+        from ..services.group_message_repository import GroupMessageRepository
+        
+        history = []
+        try:
+            with SessionLocal() as db:
+                repo = GroupMessageRepository(db)
+                history = repo.get_recent_messages(chat_id=wxid, sender=sender, limit=100)
+        except Exception as e:
+            LOG.error(f"查询发言历史报错: {e}")
+            
+        if not history:
+            base_client.send_text(wxid, at_user, "我没能获取到你在群里以前的发言记录哦，所以我没有足够的信息来分析捏~")
+            return
+            
+        # 3. 组装并发送给 AI 端
+        speech_history_text = "\n".join([f"[{item['created_at']}] {item['content']}" for item in history])
+        LOG.info(f"查到 {len(history)} 条记录，开始跨 RPC 请求 AI...")
+        
+        response = self.ai_client.analyze_speech(target, speech_history_text)
+        
+        # 4. 接收报告并发送
+        if not response.success:
+            base_client.send_text(wxid, at_user, response.error_msg)
+            return
+            
+        final_answer = response.data.get('answer', '啊哦，分析结果没拿到~') if isinstance(response.data, dict) else response.data
+        base_client.send_text(wxid, at_user, final_answer)

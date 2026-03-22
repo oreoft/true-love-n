@@ -255,6 +255,32 @@ class AIClient:
             friendly_error="呜呜~分析服务好像出问题了捏，稍后再试试吧~"
         )
     
+    def analyze_speech(
+        self,
+        target: str,
+        history_text: str
+    ) -> AIResponse:
+        """
+        根据提供的历史记录生成发言分析报告
+        
+        Args:
+            target: 分析目标
+            history_text: 拼装好的历史发言文本
+            
+        Returns:
+            AIResponse: 分析结果
+        """
+        data = {
+            "target": target,
+            "history_text": history_text
+        }
+        return self._request(
+            "/get-analyze-speech",
+            data,
+            timeout=180,
+            friendly_error="呜呜~分析发言服务好像出问题了捏，稍后再试试吧~"
+        )
+    
     def gen_video(
         self,
         question: str,
