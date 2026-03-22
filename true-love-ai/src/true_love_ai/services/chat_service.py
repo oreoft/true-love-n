@@ -112,23 +112,34 @@ class ChatService:
             response_type = "gen-video"
 
         elif intent_result.type == IntentType.ANALYZE_SPEECH:
-            from true_love_ai.server_client import fetch_user_history
+            from true_love_ai.server_client import fetch_user_history, send_text_async
+            from true_love_ai.llm.analyze_speech_prompt import get_analyze_system_prompt
+            import asyncio
+            import random
+            
+            # 随机挑选一句等待语
+            wait_msgs = [
+                "正在戴上老花镜，翻阅你在群里所有的发言，请稍等哈...",
+                "收到！正在在群里扒你的黑历史，稍微等我一下哦~",
+                "正在分析你的海量发言记录，给我一点时间酝酿一下...",
+                "好滴，我正在连夜读你的群聊消息，等我出个报告！"
+            ]
+            wait_msg = random.choice(wait_msgs)
+            
+            # 发送中间等待消息（不阻塞主流程）
+            asyncio.create_task(send_text_async(session_id, sender, wait_msg))
+            
             # 先去查询该用户的历史发言
             history = fetch_user_history(session_id, sender, limit=100)
             
             if not history:
-                answer = "我还没能获取到你在群里以前的发言记录哦，所以我拿不到足够的信息呢~"
+                answer = "我没能获取到你在群里以前的发言记录哦，所以我没有足够的信息分析呢~"
             else:
                 # 拼接用户的过往发言作为分析材料
                 speech_history_text = "\n".join([f"[{item['created_at']}] {item['content']}" for item in history])
                 analyze_target = intent_result.answer or "请分析该用户的发言特点、性格或意图"
                 
-                analyze_system_prompt = (
-                    "你是一个专业的分析师和语言学家。现在用户要求你根据他过去在群内的发言记录进行分析/模仿：\n"
-                    f"用户的需求是：{analyze_target}\n\n"
-                    f"以下是该用户最近的发言历史记录（按时间倒序排列）：\n{speech_history_text}\n\n"
-                    "请你综合上述信息，基于聊天历史给出一份详细生动、符合群聊氛围的回答来分析和评价一下这位群家人。"
-                )
+                analyze_system_prompt = get_analyze_system_prompt(analyze_target, speech_history_text)
                 
                 analyze_messages = [
                     {"role": "system", "content": analyze_system_prompt},
