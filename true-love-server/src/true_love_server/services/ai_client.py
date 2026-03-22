@@ -258,7 +258,8 @@ class AIClient:
     def analyze_speech(
         self,
         target: str,
-        history_text: str
+        history_text: str,
+        wxid: str
     ) -> AIResponse:
         """
         根据提供的历史记录生成发言分析报告
@@ -266,13 +267,15 @@ class AIClient:
         Args:
             target: 分析目标
             history_text: 拼装好的历史发言文本
+            wxid: 会话 ID, 用于保存分析上下文
             
         Returns:
             AIResponse: 分析结果
         """
         data = {
             "target": target,
-            "history_text": history_text
+            "history_text": history_text,
+            "wxid": wxid
         }
         return self._request(
             "/get-analyze-speech",

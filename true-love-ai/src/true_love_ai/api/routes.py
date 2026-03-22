@@ -69,6 +69,7 @@ async def get_analyze_speech(
         result = await service.analyze_speech(
             target=request.target,
             history_text=request.history_text,
+            session_id=request.wxid,
             provider=request.provider,
             model=request.model
         )

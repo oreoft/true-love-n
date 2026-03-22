@@ -170,7 +170,7 @@ class ChatService:
         LOG.info(f"查到 [{display_name}] 的 {len(history)} 条记录，开始跨 RPC 请求 AI...")
         
         prompt_target = f"分析群成员 {display_name} 的发言特点、性格或意图" if not is_self else "分析这位用户的发言特点、性格或意图"
-        response = self.ai_client.analyze_speech(prompt_target, speech_history_text)
+        response = self.ai_client.analyze_speech(prompt_target, speech_history_text, wxid)
         
         # 4. 接收报告并发送
         if not response.success:

@@ -73,6 +73,7 @@ class AnalyzeSpeechRequest(BaseModel):
     token: str = Field(..., description="鉴权 Token")
     target: str = Field(..., description="分析目标")
     history_text: str = Field(..., description="拼装好的历史发言记录文本")
+    wxid: str = Field(default="", description="会话 ID")
     
     provider: Optional[str] = Field(default=None, description="模型提供商")
     model: Optional[str] = Field(default=None, description="模型名称")

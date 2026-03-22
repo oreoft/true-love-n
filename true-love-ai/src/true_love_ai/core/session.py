@@ -21,8 +21,8 @@ class Session:
         self,
         session_id: str,
         system_prompt: str,
-        max_history: int = 50,
-        ttl_seconds: int = 86400
+        max_history: int = 100,
+        ttl_seconds: int = 864000
     ):
         self.session_id = session_id
         self.system_prompt = system_prompt

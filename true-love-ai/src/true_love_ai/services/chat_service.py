@@ -230,6 +230,7 @@ class ChatService:
             self,
             target: str,
             history_text: str,
+            session_id: str = "",
             provider: Optional[str] = None,
             model: Optional[str] = None
     ) -> ChatResponse:
@@ -250,6 +251,10 @@ class ChatService:
             provider=provider,
             model=model
         )
+        
+        if session_id:
+            session = self.session_manager.get_or_create(session_id)
+            session.add_message("assistant", answer)
         
         cost = round(time.time() - start_time, 2)
         LOG.info(f"发言分析耗时: {cost}s")
