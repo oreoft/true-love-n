@@ -111,6 +111,41 @@ class ChatService:
             answer = intent_result.answer
             response_type = "gen-video"
 
+        elif intent_result.type == IntentType.ANALYZE_SPEECH:
+            from true_love_ai.server_client import fetch_user_history
+            # 先去查询该用户的历史发言
+            history = fetch_user_history(session_id, sender, limit=100)
+            
+            if not history:
+                answer = "我还没能获取到你在群里以前的发言记录哦，所以我拿不到足够的信息呢~"
+            else:
+                # 拼接用户的过往发言作为分析材料
+                speech_history_text = "\n".join([f"[{item['created_at']}] {item['content']}" for item in history])
+                analyze_target = intent_result.answer or "请分析该用户的发言特点、性格或意图"
+                
+                analyze_system_prompt = (
+                    "你是一个专业的分析师和语言学家。现在用户要求你根据他过去在群内的发言记录进行分析/模仿：\n"
+                    f"用户的需求是：{analyze_target}\n\n"
+                    f"以下是该用户最近的发言历史记录（按时间倒序排列）：\n{speech_history_text}\n\n"
+                    "请你综合上述信息，基于聊天历史给出一份详细生动、符合群聊氛围的回答来分析和评价一下这位群家人。"
+                )
+                
+                analyze_messages = [
+                    {"role": "system", "content": analyze_system_prompt},
+                    {"role": "user", "content": clean_content}
+                ]
+                
+                LOG.info(f"开始请求分析发言, 条数={len(history)}")
+                answer = await self.llm_router.chat(
+                    messages=analyze_messages,
+                    provider=provider,
+                    model=model
+                )
+            
+            session.add_message("user", clean_content)
+            session.add_message("assistant", answer)
+            response_type = "chat"
+
         else:
             answer = intent_result.answer or "呜呜，我不太明白你的意思呢~"
             response_type = "chat"

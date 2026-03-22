@@ -99,3 +99,39 @@ class GroupMessageRepository:
         except Exception as e:
             LOG.warning(f"Failed to serialize field: {e}")
             return None
+
+    def get_recent_messages(self, chat_id: str, sender: str, limit: int = 100) -> list[dict]:
+        """
+        获取指定群聊中某个特定用户的最近N条发言
+        
+        Args:
+            chat_id: 群聊ID
+            sender: 发送者
+            limit: 返回的最大消息数量
+            
+        Returns:
+            以字典形式返回最近发言的列表
+        """
+        try:
+            query = self.session.query(GroupMessage).filter(
+                GroupMessage.chat_id == chat_id,
+                GroupMessage.sender == sender
+            ).order_by(GroupMessage.created_at.desc()).limit(limit)
+            
+            # 由于查出来是倒序的（最新的在前面），我们在返回时翻转使其按照时间正序排列
+            messages = query.all()
+            messages.reverse()
+            
+            result = []
+            for msg in messages:
+                result.append({
+                    "msg_id": msg.msg_id,
+                    "chat_id": msg.chat_id,
+                    "sender": msg.sender,
+                    "content": msg.content,
+                    "created_at": msg.created_at.strftime('%Y-%m-%d %H:%M:%S') if msg.created_at else None
+                })
+            return result
+        except Exception as e:
+            LOG.error(f"Failed to fetch recent messages for chat_id={chat_id}, sender={sender}: {e}")
+            return []

@@ -143,6 +143,42 @@ async def record_group_message(
         return ApiResponse(data="ok")  # 依然返回成功
 
 
+@router.post("/get-chat-history")
+async def get_chat_history(
+        request: dict,
+        db: Session = Depends(get_db),
+):
+    """
+    获取最近的聊天历史记录
+    
+    请求体包含:
+        - token: 验证令牌
+        - chat_id: 群聊/私聊ID
+        - sender: 发信人名称
+        - limit: 限制获取的数量（可选，默认 100）
+    """
+    try:
+        LOG.info("收到群历史记录查询请求, req: %s", request)
+        verify_token(request.get('token', ''))
+        
+        chat_id = request.get('chat_id')
+        sender = request.get('sender')
+        limit = int(request.get('limit', 100))
+        
+        if not chat_id or not sender:
+            raise ValidationException("chat_id 和 sender 不能为空哦~")
+            
+        repository = GroupMessageRepository(db)
+        messages = repository.get_recent_messages(chat_id=chat_id, sender=sender, limit=limit)
+        
+        return ApiResponse(data=messages)
+    except ValidationException:
+        raise
+    except Exception as e:
+        LOG.error(f"查询群消息时发生异常: {e}", exc_info=True)
+        raise ValidationException("呜呜~查询失败了捏~")
+
+
 # ==================== Listen 监听管理接口 ====================
 
 @router.get("/admin/listen/status")

@@ -94,3 +94,57 @@ async def send_text_async(send_receiver: str, at_receiver: str, content: str) ->
         LOG.warning(f"send_text_async 失败: {e}")
 
     return ""
+
+
+def fetch_user_history(chat_id: str, sender: str, limit: int = 100) -> list:
+    """
+    从 Base 服务的真实历史后端获取特定用户的言论
+    
+    Args:
+        chat_id: 群聊或会话ID
+        sender: 发送者
+        limit: 限制数量
+        
+    Returns:
+        言论列表
+    """
+    config = get_config()
+    host = config.base_server.host
+    api_url = host.replace("send-msg", "get-chat-history")
+
+    token = config.http.token[0] if config.http and config.http.token else ""
+
+    payload = json.dumps({
+        "token": token,
+        "chat_id": chat_id,
+        "sender": sender,
+        "limit": limit
+    }, ensure_ascii=False)
+
+    headers = {'Content-Type': 'application/json'}
+
+    try:
+        start_time = time.time()
+        LOG.info(f"开始请求 base 获取历史发言, req: [{payload[:100]}...]")
+
+        with httpx.Client() as client:
+            res = client.post(
+                api_url,
+                headers=headers,
+                content=payload,
+                timeout=httpx.Timeout(connect=2.0, read=10.0, write=10.0, pool=10.0)
+            )
+            res.raise_for_status()
+
+            data = res.json()
+            if data and "data" in data and isinstance(data["data"], list):
+                LOG.info(
+                    f"成功获取历史发言, 条数: {len(data['data'])}, cost: [{(time.time() - start_time) * 1000:.0f}ms]")
+                return data["data"]
+
+        LOG.info(f"请求成功但未获取到列表, cost: [{(time.time() - start_time) * 1000:.0f}ms]")
+
+    except Exception as e:
+        LOG.warning(f"fetch_user_history 失败: {e}")
+
+    return []

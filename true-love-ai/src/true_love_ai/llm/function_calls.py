@@ -17,13 +17,14 @@ TYPE_ANSWER_CALL = [
                 "properties": {
                     "type": {
                         "type": "string",
-                        "enum": ["chat", "search", "gen-img", "gen-video"],
+                        "enum": ["chat", "search", "gen-img", "gen-video", "analyze-speech"],
                         "description": (
                             "Intent type: "
                             "'chat' for general conversation or questions you can answer from knowledge, "
                             "'search' for real-time information that requires web search, "
                             "'gen-img' for image generation requests, "
-                            "'gen-video' for video generation requests"
+                            "'gen-video' for video generation requests, "
+                            "'analyze-speech' when user asks to analyze their speech history, personality, or mimic their tone based on past chat."
                         )
                     },
                     "answer": {
