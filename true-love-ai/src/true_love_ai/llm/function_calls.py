@@ -34,7 +34,12 @@ TYPE_ANSWER_CALL = [
                             "For 'gen-img': English prompt for image generation. "
                             "For 'gen-video': English prompt for video generation. "
                             "For 'search': Chinese search keywords that are complete, specific, "
-                            "and self-contained based on conversation context."
+                            "and self-contained based on conversation context. "
+                            "For 'analyze-speech': YOU MUST NOT GENERATE ANY CONVERSATIONAL TEXT. "
+                            "If analyzing the user themselves, return EXACTLY 'self'. "
+                            "If analyzing someone else, return their EXACT nickname. "
+                            "If analyzing multiple people, return their nicknames separated by comma. "
+                            "ANY OTHER TEXT IS STRICTLY PROHIBITED."
                         )
                     },
                 },

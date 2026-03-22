@@ -125,16 +125,31 @@ class ChatService:
         """
         at_user = sender if wxid != sender else ""
         
-        # 1. 发送安抚语
+        # 1. 甄别分析目标
+        if not target or len(target) > 30:
+            target = "self"
+            
+        if ',' in target or '，' in target:
+            base_client.send_text(wxid, at_user, "我现在还不能同时分析多个人哦，麻烦@你最想放的那个人试试吧~")
+            return
+            
+        is_self = target.strip().lower() == 'self'
+        target_person = sender if is_self else target.strip()
+        
+        # 设置展示名字，防止带有@符号
+        display_name = target_person.strip('@').strip()
+        target_person_query = display_name
+        
+        # 2. 发送安抚语
         wait_msgs = [
-            "正在戴上老花镜，翻阅你在群里所有的发言，请稍等哈...",
-            "收到！正在在群里扒你的黑历史，稍微等我一下哦~",
-            "正在检索你最近的发言数据，看我稍后怎么评价你...",
-            "好滴，我正在连夜查数据库记录，等我出个报告！"
+            f"正在戴上老花镜，翻阅[{display_name}]在群里所有的发言，请稍等哈...",
+            f"收到！正在在群里扒[{display_name}]的黑历史，稍微等我一下哦~",
+            f"正在检索[{display_name}]最近的发言数据，看我稍后怎么评价...",
+            f"好滴，我正在连夜读[{display_name}]的群聊消息，等我出个报告！"
         ]
         base_client.send_text(wxid, at_user, random.choice(wait_msgs))
         
-        # 2. 查询数据库
+        # 3. 查询数据库
         from ..core.db_engine import SessionLocal
         from ..services.group_message_repository import GroupMessageRepository
         
@@ -142,19 +157,20 @@ class ChatService:
         try:
             with SessionLocal() as db:
                 repo = GroupMessageRepository(db)
-                history = repo.get_recent_messages(chat_id=wxid, sender=sender, limit=100)
+                history = repo.get_recent_messages(chat_id=wxid, sender=target_person_query, limit=100)
         except Exception as e:
             LOG.error(f"查询发言历史报错: {e}")
             
         if not history:
-            base_client.send_text(wxid, at_user, "我没能获取到你在群里以前的发言记录哦，所以我没有足够的信息来分析捏~")
+            base_client.send_text(wxid, at_user, f"我没能获取到[{display_name}]在群里以前的发言记录哦，所以我没有足够的信息来分析捏~")
             return
             
-        # 3. 组装并发送给 AI 端
+        # 4. 组装并发送给 AI 端
         speech_history_text = "\n".join([f"[{item['created_at']}] {item['content']}" for item in history])
-        LOG.info(f"查到 {len(history)} 条记录，开始跨 RPC 请求 AI...")
+        LOG.info(f"查到 [{display_name}] 的 {len(history)} 条记录，开始跨 RPC 请求 AI...")
         
-        response = self.ai_client.analyze_speech(target, speech_history_text)
+        prompt_target = f"分析群成员 {display_name} 的发言特点、性格或意图" if not is_self else "分析这位用户的发言特点、性格或意图"
+        response = self.ai_client.analyze_speech(prompt_target, speech_history_text)
         
         # 4. 接收报告并发送
         if not response.success:
