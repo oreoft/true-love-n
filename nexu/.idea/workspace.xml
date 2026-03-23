@@ -1,0 +1,309 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="48182c37-9ce0-4614-81fb-ad89d72baa80" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/apps/controller/src/runtime/openclaw-process.ts" beforeDir="false" afterPath="$PROJECT_DIR$/apps/controller/src/runtime/openclaw-process.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/.env.example" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/entitlements.mac.inherit.plist" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/entitlements.mac.plist" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icon.icns" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icon.ico" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icon.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/README.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/icon.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/linux/icons/128x128.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/linux/icons/16x16.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/linux/icons/256x256.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/linux/icons/32x32.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/linux/icons/48x48.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/linux/icons/512x512.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/linux/icons/64x64.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/macos/1024x1024.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/macos/128x128.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/macos/16x16.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/macos/256x256.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/macos/32x32.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/macos/512x512.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/macos/64x64.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/macos/icon.icns" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/windows/128x128.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/windows/16x16.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/windows/256x256.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/windows/32x32.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/windows/48x48.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/windows/64x64.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/build/icons/windows/icon.ico" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/dev-app-update.yml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/dev.sh" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/index.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/main/bootstrap.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/main/cookies.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/main/desktop-diagnostics.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/main/diagnostics-export.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/main/index.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/main/ipc.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/main/redaction.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/main/runtime/daemon-supervisor.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/main/runtime/manifests.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/main/runtime/port-allocation.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/main/runtime/runtime-logger.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/main/runtime/types.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/main/sleep-guard.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/main/updater/component-updater.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/main/updater/rollback.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/main/updater/update-manager.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/mock-update-server.mjs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/package.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/preload/index.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/preload/webview-preload.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/scripts/dev-env.sh" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/scripts/dev-run.sh" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/scripts/dist-mac.mjs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/scripts/lib/sidecar-paths.mjs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/scripts/notarize.cjs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/scripts/prepare-controller-sidecar.mjs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/scripts/prepare-openclaw-sidecar.mjs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/scripts/prepare-runtime-sidecars.mjs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/scripts/prepare-web-sidecar.mjs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/scripts/upload-sourcemaps.mjs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/shared/desktop-paths.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/shared/host.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/shared/runtime-config.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/shared/sentry-build-metadata.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/shared/skillhub-types.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/shared/workspace-paths.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/sidecars/web/index.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/src/components/desktop-shell.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/src/components/diagnostics-action-card.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/src/components/runtime-unit-card.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/src/components/summary-card.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/src/components/surface-button.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/src/components/surface-frame.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/src/components/update-banner.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/src/hooks/use-auto-update.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/src/hooks/use-desktop-runtime-config.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/src/hooks/use-runtime-state.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/src/lib/api-client.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/src/lib/host-api.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/src/lib/runtime-formatters.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/src/lib/runtime-state.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/src/main.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/src/pages/cloud-profile-page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/src/pages/diagnostics-page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/src/pages/runtime-page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/src/runtime-page.css" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/src/types/global.d.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/clawhub/SKILL.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/coding-agent/SKILL.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/deep-research/SKILL.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/deep-research/templates/comparison-framework.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/deep-research/templates/fact-card.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/deep-research/templates/intermediate-outputs.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/deep-research/templates/report-structure.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/gh-issues/SKILL.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/nano-banana-one-shop/SKILL.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/nano-banana-one-shop/scripts/generate-image.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/nano-banana-one-shop/scripts/package.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/SKILL.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/album-v2-reidmiles.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/album-v2-saville.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/album-v2-stonemartin.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/example-negative-space.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/imdb-01-shawshank.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/imdb-02-godfather.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/imdb-03-dark-knight.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/imdb-04-godfather-2.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/imdb-05-12-angry-men.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/imdb-06-lotr-return.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/imdb-07-schindlers-list.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/imdb-08-lotr-fellowship.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/imdb-09-pulp-fiction.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/imdb-10-good-bad-ugly.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/usecase-album-cover.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/usecase-album-joydivision.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/usecase-album-pinkfloyd.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/usecase-album-radiohead.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/usecase-article-ai.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/usecase-article-cafe.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/usecase-book-cover.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/usecase-book-v2-penguin.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/usecase-book-v2.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/usecase-event-poster.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/usecase-moments-poster.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/usecase-wechat-cover.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/usecase-wechat-interstellar.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/usecase-wechat-sapiens.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/usecase-wechat-v2.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/usecase-xiaohongshu-mood.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/usecase-xiaohongshu-prince.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/usecase-xiaohongshu-v2.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/examples/usecase-xiaohongshu.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/references/artist-styles.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/references/book-covers.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/references/composition-patterns.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/references/genre-templates.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/requirements.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/scripts/generate_mondo.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/qiaomu-mondo-poster-design/scripts/generate_mondo_enhanced.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/research-to-diagram/COMPARISON.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/research-to-diagram/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/research-to-diagram/SKILL.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/research-to-diagram/USAGE_EXAMPLES.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/research-to-diagram/examples/character_relationships.dot" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/research-to-diagram/examples/concept_map.dot" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/research-to-diagram/examples/tech_architecture.dot" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/static/bundled-skills/research-to-diagram/scripts/generate_pdf.sh" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/tsconfig.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/desktop/vite.config.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/web/src/layouts/auth-layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/web/src/layouts/auth-layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/web/src/pages/channels.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/web/src/pages/channels.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/web/src/pages/home.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/web/src/pages/home.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/web/vite.config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/apps/web/vite.config.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pnpm-lock.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/pnpm-lock.yaml" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ChangesViewManager">
+    <option name="groupingKeys">
+      <option value="module" />
+      <option value="repository" />
+    </option>
+  </component>
+  <component name="CompilerWorkspaceConfiguration">
+    <option name="PARALLEL_COMPILATION" value="true" />
+  </component>
+  <component name="EmbeddingIndexingInfo">
+    <option name="cachedIndexableFilesCount" value="602" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "oreoft"
+  }
+}]]></component>
+  <component name="GitToolBoxStore">
+    <option name="recentBranches">
+      <RecentBranches>
+        <option name="branchesForRepo">
+          <list>
+            <RecentBranchesForRepo>
+              <option name="branches">
+                <list>
+                  <RecentBranch>
+                    <option name="branchName" value="main" />
+                    <option name="lastUsedInstant" value="1774287232" />
+                  </RecentBranch>
+                </list>
+              </option>
+              <option name="repositoryRootUrl" value="file://$PROJECT_DIR$" />
+            </RecentBranchesForRepo>
+          </list>
+        </option>
+      </RecentBranches>
+    </option>
+  </component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "git@github.com:oreoft/new-tl.git",
+    "accountId": "3cfbd3ab-4ba4-4d83-8324-63243db9979c"
+  }
+}]]></component>
+  <component name="MavenImportPreferences">
+    <option name="generalSettings">
+      <MavenGeneralSettings>
+        <option name="customMavenHome" value="/Library/Java/apache-maven-3.6.3" />
+        <option name="mavenHomeTypeForPersistence" value="CUSTOM" />
+      </MavenGeneralSettings>
+    </option>
+    <option name="importingSettings">
+      <MavenImportingSettings>
+        <option name="jdkForImporter" value="1.8" />
+        <option name="vmOptionsForImporter" value="-Xmx1024m" />
+      </MavenImportingSettings>
+    </option>
+  </component>
+  <component name="MavenRunner">
+    <option name="jreName" value="1.8" />
+  </component>
+  <component name="ProjectCodeStyleSettingsMigration">
+    <option name="version" value="2" />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 0
+}]]></component>
+  <component name="ProjectId" id="3BM1h8bhcM4s9rIlyeQ4oIN5HYG" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+    "git-widget-placeholder": "main",
+    "junie.onboarding.icon.badge.shown": "true",
+    "kotlin-language-version-configured": "true",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "to.speed.mode.migration.done": "true",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-30f59d01ecdd-cffe25b9f5b3-intellij.indexing.shared.core-IU-253.28294.334" />
+        <option value="bundled-js-predefined-d6986cc7102b-c7e53b3be11b-JavaScript-IU-253.28294.334" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration>$USER_HOME$/.subversion</configuration>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="48182c37-9ce0-4614-81fb-ad89d72baa80" name="Changes" comment="" />
+      <created>1774284241521</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1774284241521</updated>
+      <workItem from="1774284244386" duration="2272000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
+    <option name="CHECK_NEW_TODO" value="false" />
+    <option name="LOCAL_CHANGES_DETAILS_PREVIEW_SHOWN" value="false" />
+  </component>
+  <component name="github-copilot-workspace">
+    <instructionFileLocations>
+      <option value=".github/instructions" />
+    </instructionFileLocations>
+    <promptFileLocations>
+      <option value=".github/prompts" />
+    </promptFileLocations>
+  </component>
+</project>

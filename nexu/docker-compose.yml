@@ -1,0 +1,41 @@
+# ============================================
+# Nexu - Docker Compose
+# ============================================
+#
+# 使用方式：
+#   cd /root/nexu
+#   docker compose pull      # 拉取最新镜像
+#   docker compose up -d     # 启动/更新容器
+#   docker compose logs -f   # 查看日志
+#   docker compose ps        # 查看状态
+#   docker compose down      # 停止并删除容器
+#
+# ============================================
+
+services:
+  nexu:
+    image: ghcr.io/oreoft/nexu:latest
+    container_name: nexu
+    build: .
+    ports:
+      - "3010:3010"
+    volumes:
+      # Persistent config & OpenClaw state (bot configs, channel bindings, etc.)
+      - nexu_data:/root/.nexu
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3010/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  nexu_data:
