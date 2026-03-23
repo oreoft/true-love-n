@@ -16,7 +16,6 @@ services:
   nexu:
     image: ghcr.io/oreoft/nexu:latest
     container_name: nexu
-    build: .
     ports:
       - "3010:3010"
     volumes:

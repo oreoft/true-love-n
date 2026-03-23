@@ -39,7 +39,9 @@ WORKDIR /app
 # Set CI=true for consistency in production stage as well
 ENV CI=true
 
-RUN npm install -g pnpm@10
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && npm install -g pnpm@10
 
 # Copy package files
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
@@ -65,5 +67,6 @@ VOLUME /root/.nexu
 EXPOSE 3010
 
 ENV NODE_ENV=production
+ENV PATH="/app/openclaw-runtime/node_modules/.bin:$PATH"
 
 CMD ["node", "apps/controller/dist/index.js"]
