@@ -57,7 +57,7 @@ chatgpt:
 
 # nexu 连通道服务配置
 nexu:
-  base_url: "http://localhost:5173"
+  base_url: "http://localhost:3010"
   token: ""
 
 # Platform API keys
