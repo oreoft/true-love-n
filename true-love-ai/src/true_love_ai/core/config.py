@@ -100,7 +100,7 @@ class NexuConfig(BaseSettings):
     """Nexu 服务配置"""
     model_config = SettingsConfigDict(extra="ignore")
 
-    base_url: str = "http://localhost:3010"
+    base_url: str = "http://nexu:3010"
     token: str = ""
 
 

@@ -77,3 +77,9 @@ services:
       options:
         max-size: "10m"  # 单个日志文件最大 10MB
         max-file: "3"    # 最多保留 3 个日志文件
+    networks:
+      - tl-net
+
+networks:
+  tl-net:
+    external: true

@@ -67,6 +67,7 @@ VOLUME /root/.nexu
 EXPOSE 3010
 
 ENV NODE_ENV=production
+ENV HOST=0.0.0.0
 ENV PATH="/app/openclaw-runtime/node_modules/.bin:$PATH"
 
 CMD ["node", "apps/controller/dist/index.js"]

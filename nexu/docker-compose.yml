@@ -23,6 +23,7 @@ services:
       - nexu_data:/root/.nexu
     environment:
       - NODE_ENV=production
+      - HOST=0.0.0.0
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3010/health"]
@@ -35,6 +36,12 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - tl-net
+
+networks:
+  tl-net:
+    external: true
 
 volumes:
   nexu_data:
