@@ -13,11 +13,14 @@ COPY apps/web/package.json ./apps/web/
 COPY packages/shared/package.json ./packages/shared/
 COPY openclaw-runtime/package.json openclaw-runtime/package-lock.json ./openclaw-runtime/
 
-# Install all dependencies (including openclaw-runtime via postinstall)
-RUN pnpm install --frozen-lockfile
+# Install all dependencies (excluding scripts for now, as we only have package.json files)
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Copy source
 COPY . .
+
+# Now that we have all scripts, run pnpm install again to trigger postinstall scripts
+RUN pnpm install --frozen-lockfile
 
 # Build in dependency order
 RUN pnpm --filter @nexu/shared build
