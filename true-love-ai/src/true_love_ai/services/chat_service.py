@@ -138,7 +138,7 @@ class ChatService:
                     session.add_message("assistant", "[已生成微信连接二维码]")
             except Exception as e:
                 LOG.error(f"调用 Nexu 接口失败: {e}")
-                answer = "抱歉捏，连接服务暂时不可用，请稍后再试吧~"
+                answer = "抱歉捏，openclaw服务暂时不可用，请稍后再试吧~"
                 response_type = "chat"
 
         elif intent_result.type == IntentType.ANALYZE_SPEECH:
