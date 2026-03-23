@@ -96,6 +96,14 @@ class BaseServerConfig(BaseSettings):
     master_group: str = ""  # 主人群组
 
 
+class NexuConfig(BaseSettings):
+    """Nexu 服务配置"""
+    model_config = SettingsConfigDict(extra="ignore")
+
+    base_url: str = "http://localhost:5173"
+    token: str = ""
+
+
 class Config(BaseSettings):
     """
     主配置类
@@ -114,6 +122,7 @@ class Config(BaseSettings):
     session: SessionConfig = SessionConfig()
     platform_key: PlatformKeyConfig = PlatformKeyConfig()
     base_server: BaseServerConfig = BaseServerConfig()
+    nexu: NexuConfig = NexuConfig()
 
     # 日志配置
     logging: Optional[dict] = None

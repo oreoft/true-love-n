@@ -17,7 +17,7 @@ TYPE_ANSWER_CALL = [
                 "properties": {
                     "type": {
                         "type": "string",
-                        "enum": ["chat", "search", "gen-img", "gen-video", "analyze-speech"],
+                        "enum": ["chat", "search", "gen-img", "gen-video", "analyze-speech", "wechat-qr"],
                         "description": (
                             "Intent type: "
                             "'chat' for general conversation or questions you can answer from knowledge, "
@@ -25,6 +25,7 @@ TYPE_ANSWER_CALL = [
                             "'gen-img' for image generation requests, "
                             "'gen-video' for video generation requests, "
                             "'analyze-speech' when user asks to analyze their speech history, personality, persona or character based on past chat. (e.g. '分析我的发言', '分析我的性格', '分析我的人设', '帮我总结一下群友')."
+                            "'wechat-qr' when user wants to adopt a true love fan, connect or reconnect a WeChat channel (e.g. '想要领养真爱粉', '连接微信')."
                         )
                     },
                     "answer": {

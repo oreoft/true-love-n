@@ -75,6 +75,39 @@ class ChatService:
             )
             return
         
+        if 'type' in result and result['type'] == 'wechat-qr':
+            # 处理微信扫码连通道请求
+            import json
+            try:
+                qr_data = json.loads(result['answer'])
+                qr_url = qr_data.get('qrDataUrl')
+                message = qr_data.get('message', "使用微信扫描以下二维码，以完成连接。")
+                
+                if qr_url:
+                    # 获取文件名并下载
+                    from .ai_client import get_file_path
+                    # 使用当前时间戳作为文件名的一部分，或者随机
+                    import time
+                    temp_msg_id = f"qr_{int(time.time())}"
+                    file_path = get_file_path(temp_msg_id)
+                    
+                    if self.ai_client.download_image_from_url(qr_url, file_path):
+                        # 先发提示语
+                        base_client.send_text(wxid, at_user, message)
+                        # 再发二维码图片
+                        base_client.send_img(file_path, wxid)
+                        return
+                    else:
+                        base_client.send_text(wxid, at_user, "呜呜，二维码生成了但我没能把它接下来捏，稍后再试试吧~")
+                        return
+                else:
+                    base_client.send_text(wxid, at_user, "呜呜，连接服务没排期，稍后再试试吧~")
+                    return
+            except Exception as e:
+                LOG.error(f"处理 wechat-qr 响应失败: {e}")
+                base_client.send_text(wxid, at_user, "呀~处理连接请求出错了，稍后再试试吧~")
+                return
+
         if 'type' in result and result['type'] == 'gen-video':
             from .video_service import VideoService
             VideoService().async_generate(

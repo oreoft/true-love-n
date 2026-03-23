@@ -16,8 +16,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from true_love_ai.llm.function_calls import IMG_TYPE_ANSWER_CALL, TYPE_ANSWER_CALL
 from true_love_ai.llm.router import get_llm_router
-from true_love_ai.llm.function_calls import TYPE_ANSWER_CALL, IMG_TYPE_ANSWER_CALL
 
 LOG = logging.getLogger(__name__)
 
@@ -29,6 +29,7 @@ class IntentType(str, Enum):
     GEN_IMAGE = "gen-img"
     GEN_VIDEO = "gen-video"
     ANALYZE_SPEECH = "analyze-speech"
+    WECHAT_QR = "wechat-qr"
 
 
 class ChatIntent(BaseModel):
@@ -57,10 +58,10 @@ class IntentRouter:
     意图路由器
     使用 Function Call 进行上下文感知的意图识别
     """
-    
+
     def __init__(self):
         self.llm_router = get_llm_router()
-    
+
     async def route(
         self,
         messages: list[dict],
@@ -86,19 +87,19 @@ class IntentRouter:
                 provider=provider,
                 model=model
             )
-            
+
             result = json.loads(result_str)
             LOG.info(f"意图识别结果: {result}")
-            
+
             return ChatIntent(
                 type=IntentType(result.get("type", "chat")),
                 answer=result.get("answer", "")
             )
-            
+
         except Exception as e:
             LOG.exception(f"意图识别失败: {e}")
             raise
-    
+
     async def route_image(
         self,
         content: str,
@@ -119,7 +120,7 @@ class IntentRouter:
         try:
             config = self.llm_router.config
             system_prompt = config.prompt5 if config else "根据用户描述判断图像操作类型"
-            
+
             result_str = await self.llm_router.chat_with_tools(
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -130,15 +131,15 @@ class IntentRouter:
                 provider=provider,
                 model=model
             )
-            
+
             result = json.loads(result_str)
             LOG.info(f"图像意图识别结果: {result}")
-            
+
             return ImageIntent(
                 type=ImageOperationType(result.get("type", "analyze_img")),
                 answer=result.get("answer", content)
             )
-            
+
         except Exception as e:
             LOG.exception(f"图像意图识别失败: {e}")
             # 默认为分析图像

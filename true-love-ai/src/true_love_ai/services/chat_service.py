@@ -11,10 +11,10 @@ from typing import Optional
 
 from true_love_ai.core.config import get_config
 from true_love_ai.core.session import get_session_manager
-from true_love_ai.llm.router import get_llm_router
 from true_love_ai.llm.intent import IntentRouter, IntentType
+from true_love_ai.llm.router import get_llm_router
 from true_love_ai.models.response import ChatResponse
-from true_love_ai.services.search_service import fetch_baidu_references, SearchService
+from true_love_ai.services.search_service import SearchService
 
 LOG = logging.getLogger(__name__)
 search_client = SearchService('baidu', None)
@@ -110,6 +110,36 @@ class ChatService:
             # 生视频意图：不存入 session，避免干扰后续聊天
             answer = intent_result.answer
             response_type = "gen-video"
+
+        elif intent_result.type == IntentType.WECHAT_QR:
+            # 微信扫码连通道意图：调用 Nexu 接口获取二维码
+            import httpx
+            nexu_config = self.config.nexu
+            url = f"{nexu_config.base_url}/api/v1/channels/wechat/qr-start"
+            LOG.info(f"调用 Nexu 接口: {url}")
+            try:
+                async with httpx.AsyncClient() as client:
+                    # 也可以带上 token 如果配置了的话
+                    headers = {}
+                    if nexu_config.token:
+                        headers["Authorization"] = f"Bearer {nexu_config.token}"
+
+                    res = await client.post(url, headers=headers, timeout=30.0)
+                    res.raise_for_status()
+                    qr_data = res.json()
+                    LOG.info(f"Nexu 响应: {qr_data}")
+
+                    # 将 Nexu 的原始响应作为 answer 返回，由 Server 进一步解析
+                    answer = json.dumps(qr_data)
+                    response_type = "wechat-qr"
+
+                    # 记录到历史（可选，或者只记录用户意图）
+                    session.add_message("user", clean_content)
+                    session.add_message("assistant", "[已生成微信连接二维码]")
+            except Exception as e:
+                LOG.error(f"调用 Nexu 接口失败: {e}")
+                answer = "抱歉捏，连接服务暂时不可用，请稍后再试吧~"
+                response_type = "chat"
 
         elif intent_result.type == IntentType.ANALYZE_SPEECH:
             # 仅仅识别出意图并把目标传回给 Server，不再主动去查库
@@ -237,25 +267,25 @@ class ChatService:
         """根据提供的历史记录生成发言分析报告"""
         start_time = time.time()
         LOG.info(f"开始生成发言分析报告, 目标: {target}, 历史记录长度: {len(history_text)}")
-        
+
         from true_love_ai.llm.analyze_speech_prompt import get_analyze_system_prompt
         analyze_system_prompt = get_analyze_system_prompt(target, history_text)
-                
+
         analyze_messages = [
             {"role": "system", "content": analyze_system_prompt},
             {"role": "user", "content": target}
         ]
-        
+
         answer = await self.llm_router.chat(
             messages=analyze_messages,
             provider=provider,
             model=model
         )
-        
+
         if session_id:
             session = self.session_manager.get_or_create(session_id)
             session.add_message("assistant", answer)
-        
+
         cost = round(time.time() - start_time, 2)
         LOG.info(f"发言分析耗时: {cost}s")
         return ChatResponse(type="chat", answer=answer)

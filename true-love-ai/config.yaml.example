@@ -55,6 +55,11 @@ chatgpt:
   prompt5: "根据用户描述判断图像操作类型"
   prompt6: "你是一个专业的图像分析助手"
 
+# nexu 连通道服务配置
+nexu:
+  base_url: "http://localhost:5173"
+  token: ""
+
 # Platform API keys
 # 图像生成提供商：
 #   - stability: 使用 Stability AI（默认）

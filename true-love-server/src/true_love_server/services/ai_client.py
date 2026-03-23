@@ -350,6 +350,31 @@ class AIClient:
             LOG.error("从AI服务下载视频失败: %s", e)
             return False
 
+    def download_image_from_url(self, url: str, save_path: str) -> bool:
+        """
+        从 URL 下载图片
+        
+        Args:
+            url: 图片 URL
+            save_path: 保存路径
+            
+        Returns:
+            bool: 是否成功
+        """
+        try:
+            LOG.info("开始从 URL 下载图片: %s", url)
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            
+            with open(save_path, "wb") as f:
+                f.write(response.content)
+            
+            LOG.info("图片下载完成: %s", save_path)
+            return True
+        except Exception as e:
+            LOG.error("下载图片失败: %s, url: %s", e, url)
+            return False
+
 
 # 文件路径工具函数
 def get_file_path(msg_id: str, file_type: str = 'png') -> str:
