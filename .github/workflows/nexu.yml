@@ -8,7 +8,7 @@ on:
       - "nexu/packages/**"
       - "nexu/openclaw-runtime/**"
       - "nexu/Dockerfile"
-      - "nexu/docker-compose.yml"
+      - "nexu/dockerg-compose.yml"
       - ".github/workflows/nexu.yml"
 
 env:
