@@ -17,10 +17,10 @@ env:
   IMAGE_NAME: ${{ github.repository_owner }}/nexu
 
   # ========== 目标服务器配置 ==========
-  SERVER_HOST: ${{ secrets.SERVER_HOST }}
+  SERVER_HOST: ser3
   SERVER_PORT: 22
-  SERVER_USER: ${{ secrets.SERVER_USER }}
-  SERVER_DEPLOY_PATH: ${{ secrets.SERVER_DEPLOY_PATH }}
+  SERVER_USER: root
+  SERVER_DEPLOY_PATH: /root/new-tl
 
   # ========== 跳板机配置（没有跳板机则留空） ==========
   JUMP_HOST: ${{ secrets.JUMP_HOST }}
