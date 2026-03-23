@@ -24,7 +24,7 @@ TYPE_ANSWER_CALL = [
                             "'search' for real-time information that requires web search, "
                             "'gen-img' for image generation requests, "
                             "'gen-video' for video generation requests, "
-                            "'analyze-speech' when user asks to analyze their speech history, personality, or mimic their tone based on past chat."
+                            "'analyze-speech' when user asks to analyze their speech history, personality, persona or character based on past chat. (e.g. '分析我的发言', '分析我的性格', '分析我的人设', '帮我总结一下群友')."
                         )
                     },
                     "answer": {
