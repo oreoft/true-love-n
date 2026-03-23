@@ -4,11 +4,11 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - "apps/**"
-      - "packages/**"
-      - "openclaw-runtime/**"
-      - "Dockerfile"
-      - "docker-compose.yml"
+      - "nexu/apps/**"
+      - "nexu/packages/**"
+      - "nexu/openclaw-runtime/**"
+      - "nexu/Dockerfile"
+      - "nexu/docker-compose.yml"
       - ".github/workflows/nexu.yml"
 
 env:
@@ -73,8 +73,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ./Dockerfile
+          context: ./nexu
+          file: ./nexu/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
