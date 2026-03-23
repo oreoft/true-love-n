@@ -39,7 +39,9 @@ COPY packages/shared/package.json ./packages/shared/
 COPY openclaw-runtime/package.json openclaw-runtime/package-lock.json ./openclaw-runtime/
 
 # Install production deps only (no devDependencies)
-RUN pnpm install --frozen-lockfile --prod
+# Skip scripts because root postinstall depends on files we haven't copied yet
+# (and the artifacts are copied from builder stage anyway)
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # Copy built artifacts from builder stage
 COPY --from=builder /app/apps/controller/dist ./apps/controller/dist
