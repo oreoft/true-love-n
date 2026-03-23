@@ -3,6 +3,9 @@ FROM node:22-slim AS builder
 
 WORKDIR /app
 
+# Set CI=true to prevent pnpm from aborting in non-interactive environments
+ENV CI=true
+
 # Install pnpm
 RUN npm install -g pnpm@10
 
@@ -32,6 +35,9 @@ RUN pnpm --filter @nexu/controller build
 FROM node:22-slim
 
 WORKDIR /app
+
+# Set CI=true for consistency in production stage as well
+ENV CI=true
 
 RUN npm install -g pnpm@10
 
