@@ -36,9 +36,6 @@ FROM node:22-slim
 
 WORKDIR /app
 
-# Set CI=true for consistency in production stage as well
-ENV CI=true
-
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/* \
     && npm install -g pnpm@10
@@ -52,11 +49,11 @@ COPY openclaw-runtime/package.json openclaw-runtime/package-lock.json ./openclaw
 # Install production deps only (no devDependencies)
 # Skip scripts because root postinstall depends on files we haven't copied yet
 # (and the artifacts are copied from builder stage anyway)
-RUN pnpm install --frozen-lockfile --prod --ignore-scripts
+RUN CI=true pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # Copy built artifacts from builder stage
 COPY --from=builder /app/apps/controller/dist ./apps/controller/dist
-COPY --from=builder /app/apps/controller/static ./apps/controller/static
+COPY --from=builder /app/apps/controller/static ./static
 COPY --from=builder /app/apps/web/dist ./apps/web/dist
 COPY --from=builder /app/openclaw-runtime ./openclaw-runtime
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
