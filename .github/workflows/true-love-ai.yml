@@ -100,6 +100,7 @@ jobs:
           envs: GITHUB_TOKEN,GITHUB_ACTOR,SERVER_DEPLOY_PATH
           script: |
             set -e
+            docker network create tl-net || true
             echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
             cd $SERVER_DEPLOY_PATH
             docker compose pull && docker compose up -d
