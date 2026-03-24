@@ -139,15 +139,53 @@ def ping():
     return "pong"
 
 
+MAX_CHUNK_CHARS = 2000
+SPLIT_SEARCH_WINDOW = 200
+
+
+def split_long_text(text: str) -> list:
+    """
+    将超长文本按行拆分成多批。
+
+    规则：
+    - 每批不超过 MAX_CHUNK_CHARS 个字符。
+    - 在每批末尾的 SPLIT_SEARCH_WINDOW 个字符内，向前找最近一个换行符，
+      在换行处断开，使分割点尽量自然。
+    - 若该窗口内找不到换行符，则直接在 MAX_CHUNK_CHARS 处硬切。
+    """
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = start + MAX_CHUNK_CHARS
+        if end >= len(text):
+            chunks.append(text[start:])
+            break
+        # 在末尾 SPLIT_SEARCH_WINDOW 个字符内找最后一个换行
+        window_start = end - SPLIT_SEARCH_WINDOW
+        window = text[window_start:end]
+        nl_pos = window.rfind('\n')
+        if nl_pos != -1:
+            # 在换行符后（不含换行符本身）切割
+            cut = window_start + nl_pos + 1
+        else:
+            cut = end
+        chunks.append(text[start:cut])
+        start = cut
+    return chunks
+
+
 @app.route('/send/text', methods=['POST'])
 def send_text():
     """
     发送文本消息
-    
+
     Request Body:
         - sendReceiver: 接收者
         - content: 消息内容
         - atReceiver: 要@的人（可选）
+
+    超过 2000 个字符时自动分批：在每批末尾 200 字符内寻找换行符切割，
+    分批依次发送，仅第一批携带 @。
     """
     robot = get_robot()
     if robot is None:
@@ -161,27 +199,19 @@ def send_text():
     if not receiver or not content:
         return jsonify(ApiErrors.INVALID_PARAMS.to_dict())
 
-    # 支持按行分批发送：每次最多 15 行(超过 130个字符也算一行)
-    lines = content.splitlines()
-    expanded_lines = []
-    for ln in lines:
-        if len(ln) <= 130:
-            expanded_lines.append(ln)
-        else:
-            for i in range(0, len(ln), 130):
-                expanded_lines.append(ln[i:i + 130])
-    success = True
-
-    # 之前需要分批，现在bug 修复了， 但是代码逻辑保留
-    if True or len(expanded_lines) <= 18:
+    if len(content) <= MAX_CHUNK_CHARS:
+        # 短消息直接发送
         success = robot.send_text_msg(content, receiver, at_receiver if at_receiver else None)
     else:
-        for i in range(0, len(lines), 15):
-            chunk = '\n'.join(lines[i:i + 15])
-            mention = at_receiver if i == 0 and at_receiver else None
+        # 长消息分批发送
+        chunks = split_long_text(content)
+        LOG.info(f"send_text: content too long ({len(content)} chars), splitting into {len(chunks)} chunks")
+        success = True
+        for idx, chunk in enumerate(chunks):
+            mention = at_receiver if idx == 0 and at_receiver else None
             ok = robot.send_text_msg(chunk, receiver, mention)
             if not ok:
-                LOG.error(f"Failed to send text chunk starting at line {i} to [{receiver}]")
+                LOG.error(f"send_text: failed on chunk {idx + 1}/{len(chunks)} to [{receiver}]")
                 success = False
                 break
 
