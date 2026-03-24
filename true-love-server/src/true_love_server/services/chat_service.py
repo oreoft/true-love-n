@@ -84,21 +84,26 @@ class ChatService:
                 message = qr_data.get('message', "使用微信扫描以下二维码，以完成连接。")
                 
                 if qr_url:
-                    # 获取文件名并下载
+                    # 获取文件名并生成二维码
                     from .ai_client import get_file_path
-                    # 使用当前时间戳作为文件名的一部分，或者随机
                     import time
+                    import qrcode
                     temp_msg_id = f"qr_{int(time.time())}"
                     file_path = get_file_path(temp_msg_id)
                     
-                    if self.ai_client.download_image_from_url(qr_url, file_path):
+                    try:
+                        # 使用 qrcode 库生成二维码
+                        img = qrcode.make(qr_url)
+                        img.save(file_path)
+                        
                         # 先发提示语
                         base_client.send_text(wxid, at_user, message)
                         # 再发二维码图片
                         base_client.send_img(file_path, wxid)
                         return
-                    else:
-                        base_client.send_text(wxid, at_user, "呜呜，二维码生成了但我没能把它接下来捏，稍后再试试吧~")
+                    except Exception as ge:
+                        LOG.error(f"本地生成二维码失败: {ge}")
+                        base_client.send_text(wxid, at_user, "呜呜，我本想给你画个二维码的，但是笔断了捏，稍后再试试吧~")
                         return
                 else:
                     base_client.send_text(wxid, at_user, "呜呜，连接服务没排期，稍后再试试吧~")
