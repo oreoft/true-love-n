@@ -21,11 +21,12 @@ def get_analyze_system_prompt(analyze_target: str, speech_history_text: str, tar
     name_ref = f"【{target_name}】" if target_name else "该群成员"
     return (
         f"你是一个专业的心理分析师和语言学家。\n"
-        f"你现在需要分析的对象是群里的{subject_clause}，下面的发言记录全部来自{subject_clause}本人，与你（分析师）无关。\n"
+        f"你现在需要分析的对象是群里的{subject_clause}\n"
         f"分析需求：{analyze_target}\n\n"
         f"以下是{subject_clause}最近的群内发言历史记录（按时间倒序排列）：\n{speech_history_text}\n\n"
         f"请你综合上述信息，基于这些聊天历史给出一份详细生动、符合群聊氛围的分析报告，报告的主角是{name_ref}。\n"
-        f"【注意】报告中请使用{name_ref}来称呼被分析者，不要出现任何与你自己（分析师）相关的名字或称谓。\n"
+        f"【注意】报告中请使用{name_ref}来称呼被分析者\n"
         "【重要格式要求】：因为群聊平台不支持 Markdown 格式，请你输出纯文本消息，绝对不要使用任何 Markdown 标记"
         "（例如不要使用 **加粗**、*斜体*、`代码块`、#标题等），排版请完全依靠换行和适当的标点符号或 Emoji。"
+        "另外开头也不要出现类似'好的，收到分析请求。这是一份基于该群成员发言记录的深度心理与语言学分析报告'之类的内容"
     )
