@@ -13,6 +13,9 @@ from .ai_client import AIClient
 
 LOG = logging.getLogger("ChatService")
 
+# 正在进行中的发言分析任务，key = "{wxid}:{target_person}"，用于幂等保护
+_ANALYZING_TASKS: dict[str, str] = {}
+
 
 def process_ban(sender: str) -> str:
     """处理被禁言用户的固定回复"""
@@ -189,43 +192,63 @@ class ChatService:
         # 设置展示名字，防止带有@符号
         display_name = target_person.strip('@').strip()
         target_person_query = display_name
-        
-        # 2. 发送安抚语
-        wait_msgs = [
-            f"正在戴上老花镜，翻阅[{display_name}]在群里所有的发言，请稍等哈...",
-            f"收到！正在在群里扒[{display_name}]的黑历史，稍微等我一下哦~",
-            f"正在检索[{display_name}]最近的发言数据，看我稍后怎么评价...",
-            f"好滴，我正在连夜读[{display_name}]的群聊消息，等我出个报告！"
-        ]
-        base_client.send_text(wxid, at_user, random.choice(wait_msgs))
-        
-        # 3. 查询数据库
-        from ..core.db_engine import SessionLocal
-        from ..services.group_message_repository import GroupMessageRepository
-        
-        history = []
+
+        # 2. 幂等检查：同一群同一目标正在分析中，直接返回
+        task_key = f"{wxid}:{target_person_query}"
+        if task_key in _ANALYZING_TASKS:
+            duplicate_msgs = [
+                f"[{display_name}]的分析正在进行中啦，请稍等一会儿，报告马上就来~",
+                f"已经在帮你分析[{display_name}]啦，别急别急，马上出结果~",
+                f"正在分析[{display_name}]中，再等一小会儿哦，不要重复催我捏~",
+                f"诶，[{display_name}]的报告正在赶来的路上，稍安勿躁~",
+            ]
+            base_client.send_text(wxid, at_user, random.choice(duplicate_msgs))
+            return
+
+        _ANALYZING_TASKS[task_key] = sender
+        LOG.info(f"发言分析任务开始, key={task_key}")
+
         try:
-            with SessionLocal() as db:
-                repo = GroupMessageRepository(db)
-                history = repo.get_recent_messages(chat_id=wxid, sender=target_person_query, limit=100)
-        except Exception as e:
-            LOG.error(f"查询发言历史报错: {e}")
+            # 3. 发送安抚语
+            wait_msgs = [
+                f"正在戴上老花镜，翻阅[{display_name}]在群里所有的发言，请稍等哈...",
+                f"收到！正在在群里扒[{display_name}]的黑历史，稍微等我一下哦~",
+                f"正在检索[{display_name}]最近的发言数据，看我稍后怎么评价...",
+                f"好滴，我正在连夜读[{display_name}]的群聊消息，等我出个报告！"
+            ]
+            base_client.send_text(wxid, at_user, random.choice(wait_msgs))
             
-        if not history:
-            base_client.send_text(wxid, at_user, f"我没能获取到[{display_name}]在群里以前的发言记录哦，所以我没有足够的信息来分析捏~")
-            return
+            # 4. 查询数据库
+            from ..core.db_engine import SessionLocal
+            from ..services.group_message_repository import GroupMessageRepository
             
-        # 4. 组装并发送给 AI 端
-        speech_history_text = "\n".join([f"[{item['created_at']}] {item['content']}" for item in history])
-        LOG.info(f"查到 [{display_name}] 的 {len(history)} 条记录，开始跨 RPC 请求 AI...")
-        
-        prompt_target = f"分析群成员 {display_name} 的发言特点、性格或意图" if not is_self else "分析这位用户的发言特点、性格或意图"
-        response = self.ai_client.analyze_speech(prompt_target, speech_history_text, wxid)
-        
-        # 4. 接收报告并发送
-        if not response.success:
-            base_client.send_text(wxid, at_user, response.error_msg)
-            return
+            history = []
+            try:
+                with SessionLocal() as db:
+                    repo = GroupMessageRepository(db)
+                    history = repo.get_recent_messages(chat_id=wxid, sender=target_person_query, limit=100)
+            except Exception as e:
+                LOG.error(f"查询发言历史报错: {e}")
+                
+            if not history:
+                base_client.send_text(wxid, at_user, f"我没能获取到[{display_name}]在群里以前的发言记录哦，所以我没有足够的信息来分析捏~")
+                return
+                
+            # 5. 组装并发送给 AI 端
+            speech_history_text = "\n".join([f"[{item['created_at']}] {item['content']}" for item in history])
+            LOG.info(f"查到 [{display_name}] 的 {len(history)} 条记录，开始跨 RPC 请求 AI...")
             
-        final_answer = response.data.get('answer', '啊哦，分析结果没拿到~') if isinstance(response.data, dict) else response.data
-        base_client.send_text(wxid, at_user, final_answer)
+            prompt_target = f"分析群成员 {display_name} 的发言特点、性格或意图" if not is_self else "分析这位用户的发言特点、性格或意图"
+            response = self.ai_client.analyze_speech(prompt_target, speech_history_text, wxid)
+            
+            # 6. 接收报告并发送
+            if not response.success:
+                base_client.send_text(wxid, at_user, response.error_msg)
+                return
+                
+            final_answer = response.data.get('answer', '啊哦，分析结果没拿到~') if isinstance(response.data, dict) else response.data
+            base_client.send_text(wxid, at_user, final_answer)
+
+        finally:
+            _ANALYZING_TASKS.pop(task_key, None)
+            LOG.info(f"发言分析任务结束, key={task_key}")
