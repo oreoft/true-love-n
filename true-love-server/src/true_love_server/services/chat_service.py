@@ -81,12 +81,9 @@ class ChatService:
             try:
                 qr_data = json.loads(result['answer'])
                 qr_url = qr_data.get('qrDataUrl')
-                message = qr_data.get('message', "使用微信扫描以下二维码，以完成连接。")
+                message = qr_data.get('message', "使用微信扫描以下二维码，以完成领养。")
                 
                 if qr_url:
-                    # 先发提示语（模仿 ImageService 顺序）
-                    base_client.send_text(wxid, at_user, message)
-                    
                     # 获取文件名并生成二维码
                     from .ai_client import get_file_path
                     import time
@@ -111,6 +108,9 @@ class ChatService:
                         
                         # 转换并发送图片路径
                         win_path = file_path.replace('/', '\\')
+                        # 先发提示语
+                        base_client.send_text(wxid, at_user, message)
+                        # 再发送图片
                         base_client.send_img(win_path, wxid)
                         return
                     except Exception as ge:
