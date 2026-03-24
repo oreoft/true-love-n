@@ -257,28 +257,25 @@ class AIClient:
     
     def analyze_speech(
         self,
-        target: str,
         history_text: str,
         wxid: str,
-        target_name: str = ""
+        metadata: dict = None
     ) -> AIResponse:
         """
         根据提供的历史记录生成发言分析报告
         
         Args:
-            target: 分析目标描述
             history_text: 拼装好的历史发言文本
             wxid: 会话 ID, 用于保存分析上下文
-            target_name: 被分析的群成员纯昵称（用于 prompt 明确指代）
+            metadata: 包含 target, target_name, is_self 等参数的字典
             
         Returns:
             AIResponse: 分析结果
         """
         data = {
-            "target": target,
-            "target_name": target_name,
             "history_text": history_text,
-            "wxid": wxid
+            "wxid": wxid,
+            "metadata": metadata or {}
         }
         return self._request(
             "/get-analyze-speech",

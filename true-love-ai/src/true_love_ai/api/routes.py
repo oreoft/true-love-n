@@ -66,11 +66,17 @@ async def get_analyze_speech(
         return APIResponse.token_error()
 
     try:
+        # 合并 target 和 target_name 到 metadata 中，实现参数扁平化
+        metadata = request.metadata or {}
+        if request.target and "target" not in metadata:
+            metadata["target"] = request.target
+        if request.target_name and "target_name" not in metadata:
+            metadata["target_name"] = request.target_name
+
         result = await service.analyze_speech(
-            target=request.target,
             history_text=request.history_text,
             session_id=request.wxid,
-            target_name=request.target_name,
+            metadata=metadata,
             provider=request.provider,
             model=request.model
         )

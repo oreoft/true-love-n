@@ -71,10 +71,16 @@ class VideoRequest(BaseModel):
 class AnalyzeSpeechRequest(BaseModel):
     """带历史记录的发言分析请求"""
     token: str = Field(..., description="鉴权 Token")
-    target: str = Field(..., description="分析目标描述")
-    target_name: str = Field(default="", description="被分析的群成员纯昵称，用于 prompt 明确指代")
     history_text: str = Field(..., description="拼装好的历史发言记录文本")
     wxid: str = Field(default="", description="会话 ID")
+    
+    # 扩展字段：使用 map 传参，避免频繁修改链路
+    # 建议将 target, target_name 等都放入 metadata 中
+    metadata: dict = Field(default_factory=dict, description="扩展参数，包含 target, target_name, is_self 等")
+    
+    # 保留字段（兼容旧版）
+    target: Optional[str] = Field(default=None, description="分析目标描述")
+    target_name: Optional[str] = Field(default=None, description="被分析的群成员纯昵称")
     
     provider: Optional[str] = Field(default=None, description="模型提供商")
     model: Optional[str] = Field(default=None, description="模型名称")
