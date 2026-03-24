@@ -133,7 +133,13 @@ class ChatService:
                     answer = json.dumps(qr_data)
                     response_type = "wechat-qr"
 
-                    # 记录到历史（可选，或者只记录用户意图）
+                    # 启动后台绑定任务，自动完成后续的 qr-wait 和 connect 步骤
+                    import asyncio
+                    session_key = qr_data.get("sessionKey")
+                    if session_key:
+                        asyncio.create_task(self._handle_wechat_qr_binding(session_key))
+
+                    # 记录到历史
                     session.add_message("user", clean_content)
                     session.add_message("assistant", "[已生成微信连接二维码]")
             except Exception as e:
@@ -289,3 +295,47 @@ class ChatService:
         cost = round(time.time() - start_time, 2)
         LOG.info(f"发言分析耗时: {cost}s")
         return ChatResponse(type="chat", answer=answer)
+
+    async def _handle_wechat_qr_binding(self, session_key: str):
+        """
+        后台处理微信扫码绑定流程
+        1. 轮询 qr-wait 获取 accountId
+        2. 调用 connect 完成最终绑定
+        """
+        import httpx
+        nexu_config = self.config.nexu
+        wait_url = f"{nexu_config.base_url}/api/v1/channels/wechat/qr-wait"
+        connect_url = f"{nexu_config.base_url}/api/v1/channels/wechat/connect"
+
+        headers = {}
+        if nexu_config.token:
+            headers["Authorization"] = f"Bearer {nexu_config.token}"
+
+        try:
+            # 使用较长的超时时间，因为 qr-wait 是长轮询
+            async with httpx.AsyncClient(timeout=600.0) as client:
+                LOG.info(f"开始后台轮询 wechat-qr-wait, sessionKey: {session_key}")
+                wait_res = await client.post(
+                    wait_url,
+                    json={"sessionKey": session_key},
+                    headers=headers
+                )
+                wait_res.raise_for_status()
+                wait_data = wait_res.json()
+                LOG.info(f"wechat-qr-wait 轮询结束, 结果: {wait_data}")
+
+                if wait_data.get("connected") and wait_data.get("accountId"):
+                    account_id = wait_data["accountId"]
+                    LOG.info(f"用户扫码成功，开始调用 connect 绑定 accountId: {account_id}")
+
+                    conn_res = await client.post(
+                        connect_url,
+                        json={"accountId": account_id},
+                        headers=headers
+                    )
+                    conn_res.raise_for_status()
+                    LOG.info(f"微信连通道绑定过程完全成功: {conn_res.json()}")
+                else:
+                    LOG.warning(f"wechat-qr-wait 返回了非预期结果或已超时: {wait_data}")
+        except Exception as e:
+            LOG.error(f"后台处理微信扫码绑定流程出错: {e}")
