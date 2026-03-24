@@ -142,6 +142,11 @@ export async function monitorWeixinProvider(
           aLog.error(
             `getUpdates: session expired (errcode=${resp.errcode} ret=${resp.ret}), pausing all requests for ${Math.ceil(pauseMs / 60_000)} min`,
           );
+          setStatus?.({
+            accountId,
+            lastError: `Session Expired (${resp.errcode ?? resp.ret})`,
+            running: false,
+          });
           consecutiveFailures = 0;
           await sleep(pauseMs, abortSignal);
           continue;
@@ -154,6 +159,10 @@ export async function monitorWeixinProvider(
         aLog.error(
           `getUpdates failed: ret=${resp.ret} errcode=${resp.errcode} errmsg=${resp.errmsg} response=${redactBody(JSON.stringify(resp))}`,
         );
+        setStatus?.({
+          accountId,
+          lastError: `API Error: ${resp.errmsg || resp.errcode || resp.ret}`,
+        });
         if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
           errLog(
             `weixin getUpdates: ${MAX_CONSECUTIVE_FAILURES} consecutive failures, backing off 30s`,
@@ -169,7 +178,7 @@ export async function monitorWeixinProvider(
         continue;
       }
       consecutiveFailures = 0;
-      setStatus?.({ accountId, lastEventAt: Date.now() });
+      setStatus?.({ accountId, lastEventAt: Date.now(), lastError: null });
       if (resp.get_updates_buf != null && resp.get_updates_buf !== "") {
         saveGetUpdatesBuf(syncFilePath, resp.get_updates_buf);
         getUpdatesBuf = resp.get_updates_buf;
