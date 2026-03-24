@@ -139,7 +139,7 @@ def ping():
     return "pong"
 
 
-MAX_CHUNK_CHARS = 2000
+MAX_CHUNK_CHARS = 1500
 SPLIT_SEARCH_WINDOW = 200
 
 
