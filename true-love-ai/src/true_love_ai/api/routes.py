@@ -70,6 +70,7 @@ async def get_analyze_speech(
             target=request.target,
             history_text=request.history_text,
             session_id=request.wxid,
+            target_name=request.target_name,
             provider=request.provider,
             model=request.model
         )

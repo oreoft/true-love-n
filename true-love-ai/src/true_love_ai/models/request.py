@@ -71,7 +71,8 @@ class VideoRequest(BaseModel):
 class AnalyzeSpeechRequest(BaseModel):
     """带历史记录的发言分析请求"""
     token: str = Field(..., description="鉴权 Token")
-    target: str = Field(..., description="分析目标")
+    target: str = Field(..., description="分析目标描述")
+    target_name: str = Field(default="", description="被分析的群成员纯昵称，用于 prompt 明确指代")
     history_text: str = Field(..., description="拼装好的历史发言记录文本")
     wxid: str = Field(default="", description="会话 ID")
     

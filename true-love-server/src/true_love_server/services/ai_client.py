@@ -259,21 +259,24 @@ class AIClient:
         self,
         target: str,
         history_text: str,
-        wxid: str
+        wxid: str,
+        target_name: str = ""
     ) -> AIResponse:
         """
         根据提供的历史记录生成发言分析报告
         
         Args:
-            target: 分析目标
+            target: 分析目标描述
             history_text: 拼装好的历史发言文本
             wxid: 会话 ID, 用于保存分析上下文
+            target_name: 被分析的群成员纯昵称（用于 prompt 明确指代）
             
         Returns:
             AIResponse: 分析结果
         """
         data = {
             "target": target,
+            "target_name": target_name,
             "history_text": history_text,
             "wxid": wxid
         }

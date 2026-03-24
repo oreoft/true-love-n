@@ -267,15 +267,16 @@ class ChatService:
             target: str,
             history_text: str,
             session_id: str = "",
+            target_name: str = "",
             provider: Optional[str] = None,
             model: Optional[str] = None
     ) -> ChatResponse:
         """根据提供的历史记录生成发言分析报告"""
         start_time = time.time()
-        LOG.info(f"开始生成发言分析报告, 目标: {target}, 历史记录长度: {len(history_text)}")
+        LOG.info(f"开始生成发言分析报告, 目标: {target}, target_name: {target_name}, 历史记录长度: {len(history_text)}")
 
         from true_love_ai.llm.analyze_speech_prompt import get_analyze_system_prompt
-        analyze_system_prompt = get_analyze_system_prompt(target, history_text)
+        analyze_system_prompt = get_analyze_system_prompt(target, history_text, target_name)
 
         analyze_messages = [
             {"role": "system", "content": analyze_system_prompt},
