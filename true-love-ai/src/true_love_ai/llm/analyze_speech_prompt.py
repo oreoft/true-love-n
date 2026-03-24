@@ -17,7 +17,7 @@ def get_analyze_system_prompt(analyze_target: str, speech_history_text: str, tar
         完整的系统提示词
     """
     # 如果有纯昵称，在 prompt 中明确点名，避免 LLM 混淆
-    name_ref = f"【{target_name}】" if target_name else "该群成员"
+    name_ref = f"【{target_name}】" if target_name else "该群家人"
     return (
         f"你是一个专业的心理分析师和语言学家，负责根据聊天记录分析群家人的性格以及人物特点\n"
         f"你现在需要分析的对象是群里的{name_ref}\n"
