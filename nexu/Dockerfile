@@ -58,6 +58,11 @@ COPY --from=builder /app/apps/web/dist ./apps/web/dist
 COPY --from=builder /app/openclaw-runtime ./openclaw-runtime
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 
+# Patch openclaw tools to support Vertex AI (Gemini) which requires explicit object parameters
+RUN sed -i "s/id: \"agents_list\",/id: \"agents_list\", parameters: { type: 'object', properties: {} },/g" /app/openclaw-runtime/node_modules/openclaw/dist/channels/plugins/actions/telegram.js && \
+    sed -i "s/id: \"nodes\",/id: \"nodes\", parameters: { type: 'object', properties: {} },/g" /app/openclaw-runtime/node_modules/openclaw/dist/channels/plugins/actions/telegram.js && \
+    sed -i "s/id: \"gateway\",/id: \"gateway\", parameters: { type: 'object', properties: {} },/g" /app/openclaw-runtime/node_modules/openclaw/dist/channels/plugins/actions/telegram.js
+
 # Data directory (config, OpenClaw state) lives here — mount as a volume to persist
 VOLUME /root/.nexu
 
