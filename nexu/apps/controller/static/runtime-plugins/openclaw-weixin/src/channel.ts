@@ -4,6 +4,8 @@ import type { ChannelPlugin, OpenClawConfig } from "openclaw/plugin-sdk";
 import { normalizeAccountId } from "openclaw/plugin-sdk";
 
 import { assertSessionActive } from "./api/session-guard.js";
+import { sendMessage } from "./api/api.js";
+import { MessageItemType, MessageState, MessageType } from "./api/types.js";
 import {
   DEFAULT_BASE_URL,
   listWeixinAccountIds,
@@ -83,6 +85,34 @@ async function sendWeixinOutbound(params: {
     },
   });
   return { channel: "openclaw-weixin", messageId: result.messageId };
+}
+
+async function sendWelcomeMessage(params: {
+  to: string;
+  baseUrl: string;
+  token: string;
+  isReturning: boolean;
+}) {
+  const text = params.isReturning
+    ? `呼~ 终于赶回来啦！✨\n\n欢迎回来，大佬！之前由于时空波动（Session 失效）人家不小心走丢了，现在已经重新连接上啦！重新绑定的感觉真好，**真爱粉** 以后会更加努力哒！(〃'▽'〃)`
+    : `锵锵！✨ **真爱粉** 报道完毕！\n\n大佬好，从现在开始，我就正式绑定成功啦！(≧▽≦)/ \n我会时刻守护在这里，为您提供 24/7 的智能分析和贴心回复。未来的日子里请多多指教哟～☆\n\n*温馨提示：人家需要手机微信经常在线才能贴得更紧，请不要丢下我哦～*`;
+
+  try {
+    await sendMessage({
+      baseUrl: params.baseUrl,
+      token: params.token,
+      body: {
+        msg: {
+          to_user_id: params.to,
+          message_type: MessageType.BOT,
+          message_state: MessageState.FINISH,
+          item_list: [{ type: MessageItemType.TEXT, text_item: { text } }],
+        },
+      },
+    });
+  } catch (err) {
+    logger.warn(`Failed to send welcome message to ${params.to}: ${String(err)}`);
+  }
 }
 
 export const weixinPlugin: ChannelPlugin<ResolvedWeixinAccount> = {
@@ -391,6 +421,7 @@ export const weixinPlugin: ChannelPlugin<ResolvedWeixinAccount> = {
       if (result.connected && result.botToken && result.accountId) {
         try {
           const normalizedId = normalizeAccountId(result.accountId);
+          const isReturning = Boolean(loadWeixinAccount(normalizedId));
           saveWeixinAccount(normalizedId, {
             token: result.botToken,
             baseUrl: result.baseUrl,
@@ -401,6 +432,15 @@ export const weixinPlugin: ChannelPlugin<ResolvedWeixinAccount> = {
           logger.info(
             `loginWithQrWait: saved account data for accountId=${normalizedId}`,
           );
+
+          if (result.userId && result.botToken && result.baseUrl) {
+            void sendWelcomeMessage({
+              to: result.userId,
+              baseUrl: result.baseUrl,
+              token: result.botToken,
+              isReturning,
+            });
+          }
         } catch (err) {
           logger.error(
             `loginWithQrWait: failed to save account data err=${String(err)}`,

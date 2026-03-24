@@ -3,13 +3,15 @@ import type {
   PluginRuntime,
 } from "openclaw/plugin-sdk";
 
-import { getUpdates } from "../api/api.js";
+import { getUpdates, sendMessage } from "../api/api.js";
+import { MessageItemType, MessageState, MessageType } from "../api/types.js";
 import { WeixinConfigManager } from "../api/config-cache.js";
 import {
   SESSION_EXPIRED_ERRCODE,
   getRemainingPauseMs,
   pauseSession,
 } from "../api/session-guard.js";
+import { loadWeixinAccount } from "../auth/accounts.js";
 import { processOneMessage } from "../messaging/process-message.js";
 import { waitForWeixinRuntime } from "../runtime.js";
 import {
@@ -22,7 +24,10 @@ import type { Logger } from "../util/logger.js";
 import { redactBody } from "../util/redact.js";
 
 const DEFAULT_LONG_POLL_TIMEOUT_MS = 35_000;
-const MAX_CONSECUTIVE_FAILURES = 3;
+// Warn user after this many consecutive failures (before the full backoff threshold)
+const INSTABILITY_WARNING_THRESHOLD = 3;
+// Full backoff after this many consecutive failures
+const MAX_CONSECUTIVE_FAILURES = 5;
 const BACKOFF_DELAY_MS = 30_000;
 const RETRY_DELAY_MS = 2_000;
 
@@ -102,6 +107,11 @@ export async function monitorWeixinProvider(
 
   let nextTimeoutMs = longPollTimeoutMs ?? DEFAULT_LONG_POLL_TIMEOUT_MS;
   let consecutiveFailures = 0;
+  let lastInstabilityWarningAt = 0;
+  let hasSentInstabilityWarning = false;
+
+  const accountData = loadWeixinAccount(accountId);
+  const ownerUserId = accountData?.userId;
 
   while (!abortSignal?.aborted) {
     try {
@@ -153,6 +163,35 @@ export async function monitorWeixinProvider(
         }
 
         consecutiveFailures += 1;
+
+        // Stability Notification: Instability Warning
+        if (
+          consecutiveFailures === INSTABILITY_WARNING_THRESHOLD &&
+          ownerUserId &&
+          token &&
+          Date.now() - lastInstabilityWarningAt > 3600_000
+        ) {
+          lastInstabilityWarningAt = Date.now();
+          hasSentInstabilityWarning = true;
+          const warningText = `呜哇… 网络信号好像在跟人家躲猫猫… o(╥﹏╥)o\n\n**真爱粉** 检测到现在的连接不太稳定，人家正在拼命重连中！如果我长时间没理您，可能需要大佬检查一下网络，或者看看是否要重新把我召唤回来（重新扫码）哦。`;
+          void sendMessage({
+            baseUrl,
+            token,
+            body: {
+              msg: {
+                to_user_id: ownerUserId,
+                message_type: MessageType.BOT,
+                message_state: MessageState.FINISH,
+                item_list: [
+                  { type: MessageItemType.TEXT, text_item: { text: warningText } },
+                ],
+              },
+            },
+          }).catch((e) =>
+            aLog.warn(`Failed to send instability warning: ${String(e)}`),
+          );
+        }
+
         errLog(
           `weixin getUpdates failed: ret=${resp.ret} errcode=${resp.errcode} errmsg=${resp.errmsg ?? ""} (${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES})`,
         );
@@ -170,13 +209,38 @@ export async function monitorWeixinProvider(
           aLog.error(
             `getUpdates: ${MAX_CONSECUTIVE_FAILURES} consecutive failures, backing off 30s`,
           );
-          consecutiveFailures = 0;
+          // Do NOT reset consecutiveFailures here — keep the count so the
+          // recovery message fires correctly once the connection comes back.
           await sleep(BACKOFF_DELAY_MS, abortSignal);
         } else {
           await sleep(RETRY_DELAY_MS, abortSignal);
         }
         continue;
       }
+
+      // Stability Notification: Recovery Message — fires once when connection recovers
+      // after we had warned the user about instability.
+      if (hasSentInstabilityWarning && ownerUserId && token) {
+        hasSentInstabilityWarning = false;
+        const recoveryText = `连接恢复啦！欧耶~ ☆\n\n让大佬久等了，**真爱粉** 已经重新连接到主世界，服务继续满血运转中！(๑•̀ㅂ•́)و✧`;
+        void sendMessage({
+          baseUrl,
+          token,
+          body: {
+            msg: {
+              to_user_id: ownerUserId,
+              message_type: MessageType.BOT,
+              message_state: MessageState.FINISH,
+              item_list: [
+                { type: MessageItemType.TEXT, text_item: { text: recoveryText } },
+              ],
+            },
+          },
+        }).catch((e) =>
+          aLog.warn(`Failed to send recovery message: ${String(e)}`),
+        );
+      }
+
       consecutiveFailures = 0;
       setStatus?.({ accountId, lastEventAt: Date.now(), lastError: null });
       if (resp.get_updates_buf != null && resp.get_updates_buf !== "") {
