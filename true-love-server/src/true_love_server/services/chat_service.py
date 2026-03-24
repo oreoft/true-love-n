@@ -84,6 +84,9 @@ class ChatService:
                 message = qr_data.get('message', "使用微信扫描以下二维码，以完成连接。")
                 
                 if qr_url:
+                    # 先发提示语（模仿 ImageService 顺序）
+                    base_client.send_text(wxid, at_user, message)
+                    
                     # 获取文件名并生成二维码
                     from .ai_client import get_file_path
                     import time
@@ -92,14 +95,23 @@ class ChatService:
                     file_path = get_file_path(temp_msg_id)
                     
                     try:
-                        # 使用 qrcode 库生成二维码
-                        img = qrcode.make(qr_url)
+                        # 使用 QRCode 类以获得更好的控制
+                        qr = qrcode.QRCode(
+                            version=1,
+                            error_correction=qrcode.constants.ERROR_CORRECT_L,
+                            box_size=10,
+                            border=4,
+                        )
+                        qr.add_data(qr_url)
+                        qr.make(fit=True)
+                        
+                        # 生成图片并强制转换为 RGB 格式，确保兼容性
+                        img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
                         img.save(file_path)
                         
-                        # 先发提示语
-                        base_client.send_text(wxid, at_user, message)
-                        # 再发二维码图片
-                        base_client.send_img(file_path, wxid)
+                        # 转换并发送图片路径
+                        win_path = file_path.replace('/', '\\')
+                        base_client.send_img(win_path, wxid)
                         return
                     except Exception as ge:
                         LOG.error(f"本地生成二维码失败: {ge}")
