@@ -139,38 +139,49 @@ def ping():
     return "pong"
 
 
-MAX_CHUNK_CHARS = 1500
-SPLIT_SEARCH_WINDOW = 200
+MAX_CHUNK_BYTES = 2000
 
 
 def split_long_text(text: str) -> list:
     """
-    将超长文本按行拆分成多批。
-
-    规则：
-    - 每批不超过 MAX_CHUNK_CHARS 个字符。
-    - 在每批末尾的 SPLIT_SEARCH_WINDOW 个字符内，向前找最近一个换行符，
-      在换行处断开，使分割点尽量自然。
-    - 若该窗口内找不到换行符，则直接在 MAX_CHUNK_CHARS 处硬切。
+    将文本按 UTF-8 字节长度进行拆分，每批不超过 MAX_CHUNK_BYTES。
+    尽量在换行符处拆分以保持美观。
     """
     chunks = []
-    start = 0
-    while start < len(text):
-        end = start + MAX_CHUNK_CHARS
-        if end >= len(text):
-            chunks.append(text[start:])
+    if not text:
+        return chunks
+
+    remaining = text
+    while remaining:
+        # 如果剩余部分转为字节后小于限制，直接添加并结束
+        if len(remaining.encode('utf-8')) <= MAX_CHUNK_BYTES:
+            chunks.append(remaining)
             break
-        # 在末尾 SPLIT_SEARCH_WINDOW 个字符内找最后一个换行
-        window_start = end - SPLIT_SEARCH_WINDOW
-        window = text[window_start:end]
-        nl_pos = window.rfind('\n')
-        if nl_pos != -1:
-            # 在换行符后（不含换行符本身）切割
-            cut = window_start + nl_pos + 1
+
+        # 寻找当前能容纳的最大字符数量
+        low = 0
+        high = len(remaining)
+        split_point = 0
+        while low <= high:
+            mid = (low + high) // 2
+            if len(remaining[:mid].encode('utf-8')) <= MAX_CHUNK_BYTES:
+                split_point = mid
+                low = mid + 1
+            else:
+                high = mid - 1
+
+        # 在这 2000 字节的范围内，尝试找最后一个换行符进行美化分割
+        chunk_text = remaining[:split_point]
+        last_newline = chunk_text.rfind('\n')
+        # 如果找到了换行符，且它占据了当前块一半以上的长度，则从这儿切
+        if last_newline != -1 and last_newline > split_point * 0.6:
+            actual_split = last_newline + 1
         else:
-            cut = end
-        chunks.append(text[start:cut])
-        start = cut
+            actual_split = split_point
+
+        chunks.append(remaining[:actual_split])
+        remaining = remaining[actual_split:]
+
     return chunks
 
 
@@ -199,13 +210,14 @@ def send_text():
     if not receiver or not content:
         return jsonify(ApiErrors.INVALID_PARAMS.to_dict())
 
-    if len(content) <= MAX_CHUNK_CHARS:
+    if len(content.encode('utf-8')) <= MAX_CHUNK_BYTES:
         # 短消息直接发送
         success = robot.send_text_msg(content, receiver, at_receiver if at_receiver else None)
     else:
-        # 长消息分批发送
+        # 长消息分段发送
         chunks = split_long_text(content)
-        LOG.info(f"send_text: content too long ({len(content)} chars), splitting into {len(chunks)} chunks")
+        LOG.info(
+            f"send_text: content too long ({len(content.encode('utf-8'))} bytes), splitting into {len(chunks)} chunks")
         success = True
         for idx, chunk in enumerate(chunks):
             mention = at_receiver if idx == 0 and at_receiver else None
