@@ -117,33 +117,39 @@ class ChatService:
             nexu_config = self.config.nexu
             url = f"{nexu_config.base_url}/api/v1/channels/wechat/qr-start"
             LOG.info(f"调用 Nexu 接口: {url}")
-            try:
-                async with httpx.AsyncClient() as client:
-                    # 也可以带上 token 如果配置了的话
-                    headers = {}
-                    if nexu_config.token:
-                        headers["Authorization"] = f"Bearer {nexu_config.token}"
+            max_retries = 3
+            last_error = None
+            qr_data = None
+            for attempt in range(1, max_retries + 1):
+                try:
+                    async with httpx.AsyncClient() as client:
+                        headers = {}
+                        if nexu_config.token:
+                            headers["Authorization"] = f"Bearer {nexu_config.token}"
+                        res = await client.post(url, headers=headers, timeout=30.0)
+                        res.raise_for_status()
+                        qr_data = res.json()
+                        LOG.info(f"Nexu 响应: {qr_data}")
+                        break
+                except Exception as e:
+                    last_error = e
+                    LOG.warning(f"调用 Nexu 接口失败 (第{attempt}次): {e}")
+            if qr_data is not None:
+                # 将 Nexu 的原始响应作为 answer 返回，由 Server 进一步解析
+                answer = json.dumps(qr_data)
+                response_type = "wechat-qr"
 
-                    res = await client.post(url, headers=headers, timeout=30.0)
-                    res.raise_for_status()
-                    qr_data = res.json()
-                    LOG.info(f"Nexu 响应: {qr_data}")
+                # 启动后台绑定任务，自动完成后续的 qr-wait 和 connect 步骤
+                import asyncio
+                session_key = qr_data.get("sessionKey")
+                if session_key:
+                    asyncio.create_task(self._handle_wechat_qr_binding(session_key))
 
-                    # 将 Nexu 的原始响应作为 answer 返回，由 Server 进一步解析
-                    answer = json.dumps(qr_data)
-                    response_type = "wechat-qr"
-
-                    # 启动后台绑定任务，自动完成后续的 qr-wait 和 connect 步骤
-                    import asyncio
-                    session_key = qr_data.get("sessionKey")
-                    if session_key:
-                        asyncio.create_task(self._handle_wechat_qr_binding(session_key))
-
-                    # 记录到历史
-                    session.add_message("user", clean_content)
-                    session.add_message("assistant", "[已生成微信连接二维码]")
-            except Exception as e:
-                LOG.error(f"调用 Nexu 接口失败: {e}")
+                # 记录到历史
+                session.add_message("user", clean_content)
+                session.add_message("assistant", "[已生成微信连接二维码]")
+            else:
+                LOG.error(f"调用 Nexu 接口重试{max_retries}次均失败: {last_error}")
                 answer = "抱歉捏，openclaw服务暂时不可用，请稍后再试吧~"
                 response_type = "chat"
 
