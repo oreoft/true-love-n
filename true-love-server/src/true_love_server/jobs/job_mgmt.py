@@ -82,9 +82,9 @@ class Job(object):
 
 
 job = Job()
-job.on_every_time("08:00", job_process.async_download_zao_bao_file)
-job.on_every_time("08:01", job_process.async_download_moyu_file)
-job.on_every_time("08:05", job_process.notice_moyu_schedule)
+job.on_every_time("09:00", job_process.async_download_zao_bao_file)
+job.on_every_time("09:01", job_process.async_download_moyu_file)
+job.on_every_time("09:05", job_process.notice_moyu_schedule)
 job.on_every_time("08:00", job_process.notice_usa_moyu_schedule, tz="America/Chicago")  # 美中时间 20:08
 
 
