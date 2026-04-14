@@ -7,15 +7,6 @@ Handlers module - 消息处理器模块
 
 # 核心组件
 from .base_handler import BaseHandler
-from .registry import registry, register_handler
-from .msg_handler import MsgHandler
-
-# 原有的触发处理器
-from .trig_remainder_handler import TrigRemainderHandler
-
-# 处理器（基于策略模式）
-from .reminder_handler import ReminderHandler
-from .admin_handler import AdminHandler
 from .image_gen_handler import ImageGenHandler
 from .chat_handler import ChatHandler
 
@@ -26,10 +17,6 @@ __all__ = [
     "register_handler",
     "MsgHandler",
     # 处理器
-    "ReminderHandler",
-    "AdminHandler",
     "ImageGenHandler",
     "ChatHandler",
-    # 触发器（内部使用）
-    "TrigRemainderHandler",
 ]

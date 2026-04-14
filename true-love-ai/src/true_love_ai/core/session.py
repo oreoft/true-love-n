@@ -50,13 +50,32 @@ class Session:
         if len(self.messages) > self.max_history:
             self.messages = self.messages[-self.max_history:]
     
-    @staticmethod
-    def get_current_time_context() -> str:
-        """获取当前时间上下文（供各模块复用）"""
-        now = datetime.now()
+    def get_current_time_context(self) -> str:
+        """获取当前时间上下文（带时区感知）"""
+        import pytz
+        import re
+        from datetime import datetime
+        
+        tz_str = "Asia/Shanghai"  # default
+        if self.system_prompt:
+            # 去提取 user_ctx 中的 时区: America/New_York
+            match = re.search(r"时区[：:]\s*([a-zA-Z0-9_]+/[a-zA-Z0-9_]+)", self.system_prompt)
+            if match:
+                tz_str = match.group(1)
+                
+        try:
+            tz = pytz.timezone(tz_str)
+        except Exception:
+            tz_str = "Asia/Shanghai"
+            tz = pytz.timezone(tz_str)
+            
+        now_utc = datetime.now(pytz.utc)
+        now_local = now_utc.astimezone(tz)
+        
         return (
-            f"当前时间: {now.strftime('%Y年%m月%d日 %H:%M')}，"
-            f"当前年份: {now.year}年"
+            f"系统当前世界标准时间(UTC): {now_utc.strftime('%Y-%m-%d %H:%M:%S')}。"
+            f"该用户当前当地时间({tz_str}): {now_local.strftime('%Y-%m-%d %H:%M:%S')}。"
+            f"重要：如果是设置提醒等时间推算需求，请务必以用户的当地时间及当地日期为基准，推算出 ISO-8601 标准时间字符串。"
         )
     
     def get_messages_for_llm(self) -> list[dict]:

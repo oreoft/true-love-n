@@ -44,9 +44,14 @@ def main():
 
     # 注册并异步启动定时任务
     job = Job()
-    job.async_enable_jobs()
+    from .core.db_engine import create_db_and_table
+    create_db_and_table()
 
-    # 创建 FastAPI 应用
+    # 启动持久化调度器
+    from .services.scheduler_service import start_scheduler
+    start_scheduler()
+
+    # 启动应用
     app = create_app()
 
     # 获取 HTTP 配置

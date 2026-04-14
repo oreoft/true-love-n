@@ -19,6 +19,7 @@ _KEY_LABELS = {
     "occupation":  "职业",
     "preference":  "爱好/偏好",
     "fact":        "其他信息",
+    "timezone":    "时区",
 }
 
 

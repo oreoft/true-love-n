@@ -379,11 +379,10 @@ class ChatService:
             [{key: "personality", value: "外向幽默"}, ...]
             异常时返回空列表
         """
-        extract_prompt = (
             f"请从下面这段关于用户「{sender}」的分析报告中，提取关键个人事实。\n"
             "以 JSON 数组格式返回，每项包含 key 和 value 两个字段。\n"
-            "key 只能是以下之一：personality（性格）/ occupation（职业）/ preference（爱好偏好）/ fact（其他事实）\n"
-            "要求：只提取确定性较高的信息，不要猜测，不超过 8 条，value 用中文简洁描述。\n"
+            "key 只能是以下之一：personality（性格）/ occupation（职业）/ preference（爱好偏好）/ fact（其他事实）/ timezone（所在时区名，必须是 America/New_York 这种标准格式，没有请勿猜测）\n"
+            "要求：只提取确定性较高的信息，不要猜测，不超过 8 条，value 用中文简洁描述（timezone 除外）。\n"
             "只返回 JSON 数组，不要其他文字。\n\n"
             f"分析报告：\n{text}"
         )
@@ -404,7 +403,7 @@ class ChatService:
                 raise ValueError(f"期望 list，实际: {type(facts)}")
 
             # 过滤非法 key
-            allowed = {"personality", "occupation", "preference", "fact"}
+            allowed = {"personality", "occupation", "preference", "fact", "timezone"}
             facts = [f for f in facts if isinstance(f, dict) and f.get("key") in allowed and f.get("value")]
             LOG.info("extract_memory_facts: sender=%s, 提取到 %d 条", sender, len(facts))
             return facts
