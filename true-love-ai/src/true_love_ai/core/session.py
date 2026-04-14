@@ -59,8 +59,8 @@ class Session:
         tz_str = "Asia/Shanghai"  # default
         if self.system_prompt:
             # 去提取 user_ctx 中的 时区: America/New_York 
-            # 放宽正则以兼容旧的异常记录如 "时区: Central Time"
-            match = re.search(r"时区[：:]\s*([a-zA-Z0-9_/\-\+]+(?:\s+[a-zA-Z0-9_]+)*)", self.system_prompt)
+            # 放宽正则以兼容旧的异常记录，提取直到空格或 | 符号
+            match = re.search(r"时区[：:]\s*([^\s\|]+)", self.system_prompt)
             if match:
                 tz_str = match.group(1).strip()
                 
@@ -138,6 +138,23 @@ class Session:
         messages.append({
             "role": "system", 
             "content": self.get_current_time_context()
+        })
+        
+        # 强制技能调用的环境提示
+        from true_love_ai.skills import get_skill_schemas
+        skills = get_skill_schemas()
+        skill_desc_list = [f"- {s['function']['name']}: {s['function']['description']}" for s in skills]
+        skill_text = "\n".join(skill_desc_list)
+        
+        intent_system_prompt = (
+            "【系统最高级别警告】：如果用户在陈述自己的长期客观事实（例如：他在哪个时区、性格、爱好、职业、禁忌等），"
+            "或明确要求你记住关于他的某件事时，**你绝对不能**仅使用普通的语言回复（即不能只返回 type_answer 说你记住了）！\n"
+            "你必须且只能立刻使用相应的保存技能（如 save_user_profile）来将此信息入库持久化！如果你不调用该技能，数据将永远丢失！\n"
+            f"当你需要保存或者操作时，请从以下技能列表中选择：\n{skill_text}\n"
+        )
+        messages.append({
+            "role": "system",
+            "content": intent_system_prompt
         })
         
         # 添加最近的对话历史

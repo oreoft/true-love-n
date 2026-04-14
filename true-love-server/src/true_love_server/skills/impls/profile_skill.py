@@ -45,6 +45,13 @@ class SaveProfileSkill(BaseSkillImpl):
         if not key or not value:
             return "呜呜~保存画像失败啦，必须要告诉我属性类别和具体的值哦！"
             
+        if key == "timezone":
+            try:
+                import zoneinfo
+                zoneinfo.ZoneInfo(value)
+            except Exception:
+                return f"呀，时区格式不太对捏，必须是标准的城市格式（比如 America/Chicago 或 Asia/Shanghai这种），你发的是「{value}」，请重新告诉我正确的名称哦~"
+            
         try:
             # 存入底层数据库
             upsert_user_memory(ctx.group_id, ctx.sender, [{"key": key, "value": value}], source="profile_skill")

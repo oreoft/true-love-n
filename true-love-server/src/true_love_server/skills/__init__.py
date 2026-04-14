@@ -10,6 +10,8 @@ from .impls import (  # noqa: F401
     muninn_skill,
     listen_skill,
     config_skill,
+    reminder_skill,
+    profile_skill,
 )
 
 __all__ = ["skill_executor", "register_skill", "BaseSkillImpl", "SkillContext"]
