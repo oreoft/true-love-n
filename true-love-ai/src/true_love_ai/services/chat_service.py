@@ -38,7 +38,8 @@ class ChatService:
             session_id: str,
             sender: str = "",
             provider: Optional[str] = None,
-            model: Optional[str] = None
+            model: Optional[str] = None,
+            user_ctx: Optional[str] = None,
     ) -> ChatResponse:
         """
         获取聊天回答
@@ -62,10 +63,10 @@ class ChatService:
         if not clean_content:
             clean_content = "你好"
 
-        # 获取或创建会话
-        session = self.session_manager.get_or_create(session_id)
+        # 获取或创建会话，注入用户画像到 system prompt
+        session = self.session_manager.get_or_create(session_id, user_ctx=user_ctx)
 
-        LOG.info(f"开始调用 LLM, session={session_id}, provider={provider}, model={model}")
+        LOG.info(f"开始调用 LLM, session={session_id}, provider={provider}, model={model}, has_user_ctx={bool(user_ctx)}")
 
         # 意图识别（带上下文，理解指代关系和时间敏感查询）
         intent_start_time = time.time()
@@ -347,3 +348,48 @@ class ChatService:
                     LOG.warning(f"wechat-qr-wait 返回了非预期结果或已超时: {wait_data}")
         except Exception as e:
             LOG.error(f"后台处理微信扫码绑定流程出错: {e}")
+
+    async def extract_memory_facts(self, text: str, sender: str) -> list[dict]:
+        """
+        从发言分析报告中提取结构化用户事实，供 server 写入记忆库。
+
+        Args:
+            text:   analyze-speech 输出的分析报告原文
+            sender: 被分析的用户昵称
+
+        Returns:
+            [{key: "personality", value: "外向幽默"}, ...]
+            异常时返回空列表
+        """
+        extract_prompt = (
+            f"请从下面这段关于用户「{sender}」的分析报告中，提取关键个人事实。\n"
+            "以 JSON 数组格式返回，每项包含 key 和 value 两个字段。\n"
+            "key 只能是以下之一：personality（性格）/ occupation（职业）/ preference（爱好偏好）/ fact（其他事实）\n"
+            "要求：只提取确定性较高的信息，不要猜测，不超过 8 条，value 用中文简洁描述。\n"
+            "只返回 JSON 数组，不要其他文字。\n\n"
+            f"分析报告：\n{text}"
+        )
+
+        try:
+            raw = await self.llm_router.chat(
+                messages=[{"role": "user", "content": extract_prompt}],
+            )
+            raw = raw.strip()
+            # 去掉可能的 markdown 代码块包裹
+            if raw.startswith("```"):
+                raw = "\n".join(raw.split("\n")[1:])
+            if raw.endswith("```"):
+                raw = raw[: raw.rfind("```")]
+
+            facts = json.loads(raw.strip())
+            if not isinstance(facts, list):
+                raise ValueError(f"期望 list，实际: {type(facts)}")
+
+            # 过滤非法 key
+            allowed = {"personality", "occupation", "preference", "fact"}
+            facts = [f for f in facts if isinstance(f, dict) and f.get("key") in allowed and f.get("value")]
+            LOG.info("extract_memory_facts: sender=%s, 提取到 %d 条", sender, len(facts))
+            return facts
+        except Exception as e:
+            LOG.warning("extract_memory_facts 失败，返回空列表: %s", e)
+            return []

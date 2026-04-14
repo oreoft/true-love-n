@@ -147,30 +147,55 @@ class SessionManager:
     def get_or_create(
         self,
         session_id: str,
-        system_prompt: Optional[str] = None
+        system_prompt: Optional[str] = None,
+        user_ctx: Optional[str] = None,
     ) -> Session:
-        """获取或创建会话"""
+        """获取或创建会话
+
+        Args:
+            session_id:    会话 ID
+            system_prompt: 覆盖默认 system prompt（可选）
+            user_ctx:      用户画像文本，有值时追加到 system prompt 末尾
+        """
         with self._lock:
             # 清理过期会话
             self._cleanup_expired()
-            
+
+            # 根据 user_ctx 构建完整 system prompt
+            def _build_prompt(base: str) -> str:
+                if user_ctx:
+                    return f"{base}\n\n## 关于发送者的已知信息\n{user_ctx}"
+                return base
+
             if session_id not in self._sessions:
                 # 根据用户选择 prompt（prompt2_users 用户使用 prompt2）
                 if system_prompt is None:
-                    system_prompt = (
-                        self.prompt2 
-                        if session_id in self.prompt2_users 
+                    base_prompt = (
+                        self.prompt2
+                        if session_id in self.prompt2_users
                         else self.default_prompt
                     )
-                
+                else:
+                    base_prompt = system_prompt
+
                 self._sessions[session_id] = Session(
                     session_id=session_id,
-                    system_prompt=system_prompt,
+                    system_prompt=_build_prompt(base_prompt),
                     max_history=self.max_history,
                     ttl_seconds=self.ttl_seconds
                 )
-                LOG.debug(f"创建新会话: {session_id}")
-            
+                LOG.debug(f"创建新会话: {session_id}, has_user_ctx={bool(user_ctx)}")
+            else:
+                # 会话已存在：若 user_ctx 有值则刷新 system prompt（记忆可能更新了）
+                if user_ctx:
+                    session = self._sessions[session_id]
+                    base_prompt = (
+                        self.prompt2
+                        if session_id in self.prompt2_users
+                        else self.default_prompt
+                    )
+                    session.system_prompt = _build_prompt(base_prompt)
+
             return self._sessions[session_id]
     
     def get(self, session_id: str) -> Optional[Session]:

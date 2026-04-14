@@ -49,23 +49,30 @@ class ChatService:
     def get_answer(self, question: str, wxid: str, sender: str) -> None:
         """
         获取 AI 回答并发送
-        
+
         Args:
             question: 问题内容
-            wxid: 会话 ID
-            sender: 发送者
+            wxid:     会话 ID（群 ID 或私聊 sender）
+            sender:   发送者
         """
         # 处理被禁言用户
         rsp = process_ban(sender)
         # 私聊时不@（wxid == sender 表示私聊）
         at_user = sender if wxid != sender else ""
-        
+
         if rsp != '':
             base_client.send_text(wxid, at_user, rsp)
             return
-        
+
+        # 在群里：group_id = wxid；私聊：group_id = sender
+        group_id = wxid if wxid != sender else sender
+
+        # 查询用户画像（本地 SQLite，零延迟）
+        from ..memory import get_user_context
+        user_ctx = get_user_context(group_id, sender)
+
         # 调用 AI 服务
-        result = self._get_answer_type(question, wxid, sender)
+        result = self._get_answer_type(question, wxid, sender, user_ctx=user_ctx)
         
         # 根据返回类型分发处理
         if 'type' in result and result['type'] == 'gen-img':
@@ -151,23 +158,23 @@ class ChatService:
         
         base_client.send_text(wxid, at_user, rsp)
     
-    def _get_answer_type(self, question: str, wxid: str, sender: str) -> dict:
+    def _get_answer_type(self, question: str, wxid: str, sender: str, user_ctx: str = None) -> dict:
         """
         获取回答及类型
-        
+
         Returns:
             dict: 包含 type, answer, ioCost 等字段
         """
         LOG.info("开始发送给 get_answer_type")
-        
-        response = self.ai_client.get_llm(question, wxid, sender)
-        
+
+        response = self.ai_client.get_llm(question, wxid, sender, user_ctx=user_ctx)
+
         if not response.success:
             return {"type": "chat", "answer": response.error_msg}
-        
+
         result = response.data if isinstance(response.data, dict) else {"type": "chat", "answer": response.data}
         result["ioCost"] = str(response.io_cost)
-        
+
         LOG.info("get_answer_type 回答时间为：%ss, result: %s", response.io_cost, result)
         return result
 
@@ -177,7 +184,8 @@ class ChatService:
         包含：发安抚语 -> 查 DB -> 请求 AI 端汇总分析 -> 发送结果回群
         """
         at_user = sender if wxid != sender else ""
-        
+        group_id = wxid if wxid != sender else sender  # 信息孤岛边界
+
         # 1. 甄别分析目标
         if not target or len(target) > 30:
             target = "self"
@@ -245,15 +253,44 @@ class ChatService:
                 "is_self": is_self
             }
             response = self.ai_client.analyze_speech(speech_history_text, wxid, metadata=metadata)
-            
+
             # 6. 接收报告并发送
             if not response.success:
                 base_client.send_text(wxid, at_user, response.error_msg)
                 return
-                
+
             final_answer = response.data.get('answer', '啊哦，分析结果没拿到~') if isinstance(response.data, dict) else response.data
             base_client.send_text(wxid, at_user, final_answer)
+
+            # 7. 后台提取记忆（不阻塞主流程）
+            from concurrent.futures import ThreadPoolExecutor
+            _mem_executor = ThreadPoolExecutor(max_workers=2)
+            _mem_executor.submit(
+                self._extract_and_save_memory,
+                final_answer, display_name, group_id
+            )
 
         finally:
             _ANALYZING_TASKS.pop(task_key, None)
             LOG.info(f"发言分析任务结束, key={task_key}")
+
+    def _extract_and_save_memory(self, analysis_text: str, sender: str, group_id: str) -> None:
+        """
+        后台线程：调用 AI 提取记忆并写入数据库。
+
+        Args:
+            analysis_text: analyze-speech 生成的报告原文
+            sender:        被分析用户昵称
+            group_id:      群 ID（信息孤岛边界）
+        """
+        try:
+            LOG.info("开始提取记忆: sender=%s, group=%s", sender, group_id)
+            facts = self.ai_client.extract_memory(analysis_text, sender)
+            if facts:
+                from ..memory import upsert_user_memory
+                count = upsert_user_memory(group_id, sender, facts, source="analyze_speech")
+                LOG.info("记忆写入完成: %d 条, sender=%s, group=%s", count, sender, group_id)
+            else:
+                LOG.info("未提取到记忆条目, sender=%s", sender)
+        except Exception as e:
+            LOG.error("提取记忆失败: %s", e)

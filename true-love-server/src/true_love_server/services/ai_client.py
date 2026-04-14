@@ -146,15 +146,16 @@ class AIClient:
                 io_cost=round(time.time() - start_time, 2)
             )
     
-    def get_llm(self, question: str, wxid: str, sender: str) -> AIResponse:
+    def get_llm(self, question: str, wxid: str, sender: str, user_ctx: str = None) -> AIResponse:
         """
         获取 LLM 回答
-        
+
         Args:
-            question: 问题内容
-            wxid: 微信 ID（会话 ID）
-            sender: 发送者
-            
+            question:  问题内容
+            wxid:      微信 ID（会话 ID）
+            sender:    发送者
+            user_ctx:  用户画像文本（可选，由 memory_manager 组装）
+
         Returns:
             AIResponse: 包含 type 和 answer 的响应
         """
@@ -163,6 +164,8 @@ class AIClient:
             "wxid": wxid,
             "sender": sender,
         }
+        if user_ctx:
+            data["user_ctx"] = user_ctx
         return self._request(
             "/get-llm",
             data,
@@ -283,6 +286,31 @@ class AIClient:
             timeout=180,
             friendly_error="呜呜~分析发言服务好像出问题了捏，稍后再试试吧~"
         )
+
+    def extract_memory(self, analysis_text: str, sender: str) -> list[dict]:
+        """
+        从发言分析报告中提取结构化用户记忆条目。
+
+        Args:
+            analysis_text: analyze-speech 返回的分析报告原文
+            sender:        被分析的用户昵称
+
+        Returns:
+            [{key, value}] 列表，提取失败时返回空列表
+        """
+        data = {
+            "text": analysis_text,
+            "sender": sender,
+        }
+        response = self._request(
+            "/extract-memory",
+            data,
+            timeout=60,
+            friendly_error=""
+        )
+        if response.success and isinstance(response.data, dict):
+            return response.data.get("facts", [])
+        return []
     
     def gen_video(
         self,

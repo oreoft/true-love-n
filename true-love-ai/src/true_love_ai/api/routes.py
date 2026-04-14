@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 
 from true_love_ai.api.deps import verify_token, get_chat_service, get_image_service, get_video_service
-from true_love_ai.models.request import ChatRequest, ImageRequest, ImageTypeRequest, AnalyzeRequest, VideoRequest, AnalyzeSpeechRequest
+from true_love_ai.models.request import ChatRequest, ImageRequest, ImageTypeRequest, AnalyzeRequest, VideoRequest, AnalyzeSpeechRequest, ExtractMemoryRequest
 from true_love_ai.models.response import APIResponse
 from true_love_ai.services.chat_service import ChatService
 from true_love_ai.services.image_service import ImageService
@@ -46,7 +46,8 @@ async def get_llm(
             session_id=request.wxid or request.sender or "default",
             sender=request.sender,
             provider=request.provider,
-            model=request.model
+            model=request.model,
+            user_ctx=request.user_ctx,
         )
         return APIResponse.success(result.model_dump(exclude_none=True))
     except Exception as e:
@@ -244,3 +245,30 @@ async def download_video(
         media_type="video/mp4",
         filename=f"{video_id}.mp4"
     )
+
+
+@router.post("/extract-memory")
+async def extract_memory(
+        request: ExtractMemoryRequest,
+        service: ChatService = Depends(get_chat_service)
+) -> APIResponse:
+    """
+    从发言分析报告中提取结构化用户记忆条目
+
+    由 server 在 analyze-speech 完成后调用，
+    返回 [{key, value}] 列表供 server 写入记忆库。
+    """
+    LOG.info(f"extract-memory 请求, sender: {request.sender}")
+
+    if not verify_token(request.token):
+        return APIResponse.token_error()
+
+    try:
+        facts = await service.extract_memory_facts(
+            text=request.text,
+            sender=request.sender,
+        )
+        return APIResponse.success({"facts": facts})
+    except Exception as e:
+        LOG.exception(f"extract-memory 处理失败: {e}")
+        return APIResponse.internal_error(str(e))

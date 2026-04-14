@@ -13,10 +13,13 @@ class ChatRequest(BaseModel):
     content: str = Field(..., description="消息内容")
     wxid: str = Field(default="", description="会话 ID")
     sender: str = Field(default="", description="发送者")
-    
+
     # 可选：指定模型提供商和模型
     provider: Optional[str] = Field(default=None, description="模型提供商: openai/claude/deepseek/gemini")
     model: Optional[str] = Field(default=None, description="指定模型名称")
+
+    # 用户画像上下文（由 server 侧从记忆库组装后传入）
+    user_ctx: Optional[str] = Field(default=None, description="发送者在该群的画像文本，注入 system prompt")
 
 
 class ImageRequest(BaseModel):
@@ -81,6 +84,13 @@ class AnalyzeSpeechRequest(BaseModel):
     # 保留字段（兼容旧版）
     target: Optional[str] = Field(default=None, description="分析目标描述")
     target_name: Optional[str] = Field(default=None, description="被分析的群成员纯昵称")
-    
+
     provider: Optional[str] = Field(default=None, description="模型提供商")
     model: Optional[str] = Field(default=None, description="模型名称")
+
+
+class ExtractMemoryRequest(BaseModel):
+    """从分析报告中提取用户记忆条目"""
+    token: str = Field(..., description="鉴权 Token")
+    text: str = Field(..., description="分析报告原文（analyze-speech 的输出）")
+    sender: str = Field(..., description="被分析的用户昵称")
