@@ -24,7 +24,7 @@ from ..core import Config
 from ..skills import skill_executor
 from ..skills.base_skill import SkillContext
 
-_job_ctx = SkillContext(wxid="system_job", sender="system", group_id="system")
+_job_ctx = SkillContext(wxid="system_job", sender="system", group_id="system", is_group=False)
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
 # 使用新的 AUTO_NOTICE 配置（兼容旧的 groups.auto_notice）
 _config = Config()

@@ -12,6 +12,7 @@ class SkillContext:
     wxid: str      # 会话 ID（群聊=chatroom ID，私聊=sender）
     sender: str    # 发送者昵称
     group_id: str  # 信息孤岛边界（群聊=wxid，私聊=sender）
+    is_group: bool = False # 是否来自群聊
 
 
 class BaseSkillImpl(ABC):

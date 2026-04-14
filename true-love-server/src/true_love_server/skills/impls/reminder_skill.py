@@ -61,11 +61,12 @@ class SetReminderSkill(BaseSkillImpl):
             # 添加调度任务
             # group_id 标识所在聊天窗口位置。如果是群聊就是目标群，私聊就是对方。
             job_id = f"reminder_{ctx.group_id}_{int(now.timestamp())}"
+            at_user = ctx.sender if ctx.is_group else ""
             scheduler.add_job(
                 trigger_reminder,
                 'date',
                 run_date=dt,
-                args=[ctx.group_id, ctx.sender if ctx.group_id == ctx.wxid else "", content],
+                args=[ctx.group_id, at_user, content],
                 id=job_id
             )
             tz_display = dt.tzname() or f"UTC{dt.strftime('%z')}"

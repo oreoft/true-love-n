@@ -157,7 +157,8 @@ class ChatService:
             from ..skills.base_skill import SkillContext
             skill_name = result.get('answer', '')
             skill_params = result.get('skill_params', {})
-            skill_ctx = SkillContext(wxid=wxid, sender=sender, group_id=group_id)
+            # 在 chat_service.py 中，如果群聊，通常 group_id == wxid != sender，可以通过 wxid != sender 判定
+            skill_ctx = SkillContext(wxid=wxid, sender=sender, group_id=group_id, is_group=(wxid != sender))
             reply = skill_executor.execute(skill_name, skill_params, skill_ctx)
             base_client.send_text(wxid, at_user, reply)
             return
