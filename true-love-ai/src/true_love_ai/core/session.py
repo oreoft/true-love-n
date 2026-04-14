@@ -58,14 +58,16 @@ class Session:
         
         tz_str = "Asia/Shanghai"  # default
         if self.system_prompt:
-            # 去提取 user_ctx 中的 时区: America/New_York
-            match = re.search(r"时区[：:]\s*([a-zA-Z0-9_]+/[a-zA-Z0-9_]+)", self.system_prompt)
+            # 去提取 user_ctx 中的 时区: America/New_York 
+            # 放宽正则以兼容旧的异常记录如 "时区: Central Time"
+            match = re.search(r"时区[：:]\s*([a-zA-Z0-9_/\-\+]+(?:\s+[a-zA-Z0-9_]+)*)", self.system_prompt)
             if match:
-                tz_str = match.group(1)
+                tz_str = match.group(1).strip()
                 
         try:
             tz = ZoneInfo(tz_str)
         except Exception:
+            # 如果解析失败，回退到国内默认时区，避免崩溃
             tz_str = "Asia/Shanghai"
             tz = ZoneInfo(tz_str)
             
@@ -73,9 +75,10 @@ class Session:
         now_local = now_utc.astimezone(tz)
         
         return (
-            f"系统当前世界标准时间(UTC): {now_utc.strftime('%Y-%m-%d %H:%M:%S')}。"
-            f"该用户当前当地时间({tz_str}): {now_local.strftime('%Y-%m-%d %H:%M:%S')}。"
-            f"重要：如果是设置提醒等时间推算需求，请务必以用户的当地时间及当地日期为基准，推算出 ISO-8601 标准时间字符串。"
+            f"系统当前世界标准时间(UTC): {now_utc.strftime('%Y-%m-%d %H:%M:%S')}。\n"
+            f"该用户当前当地时间(时区={tz_str}): {now_local.strftime('%Y-%m-%d %H:%M:%S')}。\n"
+            f"【极其重要】：如果用户要求你进行「x分钟后」、「明天几点」等时间推算，请**直接以系统告诉你的【该用户当地时间】为起点**进行相加减。\n"
+            f"计算出的结果绝对不要再额外进行时差加减偏移！最后务必将你的结果转化为标准 ISO-8601 带时区的格式输出（例如：2026-04-13T10:30:00-05:00）。"
         )
     
     def get_messages_for_llm(self) -> list[dict]:

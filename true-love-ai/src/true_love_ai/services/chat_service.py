@@ -382,8 +382,11 @@ class ChatService:
         extract_prompt = (
             f"请从下面这段关于用户「{sender}」的分析报告中，提取关键个人事实。\n"
             "以 JSON 数组格式返回，每项包含 key 和 value 两个字段。\n"
-            "key 只能是以下之一：personality（性格）/ occupation（职业）/ preference（爱好偏好）/ fact（其他事实）/ timezone（所在时区名，必须是 America/New_York 这种标准格式，没有请勿猜测）\n"
-            "要求：只提取确定性较高的信息，不要猜测，不超过 8 条，value 用中文简洁描述（timezone 除外）。\n"
+            "key 只能是以下之一：personality（性格）/ occupation（职业）/ preference（爱好偏好）/ fact（其他事实）/ timezone（所在时区）\n"
+            "要求：\n"
+            "1. 只提取确定性较高的信息，不要猜测，不超过 8 条。\n"
+            "2. 除了 timezone 外，其他 value 用中文简洁描述。\n"
+            "3. 如果提取到了 timezone，其 value 【必须】转换为标准的 IANA 时区名称（格式为 Region/City，例如 America/New_York, Asia/Shanghai, Europe/London 等）。如果用户描述的是简称（如“美中时区”、“PST”等），请自行推导换算为其代表性的 IANA 标准城市名称。绝对不要输出 UTC-5 或中文。\n"
             "只返回 JSON 数组，不要其他文字。\n\n"
             f"分析报告：\n{text}"
         )
