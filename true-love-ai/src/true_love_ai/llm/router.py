@@ -94,9 +94,10 @@ class LLMRouter:
             **kwargs
         )
 
-        # 提取工具调用名称和参数
+        # 提取工具调用名称和参数及可能的文本
         fn_name = ""
         arguments = ""
+        content = ""
         async for chunk in response:
             delta = chunk.choices[0].delta
             if delta.tool_calls:
@@ -105,10 +106,16 @@ class LLMRouter:
                     fn_name = tc.function.name
                 if tc.function.arguments:
                     arguments += tc.function.arguments
+            elif delta.content:
+                content += delta.content
 
         import json as _json
         try:
-            args_dict = _json.loads(arguments) if arguments else {}
+            # 如果大模型吐出了正常文本代替工具调用，我们就把它包一层特定的结构返回
+            if not fn_name and not arguments and content:
+                args_dict = {"_answer": content.strip()}
+            else:
+                args_dict = _json.loads(arguments) if arguments else {}
         except Exception:
             args_dict = {}
 

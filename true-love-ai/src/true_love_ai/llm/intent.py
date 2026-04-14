@@ -108,6 +108,14 @@ class IntentRouter:
                     skill_params=result
                 )
 
+            # 如果大模型吐出了正常文本代替工具调用（在 router_with_tools 中被包装为 _answer）
+            if not fn_name and result.get("_answer"):
+                return ChatIntent(
+                    type=IntentType.CHAT,
+                    answer=result["_answer"],
+                    skill_params=None
+                )
+
             return ChatIntent(
                 type=IntentType(result.get("type", "chat")),
                 answer=result.get("answer", ""),

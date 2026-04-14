@@ -90,7 +90,7 @@ class BaseServerConfig(BaseSettings):
     """内部 Base / Server 服务配置"""
     model_config = SettingsConfigDict(extra="ignore")
 
-    base_url: str = ""
+    host: str = ""
     self_wxid: str = ""   # 机器人微信 ID
     master_wxid: str = ""  # 主人微信 ID
     master_group: str = ""  # 主人群组
