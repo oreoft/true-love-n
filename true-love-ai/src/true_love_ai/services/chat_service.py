@@ -379,6 +379,7 @@ class ChatService:
             [{key: "personality", value: "外向幽默"}, ...]
             异常时返回空列表
         """
+        extract_prompt = (
             f"请从下面这段关于用户「{sender}」的分析报告中，提取关键个人事实。\n"
             "以 JSON 数组格式返回，每项包含 key 和 value 两个字段。\n"
             "key 只能是以下之一：personality（性格）/ occupation（职业）/ preference（爱好偏好）/ fact（其他事实）/ timezone（所在时区名，必须是 America/New_York 这种标准格式，没有请勿猜测）\n"
