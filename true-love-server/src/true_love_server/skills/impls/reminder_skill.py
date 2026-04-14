@@ -8,6 +8,7 @@ from ..base_skill import BaseSkillImpl, SkillContext
 from ..executor import register_skill
 from ...services import base_client
 from ...services.scheduler_service import scheduler
+from ...memory.memory_manager import get_user_context
 
 LOG = logging.getLogger("ReminderSkill")
 
@@ -70,7 +71,14 @@ class SetReminderSkill(BaseSkillImpl):
                 id=job_id
             )
             tz_display = dt.tzname() or f"UTC{dt.strftime('%z')}"
-            return f"好耶~设置提醒成功！会在 {dt.strftime('%m-%d %H:%M:%S')} ({tz_display}) 这个时间准时提醒你哦~"
+            reply = f"好耶~设置提醒成功！会在 {dt.strftime('%m-%d %H:%M:%S')} ({tz_display}) 这个时间准时提醒你哦~"
+            
+            # 主动引导时区设置
+            user_ctx = get_user_context(ctx.group_id, ctx.sender)
+            if not user_ctx or ("时区" not in user_ctx and "timezone" not in user_ctx.lower()):
+                reply += "\n\n(温馨提示包子：我看你还没设置所在地，刚才的推算是按北京时间瞎估的哦~ 如果人在海外，可以直接跟我说「我是美东时区」这种话，我会永远记住哒！)"
+                
+            return reply
         except Exception as e:
             LOG.error("设置提醒时间解析失败 [%s]: %s", iso_str, e)
             return f"呜呜~设置提醒发生错误，你给的时间格式不对捏 ({iso_str})，重试一次吧~"

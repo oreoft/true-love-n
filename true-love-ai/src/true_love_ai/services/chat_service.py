@@ -174,8 +174,9 @@ class ChatService:
             response_type = "skill"
             LOG.info("skill 意图: name=%s, params=%s", skill_name, skill_params)
             # 存入历史
+            import json
             session.add_message("user", clean_content)
-            session.add_message("assistant", f"[触发 skill: {skill_name}]")
+            session.add_message("assistant", f"[系统内部记录] 已成功执行底层技能功能：{skill_name}，参数：{json.dumps(skill_params, ensure_ascii=False)}。该操作已彻底完成，请在接下来的对话中不要重复发起该技能，除非用户明确要求新的任务。")
 
         else:
             answer = intent_result.answer or "呜呜，我不太明白你的意思呢~"
