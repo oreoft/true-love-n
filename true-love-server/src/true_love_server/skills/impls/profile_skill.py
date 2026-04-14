@@ -13,8 +13,10 @@ LOG = logging.getLogger("ProfileSkill")
 class SaveProfileSkill(BaseSkillImpl):
     name = "save_user_profile"
     description = (
-        "保存用户的个人属性和画像信息到系统底层数据库，使其永久生效。"
-        "当用户主动告诉你有关他自己的信息（如：他所在的时区、他的职业、喜好等）时，务必调用此技能将其永久牢记。"
+        "保存用户的个人属性和画像信息到底层系统，使其永久生效。"
+        "当用户主动陈述与自身相关的客观事实（例如：【他在哪个时区】、所属职业、个人喜好等）要求你记住时，"
+        "【最高指令约束】：你必须放弃使用 type_answer 进行闲聊回复，而应该立刻、仅调用本 save_user_profile 技能进行数据入库！"
+        "系统会在技能执行完毕后替你用萌妹语气给用户完美的闲聊回答，这部分不需要你操心！如果不调此技能，数据将永远丢失！"
     )
     allow_users = []
     only_private = False
