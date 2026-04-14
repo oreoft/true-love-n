@@ -21,10 +21,10 @@ from PIL import Image
 
 from ..services import base_client
 from ..core import Config
-from ..handlers import TrigSearchHandler, TrigTaskHandler
+from ..skills import skill_executor
+from ..skills.base_skill import SkillContext
 
-trig_search_handler = TrigSearchHandler()
-trig_task_handler = TrigTaskHandler()
+_job_ctx = SkillContext(wxid="system_job", sender="system", group_id="system")
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
 # 使用新的 AUTO_NOTICE 配置（兼容旧的 groups.auto_notice）
 _config = Config()
@@ -55,8 +55,8 @@ def log_function_execution(func):
 
 @log_function_execution
 def notice_mei_yuan():
-    room_ids: list = config.get("notice_mei_yuan")
-    rsp = trig_search_handler.run("查询美元汇率")
+    room_ids: list = config.get("notice_mei_yuan", [])
+    rsp = skill_executor.execute("currency_query", {"currency": "美元"}, _job_ctx)
     numbers = re.findall(r'\d+\.\d+|\d+', rsp)
     LOG.info(numbers)
     if len(numbers) > 2 and float(numbers[2]) <= 700:
@@ -68,14 +68,10 @@ def notice_mei_yuan():
 
 @log_function_execution
 def notice_library_schedule():
-    room_ids: list = config.get("notice_library_schedule")
-    rsp = trig_search_handler.run("查询图书馆时间")
-    rsp2 = trig_search_handler.run("查询美元汇率")
-    rsp3 = trig_search_handler.run("查询gym时间")
+    room_ids: list = config.get("notice_library_schedule", [])
+    rsp2 = skill_executor.execute("currency_query", {"currency": "美元"}, _job_ctx)
     msg = "早上好☀️宝子们，\n\n"
-    if rsp != "": msg = msg + "今日图书馆情况：\n" + rsp + "\n\n"
-    if rsp3 != "": msg = msg + "今日gym情况：\n" + rsp3 + "\n\n"
-    if rsp2 != "": msg = msg + "今日汇率情况：\n" + rsp2
+    if rsp2 and "失败" not in rsp2: msg = msg + "今日汇率情况：\n" + rsp2
     for room_id in room_ids:
         base_client.send_text(room_id, "", msg)
         time.sleep(5)
@@ -84,12 +80,12 @@ def notice_library_schedule():
 
 @log_function_execution
 def notice_ao_yuan_schedule():
-    room_ids: list = config.get("notice_ao_yuan_schedule")
-    rsp = trig_search_handler.run("查询澳币汇率")
-    rsp2 = trig_search_handler.run("查询美元汇率")
+    room_ids: list = config.get("notice_ao_yuan_schedule", [])
+    rsp = skill_executor.execute("currency_query", {"currency": "澳币"}, _job_ctx)
+    rsp2 = skill_executor.execute("currency_query", {"currency": "美元"}, _job_ctx)
     msg = "早上好☀️宝宝，\n\n"
-    if rsp != "": msg = msg + "今日澳币汇率情况：\n" + rsp + "\n\n"
-    if rsp2 != "": msg = msg + "今日美元汇率情况：\n" + rsp2
+    if rsp and "失败" not in rsp: msg = msg + "今日澳币汇率情况：\n" + rsp + "\n\n"
+    if rsp2 and "失败" not in rsp2: msg = msg + "今日美元汇率情况：\n" + rsp2
     moyu_dir = "https://api.vvhan.com/api/moyu"
     # 使用相对路径，base 端会自动解析到 true-love-server 目录
     zao_bao_path = 'zaobao-jpg/' + get_current_date('Australia/Melbourne') + '.jpg'
@@ -108,16 +104,16 @@ def send_daily_notice(room_id, content='早上好☀️家人萌~', tz: str = "A
     moyu_file_path = f'moyu-jpg/{current_date}.jpg'
     zao_bao_file_path = f'zaobao-jpg/{current_date}.jpg'
 
-    r_resp = trig_search_handler.run("查询日元汇率")
-    if r_resp != "":
+    r_resp = skill_executor.execute("currency_query", {"currency": "日元"}, _job_ctx)
+    if r_resp and "失败" not in r_resp:
         content += "\n\n今日日元汇率情况：\n" + r_resp
 
-    r_resp2 = trig_search_handler.run("查询美元汇率")
-    if r_resp2 != "":
+    r_resp2 = skill_executor.execute("currency_query", {"currency": "美元"}, _job_ctx)
+    if r_resp2 and "失败" not in r_resp2:
         content += "\n\n今日美元汇率情况：\n" + r_resp2
 
-    r_resp3 = trig_search_handler.run("查询黄金汇率")
-    if r_resp3 != "":
+    r_resp3 = skill_executor.execute("gold_price", {}, _job_ctx)
+    if r_resp3 and "失败" not in r_resp3:
         content += "\n\n今日黄金汇率情况：\n" + r_resp3
 
     base_client.send_text(room_id, '', content)
@@ -133,10 +129,7 @@ def send_daily_notice(room_id, content='早上好☀️家人萌~', tz: str = "A
 
 @log_function_execution
 def send_aoyun_notice(room_id):
-    aoyun_news = trig_search_handler.run("奥运赛事")
-    base_client.send_text(room_id, '', aoyun_news)
-    if aoyun_news:
-        base_client.send_text(room_id, '', trig_search_handler.run("奥运奖牌"))
+    pass  # 奥运功能已过期删除
 
 
 @log_function_execution
@@ -166,17 +159,7 @@ def notice_test():
 
 @log_function_execution
 def notice_card_schedule():
-    room_ids: list = config.get("notice_card_schedule")
-
-    msg = "今日结余一览\n\n"
-    result = trig_task_handler.query_cafeteria_card_record_all()
-    for key, value in trig_task_handler.card_user.items():
-        try:
-            msg += key + '\n' + result[value] + '\n\n'
-        except KeyError:
-            pass
-    for room_id in room_ids:
-        base_client.send_text(room_id, "", msg)
+    # 刷卡查询技能已删除
     return True
 
 

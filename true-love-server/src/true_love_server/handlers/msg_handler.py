@@ -13,8 +13,6 @@ from ..models.chat_msg import ChatMsg
 from ..services import base_client
 
 # 导入所有处理器以触发注册（顺序无关，按优先级排序）
-from . import query_handler      # noqa: F401
-from . import task_handler       # noqa: F401
 from . import reminder_handler   # noqa: F401
 from . import admin_handler      # noqa: F401
 from . import image_gen_handler  # noqa: F401
