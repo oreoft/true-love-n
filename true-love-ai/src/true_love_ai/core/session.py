@@ -52,9 +52,9 @@ class Session:
     
     def get_current_time_context(self) -> str:
         """获取当前时间上下文（带时区感知）"""
-        import pytz
         import re
-        from datetime import datetime
+        from datetime import datetime, timezone
+        from zoneinfo import ZoneInfo
         
         tz_str = "Asia/Shanghai"  # default
         if self.system_prompt:
@@ -64,12 +64,12 @@ class Session:
                 tz_str = match.group(1)
                 
         try:
-            tz = pytz.timezone(tz_str)
+            tz = ZoneInfo(tz_str)
         except Exception:
             tz_str = "Asia/Shanghai"
-            tz = pytz.timezone(tz_str)
+            tz = ZoneInfo(tz_str)
             
-        now_utc = datetime.now(pytz.utc)
+        now_utc = datetime.now(timezone.utc)
         now_local = now_utc.astimezone(tz)
         
         return (
