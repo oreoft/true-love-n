@@ -89,10 +89,17 @@ class Session:
                 "content": self.system_prompt
             })
         
+        # 获取可用技能列表注入到 prompt，让 AI 知道自己能干嘛
+        from true_love_ai.skills import get_skill_schemas
+        skills = get_skill_schemas()
+        skill_desc_list = [f"- {s['function']['name']}: {s['function']['description']}" for s in skills]
+        skill_text = "\n".join(skill_desc_list)
+        
         # 时间与能力提示
         time_hint = (
-            f"{self.get_current_time_context()}。"
-            f"你已接入搜索引擎，可以获取实时信息。"
+            f"{self.get_current_time_context()}\n"
+            f"你已接入多模态 Agent 系统，能够执行特定的技能任务。\n"
+            f"如果你想知道你具备哪些拓展技能能力，以下是当前加载的专属技能列表：\n{skill_text}\n"
         )
         messages.append({
             "role": "system",
