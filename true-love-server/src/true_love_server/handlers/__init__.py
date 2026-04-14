@@ -7,6 +7,9 @@ Handlers module - 消息处理器模块
 
 # 核心组件
 from .base_handler import BaseHandler
+from .registry import registry, register_handler
+from .msg_handler import MsgHandler
+
 from .image_gen_handler import ImageGenHandler
 from .chat_handler import ChatHandler
 
