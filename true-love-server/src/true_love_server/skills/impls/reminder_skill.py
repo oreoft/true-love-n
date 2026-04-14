@@ -68,7 +68,8 @@ class SetReminderSkill(BaseSkillImpl):
                 args=[ctx.group_id, ctx.sender if ctx.group_id == ctx.wxid else "", content],
                 id=job_id
             )
-            return f"好耶~设置提醒成功！会在 {dt.strftime('%m-%d %H:%M:%S (%Z)')} 这个时间准时提醒你哦~"
+            tz_display = dt.tzname() or f"UTC{dt.strftime('%z')}"
+            return f"好耶~设置提醒成功！会在 {dt.strftime('%m-%d %H:%M:%S')} ({tz_display}) 这个时间准时提醒你哦~"
         except Exception as e:
             LOG.error("设置提醒时间解析失败 [%s]: %s", iso_str, e)
             return f"呜呜~设置提醒发生错误，你给的时间格式不对捏 ({iso_str})，重试一次吧~"
