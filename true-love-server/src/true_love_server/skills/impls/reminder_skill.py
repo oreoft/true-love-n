@@ -76,7 +76,7 @@ class SetReminderSkill(BaseSkillImpl):
             # 主动引导时区设置
             user_ctx = get_user_context(ctx.group_id, ctx.sender)
             if not user_ctx or ("时区" not in user_ctx and "timezone" not in user_ctx.lower()):
-                reply += "\n\n(温馨提示包子：我看你还没设置所在地，刚才的推算是按北京时间瞎估的哦~ 如果人在海外，可以直接跟我说「我是美东时区」这种话，我会永远记住哒！)"
+                reply += "\n\n(诶，我看你还没设置所在地，刚才的推算是按北京时间瞎估的哦~ 如果人在其他时区可以告诉我，我会永远记住哒！)"
                 
             return reply
         except Exception as e:
