@@ -28,6 +28,9 @@ router = APIRouter()
 # 获取 ListenManager 单例
 listen_manager = get_listen_manager()
 
+# 触发 skill 注册
+from ..skills import skill_executor  # noqa: E402
+
 
 @router.get("/ping")
 async def ping():
@@ -39,6 +42,17 @@ async def ping():
 async def health():
     """Docker 健康检查接口"""
     return {"status": "ok", "service": "true-love-server"}
+
+
+@router.get("/api/internal/skills")
+async def list_skills():
+    """
+    内部接口：返回所有已注册 skill 的 tool schema。
+    供 AI 服务启动时拉取，用于 LLM function call 意图路由。
+    """
+    schemas = skill_executor.all_tool_schemas()
+    LOG.info("skills schema 被拉取，共 %d 个", len(schemas))
+    return ApiResponse(data=schemas)
 
 
 @router.post("/send-msg")

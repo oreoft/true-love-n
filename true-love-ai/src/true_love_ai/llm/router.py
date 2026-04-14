@@ -70,14 +70,20 @@ class LLMRouter:
             self,
             messages: list[dict],
             tools: list[dict],
-            tool_choice: dict,
+            tool_choice,   # str | dict
             provider: Optional[str] = None,
             model: Optional[str] = None,
             **kwargs
     ) -> str:
-        """带工具调用的聊天，返回工具调用参数"""
+        """
+        带工具调用的聊天。
+
+        返回 JSON 字符串，包含两个字段：
+        - 工具参数（昦平展开）
+        - _fn_name: 被调用的 function 名称
+        """
         resolved_model = self._resolve_model(provider, model)
-        LOG.info(f"LLM chat_with_tools: model={resolved_model}")
+        LOG.info(f"LLM chat_with_tools: model={resolved_model}, tools={[t['function']['name'] for t in tools]}")
 
         response = await litellm.acompletion(
             model=resolved_model,
@@ -88,14 +94,27 @@ class LLMRouter:
             **kwargs
         )
 
-        # 提取工具调用参数
-        result = ""
+        # 提取工具调用名称和参数
+        fn_name = ""
+        arguments = ""
         async for chunk in response:
-            if chunk.choices[0].delta.tool_calls:
-                tool_call = chunk.choices[0].delta.tool_calls[0]
-                if tool_call.function.arguments:
-                    result += tool_call.function.arguments
-        return result
+            delta = chunk.choices[0].delta
+            if delta.tool_calls:
+                tc = delta.tool_calls[0]
+                if tc.function.name:
+                    fn_name = tc.function.name
+                if tc.function.arguments:
+                    arguments += tc.function.arguments
+
+        import json as _json
+        try:
+            args_dict = _json.loads(arguments) if arguments else {}
+        except Exception:
+            args_dict = {}
+
+        # 将 _fn_name 注入返回内容，便于调用方判断是哪个 tool
+        args_dict["_fn_name"] = fn_name
+        return _json.dumps(args_dict, ensure_ascii=False)
 
     async def vision(
             self,

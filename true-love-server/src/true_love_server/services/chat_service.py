@@ -150,6 +150,17 @@ class ChatService:
             _executor = ThreadPoolExecutor(max_workers=5)
             _executor.submit(self._handle_analyze_speech, result['answer'], wxid, sender)
             return
+
+        if 'type' in result and result['type'] == 'skill':
+            # AI 识别出了需要执行的 Skill
+            from ..skills import skill_executor
+            from ..skills.base_skill import SkillContext
+            skill_name = result.get('answer', '')
+            skill_params = result.get('skill_params', {})
+            skill_ctx = SkillContext(wxid=wxid, sender=sender, group_id=group_id)
+            reply = skill_executor.execute(skill_name, skill_params, skill_ctx)
+            base_client.send_text(wxid, at_user, reply)
+            return
         
         # 普通聊天回复
         rsp = result.get('answer', '')

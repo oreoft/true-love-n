@@ -36,9 +36,10 @@ class APIResponse(BaseModel):
 
 class ChatResponse(BaseModel):
     """聊天响应数据"""
-    type: str = Field(..., description="响应类型: chat/search/gen-img/gen-video")
-    answer: str = Field(..., description="回答内容")
+    type: str = Field(..., description="响应类型: chat/search/gen-img/gen-video/skill")
+    answer: str = Field(..., description="回答内容 / skill_name")
     debug: Optional[str] = Field(default=None, description="调试信息")
+    skill_params: Optional[dict] = Field(default=None, description="当 type=skill 时，LLM 提取的结构化参数")
 
 
 class ImageResponse(BaseModel):

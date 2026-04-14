@@ -28,7 +28,8 @@ def send_text(send_receiver: str, at_receiver: str, content: str) -> str:
         空字符串
     """
     config = get_config()
-    host = config.base_server.host
+    base_url = config.base_server.base_url.rstrip("/")
+    url = f"{base_url}/send-msg"
     token = config.http.token[0] if config.http and config.http.token else ""
 
     payload = json.dumps({
@@ -46,7 +47,7 @@ def send_text(send_receiver: str, at_receiver: str, content: str) -> str:
 
         with httpx.Client() as client:
             res = client.post(
-                host,
+                url,
                 headers=headers,
                 content=payload,
                 timeout=httpx.Timeout(connect=2.0, read=60.0, write=60.0, pool=60.0)
@@ -66,7 +67,8 @@ async def send_text_async(send_receiver: str, at_receiver: str, content: str) ->
     异步发送文本消息到 Base 服务
     """
     config = get_config()
-    host = config.base_server.host
+    base_url = config.base_server.base_url.rstrip("/")
+    url = f"{base_url}/send-msg"
     token = config.http.token[0] if config.http and config.http.token else ""
 
     payload = {
@@ -82,7 +84,7 @@ async def send_text_async(send_receiver: str, at_receiver: str, content: str) ->
 
         async with httpx.AsyncClient() as client:
             res = await client.post(
-                host,
+                url,
                 json=payload,
                 timeout=httpx.Timeout(connect=2.0, read=60.0, write=60.0, pool=60.0)
             )

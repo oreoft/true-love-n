@@ -87,12 +87,12 @@ class PlatformKeyConfig(BaseSettings):
 
 
 class BaseServerConfig(BaseSettings):
-    """Base 服务配置"""
+    """内部 Base / Server 服务配置"""
     model_config = SettingsConfigDict(extra="ignore")
 
-    host: str = "http://localhost:5000/send-text"
-    self_wxid: str = ""  # 机器人微信ID
-    master_wxid: str = ""  # 主人微信ID
+    base_url: str = ""
+    self_wxid: str = ""   # 机器人微信 ID
+    master_wxid: str = ""  # 主人微信 ID
     master_group: str = ""  # 主人群组
 
 

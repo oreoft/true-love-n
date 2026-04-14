@@ -10,15 +10,10 @@ from .base_handler import BaseHandler
 from .registry import registry, register_handler
 from .msg_handler import MsgHandler
 
-# 原有的触发处理器（被新处理器包装）
-from .trig_manage_handler import TrigManageHandler
+# 原有的触发处理器
 from .trig_remainder_handler import TrigRemainderHandler
-from .trig_search_handler import TrigSearchHandler
-from .trig_task_handler import TrigTaskHandler
 
 # 处理器（基于策略模式）
-from .query_handler import QueryHandler
-from .task_handler import TaskHandler
 from .reminder_handler import ReminderHandler
 from .admin_handler import AdminHandler
 from .image_gen_handler import ImageGenHandler
@@ -31,15 +26,10 @@ __all__ = [
     "register_handler",
     "MsgHandler",
     # 处理器
-    "QueryHandler",
-    "TaskHandler",
     "ReminderHandler",
     "AdminHandler",
     "ImageGenHandler",
     "ChatHandler",
     # 触发器（内部使用）
-    "TrigManageHandler",
-    "TrigSearchHandler",
-    "TrigTaskHandler",
     "TrigRemainderHandler",
 ]

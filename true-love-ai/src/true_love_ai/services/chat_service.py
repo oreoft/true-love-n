@@ -79,6 +79,7 @@ class ChatService:
         LOG.info("意图识别耗时: %.2fs", round(time.time() - intent_start_time, 2))
 
         # 根据意图处理
+        skill_params = None  # 默认无 skill 参数
         if intent_result.type == IntentType.CHAT:
             # 普通聊天：存入历史，带历史调用 LLM
             session.add_message("user", clean_content)
@@ -163,6 +164,19 @@ class ChatService:
             session.add_message("user", clean_content)
             session.add_message("assistant", f"[已转交发言分析请求] {analyze_target}")
 
+        elif intent_result.type == IntentType.SKILL:
+            # LLM 选择了一个 skill，把 skill_name 和参数传回给 Server 执行
+            skill_name = intent_result.answer
+            # 过滤内部字段，不把 _fn_name 传给 server
+            raw_params = intent_result.skill_params or {}
+            skill_params = {k: v for k, v in raw_params.items() if not k.startswith("_")}
+            answer = skill_name
+            response_type = "skill"
+            LOG.info("skill 意图: name=%s, params=%s", skill_name, skill_params)
+            # 存入历史
+            session.add_message("user", clean_content)
+            session.add_message("assistant", f"[触发 skill: {skill_name}]")
+
         else:
             answer = intent_result.answer or "呜呜，我不太明白你的意思呢~"
             response_type = "chat"
@@ -171,7 +185,11 @@ class ChatService:
         LOG.info(f"回答耗时: {cost}s, type={response_type}")
 
         # 构建响应
-        response = ChatResponse(type=response_type, answer=answer)
+        response = ChatResponse(
+            type=response_type,
+            answer=answer,
+            skill_params=skill_params if response_type == "skill" else None
+        )
 
         if is_debug:
             response.debug = f"(aiCost: {cost}s, provider: {provider or 'openai'}, model: {model or 'gpt-5.2'})"
