@@ -15,7 +15,7 @@ from ..models.user_memory import UserMemory
 LOG = logging.getLogger("UserMemoryRepository")
 
 # key 白名单，防止 LLM 乱写分类
-ALLOWED_KEYS = {"personality", "occupation", "preference", "fact"}
+ALLOWED_KEYS = {"personality", "occupation", "preference", "fact", "timezone"}
 
 
 class UserMemoryRepository:
