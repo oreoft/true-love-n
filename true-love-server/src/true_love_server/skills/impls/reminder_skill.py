@@ -14,8 +14,15 @@ LOG = logging.getLogger("ReminderSkill")
 
 def trigger_reminder(target: str, at: str, content: str):
     """到达时间后触发推送"""
-    LOG.info("执行定时提醒: 给 %s 推送 [%s]", target, content)
-    base_client.send_text(target, at, f"⏰ 【提醒功能】：\n\n{content}")
+    LOG.info(">>> [提醒执行开始] 目标: %s, 内容: [%s]", target, content)
+    try:
+        success, msg = base_client.send_text(target, at, f"⏰ 【提醒功能】：\n\n{content}")
+        if success:
+            LOG.info("<<< [提醒执行成功] 目标: %s", target)
+        else:
+            LOG.error("<<< [提醒执行失败] 目标: %s, 错误: %s", target, msg)
+    except Exception as e:
+        LOG.exception("<<< [提醒执行异常] 目标: %s, 异常: %s", target, e)
 
 
 @register_skill

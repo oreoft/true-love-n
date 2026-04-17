@@ -7,6 +7,7 @@ import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
+from apscheduler import events
 
 from ..core.db_engine import engine
 
@@ -21,7 +22,8 @@ _executors = {
 }
 _job_defaults = {
     'coalesce': False,
-    'max_instances': 3
+    'max_instances': 3,
+    'misfire_grace_time': 3600  # 允许最多 1 小时的延迟（容错执行）
 }
 
 # 全局单例调度器
@@ -31,6 +33,20 @@ scheduler = BackgroundScheduler(
     job_defaults=_job_defaults,
     timezone='UTC'  # 底层全都走 UTC 标准记录，触发时再处理
 )
+
+def _scheduler_listener(event):
+    """调度器事件监听，用于记录详细的任务执行状态"""
+    if event.code == events.EVENT_JOB_EXECUTED:
+        LOG.info("Job [%s] executed successfully.", event.job_id)
+    elif event.code == events.EVENT_JOB_ERROR:
+        LOG.error("Job [%s] failed with exception: %s", event.job_id, event.exception)
+    elif event.code == events.EVENT_JOB_MISSED:
+        LOG.warning("Job [%s] was MISSED (scheduled run time was %s). It will be retried if within grace time.", 
+                    event.job_id, event.scheduled_run_time)
+
+# 注册监听器
+scheduler.add_listener(_scheduler_listener, 
+                     events.EVENT_JOB_EXECUTED | events.EVENT_JOB_ERROR | events.EVENT_JOB_MISSED)
 
 def start_scheduler():
     if not scheduler.running:

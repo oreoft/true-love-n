@@ -51,8 +51,16 @@ def send_text(send_receiver, at_receiver, content, raise_on_error: bool = False)
         start_time = time.time()
         LOG.info("开始请求base推送text内容, req:[%s]", payload)
         res = requests.request("POST", text_url, headers=headers, data=payload, timeout=time_out)
+        cost = (time.time() - start_time) * 1000
+        
+        # 记录详细的响应信息
+        try:
+            res_json = res.json()
+            LOG.info("请求成功, cost:[%.0fms], code:[%s], res:[%s]", cost, res.status_code, res_json)
+        except Exception:
+            LOG.warning("请求返回非JSON内容, cost:[%.0fms], code:[%s], body:[%s]", cost, res.status_code, res.text[:500])
+        
         res.raise_for_status()
-        LOG.info("请求成功, cost:[%.0fms], res:[%s]", (time.time() - start_time) * 1000, res.json())
         return True, ""
     except Exception as e:
         LOG.error("send_text 失败: %s", e)
