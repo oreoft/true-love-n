@@ -209,9 +209,12 @@ class SessionManager:
 
             # 根据 user_ctx 构建完整 system prompt
             def _build_prompt(base: str) -> str:
+                prompt = base
                 if user_ctx:
-                    return f"{base}\n\n## 关于发送者的已知信息\n{user_ctx}"
-                return base
+                    prompt = f"{prompt}\n\n## 关于发送者的已知信息\n{user_ctx}"
+                # 微信不渲染 Markdown，只允许换行
+                prompt += "\n\n## 回复格式\n微信不支持Markdown渲染，回复只能用纯文本和换行符，不能出现**加粗**、#标题、`代码块`、- 列表、> 引用等任何Markdown符号。"
+                return prompt
 
             if session_id not in self._sessions:
                 # 根据用户选择 prompt（prompt2_users 用户使用 prompt2）
