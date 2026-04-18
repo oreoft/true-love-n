@@ -44,7 +44,7 @@ async def currency_query(params: dict, ctx: dict) -> str:
         import httpx
         url = "https://www.boc.cn/sourcedb/whpj"
         headers = {"User-Agent": "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/129.0.0.0 Safari/537.36"}
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
             resp = await client.get(url, headers=headers)
         resp.encoding = resp.apparent_encoding if hasattr(resp, 'apparent_encoding') else 'utf-8'
         from bs4 import BeautifulSoup
