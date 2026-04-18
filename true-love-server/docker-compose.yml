@@ -63,6 +63,7 @@ services:
       ln -sf /mnt/true-love-n/true-love-base/moyu-jpg /app/moyu-jpg &&
       ln -sf /mnt/true-love-n/true-love-base/zaobao-jpg /app/zaobao-jpg &&
       ln -sf /mnt/true-love-n/true-love-base/gen-img /app/gen-img &&
+      ln -sf /mnt/true-love-n/true-love-base/gen-video /app/gen-video &&
       exec python -m true_love_server
       "
 

@@ -14,6 +14,7 @@ from true_love_ai.models.response import APIResponse
 from true_love_ai.services.chat_service import ChatService
 from true_love_ai.services.image_service import ImageService
 from true_love_ai.services.video_service import VideoService, GEN_VIDEO_DIR
+from true_love_ai.services.image_service import GEN_IMG_DIR
 
 LOG = logging.getLogger(__name__)
 
@@ -213,6 +214,22 @@ async def gen_video(
     except Exception as e:
         LOG.exception(f"gen-video处理失败: {e}")
         return APIResponse.internal_error(str(e))
+
+
+@router.get("/download-image/{file_id}")
+async def download_image(
+        file_id: str,
+        token: str = Query(..., description="鉴权 Token")
+) -> FileResponse:
+    """下载 AI 生成的图片（供 Server 拉取后转发给 Base）"""
+    if not verify_token(token):
+        raise HTTPException(status_code=403, detail="Token 验证失败")
+
+    img_path = GEN_IMG_DIR / f"{file_id}.jpg"
+    if not img_path.exists():
+        raise HTTPException(status_code=404, detail="图片不存在或已过期")
+
+    return FileResponse(path=img_path, media_type="image/jpeg", filename=f"{file_id}.jpg")
 
 
 @router.get("/download-video/{video_id}")

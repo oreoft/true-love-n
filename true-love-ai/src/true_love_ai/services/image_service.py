@@ -8,7 +8,11 @@ import base64
 import logging
 import random
 from io import BytesIO
+from pathlib import Path
 from typing import Optional
+
+GEN_IMG_DIR = Path("gen_img")
+GEN_IMG_DIR.mkdir(exist_ok=True)
 
 import httpx
 import litellm

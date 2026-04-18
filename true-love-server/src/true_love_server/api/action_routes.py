@@ -73,29 +73,91 @@ async def action_send_file(request: dict):
     Body:
         - token: 鉴权 token
         - receiver: 接收者
-        - path: 文件路径（Server 本地路径）
+        - file_id: AI 生成的文件 ID（优先，Server 从 AI 下载后转发）
+        - path: 文件路径（Server 本地路径，兜底）
         - file_type: 文件类型 image | video | file（默认 image）
     """
     verify_token(request.get("token", ""))
 
     receiver = request.get("receiver", "")
+    file_id = request.get("file_id", "")
     path = request.get("path", "")
     file_type = request.get("file_type", "image")
 
-    if not receiver or not path:
-        raise ValidationException("receiver 和 path 不能为空")
+    if not receiver or (not file_id and not path):
+        raise ValidationException("receiver 和 file_id/path 不能为空")
+
+    # 如果是 file_id，从 AI 服务下载到 Server 本地
+    tmp_path = None
+    if file_id:
+        path, tmp_path = _fetch_from_ai(file_id, file_type)
+        if not path:
+            raise ValidationException(f"从 AI 下载文件失败: {file_id}")
 
     LOG.info("action/send-file: receiver=%s, type=%s, path=%s", receiver, file_type, path)
 
-    if file_type == "video":
-        success, error_msg = base_client.send_video(path, receiver)
-    else:
-        success, error_msg = base_client.send_img(path, receiver)
+    try:
+        if file_type == "video":
+            success, error_msg = base_client.send_video(path, receiver)
+        else:
+            success, error_msg = base_client.send_img(path, receiver)
+    finally:
+        if tmp_path:
+            import os
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
 
     if not success:
         raise ValidationException(f"文件发送失败: {error_msg}")
 
     return ApiResponse(data=None)
+
+
+def _fetch_from_ai(file_id: str, file_type: str) -> tuple[str, str]:
+    """
+    从 AI 服务下载文件，存到与 Base 共享的目录，返回 (Base可读相对路径, Server本地绝对路径)
+
+    共享目录通过 docker-compose 软链挂载：
+      /app/gen-img  →  SMB /mnt/.../true-love-base/gen-img  →  Base工作目录 gen-img/
+      /app/gen-video → SMB /mnt/.../true-love-base/gen-video → Base工作目录 gen-video/
+    Base 读取时使用相对路径（如 gen-img/xxx.jpg）。
+    """
+    import uuid as _uuid
+    import requests as _requests
+    from pathlib import Path
+    from ..core import Config
+
+    cfg = Config()
+    ai_host = (cfg.AI_SERVICE or {}).get("host", "").rstrip("/")
+    token = (cfg.HTTP_TOKEN or [""])[0]
+
+    if not ai_host:
+        LOG.error("AI_SERVICE.host 未配置，无法下载文件")
+        return "", ""
+
+    if file_type == "video":
+        suffix, subdir, endpoint = ".mp4", "gen-video", "download-video"
+    else:
+        suffix, subdir, endpoint = ".jpg", "gen-img", "download-image"
+
+    url = f"{ai_host}/{endpoint}/{file_id}?token={token}"
+    local_dir = Path(f"/app/{subdir}")
+    local_dir.mkdir(parents=True, exist_ok=True)
+    local_path = local_dir / f"{_uuid.uuid4().hex}{suffix}"
+    relative_path = f"{subdir}/{local_path.name}"
+
+    try:
+        LOG.info("→ 从 AI 下载文件: %s", url)
+        resp = _requests.get(url, timeout=(5, 60))
+        resp.raise_for_status()
+        local_path.write_bytes(resp.content)
+        LOG.info("← AI 文件已写入共享目录: %s (%d bytes)", local_path, len(resp.content))
+        return relative_path, str(local_path)
+    except Exception as e:
+        LOG.error("✗ 从 AI 下载文件失败: file_id=%s, err=%s", file_id, e)
+        return "", ""
 
 
 # ==================== 提醒管理 ====================

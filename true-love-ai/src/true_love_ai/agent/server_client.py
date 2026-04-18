@@ -84,9 +84,9 @@ async def send_text(receiver: str, content: str, at_user: str = "") -> bool:
     return result.get("code") == 0
 
 
-async def send_file(receiver: str, path: str, file_type: str = "image") -> bool:
+async def send_file(receiver: str, file_id: str, file_type: str = "image") -> bool:
     result = await _async_post("/action/send-file", {
-        "receiver": receiver, "path": path, "file_type": file_type,
+        "receiver": receiver, "file_id": file_id, "file_type": file_type,
     })
     return result.get("code") == 0
 

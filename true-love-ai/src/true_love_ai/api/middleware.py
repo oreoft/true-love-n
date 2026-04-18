@@ -53,7 +53,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         if not skip_log:
             LOG.info(
                 f"AI服务收到请求: [{request.method} {request.url}], "
-                f"req: [{body.decode('utf-8')[:2000] if body else 'empty'}]"
+                f"req: [{body.decode('utf-8', errors='replace')[:2000] if body else 'empty'}]"
             )
         
         # 处理请求
@@ -68,11 +68,13 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         
         if not skip_log:
             # 响应日志 - 对二进制响应不尝试解码
-            if response.media_type and response.media_type.startswith(("video/", "image/", "audio/")):
-                resp_log = f"[binary {response.media_type}, {len(response_body)} bytes]"
+            # FileResponse 的 media_type 可能为 None，需同时检查 Content-Type header
+            content_type = response.media_type or response.headers.get("content-type", "")
+            if content_type.startswith(("video/", "image/", "audio/", "application/octet-stream")):
+                resp_log = f"[binary {content_type}, {len(response_body)} bytes]"
             else:
                 try:
-                    resp_text = response_body.decode('utf-8') if response_body else 'empty'
+                    resp_text = response_body.decode('utf-8', errors='replace') if response_body else 'empty'
                     # 截断过长的响应（可能包含 base64 等大数据）
                     if len(resp_text) > self.MAX_RESP_LOG_LEN:
                         resp_log = f"{resp_text[:self.MAX_RESP_LOG_LEN]}...[truncated, total {len(resp_text)} chars]"

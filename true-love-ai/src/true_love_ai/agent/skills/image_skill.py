@@ -61,13 +61,15 @@ async def generate_image(params: dict, ctx: dict) -> str:
             sender=sender,
         )
 
-        if result and result.image_path:
+        if result and result.img:
+            import base64
+            import uuid
+            from true_love_ai.services.image_service import GEN_IMG_DIR
             from true_love_ai.agent.server_client import send_file
-            await send_file(receiver, result.image_path, file_type="image")
-            return f"好耶~图片已生成并发送！"
-
-        if result and result.image_url:
-            return f"图片已生成：{result.image_url}"
+            file_id = uuid.uuid4().hex
+            (GEN_IMG_DIR / f"{file_id}.jpg").write_bytes(base64.b64decode(result.img))
+            await send_file(receiver, file_id, file_type="image")
+            return "好耶~图片已生成并发送！"
 
         return "呜呜~图片生成失败了捏，稍后再试试吧~"
     except Exception as e:

@@ -51,9 +51,26 @@ async def trigger(request: dict, background_tasks: BackgroundTasks):
 
 
 async def _run_agent(msg: dict) -> None:
-    """后台执行 Agent Loop，捕获所有异常避免影响服务"""
+    """后台执行 Agent Loop，捕获所有异常并发兜底消息"""
     try:
         from true_love_ai.agent.agent_loop import get_agent_loop
         await get_agent_loop().run(msg)
     except Exception as e:
         LOG.exception("Agent Loop 执行异常: sender=%s, err=%s", msg.get("sender"), e)
+        await _send_fallback(msg)
+
+
+async def _send_fallback(msg: dict) -> None:
+    """Agent 崩溃时给用户发兜底消息"""
+    try:
+        is_group = msg.get("is_group", False)
+        sender = msg.get("sender", "")
+        chat_id = msg.get("chat_id", "")
+        receiver = chat_id if is_group else sender
+        at_user = sender if is_group else ""
+        if not receiver:
+            return
+        from true_love_ai.agent.server_client import send_text
+        await send_text(receiver, "啊哦~处理消息时出了点问题，稍后再试试捏~", at_user)
+    except Exception as ex:
+        LOG.error("发送兜底消息失败: %s", ex)

@@ -68,6 +68,7 @@ class AgentLoop:
         user_content = self._build_user_content(msg)
         if not user_content:
             LOG.warning("无法解析消息内容，跳过: type=%s", msg_type)
+            await self._send_reply(receiver, "抱歉，这种消息我暂时还不太看得懂呢~", at_user)
             return
 
         # 获取用户画像并注入 session
