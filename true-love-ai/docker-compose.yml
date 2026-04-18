@@ -47,11 +47,11 @@ services:
     # 重启策略（对应 --restart）
     restart: unless-stopped
     
-    # 端口映射（对应 -p）
-    # 格式：宿主机端口:容器端口
-    ports:
-      - "8088:8088"
-    
+    # host 模式：共享宿主机网络栈，解决 Docker NAT 导致的百度 HTTPS 拦截问题
+    # 端口映射在 host 模式下无效，容器直接使用宿主机端口（8088）
+    network_mode: host
+
+
     # 卷挂载（对应 -v）
     # 格式：宿主机路径:容器路径[:ro]
     volumes:
@@ -80,9 +80,3 @@ services:
       options:
         max-size: "10m"  # 单个日志文件最大 10MB
         max-file: "3"    # 最多保留 3 个日志文件
-    networks:
-      - tl-net
-
-networks:
-  tl-net:
-    external: true
