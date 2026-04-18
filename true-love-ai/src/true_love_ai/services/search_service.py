@@ -228,7 +228,7 @@ class SearchService:
     def _create_backend(self, name: str, api_key: Optional[str]) -> SearchBackend:
         """创建搜索后端"""
         if name == "baidu":
-            return BaiduBackend()
+            return BaiduBackend(use_curl=True)
         elif name == "tavily":
             if not api_key:
                 raise ValueError("Tavily backend requires api_key")
