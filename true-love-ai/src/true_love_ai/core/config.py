@@ -37,7 +37,10 @@ class LLMConfig(BaseSettings):
     gemini_key1: str = ""
 
     # 模型配置
-    default_model: str = "openai/gpt-5.2"  # 默认聊天模型
+    default_model: str = "openai/gpt-5.4"  # 默认聊天模型
+
+    compress_model: str = "openai/gpt-5.4-nano"  # 默认压缩模型
+
     # 图像多态配置
     vision_model: str = "gpt-5.2"  # 图像分析模型
 
@@ -75,8 +78,9 @@ class HTTPConfig(BaseSettings):
 
 class SessionConfig(BaseSettings):
     """会话配置"""
-    max_history: int = 50  # 默认最大对话历史长度
-    ttl_seconds: int = 86400  # 24小时
+    ttl_seconds: int = 86400       # 内存 session 不活跃过期时间
+    compress_threshold: int = 50   # 消息条数达到此值触发压缩
+    compress_keep_recent: int = 10  # 压缩后保留最近 N 条原文
 
 
 class PlatformKeyConfig(BaseSettings):

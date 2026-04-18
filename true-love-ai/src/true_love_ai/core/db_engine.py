@@ -34,6 +34,7 @@ def init_db():
     try:
         # 导入所有 ORM model 以注册到 Base.metadata
         from true_love_ai.models.user_memory import UserMemory  # noqa: F401
+        from true_love_ai.models.session_message import SessionMessage  # noqa: F401
 
         Base.metadata.create_all(bind=engine)
 
