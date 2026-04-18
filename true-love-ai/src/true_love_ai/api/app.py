@@ -11,6 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from true_love_ai.api.middleware import LoggingMiddleware, TimingMiddleware
 from true_love_ai.api.routes import router
+from true_love_ai.api.trigger_routes import trigger_router
+from true_love_ai.api.data_routes import data_router
 
 LOG = logging.getLogger(__name__)
 
@@ -18,6 +20,8 @@ LOG = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
+    from true_love_ai.core.db_engine import init_db
+    init_db()
     LOG.info("真爱粉 AI 服务启动成功...")
     yield
     LOG.info("真爱粉 AI 服务关闭中...")
@@ -48,6 +52,8 @@ def create_app() -> FastAPI:
 
     # 注册路由
     application.include_router(router)
+    application.include_router(trigger_router)
+    application.include_router(data_router)
 
     # 健康检查
     @application.get("/")

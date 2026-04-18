@@ -8,9 +8,11 @@ Routes - 路由定义
 import logging
 import time
 
+import requests
+
 from fastapi import APIRouter, BackgroundTasks
 
-from .deps import get_msg_handler, verify_token
+from .deps import verify_token
 from .exception_handlers import ApiResponse, ValidationException
 from ..core import Config
 from ..models import ChatMsg
@@ -26,9 +28,6 @@ router = APIRouter()
 # 获取 ListenManager 单例
 listen_manager = get_listen_manager()
 
-# 触发 skill 注册
-from ..skills import skill_executor  # noqa: E402
-
 
 @router.get("/ping")
 async def ping():
@@ -40,17 +39,6 @@ async def ping():
 async def health():
     """Docker 健康检查接口"""
     return {"status": "ok", "service": "true-love-server"}
-
-
-@router.get("/api/internal/skills")
-async def list_skills():
-    """
-    内部接口：返回所有已注册 skill 的 tool schema。
-    供 AI 服务启动时拉取，用于 LLM function call 意图路由。
-    """
-    schemas = skill_executor.all_tool_schemas()
-    LOG.info("skills schema 被拉取，共 %d 个", len(schemas))
-    return ApiResponse(data=schemas)
 
 
 @router.post("/send-msg")
@@ -120,11 +108,65 @@ def _handle_incoming_message(msg: ChatMsg) -> None:
 
     if msg.is_at_me or not msg.is_group:
         try:
-            get_msg_handler().handle_msg_async(msg)
+            _trigger_ai(msg)
         except Exception as e:
-            LOG.error(f"消息处理失败: {e}", exc_info=True)
+            LOG.error(f"触发 AI 失败: {e}", exc_info=True)
 
 
+def _trigger_ai(msg: ChatMsg) -> None:
+    """Fire-and-forget POST 到 AI 的 /trigger 接口"""
+    ai_host = (Config().AI_SERVICE or {}).get("host", "").rstrip("/")
+    if not ai_host:
+        LOG.warning("AI_SERVICE.host 未配置，跳过 AI 触发")
+        return
+
+    token = (Config().HTTP_TOKEN or [""])[0]
+    payload = {
+        "token": token,
+        "msg": msg.to_dict(),
+    }
+    try:
+        resp = requests.post(
+            f"{ai_host}/trigger",
+            json=payload,
+            timeout=(2, 5),  # 连接超时2s，读超时5s，server 立即返回
+        )
+        resp.raise_for_status()
+        LOG.info("AI trigger 成功: sender=%s", msg.sender)
+    except Exception as e:
+        LOG.error("AI trigger 失败: sender=%s, err=%s", msg.sender, e)
+
+
+
+
+# ==================== 查询接口（供 AI 回调使用）====================
+
+@router.post("/query/history")
+async def query_history(request: dict):
+    """
+    查询群消息历史（供 AI 的 analyze_speech skill 调用）
+
+    Body:
+        - token: 鉴权 token
+        - chat_id: 群聊 ID
+        - sender: 发送者昵称
+        - limit: 最大返回条数（默认100）
+    """
+    verify_token(request.get("token", ""))
+
+    chat_id = request.get("chat_id", "")
+    sender = request.get("sender", "")
+    limit = int(request.get("limit", 100))
+
+    if not chat_id or not sender:
+        raise ValidationException("chat_id 和 sender 不能为空")
+
+    from ..core.db_engine import SessionLocal
+    with SessionLocal() as db:
+        messages = GroupMessageRepository(db).get_recent_messages(chat_id, sender, limit)
+
+    LOG.info("query/history: chat_id=%s, sender=%s, count=%d", chat_id, sender, len(messages))
+    return ApiResponse(data={"messages": messages})
 
 
 # ==================== Listen 监听管理接口 ====================

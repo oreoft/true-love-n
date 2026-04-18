@@ -123,6 +123,58 @@ class LLMRouter:
         args_dict["_fn_name"] = fn_name
         return _json.dumps(args_dict, ensure_ascii=False)
 
+    async def chat_for_agent(
+            self,
+            messages: list[dict],
+            tools: list[dict],
+            provider: Optional[str] = None,
+            model: Optional[str] = None,
+    ) -> tuple[str, list[dict] | None]:
+        """
+        Agent Loop 专用：调用 LLM 并返回结构化结果。
+
+        Returns:
+            ("text", None)       — LLM 返回了文本答案
+            ("tool_calls", [...])— LLM 要调用工具，list 中每个元素：
+                                   {"id": str, "name": str, "arguments": dict}
+        """
+        import json as _json
+
+        resolved_model = self._resolve_model(provider, model)
+        LOG.info("Agent LLM call: model=%s, tools=%d, msgs=%d",
+                 resolved_model, len(tools), len(messages))
+
+        response = await litellm.acompletion(
+            model=resolved_model,
+            messages=messages,
+            tools=tools or None,
+            tool_choice="auto" if tools else None,
+            stream=False,
+        )
+
+        message = response.choices[0].message
+
+        # LLM 要调用工具
+        if message.tool_calls:
+            calls = []
+            for tc in message.tool_calls:
+                try:
+                    args = _json.loads(tc.function.arguments) if tc.function.arguments else {}
+                except Exception:
+                    args = {}
+                calls.append({
+                    "id": tc.id,
+                    "name": tc.function.name,
+                    "arguments": args,
+                    # 保存原始 tool_call 结构，供拼装 assistant message 使用
+                    "_raw": tc,
+                })
+            return "tool_calls", calls
+
+        # LLM 返回文本
+        content = message.content or ""
+        return "text", content
+
     async def vision(
             self,
             prompt: str,

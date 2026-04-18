@@ -104,6 +104,23 @@ class NexuConfig(BaseSettings):
     token: str = ""
 
 
+class MuninnConfig(BaseSettings):
+    """Muninn CDK 服务配置"""
+    model_config = SettingsConfigDict(extra="ignore")
+
+    api_base_url: str = ""
+    admin_token: str = ""
+    allow_user: list[str] = []
+
+
+class GithubConfig(BaseSettings):
+    """GitHub Actions 部署配置"""
+    model_config = SettingsConfigDict(extra="ignore")
+
+    token: str = ""
+    allow_user: list[str] = []
+
+
 class Config(BaseSettings):
     """
     主配置类
@@ -123,6 +140,8 @@ class Config(BaseSettings):
     platform_key: PlatformKeyConfig = PlatformKeyConfig()
     base_server: BaseServerConfig = BaseServerConfig()
     nexu: NexuConfig = NexuConfig()
+    muninn: MuninnConfig = MuninnConfig()
+    github: GithubConfig = GithubConfig()
 
     # 日志配置
     logging: Optional[dict] = None
@@ -148,7 +167,10 @@ def get_config() -> Config:
     """获取配置单例"""
     global _config
     if _config is None:
-        _config = Config.from_yaml()
+        import os
+        app_env = os.environ.get("APP_ENV", "")
+        path = "config.yaml" if app_env == "prod" else "config-dev.yaml"
+        _config = Config.from_yaml(path)
     return _config
 
 

@@ -11,7 +11,6 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 
 from ..models.group_message import Base
-from ..models.user_memory import UserMemory  # noqa: F401 — 注册到 Base.metadata，供 init_db 建表
 
 LOG = logging.getLogger("DBEngine")
 

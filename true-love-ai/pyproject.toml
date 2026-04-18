@@ -20,6 +20,10 @@ dependencies = [
     
     # 配置
     "pyyaml>=6.0.3",
+
+    # 数据库
+    "sqlalchemy>=2.0.0",
+    "python-dateutil>=2.9.0",
 ]
 
 [project.optional-dependencies]

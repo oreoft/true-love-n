@@ -1,0 +1,35 @@
+# -*- coding: utf-8 -*-
+"""配置重载 Skill（重载 AI 配置）"""
+import logging
+
+from true_love_ai.agent.skill_registry import register_skill
+
+LOG = logging.getLogger("ConfigSkill")
+
+
+@register_skill({
+    "type": "function",
+    "function": {
+        "name": "reload_config",
+        "description": (
+            "重新加载 AI 服务配置文件，使配置修改立即生效，无需重启服务。"
+            "当用户说'更新配置'、'重载配置'、'reload config'时使用。"
+        ),
+        "parameters": {"type": "object", "properties": {}}
+    }
+})
+async def reload_config(params: dict, ctx: dict) -> str:
+    from true_love_ai.core.config import get_config, reload_config as _reload
+    cfg = get_config().github
+    sender = ctx.get("sender", "")
+
+    if cfg.allow_user and sender not in cfg.allow_user:
+        return "诶嘿~这个功能你没有权限使用哦~"
+
+    try:
+        _reload()
+        LOG.info("AI 配置已重载, 操作者: %s", sender)
+        return "好耶~AI 服务配置已重新加载成功！"
+    except Exception as e:
+        LOG.error("reload_config error: %s", e)
+        return f"呜呜~配置重载失败了: {e}"

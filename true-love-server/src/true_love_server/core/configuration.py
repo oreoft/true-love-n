@@ -25,10 +25,10 @@ class Config:
 
     @staticmethod
     def _load_config() -> dict:
-        # 从当前工作目录读取配置文件（而非包内部）
-        config_path = "config.yaml"
-        LOG.info("_load_config 开始刷新配置")
-        # 如果这里有问题, 直接不让服务启动
+        import os
+        app_env = os.environ.get("APP_ENV", "")
+        config_path = "config.yaml" if app_env == "prod" else "config-dev.yaml"
+        LOG.info("_load_config 开始刷新配置 (APP_ENV=%s, file=%s)", app_env or "dev", config_path)
         with open(config_path, "r", encoding='utf-8') as fp:
             updated_config = yaml.safe_load(fp)
         LOG.info("_load_config 刷新配置成功: [%s]", updated_config)

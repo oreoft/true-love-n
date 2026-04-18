@@ -5,16 +5,14 @@
 
 import logging
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.sqlite import insert
 
-from ..models.user_memory import UserMemory
+from true_love_ai.models.user_memory import UserMemory
 
 LOG = logging.getLogger("UserMemoryRepository")
 
-# key 白名单，防止 LLM 乱写分类
 ALLOWED_KEYS = {"personality", "occupation", "preference", "fact", "timezone"}
 
 
@@ -25,19 +23,6 @@ class UserMemoryRepository:
         self.session = session
 
     def upsert(self, group_id: str, sender: str, key: str, value: str, source: str = None) -> bool:
-        """
-        插入或更新一条记忆（同 group_id+sender+key 唯一）
-
-        Args:
-            group_id: 群 ID（私聊时传 sender）
-            sender: 发送者昵称
-            key: 记忆分类（personality/occupation/preference/fact）
-            value: 记忆内容
-            source: 来源（analyze_speech/manual）
-
-        Returns:
-            是否成功
-        """
         if key not in ALLOWED_KEYS:
             LOG.warning("非法 memory key, 已忽略: %s", key)
             return False
@@ -64,16 +49,6 @@ class UserMemoryRepository:
             return False
 
     def get_by_user(self, group_id: str, sender: str) -> list[dict]:
-        """
-        获取某人在某群的所有记忆条目
-
-        Args:
-            group_id: 群 ID
-            sender: 发送者
-
-        Returns:
-            记忆列表 [{key, value, source, updated_at}]
-        """
         try:
             rows = (
                 self.session.query(UserMemory)
@@ -95,7 +70,6 @@ class UserMemoryRepository:
             return []
 
     def delete_by_user(self, group_id: str, sender: str) -> int:
-        """清除某人在某群的所有记忆，返回删除条数"""
         try:
             count = (
                 self.session.query(UserMemory)

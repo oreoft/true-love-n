@@ -1,4 +1,5 @@
 **/config.yaml
+**/config-dev.yaml
 **/logs/**
 /.idea
 /true-love-server/cardSwipeRecords.json
@@ -27,3 +28,4 @@ token.pickle
 /**/wx_imgs
 /**/gen_video
 /**/*.db
+tests/

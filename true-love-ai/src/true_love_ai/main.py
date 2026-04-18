@@ -46,14 +46,10 @@ def main():
     # 初始化 LiteLLM
     init_litellm()
 
-    # 启动时拉取 skill schemas（从 true-love-server 获取可用能力列表）
-    import asyncio
-    from true_love_ai.skills import load_skill_schemas
-    server_base_url = config.base_server.host
-    if server_base_url:
-        asyncio.run(load_skill_schemas(server_base_url.rstrip('/')))
-    else:
-        LOG.warning("未配置 base_server.host，跳过 skill 加载，AI 将不具备 skill 获取能力")
+    # 加载所有 AI 本地 skills
+    from true_love_ai.agent.skills import ensure_skills_loaded
+    ensure_skills_loaded()
+    LOG.info("AI 本地 skills 加载完成")
 
     # 设置信号处理
     setup_signal_handlers()

@@ -21,17 +21,34 @@ from PIL import Image
 
 from ..services import base_client
 from ..core import Config
-from ..skills import skill_executor
-from ..skills.base_skill import SkillContext
 
-_job_ctx = SkillContext(wxid="system_job", sender="system", group_id="system", is_group=False)
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
-# 使用新的 AUTO_NOTICE 配置（兼容旧的 groups.auto_notice）
 _config = Config()
 config = _config.AUTO_NOTICE
 alapi_config = _config.ALAPI
 test_room_ids: list = config.get("test", [])
 LOG = logging.getLogger("JobProcess")
+
+
+def _fetch_ai_data(path: str, params: dict = None) -> str:
+    """
+    从 AI 的 /data/* 接口获取数据文本。
+    失败时返回空字符串，不抛异常（Job 不依赖此成功）。
+    """
+    try:
+        ai_host = (_config.AI_SERVICE or {}).get("host", "").rstrip("/")
+        if not ai_host:
+            LOG.warning("AI_SERVICE.host 未配置，跳过 AI 数据查询: %s", path)
+            return ""
+        token = _config.HTTP_TOKEN[0] if _config.HTTP_TOKEN else ""
+        url = f"{ai_host}{path}"
+        query_params = {"token": token, **(params or {})}
+        resp = requests.get(url, params=query_params, timeout=15)
+        resp.raise_for_status()
+        return resp.json().get("data", {}).get("text", "")
+    except Exception as e:
+        LOG.error("_fetch_ai_data %s 失败: %s", path, e)
+        return ""
 
 # 默认网络请求超时时间（秒）
 DEFAULT_TIMEOUT = 60
@@ -56,7 +73,7 @@ def log_function_execution(func):
 @log_function_execution
 def notice_mei_yuan():
     room_ids: list = config.get("notice_mei_yuan", [])
-    rsp = skill_executor.execute("currency_query", {"currency": "美元"}, _job_ctx)
+    rsp = _fetch_ai_data("/data/currency", {"currency": "美元"})
     numbers = re.findall(r'\d+\.\d+|\d+', rsp)
     LOG.info(numbers)
     if len(numbers) > 2 and float(numbers[2]) <= 700:
@@ -69,7 +86,7 @@ def notice_mei_yuan():
 @log_function_execution
 def notice_library_schedule():
     room_ids: list = config.get("notice_library_schedule", [])
-    rsp2 = skill_executor.execute("currency_query", {"currency": "美元"}, _job_ctx)
+    rsp2 = _fetch_ai_data("/data/currency", {"currency": "美元"})
     msg = "早上好☀️宝子们，\n\n"
     if rsp2 and "失败" not in rsp2: msg = msg + "今日汇率情况：\n" + rsp2
     for room_id in room_ids:
@@ -81,8 +98,8 @@ def notice_library_schedule():
 @log_function_execution
 def notice_ao_yuan_schedule():
     room_ids: list = config.get("notice_ao_yuan_schedule", [])
-    rsp = skill_executor.execute("currency_query", {"currency": "澳币"}, _job_ctx)
-    rsp2 = skill_executor.execute("currency_query", {"currency": "美元"}, _job_ctx)
+    rsp = _fetch_ai_data("/data/currency", {"currency": "澳币"})
+    rsp2 = _fetch_ai_data("/data/currency", {"currency": "美元"})
     msg = "早上好☀️宝宝，\n\n"
     if rsp and "失败" not in rsp: msg = msg + "今日澳币汇率情况：\n" + rsp + "\n\n"
     if rsp2 and "失败" not in rsp2: msg = msg + "今日美元汇率情况：\n" + rsp2
@@ -104,15 +121,15 @@ def send_daily_notice(room_id, content='早上好☀️家人萌~', tz: str = "A
     moyu_file_path = f'moyu-jpg/{current_date}.jpg'
     zao_bao_file_path = f'zaobao-jpg/{current_date}.jpg'
 
-    r_resp = skill_executor.execute("currency_query", {"currency": "日元"}, _job_ctx)
+    r_resp = _fetch_ai_data("/data/currency", {"currency": "日元"})
     if r_resp and "失败" not in r_resp:
         content += "\n\n今日日元汇率情况：\n" + r_resp
 
-    r_resp2 = skill_executor.execute("currency_query", {"currency": "美元"}, _job_ctx)
+    r_resp2 = _fetch_ai_data("/data/currency", {"currency": "美元"})
     if r_resp2 and "失败" not in r_resp2:
         content += "\n\n今日美元汇率情况：\n" + r_resp2
 
-    r_resp3 = skill_executor.execute("gold_price", {}, _job_ctx)
+    r_resp3 = _fetch_ai_data("/data/gold")
     if r_resp3 and "失败" not in r_resp3:
         content += "\n\n今日黄金汇率情况：\n" + r_resp3
 

@@ -1,0 +1,98 @@
+# -*- coding: utf-8 -*-
+"""发言分析 Skill（从 Server 拉取历史，AI 侧生成分析报告）"""
+import logging
+import random
+
+from true_love_ai.agent.skill_registry import register_skill
+
+LOG = logging.getLogger("AnalyzeSpeechSkill")
+
+
+@register_skill({
+    "type": "function",
+    "function": {
+        "name": "analyze_speech",
+        "description": (
+            "分析群成员的发言特点、性格或意图，基于群内历史发言记录生成报告。"
+            "当用户说'分析我的发言'、'分析xxx的性格'、'帮我看看xxx的发言'时使用。"
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "target": {
+                    "type": "string",
+                    "description": (
+                        "要分析的目标昵称。"
+                        "如果分析用户自身，返回 'self'。"
+                        "如果分析其他人，返回对方昵称。"
+                    )
+                }
+            },
+            "required": ["target"]
+        }
+    }
+})
+async def analyze_speech(params: dict, ctx: dict) -> str:
+    target = params.get("target", "self")
+    sender = ctx.get("sender", "")
+    session_id = ctx.get("session_id", "")
+    receiver = ctx.get("receiver", "")
+    at_user = ctx.get("at_user", "")
+
+    is_self = target.strip().lower() == "self"
+    target_person = sender if is_self else target.strip().lstrip("@").strip()
+    display_name = target_person
+
+    # 发安抚语（通过 Server 发送）
+    wait_msgs = [
+        f"正在戴上老花镜，翻阅[{display_name}]在群里所有的发言，请稍等哈...",
+        f"收到！正在在群里扒[{display_name}]的黑历史，稍微等我一下哦~",
+        f"正在检索[{display_name}]最近的发言数据，看我稍后怎么评价...",
+    ]
+    from true_love_ai.agent.server_callback import send_text as _send
+    await _send(receiver, random.choice(wait_msgs), at_user)
+
+    # 从 Server 查询历史
+    from true_love_ai.agent.server_callback import query_history
+    history = await query_history(session_id, target_person, limit=100)
+
+    if not history:
+        return f"我没能获取到[{display_name}]在群里以前的发言记录哦，所以我没有足够的信息来分析捏~"
+
+    speech_history_text = "\n".join([f"[{item['created_at']}] {item['content']}" for item in history])
+    LOG.info("开始分析 [%s]，共 %d 条记录", display_name, len(history))
+
+    # 调用 LLM 生成分析报告
+    from true_love_ai.llm.analyze_speech_prompt import get_analyze_system_prompt
+    from true_love_ai.llm.router import get_llm_router
+    metadata = {
+        "target": f"分析群成员 {display_name} 的发言特点、性格或意图",
+        "target_name": display_name,
+        "is_self": is_self,
+    }
+    analyze_system_prompt = get_analyze_system_prompt(speech_history_text, metadata)
+    answer = await get_llm_router().chat(
+        messages=[
+            {"role": "system", "content": analyze_system_prompt},
+            {"role": "user", "content": metadata["target"]},
+        ]
+    )
+
+    # 后台提取记忆并写入 AI 本地 DB
+    import asyncio
+    asyncio.create_task(_extract_and_save_memory(answer, display_name, session_id))
+
+    return answer
+
+
+async def _extract_and_save_memory(analysis_text: str, sender: str, group_id: str) -> None:
+    """后台从分析报告中提取结构化记忆并写入 AI SQLite"""
+    try:
+        from true_love_ai.services.chat_service import ChatService
+        facts = await ChatService().extract_memory_facts(analysis_text, sender)
+        if facts:
+            from true_love_ai.memory.memory_manager import upsert_user_memory
+            count = upsert_user_memory(group_id, sender, facts, source="analyze_speech")
+            LOG.info("记忆写入完成: %d 条, sender=%s, group=%s", count, sender, group_id)
+    except Exception as e:
+        LOG.error("提取记忆失败: %s", e)

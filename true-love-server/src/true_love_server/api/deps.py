@@ -5,32 +5,13 @@ Dependencies - 依赖注入
 FastAPI 依赖注入定义。
 """
 
-from functools import lru_cache
-from typing import Any
-
-from fastapi import Request, Body
-
 from .exception_handlers import AuthException
 
 
 def verify_token(token: str) -> bool:
-    """
-    验证 token
-    
-    从请求 body 中获取 token 并验证。
-    """
+    """验证 token"""
     from ..core import Config
     valid_tokens = Config().HTTP_TOKEN or []
     if token not in valid_tokens:
         raise AuthException("failed token check")
-
     return True
-
-
-@lru_cache()
-def get_msg_handler():
-    """
-    获取消息处理器实例（单例）
-    """
-    from ..handlers import MsgHandler
-    return MsgHandler()

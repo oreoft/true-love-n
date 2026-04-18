@@ -2,18 +2,17 @@
 """
 记忆管理器
 
-提供统一的记忆读写入口，屏蔽 DB session 细节。
+提供统一的用户画像读写入口，供 Agent Loop 和 Skills 使用。
 """
 
 import logging
 from typing import Optional
 
-from ..core.db_engine import SessionLocal
-from .user_memory_repository import UserMemoryRepository
+from true_love_ai.core.db_engine import SessionLocal
+from true_love_ai.memory.user_memory_repository import UserMemoryRepository
 
 LOG = logging.getLogger("MemoryManager")
 
-# key 的中文展示名，用于拼接 user_ctx 字符串
 _KEY_LABELS = {
     "personality": "性格",
     "occupation":  "职业",
@@ -25,15 +24,11 @@ _KEY_LABELS = {
 
 def get_user_context(group_id: str, sender: str) -> Optional[str]:
     """
-    获取某人在某群的记忆，拼接为纯文本供注入 system prompt。
+    获取某人在某群的画像记忆，拼接为纯文本供注入 system prompt。
 
     返回格式（有记忆时）：
         "职业：程序员 | 性格：外向幽默 | 爱好/偏好：喜欢海贼王"
     无记忆时返回 None。
-
-    Args:
-        group_id: 群 ID（私聊时传 sender）
-        sender:   发送者昵称
     """
     try:
         with SessionLocal() as db:
@@ -54,14 +49,14 @@ def get_user_context(group_id: str, sender: str) -> Optional[str]:
         return None
 
 
-def upsert_user_memory(group_id: str, sender: str, facts: list[dict], source: str = "analyze_speech") -> int:
+def upsert_user_memory(group_id: str, sender: str, facts: list[dict], source: str = "skill") -> int:
     """
     批量写入用户记忆条目。
 
     Args:
-        group_id: 群 ID
+        group_id: 群 ID（私聊时传 sender）
         sender:   发送者昵称
-        facts:    [{key, value}, ...] 列表（来自 /extract-memory 接口）
+        facts:    [{key, value}, ...] 列表
         source:   来源标记
 
     Returns:

@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from .routes import router
+from .action_routes import action_router
 from .middleware import setup_middleware
 from .exception_handlers import setup_exception_handlers
 
@@ -44,6 +45,7 @@ def create_app() -> FastAPI:
 
     # 注册路由
     app.include_router(router)
+    app.include_router(action_router)
 
     # /admin 路径返回管理页面
     @app.get("/admin", include_in_schema=False)
