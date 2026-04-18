@@ -44,7 +44,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         
         if not skip_log:
             LOG.info(
-                f"AI服务收到请求: [{request.method} {request.url.path}], "
+                f"AI服务收到请求: [{request.method} {request.url}], "
                 f"req: [{body.decode('utf-8')[:2000] if body else 'empty'}]"
             )
         
@@ -74,7 +74,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                     resp_log = f"[binary data, {len(response_body)} bytes]"
             
             LOG.info(
-                f"AI服务返回响应: [{request.method} {request.url.path}], "
+                f"AI服务返回响应: [{request.method} {request.url}], "
                 f"cost: {process_time:.0f}ms, "
                 f"resp: [{resp_log}]"
             )
