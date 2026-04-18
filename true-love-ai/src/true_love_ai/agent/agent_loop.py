@@ -30,12 +30,12 @@ LOG = logging.getLogger("AgentLoop")
 MAX_TOOL_ITERATIONS = 6
 
 # 触发词清理
-_TRIGGER_PATTERNS = [re.compile(p) for p in [r"@真爱粉\s*", r"\bzaf\b"]]
+_TRIGGER_PATTERNS = [re.compile(p, re.IGNORECASE) for p in [r"@真爱粉\s*", r"\bzaf\b"]]
 
 
 def _clean_content(content: str) -> str:
     for pat in _TRIGGER_PATTERNS:
-        content = pat.sub("", content, flags=re.IGNORECASE)
+        content = pat.sub("", content)
     return content.strip()
 
 
