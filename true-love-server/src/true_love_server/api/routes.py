@@ -110,20 +110,19 @@ async def on_message(
 
 
 def _handle_incoming_message(msg: ChatMsg) -> None:
-    """存储消息并按需触发 AI，save() 返回 False（重复）时跳过 AI 触发"""
+    """存储消息（best-effort）并按需触发 AI，两个逻辑互相独立"""
     try:
         from ..core.db_engine import SessionLocal
         with SessionLocal() as db:
-            saved = GroupMessageRepository(db).save(msg)
-
-        if not saved:
-            return
-
-        if msg.is_at_me or not msg.is_group:
-            get_msg_handler().handle_msg_async(msg)
-
+            GroupMessageRepository(db).save(msg)
     except Exception as e:
-        LOG.error(f"处理消息失败: {e}", exc_info=True)
+        LOG.error(f"消息存储失败: {e}", exc_info=True)
+
+    if msg.is_at_me or not msg.is_group:
+        try:
+            get_msg_handler().handle_msg_async(msg)
+        except Exception as e:
+            LOG.error(f"消息处理失败: {e}", exc_info=True)
 
 
 
