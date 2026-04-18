@@ -30,6 +30,13 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         # 检查是否跳过日志
         skip_log = request.url.path in self.SKIP_LOG_PATHS
 
+        # 提取或生成 trace_id
+        from true_love_server.core.trace import set_trace_id
+        trace_id = request.headers.get("X-Trace-ID", "")
+        if not trace_id:
+            trace_id = str(uuid.uuid4())[:8]
+        set_trace_id(trace_id)
+
         # 记录请求开始时间
         start_time = time.time()
 

@@ -99,6 +99,10 @@ class Robot:
         # 获取该聊天的锁，保证同一 chat_name 的消息顺序
         with self._chat_locks[chat_name]:
             try:
+                # 以 msg_hash 作为 trace_id 起点（线程内设置，不影响其他线程）
+                from true_love_base.core.trace import set_trace_id
+                set_trace_id(msg.msg_hash or msg.msg_id or '-')
+
                 self.LOG.info(f"Processing message from [{chat_name}]: {msg}")
 
                 # 所有消息转发给 server，由 server 负责路由（存储 + 决定是否触发 AI）

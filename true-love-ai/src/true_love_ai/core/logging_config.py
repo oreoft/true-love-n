@@ -30,12 +30,14 @@ class JsonFormatter(logging.Formatter):
         self.service_name = service_name
     
     def format(self, record: logging.LogRecord) -> str:
+        from true_love_ai.core.trace import get_trace_id
         log_data: dict[str, Any] = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
             "service": self.service_name,
+            "trace_id": get_trace_id(),
         }
         
         # 添加位置信息（仅在 WARNING 及以上级别）

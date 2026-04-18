@@ -138,12 +138,14 @@ def get_chat(msg: ChatMessage) -> str:
 
         LOG.info("→ [/on-message] req:[%s]", payload[:500])
 
+        from true_love_base.core.trace import get_trace_id
         # 使用 Session 发起请求（连接复用）
         session = _get_session()
         start_time = time.time()
         response = session.post(
             CHAT_ENDPOINT,
             data=payload,
+            headers={"X-Trace-ID": get_trace_id()},
             timeout=(2, 10),
         )
 

@@ -126,10 +126,12 @@ def _trigger_ai(msg: ChatMsg) -> None:
         "msg": msg.to_dict(),
     }
     try:
+        from true_love_server.core.trace import get_trace_id
         resp = requests.post(
             f"{ai_host}/trigger",
             json=payload,
-            timeout=(2, 5),  # 连接超时2s，读超时5s，server 立即返回
+            headers={"X-Trace-ID": get_trace_id()},
+            timeout=(2, 5),
         )
         resp.raise_for_status()
         LOG.info("AI trigger 成功: sender=%s", msg.sender)

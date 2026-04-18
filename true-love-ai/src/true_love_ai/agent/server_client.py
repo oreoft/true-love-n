@@ -26,6 +26,11 @@ def _get_token() -> str:
     return config.http.token[0] if config.http and config.http.token else ""
 
 
+def _trace_headers() -> dict:
+    from true_love_ai.core.trace import get_trace_id
+    return {"X-Trace-ID": get_trace_id()}
+
+
 def _post(path: str, payload: dict, timeout: float = 10.0) -> dict:
     """同步 POST"""
     url = f"{_get_server_url()}{path}"
@@ -35,7 +40,7 @@ def _post(path: str, payload: dict, timeout: float = 10.0) -> dict:
     try:
         start = time.time()
         with httpx.Client(timeout=timeout) as client:
-            res = client.post(url, json=payload)
+            res = client.post(url, json=payload, headers=_trace_headers())
             res.raise_for_status()
         cost = (time.time() - start) * 1000
         LOG.info("← [%s] cost:[%.0fms] code:[%s] res:[%s]", path, cost, res.status_code, res.text[:500])
@@ -54,7 +59,7 @@ async def _async_post(path: str, payload: dict, timeout: float = 10.0) -> dict:
     try:
         start = time.time()
         async with httpx.AsyncClient(timeout=timeout) as client:
-            res = await client.post(url, json=payload)
+            res = await client.post(url, json=payload, headers=_trace_headers())
             res.raise_for_status()
         cost = (time.time() - start) * 1000
         LOG.info("← [%s] cost:[%.0fms] code:[%s] res:[%s]", path, cost, res.status_code, res.text[:500])
