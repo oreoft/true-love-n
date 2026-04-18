@@ -49,11 +49,11 @@ async def analyze_speech(params: dict, ctx: dict) -> str:
         f"收到！正在在群里扒[{display_name}]的黑历史，稍微等我一下哦~",
         f"正在检索[{display_name}]最近的发言数据，看我稍后怎么评价...",
     ]
-    from true_love_ai.agent.server_callback import send_text as _send
+    from true_love_ai.agent.server_client import send_text as _send
     await _send(receiver, random.choice(wait_msgs), at_user)
 
     # 从 Server 查询历史
-    from true_love_ai.agent.server_callback import query_history
+    from true_love_ai.agent.server_client import query_history
     history = await query_history(session_id, target_person, limit=100)
 
     if not history:

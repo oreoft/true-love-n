@@ -46,7 +46,7 @@ async def generate_video(params: dict, ctx: dict) -> str:
         )
 
         if result and result.video_path:
-            from true_love_ai.agent.server_callback import send_file
+            from true_love_ai.agent.server_client import send_file
             await send_file(receiver, result.video_path, file_type="video")
             return "好耶~视频已生成并发送！"
 

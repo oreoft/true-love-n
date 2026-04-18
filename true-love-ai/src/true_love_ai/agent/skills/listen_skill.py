@@ -49,7 +49,7 @@ async def listen_manage(params: dict, ctx: dict) -> str:
     if not target:
         return "诶嘿~请告诉我要操作的监听对象名称哦~"
 
-    from true_love_ai.agent.server_callback import listen_add, listen_remove
+    from true_love_ai.agent.server_client import listen_add, listen_remove
     if action == "add":
         result = await listen_add(target)
         if result.get("code") == 0:

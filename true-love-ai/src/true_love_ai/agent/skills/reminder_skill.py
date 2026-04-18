@@ -52,7 +52,7 @@ async def set_reminder(params: dict, ctx: dict) -> str:
     at_user = ctx.get("at_user", "")
     job_id = f"reminder_{receiver}_{int(time.time())}"
 
-    from true_love_ai.agent.server_callback import add_reminder
+    from true_love_ai.agent.server_client import add_reminder
     result = await add_reminder(job_id, iso_str, receiver, content, at_user)
 
     if result.get("code") == 0:
@@ -79,7 +79,7 @@ async def set_reminder(params: dict, ctx: dict) -> str:
 })
 async def query_reminder(params: dict, ctx: dict) -> str:
     receiver = ctx.get("receiver", "")
-    from true_love_ai.agent.server_callback import query_reminders
+    from true_love_ai.agent.server_client import query_reminders
     jobs = await query_reminders(receiver)
     if not jobs:
         return "暂未查到你在这个聊天中的待办提醒记录哦~"
@@ -108,6 +108,6 @@ async def delete_reminder(params: dict, ctx: dict) -> str:
     job_id = params.get("job_id", "")
     if not job_id:
         return "呜呜~不提供任务ID的话，我不知道你要删哪个呢~"
-    from true_love_ai.agent.server_callback import delete_reminder as _del
+    from true_love_ai.agent.server_client import delete_reminder as _del
     ok = await _del(job_id)
     return "好耶~已成功删除对应的提醒记录！" if ok else "呜呜~没找到指定的提醒任务，是不是已经过期或者已被删除啦？"

@@ -230,7 +230,7 @@ class AgentLoop:
 
     async def _send_reply(self, receiver: str, content: str, at_user: str) -> None:
         """通过 Server 发送最终回复"""
-        from true_love_ai.agent.server_callback import send_text
+        from true_love_ai.agent.server_client import send_text
         try:
             ok = await send_text(receiver, content, at_user)
             if not ok:

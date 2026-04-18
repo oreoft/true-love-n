@@ -136,7 +136,7 @@ def get_chat(msg: ChatMessage) -> str:
         request = ChatRequest(token=config.http_token, message=msg)
         payload = request.to_json()
 
-        LOG.info(f"Sending to server: {payload[:2000]}...")
+        LOG.info("→ [/on-message] req:[%s]", payload[:500])
 
         # 使用 Session 发起请求（连接复用）
         session = _get_session()
@@ -144,11 +144,11 @@ def get_chat(msg: ChatMessage) -> str:
         response = session.post(
             CHAT_ENDPOINT,
             data=payload,
-            timeout=(2, 10),  # server 立即返回，无需长超时
+            timeout=(2, 10),
         )
 
         cost_ms = (time.time() - start_time) * 1000
-        LOG.info(f"Server response received, cost: {cost_ms:.0f}ms")
+        LOG.info("← [/on-message] cost:[%.0fms] code:[%s]", cost_ms, response.status_code)
 
         # 检查 HTTP 状态
         response.raise_for_status()
@@ -161,21 +161,21 @@ def get_chat(msg: ChatMessage) -> str:
             _circuit_breaker.record_success()
             return chat_response.data or ""
         else:
-            LOG.error(f"Server returned error: {resp_data}")
+            LOG.error("✗ [/on-message] server 返回错误: %s", resp_data)
             return _get_error_message()
 
     except requests.exceptions.Timeout:
-        LOG.error("Request timeout")
+        LOG.error("✗ [/on-message] 超时")
         _circuit_breaker.record_failure()
         return _get_error_message()
 
     except requests.exceptions.RequestException as e:
-        LOG.error(f"Request failed: {e}")
+        LOG.error("✗ [/on-message] 失败: %s", e)
         _circuit_breaker.record_failure()
         return _get_error_message()
 
     except Exception as e:
-        LOG.error(f"Unexpected error: {e}")
+        LOG.error("✗ [/on-message] 异常: %s", e)
         _circuit_breaker.record_failure()
         return _get_error_message()
 

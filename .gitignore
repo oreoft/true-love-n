@@ -29,3 +29,4 @@ token.pickle
 /**/gen_video
 /**/*.db
 tests/
+dbs/

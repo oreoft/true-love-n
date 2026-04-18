@@ -62,7 +62,7 @@ async def generate_image(params: dict, ctx: dict) -> str:
         )
 
         if result and result.image_path:
-            from true_love_ai.agent.server_callback import send_file
+            from true_love_ai.agent.server_client import send_file
             await send_file(receiver, result.image_path, file_type="image")
             return f"好耶~图片已生成并发送！"
 
