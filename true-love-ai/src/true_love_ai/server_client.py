@@ -28,7 +28,7 @@ def send_text(send_receiver: str, at_receiver: str, content: str) -> str:
         空字符串
     """
     config = get_config()
-    base_url = config.base_server.base_url.rstrip("/")
+    base_url = config.base_server.host.rstrip("/")
     url = f"{base_url}/send-msg"
     token = config.http.token[0] if config.http and config.http.token else ""
 
@@ -67,7 +67,7 @@ async def send_text_async(send_receiver: str, at_receiver: str, content: str) ->
     异步发送文本消息到 Base 服务
     """
     config = get_config()
-    base_url = config.base_server.base_url.rstrip("/")
+    base_url = config.base_server.host.rstrip("/")
     url = f"{base_url}/send-msg"
     token = config.http.token[0] if config.http and config.http.token else ""
 

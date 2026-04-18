@@ -78,6 +78,8 @@ class HTTPConfig(BaseSettings):
 
 class SessionConfig(BaseSettings):
     """会话配置"""
+    model_config = SettingsConfigDict(extra="ignore")
+
     ttl_seconds: int = 86400       # 内存 session 不活跃过期时间
     compress_threshold: int = 50   # 消息条数达到此值触发压缩
     compress_keep_recent: int = 10  # 压缩后保留最近 N 条原文
