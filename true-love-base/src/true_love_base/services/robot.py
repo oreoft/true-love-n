@@ -101,15 +101,8 @@ class Robot:
             try:
                 self.LOG.info(f"Processing message from [{chat_name}]: {msg}")
 
-                # 群消息处理
-                if msg.is_group:
-                    self.LOG.info(f"Group message, is_at_me={msg.is_at_me}")
-                    # 没有艾特自己不处理
-                    if not msg.is_at_me:
-                        return
-
-                # 转发处理
-                self.send_text_msg(self.forward_msg(msg), chat_name, msg.sender if not msg.is_group else None)
+                # 所有消息转发给 server，由 server 负责路由（存储 + 决定是否触发 AI）
+                self.forward_msg(msg)
 
             except Exception as e:
                 self.LOG.error(f"Error processing message from [{chat_name}]: {e}")

@@ -67,7 +67,6 @@ class GroupMessageRepository:
             return True
             
         except IntegrityError:
-            # 唯一索引冲突（重复消息），回滚并忽略
             self.session.rollback()
             LOG.warning(f"Duplicate message ignored: msg_hash={chat_message.msg_hash}")
             return True  # 重复消息也算成功

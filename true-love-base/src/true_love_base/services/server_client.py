@@ -9,7 +9,6 @@ Server Client - 与后端 AI 服务通信
 import logging
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
 
 import requests
 
@@ -22,8 +21,7 @@ LOG = logging.getLogger("ServerClient")
 
 # 服务端配置
 SERVER_HOST = "http://localhost:8088"
-CHAT_ENDPOINT = f"{SERVER_HOST}/get-chat"
-RECORD_GROUP_MESSAGE_ENDPOINT = f"{SERVER_HOST}/record-group-message"
+CHAT_ENDPOINT = f"{SERVER_HOST}/on-message"
 
 # ==================== HTTP Session 连接复用 ====================
 
@@ -116,16 +114,6 @@ class CircuitBreaker:
 # 全局熔断器实例
 _circuit_breaker = CircuitBreaker(threshold=3, reset_timeout=60)
 
-# ==================== 线程池（用于异步记录群消息）====================
-
-# 全局线程池实例，用于异步记录群消息
-_record_executor = ThreadPoolExecutor(
-    max_workers=3,
-    thread_name_prefix="GroupMsgRecord"
-)
-LOG.info("Thread pool created for group message recording")
-
-
 # ==================== API 函数 ====================
 
 def get_chat(msg: ChatMessage) -> str:
@@ -156,7 +144,7 @@ def get_chat(msg: ChatMessage) -> str:
         response = session.post(
             CHAT_ENDPOINT,
             data=payload,
-            timeout=(2, 60),  # 连接超时2秒，读取超时60秒
+            timeout=(2, 10),  # server 立即返回，无需长超时
         )
 
         cost_ms = (time.time() - start_time) * 1000
@@ -199,42 +187,3 @@ def _get_error_message() -> str:
     return "啊哦~, 服务正在重新调整，请稍后重试再试"
 
 
-# ==================== 群消息异步记录（fire-and-forget）====================
-
-def record_group_message_async(msg: ChatMessage) -> None:
-    """
-    异步记录群消息（fire-and-forget 模式）
-    
-    使用线程池发送请求，失败直接忽略，不影响主流程。
-    
-    Args:
-        msg: 群消息对象
-    """
-
-    def _record_in_background():
-        """后台线程执行记录"""
-        try:
-            # 构建请求
-            request = ChatRequest(token=config.http_token, message=msg)
-            payload = request.to_json()
-
-            LOG.debug(f"异步记录群消息: chat_id={msg.chat_id}, sender={msg.sender}")
-
-            # 使用 Session 发起请求（连接复用）
-            session = _get_session()
-            response = session.post(
-                RECORD_GROUP_MESSAGE_ENDPOINT,
-                data=payload,
-                timeout=(2, 5),  # 连接超时2秒，读取超时5秒
-            )
-
-            # 检查 HTTP 状态
-            response.raise_for_status()
-            LOG.info(f"群消息记录成功: chat_id={msg.chat_id}, sender={msg.sender}")
-
-        except Exception as e:
-            # 静默处理所有异常，只打印 DEBUG 日志
-            LOG.error(f"群消息记录失败（已忽略）: {e}")
-
-    # 使用线程池提交任务（fire-and-forget，不等待结果）
-    _record_executor.submit(_record_in_background)

@@ -233,16 +233,7 @@ class WxAutoClient():
                 LOG.info('Converted message: %r', message.to_dict())
                 LOG.info('---------------END-----------------')
 
-                # 异步记录群消息（不阻塞主流程）
-                from true_love_base.services import server_client
-                server_client.record_group_message_async(message)
-
-                if is_group and not is_at_me:
-                    LOG.info(
-                        f"ignored group message without @ from [{getattr(raw_msg, 'sender', '')}] and chat [{chat_name}]")
-                    return
-
-                # 调用用户回调
+                # 所有消息无脑转发给 server，由 server 负责存储和路由
                 callback(message, chat_name)
             except Exception as e:
                 LOG.error(f"Error in message callback for [{chat_name}]: {e}")

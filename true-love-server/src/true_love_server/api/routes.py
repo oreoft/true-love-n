@@ -8,13 +8,11 @@ Routes - 路由定义
 import logging
 import time
 
-from fastapi import APIRouter, BackgroundTasks, Depends
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, BackgroundTasks
 
 from .deps import get_msg_handler, verify_token
 from .exception_handlers import ApiResponse, ValidationException
 from ..core import Config
-from ..core.db_engine import get_db
 from ..models import ChatMsg
 from ..services import base_client
 from ..services.listen_manager import get_listen_manager
@@ -90,71 +88,42 @@ async def send_msg(request: dict):
     return ApiResponse(data=None)
 
 
-@router.post("/get-chat")
-async def get_chat(
+@router.post("/on-message")
+async def on_message(
         request: dict,
         background_tasks: BackgroundTasks,
 ):
     """
-    聊天消息接口
-
-    接收消息并处理，返回回复内容。
+    消息统一入口（Base 无脑转发所有消息）：
+    - 所有消息存 DB
+    - is_at_me 或私聊才触发 AI 处理
+    - 通过 save() 返回值去重，防止重复触发 AI
     """
     LOG.info("聊天消息收到请求, req: %s", request)
 
-    # 验证 token
     verify_token(request.get('token', ''))
 
     msg = ChatMsg.from_dict(request)
-    msg_handler = get_msg_handler()
-
-    # 使用后台任务异步处理消息
-    background_tasks.add_task(msg_handler.handle_msg_async, msg)
+    background_tasks.add_task(_handle_incoming_message, msg)
 
     return ApiResponse(data="")
 
 
-@router.post("/record-group-message")
-async def record_group_message(
-        request: dict,
-        db: Session = Depends(get_db),
-):
-    """
-    记录群消息接口（fire-and-forget）
-
-    接收 Base 端发送的未@我的群聊消息，存储到数据库。
-    此接口设计为静默失败，不影响调用方。
-
-    Request Body:
-        - token: 验证令牌
-        - 其他字段: ChatMessage 的所有字段（平铺在顶层）
-    """
+def _handle_incoming_message(msg: ChatMsg) -> None:
+    """存储消息并按需触发 AI，save() 返回 False（重复）时跳过 AI 触发"""
     try:
-        LOG.debug("收到群消息记录请求, req: %s", request)
+        from ..core.db_engine import SessionLocal
+        with SessionLocal() as db:
+            saved = GroupMessageRepository(db).save(msg)
 
-        # 验证 token
-        verify_token(request.get('token', ''))
+        if not saved:
+            return
 
-        # Base 端发送的数据格式是平铺的（所有字段在顶层）
-        # 直接传递 request 给 ChatMsg.from_dict
-        msg = ChatMsg.from_dict(request)
-
-        # 保存到数据库
-        repository = GroupMessageRepository(db)
-        success = repository.save(msg)
-
-        if success:
-            LOG.debug(f"成功记录群消息: chat_id={msg.chat_id}, sender={msg.sender}")
-        else:
-            LOG.warning(f"记录群消息失败: chat_id={msg.chat_id}, sender={msg.sender}")
-
-        # 无论成功失败都返回成功，避免影响调用方
-        return ApiResponse(data="ok")
+        if msg.is_at_me or not msg.is_group:
+            get_msg_handler().handle_msg_async(msg)
 
     except Exception as e:
-        # 捕获所有异常，静默处理
-        LOG.error(f"记录群消息时发生异常: {e}", exc_info=True)
-        return ApiResponse(data="ok")  # 依然返回成功
+        LOG.error(f"处理消息失败: {e}", exc_info=True)
 
 
 
