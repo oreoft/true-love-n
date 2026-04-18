@@ -24,6 +24,9 @@ dependencies = [
     # 数据库
     "sqlalchemy>=2.0.0",
     "python-dateutil>=2.9.0",
+
+    # HTML 解析（汇率 skill）
+    "beautifulsoup4>=4.12.0",
 ]
 
 [project.optional-dependencies]
