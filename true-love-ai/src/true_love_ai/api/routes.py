@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 
 from true_love_ai.api.deps import verify_token, get_chat_service, get_image_service, get_video_service
-from true_love_ai.models.request import ChatRequest, ImageRequest, ImageTypeRequest, AnalyzeRequest, VideoRequest, AnalyzeSpeechRequest, ExtractMemoryRequest
+from true_love_ai.models.request import ImageRequest, ImageTypeRequest, AnalyzeRequest, VideoRequest, AnalyzeSpeechRequest, ExtractMemoryRequest
 from true_love_ai.models.response import APIResponse
 from true_love_ai.services.chat_service import ChatService
 from true_love_ai.services.image_service import ImageService
@@ -19,41 +19,6 @@ from true_love_ai.services.image_service import GEN_IMG_DIR
 LOG = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-@router.post("/get-llm")
-async def get_llm(
-        request: ChatRequest,
-        service: ChatService = Depends(get_chat_service)
-) -> APIResponse:
-    """
-    获取 LLM 回答
-    
-    支持意图识别：chat / search / gen-img
-    自动管理对话历史
-    
-    可选参数：
-    - provider: 指定模型提供商 (openai/claude/deepseek/gemini)
-    - model: 指定具体模型
-    """
-
-    # 鉴权
-    if not verify_token(request.token):
-        return APIResponse.token_error()
-
-    try:
-        result = await service.get_answer(
-            content=request.content,
-            session_id=request.wxid or request.sender or "default",
-            sender=request.sender,
-            provider=request.provider,
-            model=request.model,
-            user_ctx=request.user_ctx,
-        )
-        return APIResponse.success(result.model_dump(exclude_none=True))
-    except Exception as e:
-        LOG.exception(f"llm处理失败: {e}")
-        return APIResponse.internal_error(str(e))
 
 
 @router.post("/get-analyze-speech")

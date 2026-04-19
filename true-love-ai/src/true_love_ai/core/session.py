@@ -9,7 +9,7 @@ import asyncio
 import logging
 import threading
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Callable, Awaitable
 
 from true_love_ai.core.config import get_config
 
@@ -26,12 +26,14 @@ class Session:
         ttl_seconds: int = 86400,
         compress_threshold: int = 50,
         compress_keep_recent: int = 10,
+        compress_fn: Optional[Callable[[list[dict]], Awaitable[str]]] = None,
     ):
         self.session_id = session_id
         self.system_prompt = system_prompt
         self.ttl = timedelta(seconds=ttl_seconds)
         self._compress_threshold = compress_threshold
         self._compress_keep_recent = compress_keep_recent
+        self._compress_fn = compress_fn
         self._compressing = False
 
         self.created_at = datetime.now()
@@ -49,7 +51,7 @@ class Session:
         repo.append_message(self.session_id, role, content)
 
         count = repo.count_messages(self.session_id)
-        if count >= self._compress_threshold and not self._compressing:
+        if count >= self._compress_threshold and not self._compressing and self._compress_fn:
             try:
                 loop = asyncio.get_running_loop()
                 loop.create_task(self._compress())
@@ -57,7 +59,7 @@ class Session:
                 pass
 
     async def _compress(self):
-        if self._compressing:
+        if self._compressing or not self._compress_fn:
             return
         self._compressing = True
         try:
@@ -77,13 +79,8 @@ class Session:
             for m in to_compress:
                 lines.append(f"{m['role']}: {m['content'][:800]}")
 
-            from true_love_ai.llm.router import get_llm_router
-            cfg = get_config()
-            compress_model = cfg.chatgpt.compress_model if cfg.chatgpt else "gpt-4o-mini"
-
-            new_summary = await get_llm_router().chat(
-                messages=[{"role": "user", "content": "\n".join(lines)}],
-                model=compress_model,
+            new_summary = await self._compress_fn(
+                [{"role": "user", "content": "\n".join(lines)}]
             )
 
             repo.compress(self.session_id, new_summary, keep)
@@ -122,7 +119,7 @@ class Session:
 
     def get_messages_for_llm(self) -> list[dict]:
         from true_love_ai.memory.session_repository import get_session_repo
-        from true_love_ai.skills import get_skill_schemas
+        from true_love_ai.agent.skill_registry import get_all_tool_schemas
 
         summary, messages = get_session_repo().load(self.session_id)
 
@@ -137,7 +134,7 @@ class Session:
                 "content": f"【早期对话摘要】以下是本次会话早期对话的压缩记录，供参考上下文：\n{summary}",
             })
 
-        skills = get_skill_schemas()
+        skills = get_all_tool_schemas()
         skill_text = "\n".join(f"- {s['function']['name']}: {s['function']['description']}" for s in skills)
         time_hint = (
             f"{self.get_current_time_context()}\n"
@@ -147,37 +144,6 @@ class Session:
         result.append({"role": "system", "content": time_hint})
 
         result.extend(messages)
-        return result
-
-    def get_context_for_intent(self, current_content: str, max_turns: int = 4) -> list[dict]:
-        from true_love_ai.memory.session_repository import get_session_repo
-        from true_love_ai.skills import get_skill_schemas
-
-        summary, recent_messages = get_session_repo().load(self.session_id, msg_limit=max_turns * 2)
-
-        result = []
-
-        if self.system_prompt:
-            result.append({"role": "system", "content": self.system_prompt})
-
-        if summary:
-            result.append({"role": "system", "content": f"【早期对话摘要】：\n{summary}"})
-
-        result.append({"role": "system", "content": self.get_current_time_context()})
-
-        skills = get_skill_schemas()
-        skill_text = "\n".join(f"- {s['function']['name']}: {s['function']['description']}" for s in skills)
-        intent_system_prompt = (
-            "【系统最高级别警告】：如果用户在陈述自己的长期客观事实（例如：他在哪个时区、性格、爱好、职业、禁忌等），"
-            "或明确要求你记住关于他的某件事时，**你绝对不能**仅使用普通的语言回复（即不能只返回 type_answer 说你记住了）！\n"
-            "你必须且只能立刻使用相应的保存技能（如 save_user_profile）来将此信息入库持久化！如果你不调用该技能，数据将永远丢失！\n"
-            f"当你需要保存或者操作时，请从以下技能列表中选择：\n{skill_text}\n"
-        )
-        result.append({"role": "system", "content": intent_system_prompt})
-
-        result.extend(recent_messages)
-        result.append({"role": "user", "content": current_content})
-
         return result
 
     def clear(self):
@@ -200,6 +166,20 @@ class SessionManager:
         self.default_prompt = config.chatgpt.prompt if config.chatgpt else ""
         self.prompt2 = config.chatgpt.prompt2 if config.chatgpt else ""
         self.prompt2_users = config.chatgpt.prompt2_users if config.chatgpt else []
+
+    def _make_compress_fn(self) -> Callable[[list[dict]], Awaitable[str]]:
+        """创建压缩函数，注入 LLM 调用能力（避免 Session 直接依赖 llm_router）"""
+        from true_love_ai.llm.router import get_llm_router
+        from true_love_ai.core.config import get_config as _get_cfg
+
+        cfg = _get_cfg()
+        compress_model = cfg.chatgpt.compress_model if cfg.chatgpt else "gpt-4o-mini"
+        llm = get_llm_router()
+
+        async def _compress_fn(messages: list[dict]) -> str:
+            return await llm.chat(messages=messages, model=compress_model)
+
+        return _compress_fn
 
     def get_or_create(
         self,
@@ -227,6 +207,7 @@ class SessionManager:
                     ttl_seconds=self.ttl_seconds,
                     compress_threshold=self.compress_threshold,
                     compress_keep_recent=self.compress_keep_recent,
+                    compress_fn=self._make_compress_fn(),
                 )
                 LOG.debug("创建新会话: %s, has_user_ctx=%s", session_id, bool(user_ctx))
             else:

@@ -14,6 +14,7 @@ Agent Loop
       → if text answer: 通过 Server /action/send 发送 → 保存 session
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -28,6 +29,8 @@ LOG = logging.getLogger("AgentLoop")
 
 # 单次会话最大 tool 调用轮次（防止死循环）
 MAX_TOOL_ITERATIONS = 6
+# 单个 skill 执行超时（秒）
+SKILL_TIMEOUT_SECONDS = 120
 
 # 触发词清理
 _TRIGGER_PATTERNS = [re.compile(p, re.IGNORECASE) for p in [r"@真爱粉\s*", r"\bzaf\b"]]
@@ -222,9 +225,15 @@ class AgentLoop:
         }
 
         try:
-            result = await skill_registry.execute(name, args, ctx)
+            result = await asyncio.wait_for(
+                skill_registry.execute(name, args, ctx),
+                timeout=SKILL_TIMEOUT_SECONDS,
+            )
             LOG.info("tool %s 执行结果: %s", name, str(result)[:200])
             return str(result)
+        except asyncio.TimeoutError:
+            LOG.error("tool %s 执行超时 (%ds)", name, SKILL_TIMEOUT_SECONDS)
+            return f"[执行超时] 技能 {name} 处理时间过长，请稍后重试"
         except Exception as e:
             LOG.exception("tool %s 执行异常: %s", name, e)
             return f"[执行失败] {e}"

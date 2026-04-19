@@ -29,4 +29,5 @@ def ensure_skills_loaded():
         muninn_skill,
         deploy_skill,
         config_skill,
+        wechat_qr_skill,
     )
