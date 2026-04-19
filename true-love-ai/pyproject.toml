@@ -7,26 +7,21 @@ dependencies = [
     # Web 框架
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
-    
     # HTTP 客户端
     "httpx>=0.28.0",
-    
     # LLM
     "litellm>=1.80.11",
-    
     # 数据验证
     "pydantic>=2.10.0",
     "pydantic-settings>=2.7.0",
-    
     # 配置
     "pyyaml>=6.0.3",
-
     # 数据库
     "sqlalchemy>=2.0.0",
     "python-dateutil>=2.9.0",
-
     # HTML 解析（汇率 skill）
     "beautifulsoup4>=4.12.0",
+    "qrcode>=8.2",
 ]
 
 [project.optional-dependencies]
