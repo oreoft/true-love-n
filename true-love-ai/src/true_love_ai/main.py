@@ -15,10 +15,10 @@ from true_love_ai.llm.llm_bootstrap import init_litellm
 LOG = logging.getLogger(__name__)
 
 
-def notice_master():
+def notice_master(master_wxid: str):
     """启动通知"""
     try:
-        send_text("master", "", "真爱粉 AI 启动成功啦~ ✨")
+        send_text(master_wxid, "真爱粉 AI 启动成功啦~ ✨")
     except Exception as e:
         LOG.warning(f"启动通知发送失败: {e}")
 
@@ -55,7 +55,7 @@ def main():
     setup_signal_handlers()
 
     # 启动通知
-    notice_master()
+    notice_master(config.base_server.master_wxid)
 
     LOG.info("=" * 50)
     LOG.info("真爱粉 AI 服务启动中...")
