@@ -1,20 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-聊天服务模块（精简版）
+聊天服务模块
 
-意图识别已废弃，消息处理由 AgentLoop 负责。
-本模块保留以下功能：
-  - analyze_speech:       生成发言分析报告（供 /get-analyze-speech API 使用）
-  - extract_memory_facts: 从分析报告中提取结构化记忆（供 /extract-memory API 和 analyze_speech_skill 使用）
+analyze_speech 已由 analyze_speech_skill 直接实现，本模块只保留：
+  - extract_memory_facts: 从分析报告中提取结构化记忆（供 analyze_speech_skill 内部调用）
 """
 import json
 import logging
-from typing import Optional
 
-from true_love_ai.core.config import get_config
-from true_love_ai.core.session import get_session_manager
 from true_love_ai.llm.router import get_llm_router
-from true_love_ai.models.response import ChatResponse
 
 LOG = logging.getLogger(__name__)
 
@@ -22,49 +16,11 @@ LOG = logging.getLogger(__name__)
 class ChatService:
 
     def __init__(self):
-        self.config = get_config()
-        self.session_manager = get_session_manager()
         self.llm_router = get_llm_router()
-
-    async def analyze_speech(
-            self,
-            history_text: str,
-            session_id: str = "",
-            metadata: dict = None,
-            provider: Optional[str] = None,
-            model: Optional[str] = None
-    ) -> ChatResponse:
-        """根据提供的历史记录生成发言分析报告"""
-        import time
-        start_time = time.time()
-        metadata = metadata or {}
-        target = metadata.get("target", "分析该用户的发言特点、性格或意图")
-        LOG.info(f"开始生成发言分析报告, session_id={session_id}, metadata={metadata}")
-
-        from true_love_ai.llm.analyze_speech_prompt import get_analyze_system_prompt
-        analyze_system_prompt = get_analyze_system_prompt(history_text, metadata)
-
-        analyze_messages = [
-            {"role": "system", "content": analyze_system_prompt},
-            {"role": "user", "content": target}
-        ]
-
-        answer = await self.llm_router.chat(
-            messages=analyze_messages,
-            provider=provider,
-            model=model
-        )
-
-        if session_id:
-            session = self.session_manager.get_or_create(session_id)
-            session.add_message("assistant", answer)
-
-        LOG.info("发言分析耗时: %.2fs", round(time.time() - start_time, 2))
-        return ChatResponse(type="chat", answer=answer)
 
     async def extract_memory_facts(self, text: str, sender: str) -> list[dict]:
         """
-        从发言分析报告中提取结构化用户事实，供 server 写入记忆库。
+        从发言分析报告中提取结构化用户事实，写入记忆库。
 
         Returns:
             [{key, value}] 列表，异常时返回空列表。

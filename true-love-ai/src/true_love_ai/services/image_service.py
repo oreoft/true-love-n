@@ -20,7 +20,6 @@ import litellm
 from true_love_ai.core.config import get_config
 from true_love_ai.core.session import get_session_manager
 from true_love_ai.llm import img_prompt
-from true_love_ai.llm.intent import IntentRouter
 from true_love_ai.llm.router import get_llm_router
 from true_love_ai.models.response import ImageResponse
 
@@ -52,43 +51,12 @@ class ImageService:
     def __init__(self):
         self.config = get_config()
         self.llm_router = get_llm_router()
-        self.intent_router = IntentRouter()
         self.session_manager = get_session_manager()
 
         # Stability AI API Key
         self.sd_api_key = self.config.platform_key.sd if self.config.platform_key else ""
         self.litellm_api_key = self.config.platform_key.litellm_api_key
         self.litellm_base_url = self.config.platform_key.litellm_base_url
-
-    async def get_img_type(
-            self,
-            content: str,
-            provider: Optional[str] = None,
-            model: Optional[str] = None
-    ) -> dict:
-        """
-        判断图像操作类型
-        
-        Args:
-            content: 用户描述
-            provider: 提供商
-            model: 模型
-            
-        Returns:
-            {"type": str, "answer": str}
-        """
-        LOG.info(f"开始判断图像操作类型: {content[:50]}...")
-
-        intent = await self.intent_router.route_image(
-            content=content,
-            provider=provider,
-            model=model
-        )
-
-        return {
-            "type": intent.type.value,
-            "answer": intent.answer
-        }
 
     async def generate_image(
             self,

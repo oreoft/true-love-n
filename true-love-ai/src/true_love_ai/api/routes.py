@@ -1,184 +1,21 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-API 路由模块
+API 路由模块 — 文件下载接口（供 Server 拉取 AI 生成的图片/视频）
+消息处理已全部由 AgentLoop 接管，通过 /trigger 入口。
 """
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 
-from true_love_ai.api.deps import verify_token, get_chat_service, get_image_service, get_video_service
-from true_love_ai.models.request import ImageRequest, ImageTypeRequest, AnalyzeRequest, VideoRequest, AnalyzeSpeechRequest, ExtractMemoryRequest
-from true_love_ai.models.response import APIResponse
-from true_love_ai.services.chat_service import ChatService
-from true_love_ai.services.image_service import ImageService
-from true_love_ai.services.video_service import VideoService, GEN_VIDEO_DIR
+from true_love_ai.api.deps import verify_token
 from true_love_ai.services.image_service import GEN_IMG_DIR
+from true_love_ai.services.video_service import GEN_VIDEO_DIR
 
 LOG = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-@router.post("/get-analyze-speech")
-async def get_analyze_speech(
-        request: AnalyzeSpeechRequest,
-        service: ChatService = Depends(get_chat_service)
-) -> APIResponse:
-    """提供历史记录并由 LLM 生成发言分析"""
-    LOG.info(f"get-analyze-speech请求, target: {request.target}")
-
-    if not verify_token(request.token):
-        return APIResponse.token_error()
-
-    try:
-        # 合并 target 和 target_name 到 metadata 中，实现参数扁平化
-        metadata = request.metadata or {}
-        if request.target and "target" not in metadata:
-            metadata["target"] = request.target
-        if request.target_name and "target_name" not in metadata:
-            metadata["target_name"] = request.target_name
-
-        result = await service.analyze_speech(
-            history_text=request.history_text,
-            session_id=request.wxid,
-            metadata=metadata,
-            provider=request.provider,
-            model=request.model
-        )
-        return APIResponse.success(result.model_dump(exclude_none=True))
-    except Exception as e:
-        LOG.exception(f"get-analyze-speech处理失败: {e}")
-        return APIResponse.internal_error(str(e))
-
-
-@router.post("/get-img-type")
-async def get_img_type(
-        request: ImageTypeRequest,
-        service: ImageService = Depends(get_image_service)
-) -> APIResponse:
-    """
-    判断图像操作类型
-    
-    返回类型：
-    - gen_by_img: 图生图
-    - erase_img: 擦除
-    - replace_img: 替换
-    - analyze_img: 分析
-    - remove_background_img: 去背景
-    """
-    LOG.info(f"get-img-type消息收到请求, req: {str(request.model_dump())[:2000]}")
-
-    # 鉴权
-    if not verify_token(request.token):
-        return APIResponse.token_error()
-
-    try:
-        result = await service.get_img_type(
-            content=request.content,
-            provider=request.provider,
-            model=request.model
-        )
-        return APIResponse.success(result)
-    except Exception as e:
-        LOG.exception(f"get-img-type处理失败: {e}")
-        return APIResponse.internal_error(str(e))
-
-
-@router.post("/gen-img")
-async def gen_img(
-        request: ImageRequest,
-        service: ImageService = Depends(get_image_service)
-) -> APIResponse:
-    """
-    生成图像
-    
-    - 文生图：只传 content
-    - 图生图：传 content + img_data
-    """
-    LOG.info(f"gen-img消息收到请求, req: {str(request.model_dump())[:2000]}")
-
-    # 鉴权
-    if not verify_token(request.token):
-        return APIResponse.token_error()
-
-    try:
-        result = await service.generate_image(
-            content=request.content,
-            img_data=request.img_data,
-            wxid=request.wxid,
-            sender=request.sender,
-            provider=request.provider,
-            model=request.model
-        )
-        return APIResponse.success(result.model_dump(exclude_none=True))
-    except Exception as e:
-        LOG.exception(f"gen-img处理失败: {e}")
-        return APIResponse.internal_error(str(e))
-
-
-@router.post("/get-analyze")
-async def get_analyze(
-        request: AnalyzeRequest,
-        service: ImageService = Depends(get_image_service)
-) -> APIResponse:
-    """
-    分析图像内容
-    """
-    LOG.info(f"get-analyze消息收到请求, req: {str(request.model_dump())[:2000]}")
-
-    # 鉴权
-    if not verify_token(request.token):
-        return APIResponse.token_error()
-
-    try:
-        result = await service.analyze_image(
-            content=request.content,
-            img_data=request.img_data,
-            wxid=request.wxid,
-            sender=request.sender,
-            provider=request.provider,
-            model=request.model
-        )
-        return APIResponse.success(result)
-    except Exception as e:
-        LOG.exception(f"get-analyze处理失败: {e}")
-        return APIResponse.internal_error(str(e))
-
-
-@router.post("/gen-video")
-async def gen_video(
-        request: VideoRequest,
-        service: VideoService = Depends(get_video_service)
-) -> APIResponse:
-    """
-    生成视频
-    
-    - 文生视频：只传 content
-    - 图生视频：传 content + img_data_list（图片数组）
-    
-    支持提供商：openai (Sora) / gemini (Veo)
-    """
-    LOG.info(f"gen-video消息收到请求, req: {str(request.model_dump())[:2000]}")
-
-    # 鉴权
-    if not verify_token(request.token):
-        return APIResponse.token_error()
-
-    try:
-        result = await service.generate_video(
-            content=request.content,
-            img_data_list=request.img_data_list,
-            wxid=request.wxid,
-            sender=request.sender,
-            provider=request.provider,
-            model=request.model
-        )
-        return APIResponse.success(result.model_dump(exclude_none=True))
-    except Exception as e:
-        LOG.exception(f"gen-video处理失败: {e}")
-        return APIResponse.internal_error(str(e))
 
 
 @router.get("/download-image/{file_id}")
@@ -202,55 +39,15 @@ async def download_video(
         video_id: str,
         token: str = Query(..., description="鉴权 Token")
 ) -> FileResponse:
-    """
-    下载视频文件
-    
-    用于 Server 端获取 Gemini 生成的视频
-    视频通过 video_id 标识，存储在 AI 服务本地
-    """
-    LOG.info(f"download-video请求, video_id: {video_id}")
+    """下载 AI 生成的视频（供 Server 拉取后转发给 Base）"""
+    LOG.info("download-video 请求, video_id: %s", video_id)
 
-    # 鉴权
     if not verify_token(token):
         raise HTTPException(status_code=403, detail="Token 验证失败")
 
-    # 查找视频文件
     video_path = GEN_VIDEO_DIR / f"{video_id}.mp4"
-    
     if not video_path.exists():
-        LOG.warning(f"视频文件不存在: {video_path}")
+        LOG.warning("视频文件不存在: %s", video_path)
         raise HTTPException(status_code=404, detail="视频文件不存在或已过期")
 
-    LOG.info(f"返回视频文件: {video_path}")
-    return FileResponse(
-        path=video_path,
-        media_type="video/mp4",
-        filename=f"{video_id}.mp4"
-    )
-
-
-@router.post("/extract-memory")
-async def extract_memory(
-        request: ExtractMemoryRequest,
-        service: ChatService = Depends(get_chat_service)
-) -> APIResponse:
-    """
-    从发言分析报告中提取结构化用户记忆条目
-
-    由 server 在 analyze-speech 完成后调用，
-    返回 [{key, value}] 列表供 server 写入记忆库。
-    """
-    LOG.info(f"extract-memory 请求, sender: {request.sender}")
-
-    if not verify_token(request.token):
-        return APIResponse.token_error()
-
-    try:
-        facts = await service.extract_memory_facts(
-            text=request.text,
-            sender=request.sender,
-        )
-        return APIResponse.success({"facts": facts})
-    except Exception as e:
-        LOG.exception(f"extract-memory 处理失败: {e}")
-        return APIResponse.internal_error(str(e))
+    return FileResponse(path=video_path, media_type="video/mp4", filename=f"{video_id}.mp4")
