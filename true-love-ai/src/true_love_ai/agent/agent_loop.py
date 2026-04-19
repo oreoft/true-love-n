@@ -179,15 +179,6 @@ class AgentLoop:
             file_msg = msg.get("file_msg") or {}
             file_path = file_msg.get("file_path", "")
             file_name = file_msg.get("file_name", "")
-            # 若是音频文件，尝试 ASR
-            if file_path and any(ext in file_path.lower() for ext in [".m4a", ".mp3", ".wav"]):
-                try:
-                    from true_love_ai.services.asr_utils import do_asr
-                    text = do_asr(file_path)
-                    if text:
-                        return f"[语音文件转文字]: {text}"
-                except Exception:
-                    pass
             return f"[文件: {file_name or file_path}] {content}" if (file_name or file_path) else content or None
 
         if msg_type == "video":
