@@ -45,7 +45,7 @@ async def web_search(params: dict, ctx: dict) -> str:
         if False:
             results = fetch_baidu_references(query)
         else:
-            results = fetch_baidu_references_httpx(query)
+            results = await fetch_baidu_references_httpx(query)
         if not results:
             return f"搜索「{query}」没有找到相关结果"
         return f"搜索「{query}」的结果：\n{json.dumps(results[:5], ensure_ascii=False, indent=2)}"
