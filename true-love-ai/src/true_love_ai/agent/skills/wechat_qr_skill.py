@@ -58,7 +58,26 @@ async def wechat_qr_connect(params: dict, ctx: dict) -> str:
     if session_key:
         asyncio.create_task(_wait_and_bind(session_key, nexu.base_url, headers))
 
-    return json.dumps(qr_data, ensure_ascii=False)
+    # 发送二维码图片
+    qr_data_url = qr_data.get("qrDataUrl", "")
+    if qr_data_url and "," in qr_data_url:
+        receiver = ctx.get("receiver", "")
+        if receiver:
+            try:
+                import base64
+                import uuid
+                from true_love_ai.agent.server_client import send_file
+
+                from true_love_ai.services.image_service import GEN_IMG_DIR
+                img_b64 = qr_data_url.split(",", 1)[1]
+                file_id = uuid.uuid4().hex
+                (GEN_IMG_DIR / f"{file_id}.jpg").write_bytes(base64.b64decode(img_b64))
+                await send_file(receiver, file_id, file_type="image")
+                return "好的！二维码已发送，请用微信扫描完成领养哦~"
+            except Exception as e:
+                LOG.error("发送二维码图片失败: %s", e)
+
+    return qr_data.get("message", "请扫描二维码完成领养~")
 
 
 async def _wait_and_bind(session_key: str, base_url: str, headers: dict) -> None:
