@@ -13,6 +13,7 @@ import httpx
 import litellm
 
 from true_love_ai.core.config import get_config
+from true_love_ai.core.model_registry import get_model_registry
 from true_love_ai.llm.router import get_llm_router
 from true_love_ai.models.response import ImageResponse
 
@@ -22,10 +23,12 @@ LOG = logging.getLogger(__name__)
 class ImageService:
 
     def __init__(self):
-        self.config = get_config()
+        cfg = get_config()
+        self.llm = cfg.llm
         self.llm_router = get_llm_router()
-        self.litellm_api_key = self.config.platform_key.litellm_api_key
-        self.litellm_base_url = self.config.platform_key.litellm_base_url
+        self.registry = get_model_registry()
+        self.litellm_api_key = cfg.platform_key.litellm_api_key
+        self.litellm_base_url = cfg.platform_key.litellm_base_url
 
     async def generate_image(
             self,
@@ -51,22 +54,12 @@ class ImageService:
             return await self._generate_openai(image_prompt)
 
     async def _generate_openai(self, prompt: str) -> ImageResponse:
-        api_key = None
-        if self.config.chatgpt:
-            api_key = self.config.chatgpt.key1 or self.config.chatgpt.key2 or self.config.chatgpt.key3
-        if not api_key:
-            raise ValueError("OpenAI API Key 未配置")
-
-        image_model = self.config.chatgpt.image_model if self.config.chatgpt else "gpt-image-1"
-        LOG.info("OpenAI 生图: model=%s, prompt=%s...", image_model, prompt[:50])
-
+        model = self.registry.get("image", "openai")
+        LOG.info("OpenAI 生图: model=%s, prompt=%s...", model, prompt[:50])
         try:
             response = await litellm.aimage_generation(
-                model=image_model,
-                prompt=prompt,
-                n=1,
-                api_key=self.litellm_api_key,
-                api_base=self.litellm_base_url,
+                model=model, prompt=prompt, n=1,
+                api_key=self.litellm_api_key, api_base=self.litellm_base_url,
                 response_format="b64_json",
             )
             if response.data and response.data[0].b64_json:
@@ -83,21 +76,14 @@ class ImageService:
             raise ValueError("生成失败啦!")
 
     async def _generate_gemini(self, prompt: str) -> ImageResponse:
-        api_key = self.config.chatgpt.gemini_key1 if self.config.chatgpt else None
-        if not api_key:
-            raise ValueError("Gemini API Key 未配置")
-
-        litellm_model = self.config.chatgpt.gemini_image_model if self.config.chatgpt else "imagen-4.0-generate-001"
-        LOG.info("Gemini 生图: model=%s, prompt=%s...", litellm_model, prompt[:50])
+        model = self.registry.get("image", "gemini")
+        LOG.info("Gemini 生图: model=%s, prompt=%s...", model, prompt[:50])
 
         try:
             response = await litellm.aimage_generation(
-                model=litellm_model,
-                prompt=prompt,
-                api_key=self.litellm_api_key,
-                api_base=self.litellm_base_url,
+                model=model, prompt=prompt, n=1,
+                api_key=self.litellm_api_key, api_base=self.litellm_base_url,
                 response_format="b64_json",
-                n=1,
             )
             if response.data:
                 item = response.data[0]
@@ -129,7 +115,7 @@ class ImageService:
         is_debug = content.startswith("debug")
         clean_content = content.removeprefix("debug").strip() if is_debug else content
 
-        analyze_prompt = self.config.chatgpt.prompt6 if self.config.chatgpt else "请分析这张图片"
+        analyze_prompt = self.llm.vision_prompt if self.llm else "请分析这张图片"
         result = await self.llm_router.vision(
             prompt=f"{analyze_prompt}\n\n用户问题: {clean_content}",
             image_data=img_data,

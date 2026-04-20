@@ -1,99 +1,60 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-LLM 路由模块
-使用 LiteLLM 进行多模型路由和负载均衡
-"""
+"""LLM 路由模块：所有调用通过 LiteLLM 代理，模型由 ModelRegistry 统一管理"""
 import logging
 from typing import Optional
 
 import litellm
 
-from true_love_ai.core.config import get_config
+from true_love_ai.core.model_registry import get_model_registry
 
 LOG = logging.getLogger(__name__)
 
 
 class LLMRouter:
-    """LLM 路由器 - 使用 LiteLLM 实现多模型支持和负载均衡"""
 
-    def __init__(self):
-        self.config = get_config().chatgpt
-        self.platform_key = get_config().platform_key
-
-    def _resolve_model(self, provider: Optional[str] = None, model: Optional[str] = None) -> str:
-        """解析模型名称：优先用指定 model，其次按 provider 选择，最后用默认"""
-        if model:
-            return "openai/" + model
-
-        if provider and self.config:
-            provider_map = {
-                "openai": self.config.default_model,
-                "claude": self.config.claude_model,
-                "gemini": self.config.gemini_model,
-            }
-            return "openai/" + provider.lower() + "/" + provider_map.get(provider.lower(), self.config.default_model)
-
-        return "openai/" + self.config.default_model if self.config else "gpt-4o"
+    def _model(self, category: str, key: str = "openai") -> str:
+        return get_model_registry().get(category, key)
 
     async def chat(
             self,
             messages: list[dict],
-            provider: Optional[str] = None,
+            provider: str = "openai",
             model: Optional[str] = None,
             stream: bool = False,
-            **kwargs
+            **kwargs,
     ) -> str:
-        """发送聊天请求"""
-        resolved_model = self._resolve_model("openai", model)
-        LOG.info(f"LLM chat: model={resolved_model}, messages_count={len(messages)}")
+        resolved = model or self._model("chat", provider)
+        LOG.info("chat: model=%s msgs=%d", resolved, len(messages))
 
         response = await litellm.acompletion(
-            model=resolved_model,
-            messages=messages,
-            stream=stream,
-            **kwargs
+            model=resolved, messages=messages, stream=stream, **kwargs
         )
-
         if stream:
-            # 流式响应：拼接完整内容
             result = ""
             async for chunk in response:
                 if chunk.choices[0].delta.content:
                     result += chunk.choices[0].delta.content
             return result
-
         return response.choices[0].message.content
 
     async def chat_with_tools(
             self,
             messages: list[dict],
             tools: list[dict],
-            tool_choice,   # str | dict
-            provider: Optional[str] = None,
+            tool_choice,
+            provider: str = "openai",
             model: Optional[str] = None,
-            **kwargs
+            **kwargs,
     ) -> str:
-        """
-        带工具调用的聊天。
-
-        返回 JSON 字符串，包含两个字段：
-        - 工具参数（昦平展开）
-        - _fn_name: 被调用的 function 名称
-        """
-        resolved_model = self._resolve_model(provider, model)
-        LOG.info(f"LLM chat_with_tools: model={resolved_model}, tools={[t['function']['name'] for t in tools]}")
+        resolved = model or self._model("chat", provider)
+        LOG.info("chat_with_tools: model=%s tools=%s", resolved, [t["function"]["name"] for t in tools])
 
         response = await litellm.acompletion(
-            model=resolved_model,
-            messages=messages,
-            tools=tools,
-            tool_choice=tool_choice,
-            stream=True,
-            **kwargs
+            model=resolved, messages=messages,
+            tools=tools, tool_choice=tool_choice, stream=True, **kwargs
         )
 
-        # 提取工具调用名称和参数及可能的文本
         fn_name = ""
         arguments = ""
         content = ""
@@ -110,15 +71,11 @@ class LLMRouter:
 
         import json as _json
         try:
-            # 如果大模型吐出了正常文本代替工具调用，我们就把它包一层特定的结构返回
-            if not fn_name and not arguments and content:
-                args_dict = {"_answer": content.strip()}
-            else:
-                args_dict = _json.loads(arguments) if arguments else {}
+            args_dict = {"_answer": content.strip()} if (not fn_name and content) else (
+                _json.loads(arguments) if arguments else {}
+            )
         except Exception:
             args_dict = {}
-
-        # 将 _fn_name 注入返回内容，便于调用方判断是哪个 tool
         args_dict["_fn_name"] = fn_name
         return _json.dumps(args_dict, ensure_ascii=False)
 
@@ -126,34 +83,22 @@ class LLMRouter:
             self,
             messages: list[dict],
             tools: list[dict],
-            provider: Optional[str] = None,
+            provider: str = "openai",
             model: Optional[str] = None,
-    ) -> tuple[str, list[dict] | None]:
-        """
-        Agent Loop 专用：调用 LLM 并返回结构化结果。
-
-        Returns:
-            ("text", None)       — LLM 返回了文本答案
-            ("tool_calls", [...])— LLM 要调用工具，list 中每个元素：
-                                   {"id": str, "name": str, "arguments": dict}
-        """
+    ) -> tuple[str, list | None]:
         import json as _json
-
-        resolved_model = self._resolve_model(provider, model)
-        LOG.info("Agent LLM call: model=%s, tools=%d, msgs=%d",
-                 resolved_model, len(tools), len(messages))
+        resolved = model or self._model("chat", provider)
+        LOG.info("agent: model=%s tools=%d msgs=%d", resolved, len(tools), len(messages))
 
         response = await litellm.acompletion(
-            model=resolved_model,
+            model=resolved,
             messages=messages,
             tools=tools or None,
             tool_choice="auto" if tools else None,
             stream=False,
         )
-
         message = response.choices[0].message
 
-        # LLM 要调用工具
         if message.tool_calls:
             calls = []
             for tc in message.tool_calls:
@@ -161,57 +106,41 @@ class LLMRouter:
                     args = _json.loads(tc.function.arguments) if tc.function.arguments else {}
                 except Exception:
                     args = {}
-                calls.append({
-                    "id": tc.id,
-                    "name": tc.function.name,
-                    "arguments": args,
-                    # 保存原始 tool_call 结构，供拼装 assistant message 使用
-                    "_raw": tc,
-                })
+                calls.append({"id": tc.id, "name": tc.function.name, "arguments": args, "_raw": tc})
             return "tool_calls", calls
 
-        # LLM 返回文本
-        content = message.content or ""
-        return "text", content
+        return "text", message.content or ""
 
     async def vision(
             self,
             prompt: str,
             image_data: str,
-            provider: Optional[str] = None,
+            provider: str = "openai",
             model: Optional[str] = None,
-            **kwargs
+            **kwargs,
     ) -> str:
-        """视觉理解 - 分析图像内容"""
-        # 确定 vision 模型
-        if model:
-            resolved_model = model
-        elif provider and provider.lower() != "openai" and self.config:
-            vision_map = {"claude": self.config.claude_model, "gemini": self.config.gemini_model}
-            resolved_model = vision_map.get(provider.lower(), self.config.vision_model)
-        else:
-            resolved_model = self.config.vision_model if self.config else "gpt-4o"
-
-        LOG.info(f"LLM vision: model={resolved_model}")
-
-        # 构建 vision 消息格式
+        resolved = model or self._model("vision", provider)
+        LOG.info("vision: model=%s", resolved)
         messages = [{
             "role": "user",
             "content": [
                 {"type": "text", "text": prompt},
-                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_data}"}}
-            ]
+                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_data}"}},
+            ],
         }]
+        return await self.chat(messages, model=resolved, **kwargs)
 
-        return await self.chat(messages, model=resolved_model, **kwargs)
+    async def compress(self, messages: list[dict]) -> str:
+        resolved = self._model("compress", "openai")
+        LOG.info("compress: model=%s", resolved)
+        response = await litellm.acompletion(model=resolved, messages=messages, stream=False)
+        return response.choices[0].message.content
 
 
-# 全局单例
 _llm_router: Optional[LLMRouter] = None
 
 
 def get_llm_router() -> LLMRouter:
-    """获取 LLM 路由器单例"""
     global _llm_router
     if _llm_router is None:
         _llm_router = LLMRouter()

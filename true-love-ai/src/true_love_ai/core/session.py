@@ -170,21 +170,23 @@ class SessionManager:
         self.ttl_seconds = config.session.ttl_seconds
         self.compress_threshold = config.session.compress_threshold
         self.compress_keep_recent = config.session.compress_keep_recent
-        self.default_prompt = config.chatgpt.prompt if config.chatgpt else ""
-        self.prompt2 = config.chatgpt.prompt2 if config.chatgpt else ""
-        self.prompt2_users = config.chatgpt.prompt2_users if config.chatgpt else []
+        self.default_prompt = config.llm.system_prompt if config.llm else ""
+        self.prompts = config.llm.prompts if config.llm else {}
+        self.user_prompt_map = config.llm.user_prompt_map if config.llm else {}
+
+    def _resolve_prompt(self, session_id: str) -> str:
+        prompt_name = self.user_prompt_map.get(session_id)
+        if prompt_name and prompt_name in self.prompts:
+            return self.prompts[prompt_name]
+        return self.default_prompt
 
     def _make_compress_fn(self) -> Callable[[list[dict]], Awaitable[str]]:
         """创建压缩函数，注入 LLM 调用能力（避免 Session 直接依赖 llm_router）"""
         from true_love_ai.llm.router import get_llm_router
-        from true_love_ai.core.config import get_config as _get_cfg
-
-        cfg = _get_cfg()
-        compress_model = cfg.chatgpt.compress_model if cfg.chatgpt else "gpt-4o-mini"
         llm = get_llm_router()
 
         async def _compress_fn(messages: list[dict]) -> str:
-            return await llm.chat(messages=messages, model=compress_model)
+            return await llm.compress(messages)
 
         return _compress_fn
 
@@ -205,9 +207,7 @@ class SessionManager:
                 return prompt
 
             if session_id not in self._sessions:
-                base_prompt = system_prompt if system_prompt is not None else (
-                    self.prompt2 if session_id in self.prompt2_users else self.default_prompt
-                )
+                base_prompt = system_prompt if system_prompt is not None else self._resolve_prompt(session_id)
                 self._sessions[session_id] = Session(
                     session_id=session_id,
                     system_prompt=_build_prompt(base_prompt),
@@ -220,8 +220,7 @@ class SessionManager:
             else:
                 if user_ctx:
                     session = self._sessions[session_id]
-                    base_prompt = self.prompt2 if session_id in self.prompt2_users else self.default_prompt
-                    session.system_prompt = _build_prompt(base_prompt)
+                    session.system_prompt = _build_prompt(self._resolve_prompt(session_id))
 
             return self._sessions[session_id]
 

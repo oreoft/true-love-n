@@ -1,101 +1,89 @@
 # True Love AI Configuration Example
 # ============================================
-# 真爱粉 AI 配置示例
 
 # ==================== 服务基础配置 ====================
 
-# Base/Server 服务地址（AI 回调 WeChat 操作用）
 base_server:
-  host: "http://localhost:5000"   # Server 服务地址
-  self_wxid: ""                   # 机器人自己的微信 ID
-  master_wxid: ""                 # 管理员微信 ID（已废弃，改用 skill_permissions）
-  master_group: ""                # 管理员群 ID
+  host: "http://localhost:5000"
+  self_wxid: ""
+  master_wxid: ""
+  master_group: ""
 
-# HTTP 服务配置
 http:
   host: "0.0.0.0"
   port: 8088
   token: ["your_token"]
 
-# 会话配置
 session:
   ttl_seconds: 86400        # 会话过期时间（秒），默认 24 小时
   compress_threshold: 50    # 历史消息超过此条数时触发压缩
   compress_keep_recent: 10  # 压缩时保留最近 N 条完整消息
 
-# 默认 LLM 提供商 (openai/claude/deepseek/gemini)
-default_provider: openai
-
 # ==================== LLM 配置 ====================
 
-chatgpt:
-  # OpenAI Keys（多 Key 负载均衡，用于聊天和图像生成）
-  key1: "sk-xxx"
-  key2: "sk-xxx"
-  key3: "sk-xxx"
+llm:
+  # 默认系统提示词（兜底，未配置 user_prompt_map 的用户均使用此提示词）
+  system_prompt: "你是一个可爱的智能助手~"
+  vision_prompt: "你是一个专业的图像分析助手"
 
-  # Claude（用于聊天）
-  claude_key1: "sk-ant-xxx"
+  # 命名 prompt 集合（可定义多个，供 user_prompt_map 引用）
+  # prompts:
+  #   academic: "你是一个学术助手..."
+  #   formal: "你是一个正式的助手..."
 
-  # DeepSeek（用于聊天）
-  ds_key1: "sk-xxx"
+  # 用户/群 → prompt 名映射（未配置则走 system_prompt）
+  # user_prompt_map:
+  #   wxid_xxxxxx: academic
+  #   room@chatroom: formal
 
-  # Gemini（用于聊天和 Imagen 图像生成）
-  gemini_key1: "xxx"
-
-  # 模型配置
-  default_model: "gpt-4o"                        # 默认聊天模型
-  compress_model: "gpt-4o-mini"                  # 会话压缩用的轻量模型
-  vision_model: "gpt-4o"                         # 图像分析模型
-  deepseek_model: "deepseek/deepseek-chat"       # DeepSeek 模型
-  claude_model: "claude-sonnet-4-20250514"       # Claude 模型
-  gemini_model: "gemini/gemini-2.0-flash"        # Gemini 聊天模型
-  image_model: "gpt-image-1"                     # 图像生成模型（OpenAI）
-  gemini_image_model: "imagen-4.0-generate-001"  # 图像生成模型（Gemini）
-  openai_video_model: "sora"                     # 视频生成模型（OpenAI）
-  gemini_video_model: "veo-2.0-generate-001"     # 视频生成模型（Gemini）
-
-  # 使用 prompt2 的用户列表（特殊用户使用不同的系统提示词）
-  prompt2_users: []
-
-  # System Prompts
-  prompt: "你是一个可爱的智能助手~"       # 默认系统提示词
-  prompt2: "你是一个可爱的智能助手~"      # prompt2_users 用户专用
-  prompt3: "你是一个可爱的智能助手~"      # 询问功能
-  prompt4: "你是一个专业的图像描述词生成器，请生成适合 AI 绘图的英文 prompt"
-  prompt5: "根据用户描述判断图像操作类型"
-  prompt6: "你是一个专业的图像分析助手"
+  # 模型配置（可选，不填则使用代码默认值）
+  # 所有聊天/图像/视频均走 LiteLLM 代理，值为代理侧识别的裸模型名
+  # chat:
+  #   openai:   "gpt-5.4"
+  #   claude:   "claude-sonnet-4-5"
+  #   gemini:   "gemini-3-pro"
+  #   deepseek: "deepseek-chat"
+  # compress:
+  #   openai: "gpt-5.4-nano"
+  # vision:
+  #   openai: "gpt-5.4"
+  # image:
+  #   openai: "gpt-image-1"
+  #   gemini: "imagen-4.0-generate-001"
+  # video:
+  #   openai: "sora-2-pro"       # Sora 直连，使用 platform_key.openai_key
+  #   gemini: "veo-3.1-generate-preview"  # Veo 直连，使用 platform_key.gemini_key
 
 # ==================== 第三方平台 Key ====================
 
 platform_key:
-  sd: "sk-xxx"                  # Stability AI API key（图像编辑）
-  litellm_api_key: ""           # LiteLLM 代理 API key（可选）
-  litellm_base_url: ""          # LiteLLM 代理地址（可选）
+  litellm_api_key: ""           # LiteLLM 代理 API key（聊天/图像通用）
+  litellm_base_url: ""          # LiteLLM 代理地址
+  openai_key: ""                # OpenAI 直连 key（Sora 视频生成专用）
+  gemini_key: ""                # Gemini 直连 key（Veo 视频生成专用）
 
 # ==================== 外部服务配置 ====================
 
-# Nexu 连通道服务
 nexu:
   base_url: "http://localhost:3010"
   token: ""
 
-# Muninn CDK 生成服务
 muninn:
-  api_base_url: ""    # Muninn API 地址
-  admin_token: ""     # Muninn 管理员 Token
+  api_base_url: ""
+  admin_token: ""
 
-# GitHub Actions 部署配置
 github:
-  token: "ghp_xxx"   # GitHub Personal Access Token（需要 workflow 权限）
+  token: "ghp_xxx"
 
 # ==================== Skill 权限配置 ====================
-# 控制哪些用户可以使用哪些 skill
 # 查找顺序：skill 名 → default → 未配置则所有人可用
+
 skill_permissions:
-  default: ["管理员昵称"]             # 兜底权限，未单独配置的受限 skill 走这里
-  run_job: ["管理员昵称", "运维昵称"]  # 手动触发定时任务
-  deploy: ["管理员昵称"]              # 触发 GitHub Actions 部署
-  reload_config: ["管理员昵称"]       # 重载 AI 配置
-  listen_manage: ["管理员昵称"]       # 管理微信监听列表
-  muninn_cdk: ["管理员昵称"]          # 生成 Muninn CDK 码
+  default: ["管理员昵称"]
+  list_models: ["管理员昵称"]
+  set_model: ["管理员昵称"]
+  run_job: ["管理员昵称"]
+  deploy: ["管理员昵称"]
+  reload_config: ["管理员昵称"]
+  listen_manage: ["管理员昵称"]
+  muninn_cdk: ["管理员昵称"]

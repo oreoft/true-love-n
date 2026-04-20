@@ -32,7 +32,7 @@ class Config(BaseSettings):
     # 未配置某 skill 时走 default；default 也未配置时所有人可用
     skill_permissions: dict[str, list[str]] = {}
 
-    chatgpt: Optional[LLMConfig] = None
+    llm: Optional[LLMConfig] = None
     http: Optional[HTTPConfig] = None
     session: SessionConfig = SessionConfig()
     platform_key: PlatformKeyConfig = PlatformKeyConfig()
