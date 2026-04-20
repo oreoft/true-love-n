@@ -60,7 +60,6 @@ def main():
     LOG.info("=" * 50)
     LOG.info("真爱粉 AI 服务启动中...")
     LOG.info(f"版本: 0.2.0")
-    LOG.info(f"默认服务商: {config.default_provider}")
     LOG.info("=" * 50)
 
     # 获取 HTTP 配置

@@ -26,8 +26,6 @@ class Config(BaseSettings):
     """
     model_config = SettingsConfigDict(extra="ignore")
 
-    default_provider: str = "openai"
-
     # 每个 skill 的允许用户列表，key 为 skill 名称，"default" 为兜底
     # 未配置某 skill 时走 default；default 也未配置时所有人可用
     skill_permissions: dict[str, list[str]] = {}
