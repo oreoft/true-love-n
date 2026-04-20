@@ -122,9 +122,12 @@ class AgentLoop:
                 ],
             })
 
-            # 2. 逐个执行 tool，把结果追加到 messages
-            for tc in tool_calls:
-                tool_result = await self._execute_tool(tc, session_id, sender, is_group, receiver, at_user)
+            # 2. 并行执行所有 tool，把结果追加到 messages
+            tool_results = await asyncio.gather(*[
+                self._execute_tool(tc, session_id, sender, is_group, receiver, at_user)
+                for tc in tool_calls
+            ])
+            for tc, tool_result in zip(tool_calls, tool_results):
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tc["id"],
