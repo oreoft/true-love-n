@@ -19,16 +19,14 @@ LOG = logging.getLogger("ConfigSkill")
     }
 })
 async def reload_config(params: dict, ctx: dict) -> str:
-    from true_love_ai.core.config import get_config, reload_config as _reload
-    cfg = get_config().github
-    sender = ctx.get("sender", "")
-
-    if cfg.allow_user and sender not in cfg.allow_user:
-        return "诶嘿~这个功能你没有权限使用哦~"
+    from true_love_ai.core.config import reload_config as _reload
+    from true_love_ai.agent.skills.permission import require_permission
+    if err := require_permission("reload_config", ctx):
+        return err
 
     try:
         _reload()
-        LOG.info("AI 配置已重载, 操作者: %s", sender)
+        LOG.info("AI 配置已重载, 操作者: %s", ctx.get("sender", ""))
         return "好耶~AI 服务配置已重新加载成功！"
     except Exception as e:
         LOG.error("reload_config error: %s", e)

@@ -27,11 +27,10 @@ LOG = logging.getLogger("MuninnSkill")
 })
 async def muninn_cdk(params: dict, ctx: dict) -> str:
     from true_love_ai.core.config import get_config
+    from true_love_ai.agent.skills.permission import require_permission
+    if err := require_permission("muninn_cdk", ctx):
+        return err
     cfg = get_config().muninn
-    sender = ctx.get("sender", "")
-
-    if cfg.allow_user and sender not in cfg.allow_user:
-        return "诶嘿~这个功能你没有权限使用哦~"
 
     if not cfg.api_base_url or not cfg.admin_token:
         return "呜呜~Muninn 配置不完整，请联系管理员~"

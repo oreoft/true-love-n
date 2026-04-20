@@ -7,10 +7,6 @@ from true_love_ai.agent.skill_registry import register_skill
 LOG = logging.getLogger("ListenSkill")
 
 
-def _get_master() -> str:
-    from true_love_ai.core.config import get_config
-    return get_config().base_server.master_wxid or ""
-
 
 @register_skill({
     "type": "function",
@@ -39,10 +35,9 @@ def _get_master() -> str:
     }
 })
 async def listen_manage(params: dict, ctx: dict) -> str:
-    sender = ctx.get("sender", "")
-    master = _get_master()
-    if master and sender != master:
-        return "诶嘿~这个功能只有管理员才能使用哦~"
+    from true_love_ai.agent.skills.permission import require_permission
+    if err := require_permission("listen_manage", ctx):
+        return err
 
     action = params.get("action", "")
     target = params.get("target", "")

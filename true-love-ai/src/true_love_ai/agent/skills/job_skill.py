@@ -42,6 +42,9 @@ _JOBS = [
     }
 })
 async def run_job(params: dict, ctx: dict) -> str:
+    from true_love_ai.agent.skills.permission import require_permission
+    if err := require_permission("run_job", ctx):
+        return err
     job_name = params.get("job_name", "").strip()
     if job_name not in _JOBS:
         return f"未知任务：{job_name}，可选：{', '.join(_JOBS)}"

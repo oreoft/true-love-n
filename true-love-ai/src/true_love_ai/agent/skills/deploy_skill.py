@@ -31,12 +31,11 @@ LOG = logging.getLogger("DeploySkill")
 })
 async def deploy(params: dict, ctx: dict) -> str:
     from true_love_ai.core.config import get_config
+    from true_love_ai.agent.skills.permission import require_permission
+    if err := require_permission("deploy", ctx):
+        return err
+
     cfg = get_config().github
-    sender = ctx.get("sender", "")
-
-    if cfg.allow_user and sender not in cfg.allow_user:
-        return "诶嘿~这个功能你没有权限使用哦~"
-
     env = params.get("env", "").strip()
     if env not in ("prod1", "prod2"):
         return "诶嘿~部署环境只支持 prod1 或 prod2 哦~"

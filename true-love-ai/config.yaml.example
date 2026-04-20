@@ -2,51 +2,62 @@
 # ============================================
 # 真爱粉 AI 配置示例
 
-# Base service address (用于发送通知)
-base_server:
-  host: "http://localhost:5000/send-text"
+# ==================== 服务基础配置 ====================
 
-# HTTP service configuration
+# Base/Server 服务地址（AI 回调 WeChat 操作用）
+base_server:
+  host: "http://localhost:5000"   # Server 服务地址
+  self_wxid: ""                   # 机器人自己的微信 ID
+  master_wxid: ""                 # 管理员微信 ID（已废弃，改用 skill_permissions）
+  master_group: ""                # 管理员群 ID
+
+# HTTP 服务配置
 http:
   host: "0.0.0.0"
   port: 8088
   token: ["your_token"]
 
-# Session configuration
+# 会话配置
 session:
-  max_history: 20        # 最大对话历史长度
-  ttl_seconds: 86400     # 会话过期时间（秒）
+  ttl_seconds: 86400        # 会话过期时间（秒），默认 24 小时
+  compress_threshold: 50    # 历史消息超过此条数时触发压缩
+  compress_keep_recent: 10  # 压缩时保留最近 N 条完整消息
 
-# 默认服务提供商 (openai/claude/deepseek/gemini)
+# 默认 LLM 提供商 (openai/claude/deepseek/gemini)
 default_provider: openai
 
-# LLM 配置
+# ==================== LLM 配置 ====================
+
 chatgpt:
   # OpenAI Keys（多 Key 负载均衡，用于聊天和图像生成）
   key1: "sk-xxx"
   key2: "sk-xxx"
   key3: "sk-xxx"
-  
+
   # Claude（用于聊天）
   claude_key1: "sk-ant-xxx"
-  
+
   # DeepSeek（用于聊天）
   ds_key1: "sk-xxx"
-  
+
   # Gemini（用于聊天和 Imagen 图像生成）
   gemini_key1: "xxx"
-  
+
   # 模型配置
-  default_model: "gpt-4o"                      # 默认聊天模型
-  vision_model: "gpt-4o"                       # 图像分析模型
-  image_model: "gpt-image-1"                   # 图像生成模型
-  claude_model: "claude-sonnet-4-20250514"     # Claude 模型
-  deepseek_model: "deepseek/deepseek-chat"     # DeepSeek 模型
-  gemini_model: "gemini/gemini-2.0-flash"      # Gemini 模型
-  
+  default_model: "gpt-4o"                        # 默认聊天模型
+  compress_model: "gpt-4o-mini"                  # 会话压缩用的轻量模型
+  vision_model: "gpt-4o"                         # 图像分析模型
+  deepseek_model: "deepseek/deepseek-chat"       # DeepSeek 模型
+  claude_model: "claude-sonnet-4-20250514"       # Claude 模型
+  gemini_model: "gemini/gemini-2.0-flash"        # Gemini 聊天模型
+  image_model: "gpt-image-1"                     # 图像生成模型（OpenAI）
+  gemini_image_model: "imagen-4.0-generate-001"  # 图像生成模型（Gemini）
+  openai_video_model: "sora"                     # 视频生成模型（OpenAI）
+  gemini_video_model: "veo-2.0-generate-001"     # 视频生成模型（Gemini）
+
   # 使用 prompt2 的用户列表（特殊用户使用不同的系统提示词）
   prompt2_users: []
-  
+
   # System Prompts
   prompt: "你是一个可爱的智能助手~"       # 默认系统提示词
   prompt2: "你是一个可爱的智能助手~"      # prompt2_users 用户专用
@@ -55,51 +66,36 @@ chatgpt:
   prompt5: "根据用户描述判断图像操作类型"
   prompt6: "你是一个专业的图像分析助手"
 
-# nexu 连通道服务配置
+# ==================== 第三方平台 Key ====================
+
+platform_key:
+  sd: "sk-xxx"                  # Stability AI API key（图像编辑）
+  litellm_api_key: ""           # LiteLLM 代理 API key（可选）
+  litellm_base_url: ""          # LiteLLM 代理地址（可选）
+
+# ==================== 外部服务配置 ====================
+
+# Nexu 连通道服务
 nexu:
   base_url: "http://localhost:3010"
   token: ""
 
-# Platform API keys
-# 图像生成提供商：
-#   - stability: 使用 Stability AI（默认）
-#   - openai: 使用 OpenAI DALL-E / GPT-4o 原生生图
-#   - gemini: 使用 Google Imagen 3
-platform_key:
-  sd: "sk-xxx"  # Stability AI API key
+# Muninn CDK 生成服务
+muninn:
+  api_base_url: ""    # Muninn API 地址
+  admin_token: ""     # Muninn 管理员 Token
 
-# Logging configuration
-logging:
-  version: 1
-  disable_existing_loggers: False
-  formatters:
-    simple:
-      format: "%(asctime)s %(message)s"
-      datefmt: "%Y-%m-%d %H:%M:%S"
-    error:
-      format: "%(asctime)s %(name)s %(levelname)s %(filename)s::%(funcName)s[%(lineno)d]:%(message)s"
-  handlers:
-    console:
-      class: logging.StreamHandler
-      level: INFO
-      formatter: simple
-      stream: ext://sys.stdout
-    info_file_handler:
-      class: logging.handlers.RotatingFileHandler
-      level: INFO
-      formatter: simple
-      filename: logs/ai_info.log
-      maxBytes: 10485760
-      backupCount: 20
-      encoding: utf8
-    error_file_handler:
-      class: logging.handlers.RotatingFileHandler
-      level: ERROR
-      formatter: error
-      filename: logs/ai_error.log
-      maxBytes: 10485760
-      backupCount: 20
-      encoding: utf8
-  root:
-    level: INFO
-    handlers: [console, info_file_handler, error_file_handler]
+# GitHub Actions 部署配置
+github:
+  token: "ghp_xxx"   # GitHub Personal Access Token（需要 workflow 权限）
+
+# ==================== Skill 权限配置 ====================
+# 控制哪些用户可以使用哪些 skill
+# 查找顺序：skill 名 → default → 未配置则所有人可用
+skill_permissions:
+  default: ["管理员昵称"]             # 兜底权限，未单独配置的受限 skill 走这里
+  run_job: ["管理员昵称", "运维昵称"]  # 手动触发定时任务
+  deploy: ["管理员昵称"]              # 触发 GitHub Actions 部署
+  reload_config: ["管理员昵称"]       # 重载 AI 配置
+  listen_manage: ["管理员昵称"]       # 管理微信监听列表
+  muninn_cdk: ["管理员昵称"]          # 生成 Muninn CDK 码
