@@ -30,4 +30,5 @@ def ensure_skills_loaded():
         deploy_skill,
         config_skill,
         wechat_qr_skill,
+        job_skill,
     )

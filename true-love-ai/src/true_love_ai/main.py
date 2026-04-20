@@ -23,13 +23,13 @@ def notice_master(master_wxid: str):
         LOG.warning(f"启动通知发送失败: {e}")
 
 
-def setup_signal_handlers():
+def setup_signal_handlers(master_wxid: str):
     """设置信号处理"""
 
     def handler(sig, frame):
         LOG.info("收到关闭信号，正在退出...")
         try:
-            send_text("master", "", "真爱粉 AI 正在关闭...")
+            send_text(master_wxid, "真爱粉 AI 正在关闭...")
         except Exception:
             pass
         exit(0)
@@ -52,7 +52,7 @@ def main():
     LOG.info("AI 本地 skills 加载完成")
 
     # 设置信号处理
-    setup_signal_handlers()
+    setup_signal_handlers(config.base_server.master_wxid)
 
     # 启动通知
     notice_master(config.base_server.master_wxid)

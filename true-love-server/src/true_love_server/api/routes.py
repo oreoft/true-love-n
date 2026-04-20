@@ -320,6 +320,50 @@ async def get_all_message(request: dict):
     return ApiResponse(data=result)
 
 
+# ==================== Job 手动触发接口 ====================
+
+_JOB_MAP = None
+
+
+def _get_job_map() -> dict:
+    global _JOB_MAP
+    if _JOB_MAP is None:
+        from ..jobs import job_process as jp
+        _JOB_MAP = {
+            "notice_moyu_schedule": jp.notice_moyu_schedule,
+            "notice_usa_moyu_schedule": jp.notice_usa_moyu_schedule,
+            "download_moyu_file": jp.download_moyu_file,
+            "download_zao_bao_file": jp.download_zao_bao_file,
+            "notice_test": jp.notice_test,
+            "notice_mei_yuan": jp.notice_mei_yuan,
+            "notice_library_schedule": jp.notice_library_schedule,
+            "notice_ao_yuan_schedule": jp.notice_ao_yuan_schedule,
+        }
+    return _JOB_MAP
+
+
+@router.post("/admin/job/run")
+async def run_job(request: dict, background_tasks: BackgroundTasks):
+    """
+    手动触发定时任务
+
+    Request Body:
+        - job_name: 任务名称
+    """
+    verify_token(request.get("token", ""))
+    job_name = request.get("job_name", "").strip()
+    job_map = _get_job_map()
+
+    if not job_name:
+        raise ValidationException(f"job_name 不能为空，可选: {list(job_map.keys())}")
+    if job_name not in job_map:
+        raise ValidationException(f"未知 job: {job_name}，可选: {list(job_map.keys())}")
+
+    background_tasks.add_task(job_map[job_name])
+    LOG.info("手动触发 job: %s", job_name)
+    return ApiResponse(data={"job_name": job_name, "status": "triggered"})
+
+
 # ==================== Loki 日志查询接口 ====================
 
 @router.get("/admin/loki/logs")
