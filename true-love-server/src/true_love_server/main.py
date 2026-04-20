@@ -44,6 +44,7 @@ def main():
 
     # 注册并异步启动定时任务
     job = Job()
+    job.async_enable_jobs()
 
     # 启动持久化调度器
     from .services.scheduler_service import start_scheduler
