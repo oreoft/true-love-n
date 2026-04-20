@@ -342,7 +342,7 @@ def _get_job_map() -> dict:
     return _JOB_MAP
 
 
-@router.post("/admin/job/run")
+@router.post("/action/job/run")
 async def run_job(request: dict, background_tasks: BackgroundTasks):
     """
     手动触发定时任务

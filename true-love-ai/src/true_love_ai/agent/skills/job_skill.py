@@ -49,7 +49,7 @@ async def run_job(params: dict, ctx: dict) -> str:
     if job_name not in _JOBS:
         return f"未知任务：{job_name}，可选：{', '.join(_JOBS)}"
 
-    result = await _async_post("/admin/job/run", {"job_name": job_name}, timeout=10.0)
+    result = await _async_post("/action/job/run", {"job_name": job_name}, timeout=10.0)
     if result.get("code") == 0:
         return f"好的~已触发任务 {job_name}，后台执行中~"
     return f"触发失败：{result.get('message', result)}"
