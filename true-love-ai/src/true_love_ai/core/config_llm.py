@@ -25,16 +25,15 @@ class LLMConfig(BaseSettings):
     # 模型配置
     default_model: str = "openai/gpt-5.4"
     compress_model: str = "openai/gpt-5.4-nano"
-    vision_model: str = "gpt-5.2"
+    vision_model: str = "gpt-5.4"
 
     # 各提供商聊天模型
-    deepseek_model: str = "deepseek/deepseek-chat"
     claude_model: str = "claude-sonnet-4-5"
-    gemini_model: str = "gemini-3-pro-preview"
+    gemini_model: str = "gemini-3-pro"
 
     # 图像生成
     image_model: str = "dall-e-3"
-    gemini_image_model: str = "gemini-3-pro-image-preview"
+    gemini_image_model: str = "gemini-3-pro-image"
 
     # 视频生成
     openai_video_model: str = "sora-2-pro"

@@ -30,7 +30,6 @@ class LLMRouter:
             provider_map = {
                 "openai": self.config.default_model,
                 "claude": self.config.claude_model,
-                "deepseek": self.config.deepseek_model,
                 "gemini": self.config.gemini_model,
             }
             return "openai/" + provider.lower() + "/" + provider_map.get(provider.lower(), self.config.default_model)

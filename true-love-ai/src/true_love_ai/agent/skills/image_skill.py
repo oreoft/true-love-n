@@ -12,19 +12,22 @@ LOG = logging.getLogger("ImageSkill")
     "function": {
         "name": "generate_image",
         "description": (
-            "根据文字描述生成图像，或对已有图片进行图生图、擦除、替换等操作。"
+            "根据文字描述生成图像。"
             "当用户说'画一张...','生成图片...','帮我画...'时使用。"
+            "默认优先用 Gemini，失败自动降级 OpenAI。"
+            "用户明确指定提供商（如'用openai画'）时才传 provider 参数。"
         ),
         "parameters": {
             "type": "object",
             "properties": {
                 "prompt": {
                     "type": "string",
-                    "description": "图像描述（英文 prompt 效果更好）"
+                    "description": "图像描述，中英文均可"
                 },
-                "image_path": {
+                "provider": {
                     "type": "string",
-                    "description": "参考图片路径（可选，用于图生图）"
+                    "enum": ["gemini", "openai"],
+                    "description": "生图提供商，不指定时 Gemini 优先自动降级"
                 }
             },
             "required": ["prompt"]
@@ -33,39 +36,21 @@ LOG = logging.getLogger("ImageSkill")
 })
 async def generate_image(params: dict, ctx: dict) -> str:
     prompt = params.get("prompt", "")
-    image_path = params.get("image_path", "")
+    provider = params.get("provider")
     receiver = ctx.get("receiver", "")
-    sender = ctx.get("sender", "")
-    session_id = ctx.get("session_id", "")
 
     if not prompt:
         return "诶嘿~请告诉我你想要什么样的图片哦~"
 
     try:
-        from true_love_ai.services.image_service import ImageService
-        service = ImageService()
+        from true_love_ai.services.image_service import ImageService, GEN_IMG_DIR
+        from true_love_ai.agent.server_client import send_file
+        import base64
+        import uuid
 
-        img_data = None
-        if image_path:
-            try:
-                import base64
-                with open(image_path, "rb") as f:
-                    img_data = base64.b64encode(f.read()).decode()
-            except Exception:
-                pass
-
-        result = await service.generate_image(
-            content=prompt,
-            img_data=img_data,
-            wxid=session_id,
-            sender=sender,
-        )
+        result = await ImageService().generate_image(image_prompt=prompt, provider=provider)
 
         if result and result.img:
-            import base64
-            import uuid
-            from true_love_ai.services.image_service import GEN_IMG_DIR
-            from true_love_ai.agent.server_client import send_file
             file_id = uuid.uuid4().hex
             (GEN_IMG_DIR / f"{file_id}.jpg").write_bytes(base64.b64decode(result.img))
             await send_file(receiver, file_id, file_type="image")
@@ -74,7 +59,7 @@ async def generate_image(params: dict, ctx: dict) -> str:
         return "呜呜~图片生成失败了捏，稍后再试试吧~"
     except Exception as e:
         LOG.error("generate_image error: %s", e)
-        return "呜呜~图片生成出错了捏~"
+        return f"呜呜~图片生成出错了捏：{e}"
 
 
 @register_skill({
@@ -104,8 +89,6 @@ async def generate_image(params: dict, ctx: dict) -> str:
 async def analyze_image(params: dict, ctx: dict) -> str:
     question = params.get("question", "请分析这张图片")
     image_path = params.get("image_path", "")
-    session_id = ctx.get("session_id", "")
-    sender = ctx.get("sender", "")
 
     if not image_path:
         return "诶嘿~请提供图片路径哦~"
@@ -119,8 +102,6 @@ async def analyze_image(params: dict, ctx: dict) -> str:
         result = await ImageService().analyze_image(
             content=question,
             img_data=img_data,
-            wxid=session_id,
-            sender=sender,
         )
         return result or "呜呜~图片分析失败了捏~"
     except Exception as e:
