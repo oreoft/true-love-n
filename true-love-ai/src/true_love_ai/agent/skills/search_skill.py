@@ -42,7 +42,7 @@ async def web_search(params: dict, ctx: dict) -> str:
 
     try:
         """通过百度搜索获取参考信息"""
-        if False:
+        if True:
             results = fetch_baidu_references(query)
         else:
             results = await fetch_baidu_references_httpx(query)
