@@ -13,7 +13,19 @@ from true_love_ai.models.user_memory import UserMemory
 
 LOG = logging.getLogger("UserMemoryRepository")
 
-ALLOWED_KEYS = {"personality", "occupation", "preference", "fact", "timezone"}
+# key 格式: "category.sub_key"（如 interest.music）或无 dot 的特殊 key（如 timezone）
+ALLOWED_CATEGORIES = {
+    "personality", "occupation", "preference", "fact",
+    "interest", "habit", "personal", "event",
+}
+SPECIAL_KEYS = {"timezone"}
+
+
+def _validate_key(key: str) -> bool:
+    if key in SPECIAL_KEYS:
+        return True
+    category = key.split(".")[0]
+    return category in ALLOWED_CATEGORIES
 
 
 class UserMemoryRepository:
@@ -23,7 +35,7 @@ class UserMemoryRepository:
         self.session = session
 
     def upsert(self, group_id: str, sender: str, key: str, value: str, source: str = None) -> bool:
-        if key not in ALLOWED_KEYS:
+        if not _validate_key(key):
             LOG.warning("非法 memory key, 已忽略: %s", key)
             return False
 

@@ -22,7 +22,7 @@ class UserMemory(Base):
     group_id = Column(String(128), nullable=False, comment="群聊ID（私聊时等于sender）")
     sender = Column(String(128), nullable=False, comment="发送者昵称")
 
-    key = Column(String(64), nullable=False, comment="分类: personality/occupation/preference/fact/timezone")
+    key = Column(String(64), nullable=False, comment="格式: category.sub_key（如 interest.music）或特殊key（timezone）")
     value = Column(Text, nullable=False, comment="记忆内容")
     source = Column(String(32), nullable=True, comment="来源: analyze_speech/manual/skill")
 
