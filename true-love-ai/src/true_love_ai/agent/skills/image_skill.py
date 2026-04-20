@@ -22,7 +22,10 @@ LOG = logging.getLogger("ImageSkill")
             "properties": {
                 "prompt": {
                     "type": "string",
-                    "description": "图像描述，中英文均可"
+                    "description": (
+                        "图像描述，直接使用用户的原始表达，中英文均可。"
+                        "保留用户的原始意图，不要自行添加风格词、修饰词或额外细节。"
+                    )
                 },
                 "provider": {
                     "type": "string",

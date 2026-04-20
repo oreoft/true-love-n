@@ -87,8 +87,7 @@ class ImageService:
         if not api_key:
             raise ValueError("Gemini API Key 未配置")
 
-        model_name = self.config.chatgpt.gemini_image_model if self.config.chatgpt else "imagen-4.0-generate-001"
-        litellm_model = f"openai/gemini/{model_name}"
+        litellm_model = self.config.chatgpt.gemini_image_model if self.config.chatgpt else "imagen-4.0-generate-001"
         LOG.info("Gemini 生图: model=%s, prompt=%s...", litellm_model, prompt[:50])
 
         try:
