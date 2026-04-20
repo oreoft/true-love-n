@@ -117,6 +117,11 @@ class Session:
             f"计算出的结果绝对不要再额外进行时差加减偏移！最后务必将你的结果转化为标准 ISO-8601 带时区的格式输出（例如：2026-04-13T10:30:00-05:00）。"
         )
 
+    @staticmethod
+    def _cacheable(text: str) -> list[dict]:
+        """把文本包装成带 cache_control 的 content block（支持 Anthropic prompt caching）"""
+        return [{"type": "text", "text": text, "cache_control": {"type": "ephemeral"}}]
+
     def get_messages_for_llm(self) -> list[dict]:
         from true_love_ai.memory.session_repository import get_session_repo
         from true_love_ai.agent.skill_registry import get_all_tool_schemas
@@ -126,12 +131,14 @@ class Session:
         result = []
 
         if self.system_prompt:
-            result.append({"role": "system", "content": self.system_prompt})
+            result.append({"role": "system", "content": self._cacheable(self.system_prompt)})
 
         if summary:
             result.append({
                 "role": "system",
-                "content": f"【早期对话摘要】以下是本次会话早期对话的压缩记录，供参考上下文：\n{summary}",
+                "content": self._cacheable(
+                    f"【早期对话摘要】以下是本次会话早期对话的压缩记录，供参考上下文：\n{summary}"
+                ),
             })
 
         skills = get_all_tool_schemas()
