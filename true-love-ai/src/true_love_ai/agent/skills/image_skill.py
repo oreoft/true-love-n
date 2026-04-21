@@ -12,10 +12,10 @@ LOG = logging.getLogger("ImageSkill")
     "function": {
         "name": "generate_image",
         "description": (
-            "根据文字描述生成图像。"
-            "当用户说'画一张...','生成图片...','帮我画...'时使用。"
-            "默认优先用 Gemini，失败自动降级 OpenAI。"
-            "用户明确指定提供商（如'用openai画'）时才传 provider 参数。"
+                "根据文字描述生成图像。"
+                "当用户说'画一张...','生成图片...','帮我画...'时使用。"
+                "默认优先用 Gemini，失败自动降级 OpenAI。"
+                "用户明确指定提供商（如'用openai画'）时才传 provider 参数。"
         ),
         "parameters": {
             "type": "object",
@@ -23,8 +23,8 @@ LOG = logging.getLogger("ImageSkill")
                 "prompt": {
                     "type": "string",
                     "description": (
-                        "图像描述，直接使用用户的原始表达，中英文均可。"
-                        "保留用户的原始意图，不要自行添加风格词、修饰词或额外细节。"
+                            "图像描述，直接使用用户的原始表达，中英文均可。"
+                            "保留用户的原始意图，不要自行添加风格词、修饰词或额外细节。"
                     )
                 },
                 "provider": {
@@ -70,9 +70,9 @@ async def generate_image(params: dict, ctx: dict) -> str:
     "function": {
         "name": "analyze_image",
         "description": (
-            "分析图片内容，回答关于图片的问题。"
-            "当用户发送图片（消息中含 [图片:...] 或 [引用图片:...]）并要求分析或提问时使用。"
-            "从消息中提取图片路径（如 wx_imgs/xxx.jpg）传入 image_path。"
+                "分析图片内容，回答关于图片的问题。"
+                "当用户发送图片（消息中含 [图片:...] 或 [引用图片:...]）并要求分析或提问时使用。"
+                "从消息中提取图片路径（如 wx_imgs/xxx.jpg）传入 image_path。"
         ),
         "parameters": {
             "type": "object",
@@ -121,9 +121,9 @@ async def analyze_image(params: dict, ctx: dict) -> str:
     "function": {
         "name": "edit_image",
         "description": (
-            "基于已有图片生成新图片（图生图）。"
-            "当用户发送图片并说'变成...风格','修改成...','帮我把这张图...'时使用。"
-            "从消息中提取 [图片:...] 或 [引用图片:...] 中的路径传入 image_path。"
+                "基于已有图片生成新图片（图生图）。"
+                "当用户发送图片并说'变成...风格','修改成...','帮我把这张图...'时使用。"
+                "从消息中提取 [图片:...] 或 [引用图片:...] 中的路径传入 image_path。"
         ),
         "parameters": {
             "type": "object",
@@ -150,8 +150,6 @@ async def edit_image(params: dict, ctx: dict) -> str:
         return "诶嘿~请提供图片路径和修改要求哦~"
 
     try:
-        import io
-        import asyncio
         import base64
         import uuid
         from true_love_ai.agent.server_client import fetch_media_bytes, send_file
@@ -162,32 +160,14 @@ async def edit_image(params: dict, ctx: dict) -> str:
         data = await fetch_media_bytes(image_path)
         if not data:
             return "呜呜~图片获取失败了捏，可能文件不存在~"
-        LOG.info("edit_image fetched %d bytes, header=%s", len(data), data[:8].hex())
-
         model = get_model_registry().get("image_edit", "default")
+        LOG.info("edit_image: fetched %d bytes,  model=%s", len(data), model)
         client = get_openai_client()
-
-        # OpenAI image edit 要求 PNG 格式且 < 4MB，JPEG 先转换（同步 PIL 丢线程池）
-        def _to_png(raw: bytes) -> bytes:
-            from PIL import Image as PILImage
-            img = PILImage.open(io.BytesIO(raw)).convert("RGB")
-            # 超过 4MB 时等比缩小直到满足要求
-            for scale in [1.0, 0.75, 0.5, 0.25]:
-                w, h = img.size
-                resized = img.resize((int(w * scale), int(h * scale)), PILImage.LANCZOS) if scale < 1.0 else img
-                buf = io.BytesIO()
-                resized.save(buf, format="PNG")
-                if buf.tell() < 4 * 1024 * 1024:
-                    return buf.getvalue()
-            raise ValueError("图片太大，无法压缩到 4MB 以内")
-
-        png_bytes = await asyncio.to_thread(_to_png, data)
 
         response = await client.images.edit(
             model=model,
-            image=("image.png", png_bytes, "image/png"),
+            image=("image.jpg", data, "image/jpeg"),
             prompt=prompt,
-            response_format="b64_json",
         )
 
         item = response.data[0] if response.data else None
