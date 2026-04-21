@@ -164,7 +164,9 @@ async def edit_image(params: dict, ctx: dict) -> str:
             return "呜呜~图片获取失败了捏，可能文件不存在~"
 
         cfg = get_config()
-        model = get_model_registry().get("image", "default")
+        registry = get_model_registry()
+        # image_edit 接口不支持 Vertex AI，优先用 fallback（OpenAI）
+        model = registry.get("image", "fallback") or registry.get("image", "default")
 
         response = await litellm.aimage_edit(
             model=model,
