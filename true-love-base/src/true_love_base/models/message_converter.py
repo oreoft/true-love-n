@@ -152,6 +152,20 @@ def _download(raw_msg: Any, media_type: str) -> Optional[str]:
         return None
 
 
+def _download_quote_media(raw_msg: Any, media_type: str) -> Optional[str]:
+    """下载引用消息中的图片或视频，返回 Server 可用的相对路径"""
+    try:
+        full_path = raw_msg.download_quote_image()
+        if not full_path:
+            return None
+        relative_path = to_server_path(str(full_path))
+        LOG.debug(f"Downloaded quote {media_type}: {full_path} -> {relative_path}")
+        return relative_path
+    except Exception as e:
+        LOG.warning(f"Failed to download quote {media_type}: {e}")
+        return None
+
+
 def _to_text(raw_msg: Any) -> Optional[str]:
     """语音转文字"""
     if not hasattr(raw_msg, 'to_text'):
@@ -182,7 +196,7 @@ def _build_refer_msg(raw_msg: Any, chat_name: str, is_group: bool) -> ChatMessag
 
     LOG.info(f"Building refer_msg: type={refer_type}, content={quote_content}, sender={quote_sender}")
 
-    return ChatMessage(
+    refer = ChatMessage(
         msg_type=refer_type,
         sender=quote_sender,
         chat_id=chat_name,
@@ -191,3 +205,14 @@ def _build_refer_msg(raw_msg: Any, chat_name: str, is_group: bool) -> ChatMessag
         msg_id='',
         msg_hash='',
     )
+
+    # 图片 / 视频：尝试下载被引用的媒体文件
+    if refer_type in ('image', 'video') and hasattr(raw_msg, 'download_quote_image'):
+        file_path = _download_quote_media(raw_msg, refer_type)
+        if file_path:
+            if refer_type == 'image':
+                refer.image_msg = ImageMsg(file_path=file_path)
+            else:
+                refer.video_msg = VideoMsg(file_path=file_path)
+
+    return refer

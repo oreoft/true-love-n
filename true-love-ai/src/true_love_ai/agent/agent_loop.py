@@ -192,7 +192,15 @@ class AgentLoop:
         if refer_msg:
             refer_type = refer_msg.get("msg_type", "")
             refer_content = refer_msg.get("content", "")
-            return f"{content}\n\n[引用{refer_type}内容]: {refer_content}"
+            if refer_type == "image":
+                file_path = (refer_msg.get("image_msg") or {}).get("file_path", "")
+                suffix = f"[引用图片:{file_path}]" if file_path else "[引用图片]"
+            elif refer_type == "video":
+                file_path = (refer_msg.get("video_msg") or {}).get("file_path", "")
+                suffix = f"[引用视频:{file_path}]" if file_path else "[引用视频]"
+            else:
+                suffix = f"[引用{refer_type}内容]: {refer_content}"
+            return f"{content}\n\n{suffix}" if content else suffix
 
         return content or None
 
