@@ -193,6 +193,8 @@ def _build_refer_msg(raw_msg: Any, chat_name: str, is_group: bool) -> ChatMessag
 
     # 判断被引用的内容类型
     refer_type = QUOTE_TYPE_MAP.get(quote_content, 'text')
+    if quote_content.endswith('.pdf'):
+        refer_type = 'file'
 
     LOG.info(f"Building refer_msg: type={refer_type}, content={quote_content}, sender={quote_sender}")
 
@@ -206,7 +208,7 @@ def _build_refer_msg(raw_msg: Any, chat_name: str, is_group: bool) -> ChatMessag
         msg_hash='',
     )
 
-    # 图片 / 视频：尝试下载被引用的媒体文件
+    # 图片 / 视频：下载被引用的媒体文件
     if refer_type in ('image', 'video') and hasattr(raw_msg, 'download_quote_image'):
         file_path = _download_quote_media(raw_msg, refer_type)
         if file_path:
@@ -214,5 +216,10 @@ def _build_refer_msg(raw_msg: Any, chat_name: str, is_group: bool) -> ChatMessag
                 refer.image_msg = ImageMsg(file_path=file_path)
             else:
                 refer.video_msg = VideoMsg(file_path=file_path)
+
+    # 文件：quote_content 即文件名，微信已下载到 wx_imgs/ 下
+    elif refer_type == 'file':
+        file_path = f"wx_imgs/{quote_content}"
+        refer.file_msg = FileMsg(file_path=file_path, file_name=quote_content)
 
     return refer
