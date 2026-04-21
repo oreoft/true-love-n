@@ -10,7 +10,7 @@ import uvicorn
 
 from true_love_ai.core.config import get_config
 from true_love_ai.agent.server_client import send_text_sync as send_text
-from true_love_ai.llm.llm_bootstrap import init_litellm
+from true_love_ai.llm.llm_bootstrap import init_llm
 
 LOG = logging.getLogger(__name__)
 
@@ -43,8 +43,8 @@ def main():
     # 加载配置（日志已在 config 模块初始化时配置）
     config = get_config()
 
-    # 初始化 LiteLLM
-    init_litellm()
+    # 初始化 LLM 客户端
+    init_llm()
 
     # 加载所有 AI 本地 skills
     from true_love_ai.agent.skills import ensure_skills_loaded

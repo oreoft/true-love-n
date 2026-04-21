@@ -124,14 +124,18 @@ async def listen_remove(chat_name: str) -> dict:
 # ==================== 媒体文件获取 ====================
 
 async def fetch_media_bytes(file_path: str, timeout: float = 15.0) -> bytes | None:
-    """从 Server 拉取 wx_imgs 下的媒体文件，返回原始字节"""
-    # file_path 形如 "wx_imgs/xxx.jpg"，去掉前缀后取文件名部分
-    rel = file_path.removeprefix("wx_imgs/")
+    """从 Server 拉取媒体文件，返回原始字节"""
+    # 去掉绝对路径前缀和 wx_imgs/ 前缀，统一取相对路径
+    rel = file_path.lstrip("/").removeprefix("wx_imgs/")
     url = f"{_get_server_url()}/media/{rel}"
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             res = await client.get(url, params={"token": _get_token()}, headers=_trace_headers())
             res.raise_for_status()
+            ct = res.headers.get("content-type", "")
+            if "application/json" in ct or "text/" in ct:
+                LOG.error("fetch_media_bytes 返回非媒体内容: path=%s content-type=%s", file_path, ct)
+                return None
             return res.content
     except Exception as e:
         LOG.error("fetch_media_bytes 失败: path=%s err=%s", file_path, e)

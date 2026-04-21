@@ -151,50 +151,54 @@ async def edit_image(params: dict, ctx: dict) -> str:
 
     try:
         import io
+        import asyncio
         import base64
         import uuid
-        import litellm
         from true_love_ai.agent.server_client import fetch_media_bytes, send_file
-        from true_love_ai.core.config import get_config
         from true_love_ai.core.model_registry import get_model_registry
+        from true_love_ai.llm.router import get_openai_client
         from true_love_ai.services.image_service import GEN_IMG_DIR
 
         data = await fetch_media_bytes(image_path)
         if not data:
             return "呜呜~图片获取失败了捏，可能文件不存在~"
+        LOG.info("edit_image fetched %d bytes, header=%s", len(data), data[:8].hex())
 
-        cfg = get_config()
         model = get_model_registry().get("image_edit", "default")
+        client = get_openai_client()
 
-        # OpenAI image edit 要求 PNG 格式，JPEG 先转换
-        try:
+        # OpenAI image edit 要求 PNG 格式且 < 4MB，JPEG 先转换（同步 PIL 丢线程池）
+        def _to_png(raw: bytes) -> bytes:
             from PIL import Image as PILImage
-            pil_img = PILImage.open(io.BytesIO(data)).convert("RGBA")
-            png_buf = io.BytesIO()
-            pil_img.save(png_buf, format="PNG")
-            png_buf.seek(0)
-            image_io = png_buf
-        except Exception:
-            image_io = io.BytesIO(data)
+            img = PILImage.open(io.BytesIO(raw)).convert("RGB")
+            # 超过 4MB 时等比缩小直到满足要求
+            for scale in [1.0, 0.75, 0.5, 0.25]:
+                w, h = img.size
+                resized = img.resize((int(w * scale), int(h * scale)), PILImage.LANCZOS) if scale < 1.0 else img
+                buf = io.BytesIO()
+                resized.save(buf, format="PNG")
+                if buf.tell() < 4 * 1024 * 1024:
+                    return buf.getvalue()
+            raise ValueError("图片太大，无法压缩到 4MB 以内")
 
-        response = await litellm.aimage_edit(
+        png_bytes = await asyncio.to_thread(_to_png, data)
+
+        response = await client.images.edit(
             model=model,
-            image=image_io,
+            image=("image.png", png_bytes, "image/png"),
             prompt=prompt,
             response_format="b64_json",
-            api_key=cfg.platform_key.litellm_api_key,
-            api_base=cfg.platform_key.litellm_base_url,
         )
 
         item = response.data[0] if response.data else None
         if not item:
             return "呜呜~图片生成失败了捏~"
 
-        img_bytes = base64.b64decode(item.b64_json) if getattr(item, "b64_json", None) else None
-        if not img_bytes and getattr(item, "url", None):
+        img_bytes = base64.b64decode(item.b64_json) if item.b64_json else None
+        if not img_bytes and item.url:
             import httpx
-            async with httpx.AsyncClient() as client:
-                r = await client.get(item.url, timeout=60.0)
+            async with httpx.AsyncClient() as hc:
+                r = await hc.get(item.url, timeout=60.0)
                 img_bytes = r.content if r.status_code == 200 else None
 
         if not img_bytes:

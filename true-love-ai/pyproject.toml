@@ -10,7 +10,7 @@ dependencies = [
     # HTTP 客户端
     "httpx>=0.28.0",
     # LLM
-    "litellm>=1.83.7",
+    "openai>=2.32.0",
     # 数据验证
     "pydantic>=2.10.0",
     "pydantic-settings>=2.7.0",

@@ -1,15 +1,17 @@
 # llm_bootstrap.py
-import litellm
+import logging
+
 from true_love_ai.core.config import get_config
 from true_love_ai.core.model_registry import get_model_registry
 
+LOG = logging.getLogger(__name__)
 
-def init_litellm():
+
+def init_llm():
     config = get_config()
-    litellm.modify_params = True
-    litellm.drop_params = True
-    litellm.api_key = config.platform_key.litellm_api_key
-    litellm.api_base = config.platform_key.litellm_base_url
+    get_model_registry().load(config)
 
-    registry = get_model_registry()
-    registry.load(config)
+    # 提前实例化客户端，config 错误在启动时暴露
+    from true_love_ai.llm.router import get_openai_client
+    get_openai_client()
+    LOG.info("OpenAI client 初始化完成")

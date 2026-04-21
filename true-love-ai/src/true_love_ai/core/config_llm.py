@@ -13,11 +13,11 @@ class FallbackModel(BaseModel):
 class LLMConfig(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
 
-    chat: FallbackModel = FallbackModel(default="openai/gpt-5.4", fallback="openai/gemini/gemini-3-pro")
+    chat: FallbackModel = FallbackModel(default="openai/gpt-5.4", fallback="gemini/gemini-3-pro")
     compress: FallbackModel = FallbackModel(default="openai/gpt-5.4-nano")
     vision: FallbackModel = FallbackModel(default="openai/gpt-5.4")
-    image: FallbackModel = FallbackModel(default="openai/gemini/gemini-3-pro-image", fallback="openai/gpt-image-1.5", )
-    image_edit: FallbackModel = FallbackModel(default="dall-e-2")
+    image: FallbackModel = FallbackModel(default="gemini/gemini-3-pro-image", fallback="openai/gpt-image-1.5", )
+    image_edit: FallbackModel = FallbackModel(default="openai/gpt-image-1.5")
     video: FallbackModel = FallbackModel(default="gemini/veo-3.1-generate-preview", fallback="openai/sora-2-pro", )
 
     # Prompts

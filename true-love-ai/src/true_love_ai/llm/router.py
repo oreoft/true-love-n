@@ -1,14 +1,29 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""LLM 路由模块：所有调用通过 LiteLLM，模型由 ModelRegistry 统一管理"""
+"""LLM 路由模块：通过 OpenAI SDK 调用 LiteLLM proxy，模型由 ModelRegistry 统一管理"""
+import json
 import logging
 from typing import Optional
 
-import litellm
+from openai import AsyncOpenAI
 
 from true_love_ai.core.model_registry import get_model_registry
 
 LOG = logging.getLogger(__name__)
+
+_openai_client: Optional[AsyncOpenAI] = None
+
+
+def get_openai_client() -> AsyncOpenAI:
+    global _openai_client
+    if _openai_client is None:
+        from true_love_ai.core.config import get_config
+        cfg = get_config()
+        _openai_client = AsyncOpenAI(
+            base_url=cfg.platform_key.litellm_base_url.rstrip("/"),
+            api_key=cfg.platform_key.litellm_api_key,
+        )
+    return _openai_client
 
 
 class LLMRouter:
@@ -25,8 +40,8 @@ class LLMRouter:
     ) -> str:
         resolved = model or self._model("chat")
         LOG.info("chat: model=%s msgs=%d", resolved, len(messages))
-
-        response = await litellm.acompletion(
+        client = get_openai_client()
+        response = await client.chat.completions.create(
             model=resolved, messages=messages, stream=stream, **kwargs
         )
         if stream:
@@ -43,16 +58,14 @@ class LLMRouter:
             tools: list[dict],
             model: Optional[str] = None,
     ) -> tuple[str, list | None]:
-        import json as _json
         resolved = model or self._model("chat")
         LOG.info("agent: model=%s tools=%d msgs=%d", resolved, len(tools), len(messages))
-
-        response = await litellm.acompletion(
+        client = get_openai_client()
+        response = await client.chat.completions.create(
             model=resolved,
             messages=messages,
             tools=tools or None,
             tool_choice="auto" if tools else None,
-            stream=False,
         )
         message = response.choices[0].message
 
@@ -60,7 +73,7 @@ class LLMRouter:
             calls = []
             for tc in message.tool_calls:
                 try:
-                    args = _json.loads(tc.function.arguments) if tc.function.arguments else {}
+                    args = json.loads(tc.function.arguments) if tc.function.arguments else {}
                 except Exception:
                     args = {}
                 calls.append({"id": tc.id, "name": tc.function.name, "arguments": args, "_raw": tc})
@@ -78,6 +91,7 @@ class LLMRouter:
     ) -> str:
         resolved = model or self._model("vision")
         LOG.info("vision: model=%s mime=%s", resolved, mime_type)
+        client = get_openai_client()
         messages = [{
             "role": "user",
             "content": [
@@ -85,7 +99,8 @@ class LLMRouter:
                 {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{image_data}"}},
             ],
         }]
-        return await self.chat(messages, model=resolved, **kwargs)
+        response = await client.chat.completions.create(model=resolved, messages=messages, **kwargs)
+        return response.choices[0].message.content
 
     async def document(
             self,
@@ -98,6 +113,7 @@ class LLMRouter:
         """分析文档（PDF 等），使用 LiteLLM file content type"""
         resolved = model or self._model("vision")
         LOG.info("document: model=%s mime=%s", resolved, mime_type)
+        client = get_openai_client()
         messages = [{
             "role": "user",
             "content": [
@@ -105,12 +121,14 @@ class LLMRouter:
                 {"type": "file", "file": {"file_data": f"data:{mime_type};base64,{file_data}"}},
             ],
         }]
-        return await self.chat(messages, model=resolved, **kwargs)
+        response = await client.chat.completions.create(model=resolved, messages=messages, **kwargs)
+        return response.choices[0].message.content
 
     async def compress(self, messages: list[dict]) -> str:
         resolved = self._model("compress")
         LOG.info("compress: model=%s", resolved)
-        response = await litellm.acompletion(model=resolved, messages=messages, stream=False)
+        client = get_openai_client()
+        response = await client.chat.completions.create(model=resolved, messages=messages)
         return response.choices[0].message.content
 
 
