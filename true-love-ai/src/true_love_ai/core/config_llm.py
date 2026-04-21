@@ -17,6 +17,7 @@ class LLMConfig(BaseSettings):
     compress: FallbackModel = FallbackModel(default="openai/gpt-5.4-nano")
     vision: FallbackModel = FallbackModel(default="openai/gpt-5.4")
     image: FallbackModel = FallbackModel(default="openai/gemini/gemini-3-pro-image", fallback="openai/gpt-image-1.5", )
+    image_edit: FallbackModel = FallbackModel(default="dall-e-2")
     video: FallbackModel = FallbackModel(default="gemini/veo-3.1-generate-preview", fallback="openai/sora-2-pro", )
 
     # Prompts

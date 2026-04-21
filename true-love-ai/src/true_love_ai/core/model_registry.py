@@ -34,11 +34,12 @@ class ModelRegistry:
             return e
 
         self._models = {
-            "chat":     _entry(llm.chat),
-            "compress": _entry(llm.compress),
-            "vision":   _entry(llm.vision),
-            "image":    _entry(llm.image),
-            "video":    _entry(llm.video),
+            "chat":       _entry(llm.chat),
+            "compress":   _entry(llm.compress),
+            "vision":     _entry(llm.vision),
+            "image":      _entry(llm.image),
+            "image_edit": _entry(llm.image_edit),
+            "video":      _entry(llm.video),
         }
 
         if OVERRIDE_FILE.exists():

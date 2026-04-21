@@ -164,13 +164,22 @@ async def edit_image(params: dict, ctx: dict) -> str:
             return "呜呜~图片获取失败了捏，可能文件不存在~"
 
         cfg = get_config()
-        registry = get_model_registry()
-        # image_edit 接口不支持 Vertex AI，优先用 fallback（OpenAI）
-        model = registry.get("image", "fallback") or registry.get("image", "default")
+        model = get_model_registry().get("image_edit", "default")
+
+        # OpenAI image edit 要求 PNG 格式，JPEG 先转换
+        try:
+            from PIL import Image as PILImage
+            pil_img = PILImage.open(io.BytesIO(data)).convert("RGBA")
+            png_buf = io.BytesIO()
+            pil_img.save(png_buf, format="PNG")
+            png_buf.seek(0)
+            image_io = png_buf
+        except Exception:
+            image_io = io.BytesIO(data)
 
         response = await litellm.aimage_edit(
             model=model,
-            image=io.BytesIO(data),
+            image=image_io,
             prompt=prompt,
             response_format="b64_json",
             api_key=cfg.platform_key.litellm_api_key,
