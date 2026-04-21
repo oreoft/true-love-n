@@ -45,6 +45,7 @@ def get_all_tool_schemas() -> list[dict]:
     schemas = []
     for s in _skills.values():
         schema = copy.deepcopy(s["schema"])
+        schema.pop("notify", None)  # notify 是内部字段，不传给 LLM
         params = schema.get("function", {}).get("parameters", {})
         # Gemini 不接受 properties: {}，空时删掉该字段
         if isinstance(params.get("properties"), dict) and not params["properties"]:
@@ -52,6 +53,12 @@ def get_all_tool_schemas() -> list[dict]:
             params.pop("required", None)
         schemas.append(schema)
     return schemas
+
+
+def get_notify(name: str) -> str | None:
+    """返回 skill 的预通知消息，无则返回 None"""
+    skill = _skills.get(name)
+    return skill["schema"].get("notify") if skill else None
 
 
 async def execute(name: str, params: dict, ctx: dict) -> str:

@@ -9,6 +9,7 @@ LOG = logging.getLogger("ImageSkill")
 
 @register_skill({
     "type": "function",
+    "notify": "叽叽咕正在努力画画中，请稍等一下下哦～✨",
     "function": {
         "name": "generate_image",
         "description": (
@@ -67,6 +68,7 @@ async def generate_image(params: dict, ctx: dict) -> str:
 
 @register_skill({
     "type": "function",
+    "notify": "让我仔细看看这张图片，稍等一下哦～👀",
     "function": {
         "name": "analyze_image",
         "description": (
@@ -118,6 +120,7 @@ async def analyze_image(params: dict, ctx: dict) -> str:
 
 @register_skill({
     "type": "function",
+    "notify": "收到！正在帮你修改，魔法施放中请稍候～🎨",
     "function": {
         "name": "edit_image",
         "description": (

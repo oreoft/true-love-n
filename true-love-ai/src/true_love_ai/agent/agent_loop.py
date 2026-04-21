@@ -233,6 +233,11 @@ class AgentLoop:
         }
 
         try:
+            notify_msg = skill_registry.get_notify(name)
+            if notify_msg:
+                from true_love_ai.agent.server_client import send_text
+                await send_text(receiver, notify_msg)
+
             result = await asyncio.wait_for(
                 skill_registry.execute(name, args, ctx),
                 timeout=SKILL_TIMEOUT_SECONDS,
