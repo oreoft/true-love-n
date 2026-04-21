@@ -7,10 +7,12 @@ Routes - 路由定义
 
 import logging
 import time
+from pathlib import Path
 
 import requests
 
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi.responses import FileResponse
 
 from .deps import verify_token
 from .exception_handlers import ApiResponse, ValidationException
@@ -27,6 +29,20 @@ router = APIRouter()
 
 # 获取 ListenManager 单例
 listen_manager = get_listen_manager()
+
+_MEDIA_ROOT = Path("wx_imgs")
+
+
+@router.get("/media/{file_path:path}")
+async def get_media(file_path: str, token: str = Query(...)):
+    """提供 wx_imgs 目录下的媒体文件（供 AI 服务跨机读取）"""
+    verify_token(token)
+    safe = (_MEDIA_ROOT / file_path).resolve()
+    if not str(safe).startswith(str(_MEDIA_ROOT.resolve())):
+        raise ValidationException("forbidden")
+    if not safe.exists():
+        raise ValidationException("not found")
+    return FileResponse(safe)
 
 
 @router.get("/ping")
@@ -137,8 +153,6 @@ def _trigger_ai(msg: ChatMsg) -> None:
         LOG.info("AI trigger 成功: sender=%s", msg.sender)
     except Exception as e:
         LOG.error("AI trigger 失败: sender=%s, err=%s", msg.sender, e)
-
-
 
 
 # ==================== 查询接口（供 AI 回调使用）====================
@@ -368,10 +382,10 @@ async def run_job(request: dict, background_tasks: BackgroundTasks):
 
 @router.get("/admin/loki/logs")
 async def query_loki_logs(
-    start_ms: int = None,
-    end_ms: int = None,
-    limit: int = 500,
-    direction: str = 'backward'
+        start_ms: int = None,
+        end_ms: int = None,
+        limit: int = 500,
+        direction: str = 'backward'
 ):
     """
     查询 Loki 日志
@@ -390,26 +404,26 @@ async def query_loki_logs(
         - query_end_ms: 本次查询的结束时间
     """
     now_ms = int(time.time() * 1000)
-    
+
     # 默认值处理
     if end_ms is None:
         end_ms = now_ms
     if start_ms is None:
         start_ms = end_ms - 60 * 60 * 1000  # 默认 1 小时
-    
+
     # 转换为纳秒
     start_ns = start_ms * 1_000_000
     end_ns = end_ms * 1_000_000
-    
+
     loki_client = get_loki_client()
     result = loki_client.query_range(start_ns, end_ns, limit, direction)
-    
+
     if not result["success"]:
         raise ValidationException(result["message"])
-    
+
     # 转换 LogEntry 为 dict
     logs = [entry.to_dict() for entry in result["logs"]]
-    
+
     return ApiResponse(data={
         "logs": logs,
         "earliest_ms": result["earliest_ns"] // 1_000_000,
