@@ -221,7 +221,7 @@ window.useLokiLogs = function(showToast) {
         lokiPolling.value = true;
         lokiPollTimer = setInterval(() => {
             loadNewerLogs();
-        }, 5000);
+        }, 15000);
     };
     
     const stopLokiPolling = () => {

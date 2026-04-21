@@ -12,7 +12,9 @@ from datetime import datetime
 from typing import Optional, List
 
 import requests
+from requests.adapters import HTTPAdapter
 from requests.auth import HTTPBasicAuth
+from urllib3.util.retry import Retry
 
 from ..core import Config
 
@@ -55,6 +57,12 @@ class LokiClient:
         self.user_id = loki_config.get('user_id', '')
         self.api_key = loki_config.get('api_key', '')
         self.services = loki_config.get('services', ['tl-ai', 'tl-base', 'tl-server'])
+
+        # 复用 Session + 重试，避免高频轮询下 SSL EOF
+        retry = Retry(total=2, backoff_factor=1, status_forcelist=[429, 500, 502, 503])
+        adapter = HTTPAdapter(max_retries=retry)
+        self._session = requests.Session()
+        self._session.mount("https://", adapter)
 
         self._initialized = True
         LOG.info(f"LokiClient 初始化完成, loki_url: {self.loki_url}, user_id: {self.user_id}")
@@ -149,7 +157,7 @@ class LokiClient:
         try:
             start_time = time.time()
 
-            resp = requests.get(url, auth=self._get_auth(), params=params, timeout=(10, 120))
+            resp = self._session.get(url, auth=self._get_auth(), params=params, timeout=(10, 30))
             resp.raise_for_status()
 
             data = resp.json()
