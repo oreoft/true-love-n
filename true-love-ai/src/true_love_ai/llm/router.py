@@ -87,6 +87,26 @@ class LLMRouter:
         }]
         return await self.chat(messages, model=resolved, **kwargs)
 
+    async def document(
+            self,
+            prompt: str,
+            file_data: str,
+            mime_type: str = "application/pdf",
+            model: Optional[str] = None,
+            **kwargs,
+    ) -> str:
+        """分析文档（PDF 等），使用 LiteLLM file content type"""
+        resolved = model or self._model("vision")
+        LOG.info("document: model=%s mime=%s", resolved, mime_type)
+        messages = [{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": prompt},
+                {"type": "file", "file": {"file_data": f"data:{mime_type};base64,{file_data}"}},
+            ],
+        }]
+        return await self.chat(messages, model=resolved, **kwargs)
+
     async def compress(self, messages: list[dict]) -> str:
         resolved = self._model("compress")
         LOG.info("compress: model=%s", resolved)

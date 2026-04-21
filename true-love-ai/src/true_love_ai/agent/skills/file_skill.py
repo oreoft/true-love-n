@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""文件分析 Skill - 直接把文件作为 multimodal 内容传给 LLM"""
+"""文件分析 Skill - 把文件传给 LLM 原生分析"""
 import logging
 
 from true_love_ai.agent.skill_registry import register_skill
@@ -18,7 +18,7 @@ _MIME_MAP = {
 
 def _detect_mime(file_path: str) -> str:
     suffix = "." + file_path.rsplit(".", 1)[-1].lower() if "." in file_path else ""
-    return _MIME_MAP.get(suffix, "application/octet-stream")
+    return _MIME_MAP.get(suffix, "")
 
 
 @register_skill({
@@ -26,9 +26,9 @@ def _detect_mime(file_path: str) -> str:
     "function": {
         "name": "read_file",
         "description": (
-            "分析文件内容，支持 PDF、图片等格式，直接由视觉模型理解。"
-            "当用户发送文件（消息中含 [文件:...] 或 [引用文件:...]）并要求分析时使用。"
-            "从消息中提取文件路径（如 wx_imgs/doc.pdf）传入 file_path。"
+                "分析文件内容，支持 PDF、图片等格式，由 LLM 直接理解文件内容。"
+                "当用户发送文件（消息中含 [文件:...] 或 [引用文件:...]）并要求分析时使用。"
+                "从消息中提取 [文件:xxx] 或 [引用文件:xxx] 中的路径传入 file_path。"
         ),
         "parameters": {
             "type": "object",
@@ -54,7 +54,7 @@ async def read_file(params: dict, ctx: dict) -> str:
         return "诶嘿~请提供文件路径哦~"
 
     mime_type = _detect_mime(file_path)
-    if mime_type == "application/octet-stream":
+    if not mime_type:
         return f"呜呜~暂不支持该文件格式：{file_path}"
 
     try:
@@ -65,13 +65,14 @@ async def read_file(params: dict, ctx: dict) -> str:
             return "呜呜~文件获取失败了捏，可能文件不存在~"
 
         b64 = base64.b64encode(data).decode()
-
         from true_love_ai.llm.router import get_llm_router
-        result = await get_llm_router().vision(
-            prompt=question,
-            image_data=b64,
-            mime_type=mime_type,
-        )
+        router = get_llm_router()
+
+        if mime_type.startswith("image/"):
+            result = await router.vision(prompt=question, image_data=b64, mime_type=mime_type)
+        else:
+            result = await router.document(prompt=question, file_data=b64, mime_type=mime_type)
+
         return result or "呜呜~文件分析失败了捏~"
 
     except Exception as e:
