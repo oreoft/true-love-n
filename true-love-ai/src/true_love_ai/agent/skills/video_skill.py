@@ -30,20 +30,13 @@ LOG = logging.getLogger("VideoSkill")
 async def generate_video(params: dict, ctx: dict) -> str:
     prompt = params.get("prompt", "")
     receiver = ctx.get("receiver", "")
-    sender = ctx.get("sender", "")
-    session_id = ctx.get("session_id", "")
 
     if not prompt:
         return "诶嘿~请告诉我你想要什么样的视频哦~"
 
     try:
         from true_love_ai.services.video_service import VideoService
-        result = await VideoService().generate_video(
-            content=prompt,
-            img_data_list=[],
-            wxid=session_id,
-            sender=sender,
-        )
+        result = await VideoService().generate_video(content=prompt)
 
         if result and result.video_id:
             from true_love_ai.agent.server_client import send_file
