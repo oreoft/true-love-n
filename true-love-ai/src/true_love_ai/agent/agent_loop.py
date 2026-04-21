@@ -235,8 +235,10 @@ class AgentLoop:
         try:
             notify_msg = skill_registry.get_notify(name)
             if notify_msg:
+                import random
                 from true_love_ai.agent.server_client import send_text
-                await send_text(receiver, notify_msg)
+                msg = random.choice(notify_msg) if isinstance(notify_msg, list) else notify_msg
+                await send_text(receiver, msg, at_user)
 
             result = await asyncio.wait_for(
                 skill_registry.execute(name, args, ctx),

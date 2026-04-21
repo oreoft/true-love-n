@@ -23,7 +23,11 @@ def _detect_mime(file_path: str) -> str:
 
 @register_skill({
     "type": "function",
-    "notify": "正在认真阅读文件中，请耐心等我一下哦～📖",
+    "notify": [
+        "正在认真阅读文件中，请耐心等我一下哦～📖",
+        "收到文件啦！正在仔细研究，稍等一下哦～🔍",
+        "嗯嗯！马上帮你解读文件，请稍候哦～✨",
+    ],
     "function": {
         "name": "read_file",
         "description": (

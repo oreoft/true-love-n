@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """发言分析 Skill（从 Server 拉取历史，AI 侧生成分析报告）"""
 import logging
-import random
-
 from true_love_ai.agent.skill_registry import register_skill
 
 LOG = logging.getLogger("AnalyzeSpeechSkill")
@@ -10,11 +8,16 @@ LOG = logging.getLogger("AnalyzeSpeechSkill")
 
 @register_skill({
     "type": "function",
+    "notify": [
+        "正在戴上老花镜，翻阅群里的发言记录，请稍等哦～👓",
+        "收到！正在扒群里的历史消息，稍微等我一下哦～🔍",
+        "嗯嗯！正在检索发言数据，马上给你分析，请稍候～✨",
+    ],
     "function": {
         "name": "analyze_speech",
         "description": (
-            "分析群成员的发言特点、性格或意图，基于群内历史发言记录生成报告。"
-            "当用户说'分析我的发言'、'分析xxx的性格'、'帮我看看xxx的发言'时使用。"
+                "分析群成员的发言特点、性格或意图，基于群内历史发言记录生成报告。"
+                "当用户说'分析我的发言'、'分析xxx的性格'、'帮我看看xxx的发言'时使用。"
         ),
         "parameters": {
             "type": "object",
@@ -22,9 +25,9 @@ LOG = logging.getLogger("AnalyzeSpeechSkill")
                 "target": {
                     "type": "string",
                     "description": (
-                        "要分析的目标昵称。"
-                        "如果分析用户自身，返回 'self'。"
-                        "如果分析其他人，返回对方昵称。"
+                            "要分析的目标昵称。"
+                            "如果分析用户自身，返回 'self'。"
+                            "如果分析其他人，返回对方昵称。"
                     )
                 }
             },
@@ -36,21 +39,10 @@ async def analyze_speech(params: dict, ctx: dict) -> str:
     target = params.get("target", "self")
     sender = ctx.get("sender", "")
     session_id = ctx.get("session_id", "")
-    receiver = ctx.get("receiver", "")
-    at_user = ctx.get("at_user", "")
 
     is_self = target.strip().lower() == "self"
     target_person = sender if is_self else target.strip().lstrip("@").strip()
     display_name = target_person
-
-    # 发安抚语（通过 Server 发送）
-    wait_msgs = [
-        f"正在戴上老花镜，翻阅[{display_name}]在群里所有的发言，请稍等哈...",
-        f"收到！正在在群里扒[{display_name}]的黑历史，稍微等我一下哦~",
-        f"正在检索[{display_name}]最近的发言数据，看我稍后怎么评价...",
-    ]
-    from true_love_ai.agent.server_client import send_text as _send
-    await _send(receiver, random.choice(wait_msgs), at_user)
 
     # 从 Server 查询历史
     from true_love_ai.agent.server_client import query_history

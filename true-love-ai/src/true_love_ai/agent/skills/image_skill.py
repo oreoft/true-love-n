@@ -9,7 +9,11 @@ LOG = logging.getLogger("ImageSkill")
 
 @register_skill({
     "type": "function",
-    "notify": "叽叽咕正在努力画画中，请稍等一下下哦～✨",
+    "notify": [
+        "叽叽咕正在努力画画中，请稍等一下下哦～✨",
+        "收到！马上提笔作画，稍等一下下哦～🎨",
+        "嗯嗯！正在召唤画师，请耐心等我哦～🖌️",
+    ],
     "function": {
         "name": "generate_image",
         "description": (
@@ -68,7 +72,11 @@ async def generate_image(params: dict, ctx: dict) -> str:
 
 @register_skill({
     "type": "function",
-    "notify": "让我仔细看看这张图片，稍等一下哦～👀",
+    "notify": [
+        "让我仔细看看这张图片，稍等一下哦～👀",
+        "正在认真观察图片中，请稍候～🔍",
+        "嗯嗯，图片收到啦！马上帮你分析，稍等哦～✨",
+    ],
     "function": {
         "name": "analyze_image",
         "description": (
@@ -120,7 +128,11 @@ async def analyze_image(params: dict, ctx: dict) -> str:
 
 @register_skill({
     "type": "function",
-    "notify": "收到！正在帮你修改，魔法施放中请稍候～🎨",
+    "notify": [
+        "收到！魔法施放中，帮你改图请稍候～🎨",
+        "嗯嗯！正在对图片下手，稍等一下哦～✨",
+        "图片已接收！努力变身中，请耐心等我哦～🌟",
+    ],
     "function": {
         "name": "edit_image",
         "description": (

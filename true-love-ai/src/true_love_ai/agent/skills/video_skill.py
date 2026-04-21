@@ -9,7 +9,11 @@ LOG = logging.getLogger("VideoSkill")
 
 @register_skill({
     "type": "function",
-    "notify": "视频生成需要一点时间，本魔法师正在努力施法中，请耐心等待哦～🎬",
+    "notify": [
+        "视频生成需要一点时间，本魔法师正在努力施法中，请耐心等待哦～🎬",
+        "收到！正在为你制作视频，这个比较慢，请耐心等我哦～🎥",
+        "嗯嗯！视频正在生成中，稍微等我久一点点哦～✨",
+    ],
     "function": {
         "name": "generate_video",
         "description": (
