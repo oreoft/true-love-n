@@ -13,7 +13,7 @@ class FallbackModel(BaseModel):
 class LLMConfig(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
 
-    chat: FallbackModel = FallbackModel(default="openai/gemini/gemini-3-pro", fallback="openai/gpt-5.4")
+    chat: FallbackModel = FallbackModel(default="openai/gpt-5.4", fallback="openai/gemini/gemini-3-pro")
     compress: FallbackModel = FallbackModel(default="openai/gpt-5.4-nano")
     vision: FallbackModel = FallbackModel(default="openai/gpt-5.4")
     image: FallbackModel = FallbackModel(default="openai/gemini/gemini-3-pro-image", fallback="openai/gpt-image-1", )

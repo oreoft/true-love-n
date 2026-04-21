@@ -41,7 +41,17 @@ def register_skill(schema: dict):
 
 def get_all_tool_schemas() -> list[dict]:
     """获取所有已注册 skill 的 tool schema 列表（供 LLM tools 参数使用）"""
-    return [s["schema"] for s in _skills.values()]
+    import copy
+    schemas = []
+    for s in _skills.values():
+        schema = copy.deepcopy(s["schema"])
+        params = schema.get("function", {}).get("parameters", {})
+        # Gemini 不接受 properties: {}，空时删掉该字段
+        if isinstance(params.get("properties"), dict) and not params["properties"]:
+            params.pop("properties", None)
+            params.pop("required", None)
+        schemas.append(schema)
+    return schemas
 
 
 async def execute(name: str, params: dict, ctx: dict) -> str:
