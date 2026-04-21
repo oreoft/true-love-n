@@ -147,7 +147,7 @@ def _trigger_ai(msg: ChatMsg) -> None:
             f"{ai_host}/trigger",
             json=payload,
             headers={"X-Trace-ID": get_trace_id()},
-            timeout=(2, 5),
+            timeout=(5,10),
         )
         resp.raise_for_status()
         LOG.info("AI trigger 成功: sender=%s", msg.sender)
