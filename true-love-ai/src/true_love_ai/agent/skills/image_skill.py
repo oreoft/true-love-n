@@ -114,3 +114,86 @@ async def analyze_image(params: dict, ctx: dict) -> str:
     except Exception as e:
         LOG.error("analyze_image error: %s", e)
         return f"呜呜~图片分析出错了捏：{e}"
+
+
+@register_skill({
+    "type": "function",
+    "function": {
+        "name": "edit_image",
+        "description": (
+            "基于已有图片生成新图片（图生图）。"
+            "当用户发送图片并说'变成...风格','修改成...','帮我把这张图...'时使用。"
+            "从消息中提取 [图片:...] 或 [引用图片:...] 中的路径传入 image_path。"
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "image_path": {
+                    "type": "string",
+                    "description": "原始图片路径，如 wx_imgs/xxx.jpg"
+                },
+                "prompt": {
+                    "type": "string",
+                    "description": "对新图片的描述或修改要求，如'变成水彩风格''把背景换成海边'"
+                }
+            },
+            "required": ["image_path", "prompt"]
+        }
+    }
+})
+async def edit_image(params: dict, ctx: dict) -> str:
+    image_path = params.get("image_path", "")
+    prompt = params.get("prompt", "")
+    receiver = ctx.get("receiver", "")
+
+    if not image_path or not prompt:
+        return "诶嘿~请提供图片路径和修改要求哦~"
+
+    try:
+        import io
+        import base64
+        import uuid
+        import litellm
+        from true_love_ai.agent.server_client import fetch_media_bytes, send_file
+        from true_love_ai.core.config import get_config
+        from true_love_ai.core.model_registry import get_model_registry
+        from true_love_ai.services.image_service import GEN_IMG_DIR
+
+        data = await fetch_media_bytes(image_path)
+        if not data:
+            return "呜呜~图片获取失败了捏，可能文件不存在~"
+
+        cfg = get_config()
+        model = get_model_registry().get("image", "default")
+
+        response = await litellm.aimage_edit(
+            model=model,
+            image=io.BytesIO(data),
+            prompt=prompt,
+            response_format="b64_json",
+            api_key=cfg.platform_key.litellm_api_key,
+            api_base=cfg.platform_key.litellm_base_url,
+        )
+
+        item = response.data[0] if response.data else None
+        if not item:
+            return "呜呜~图片生成失败了捏~"
+
+        img_bytes = base64.b64decode(item.b64_json) if getattr(item, "b64_json", None) else None
+        if not img_bytes and getattr(item, "url", None):
+            import httpx
+            async with httpx.AsyncClient() as client:
+                r = await client.get(item.url, timeout=60.0)
+                img_bytes = r.content if r.status_code == 200 else None
+
+        if not img_bytes:
+            return "呜呜~图片生成失败了捏~"
+
+        file_id = uuid.uuid4().hex
+        (GEN_IMG_DIR / f"{file_id}.jpg").write_bytes(img_bytes)
+        await send_file(receiver, file_id, file_type="image")
+        return "好耶~图片已生成并发送！"
+
+    except Exception as e:
+        LOG.error("edit_image error: %s", e)
+        return f"呜呜~图生图出错了捏：{e}"
