@@ -22,8 +22,12 @@ async def list_models(params: dict, ctx: dict) -> str:
     models = get_model_registry().all()
     lines = ["当前模型配置："]
     for category, entries in models.items():
-        for key, value in entries.items():
-            lines.append(f"  {category}.{key} = {value}")
+        default = entries.get("default", "")
+        fallback = entries.get("fallback", "")
+        if fallback:
+            lines.append(f"  {category}: {default}  (备用: {fallback})")
+        else:
+            lines.append(f"  {category}: {default}")
     return "\n".join(lines)
 
 
@@ -45,7 +49,8 @@ async def list_models(params: dict, ctx: dict) -> str:
                 },
                 "key": {
                     "type": "string",
-                    "description": "类别下的 key，如 openai / claude / gemini 等",
+                    "enum": ["default", "fallback"],
+                    "description": "default=主力模型，fallback=降级备用（chat/compress/vision 只有 default）",
                 },
                 "value": {
                     "type": "string",

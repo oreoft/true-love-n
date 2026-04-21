@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""LLM 路由模块：所有调用通过 LiteLLM 代理，模型由 ModelRegistry 统一管理"""
+"""LLM 路由模块：所有调用通过 LiteLLM，模型由 ModelRegistry 统一管理"""
 import logging
 from typing import Optional
 
@@ -13,18 +13,17 @@ LOG = logging.getLogger(__name__)
 
 class LLMRouter:
 
-    def _model(self, category: str, key: str = "openai") -> str:
+    def _model(self, category: str, key: str = "default") -> str:
         return get_model_registry().get(category, key)
 
     async def chat(
             self,
             messages: list[dict],
-            provider: str = "openai",
             model: Optional[str] = None,
             stream: bool = False,
             **kwargs,
     ) -> str:
-        resolved = model or self._model("chat", provider)
+        resolved = model or self._model("chat")
         LOG.info("chat: model=%s msgs=%d", resolved, len(messages))
 
         response = await litellm.acompletion(
@@ -38,56 +37,14 @@ class LLMRouter:
             return result
         return response.choices[0].message.content
 
-    async def chat_with_tools(
-            self,
-            messages: list[dict],
-            tools: list[dict],
-            tool_choice,
-            provider: str = "openai",
-            model: Optional[str] = None,
-            **kwargs,
-    ) -> str:
-        resolved = model or self._model("chat", provider)
-        LOG.info("chat_with_tools: model=%s tools=%s", resolved, [t["function"]["name"] for t in tools])
-
-        response = await litellm.acompletion(
-            model=resolved, messages=messages,
-            tools=tools, tool_choice=tool_choice, stream=True, **kwargs
-        )
-
-        fn_name = ""
-        arguments = ""
-        content = ""
-        async for chunk in response:
-            delta = chunk.choices[0].delta
-            if delta.tool_calls:
-                tc = delta.tool_calls[0]
-                if tc.function.name:
-                    fn_name = tc.function.name
-                if tc.function.arguments:
-                    arguments += tc.function.arguments
-            elif delta.content:
-                content += delta.content
-
-        import json as _json
-        try:
-            args_dict = {"_answer": content.strip()} if (not fn_name and content) else (
-                _json.loads(arguments) if arguments else {}
-            )
-        except Exception:
-            args_dict = {}
-        args_dict["_fn_name"] = fn_name
-        return _json.dumps(args_dict, ensure_ascii=False)
-
     async def chat_for_agent(
             self,
             messages: list[dict],
             tools: list[dict],
-            provider: str = "openai",
             model: Optional[str] = None,
     ) -> tuple[str, list | None]:
         import json as _json
-        resolved = model or self._model("chat", provider)
+        resolved = model or self._model("chat")
         LOG.info("agent: model=%s tools=%d msgs=%d", resolved, len(tools), len(messages))
 
         response = await litellm.acompletion(
@@ -115,11 +72,10 @@ class LLMRouter:
             self,
             prompt: str,
             image_data: str,
-            provider: str = "openai",
             model: Optional[str] = None,
             **kwargs,
     ) -> str:
-        resolved = model or self._model("vision", provider)
+        resolved = model or self._model("vision")
         LOG.info("vision: model=%s", resolved)
         messages = [{
             "role": "user",
@@ -131,7 +87,7 @@ class LLMRouter:
         return await self.chat(messages, model=resolved, **kwargs)
 
     async def compress(self, messages: list[dict]) -> str:
-        resolved = self._model("compress", "openai")
+        resolved = self._model("compress")
         LOG.info("compress: model=%s", resolved)
         response = await litellm.acompletion(model=resolved, messages=messages, stream=False)
         return response.choices[0].message.content

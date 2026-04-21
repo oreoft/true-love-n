@@ -10,13 +10,12 @@ Skill 权限管理
 from true_love_ai.core.config import get_config
 
 
-def require_permission(skill_name: str, ctx: dict) -> str | None:
-    """
-    检查调用者是否有权限执行指定 skill。
+class PermissionDenied(Exception):
+    pass
 
-    Returns:
-        None 表示有权限；非 None 为错误提示，直接 return 给用户。
-    """
+
+def require_permission(skill_name: str, ctx: dict) -> None:
+    """检查调用者是否有权限执行指定 skill，无权限直接抛出 PermissionDenied。"""
     sender = ctx.get("sender", "")
     perms: dict[str, list[str]] = get_config().skill_permissions
 
@@ -25,5 +24,4 @@ def require_permission(skill_name: str, ctx: dict) -> str | None:
         allowed = perms.get("default")
 
     if allowed is not None and sender not in allowed:
-        return "诶嘿~这个功能你没有权限使用哦~"
-    return None
+        raise PermissionDenied("诶嘿~这个功能你没有权限使用哦~")

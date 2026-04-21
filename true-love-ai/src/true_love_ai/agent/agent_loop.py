@@ -229,6 +229,9 @@ class AgentLoop:
             LOG.error("tool %s 执行超时 (%ds)", name, SKILL_TIMEOUT_SECONDS)
             return f"[执行超时] 技能 {name} 处理时间过长，请稍后重试"
         except Exception as e:
+            from true_love_ai.agent.skills.permission import PermissionDenied
+            if isinstance(e, PermissionDenied):
+                return str(e)
             LOG.exception("tool %s 执行异常: %s", name, e)
             return f"[执行失败] {e}"
 

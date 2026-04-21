@@ -4,7 +4,6 @@
 import asyncio
 import base64
 import logging
-import random
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -39,17 +38,35 @@ class VideoService:
             self,
             content: str,
             img_data_list: Optional[list[str]] = None,
-            provider: Optional[str] = None,
-            model: Optional[str] = None,
     ) -> VideoResponse:
         video_prompt = await self._build_prompt(content)
-        provider = provider or random.choice(["openai", "gemini"])
-        LOG.info("使用 %s 生成视频", provider)
+        default_model  = self.registry.get("video", "default")
+        fallback_model = self.registry.get("video", "fallback")
 
-        if provider.lower() == "openai":
-            return await self._generate_openai(video_prompt, img_data_list)
+        try:
+            return await self._generate_by_model(video_prompt, default_model, img_data_list)
+        except Exception as e:
+            if fallback_model:
+                LOG.warning("主力视频生成失败，降级备用模型 %s: %s", fallback_model, e)
+                return await self._generate_by_model(video_prompt, fallback_model, img_data_list)
+            raise
+
+    def _provider_of(self, model: str) -> str:
+        """从模型字符串前缀判断 provider"""
+        return "gemini" if model.startswith("gemini/") else "openai"
+
+    async def _generate_by_model(
+            self,
+            prompt: str,
+            model: str,
+            img_data_list: Optional[list[str]] = None,
+    ) -> VideoResponse:
+        provider = self._provider_of(model)
+        LOG.info("生成视频: provider=%s, model=%s", provider, model)
+        if provider == "openai":
+            return await self._generate_openai(prompt, model, img_data_list)
         else:
-            return await self._generate_gemini(video_prompt, img_data_list)
+            return await self._generate_gemini(prompt, model, img_data_list)
 
     async def _build_prompt(self, content: str) -> str:
         try:
@@ -66,13 +83,13 @@ class VideoService:
     async def _generate_openai(
             self,
             prompt: str,
+            model: str,
             img_data_list: Optional[list[str]] = None,
     ) -> VideoResponse:
         import tempfile, os
         if not self.openai_key:
             raise ValueError("OpenAI Key 未配置（platform_key.openai_key）")
 
-        model = self.registry.get("video", "openai")
         is_img2video = bool(img_data_list)
         LOG.info("OpenAI Sora %s: model=%s", "图生视频" if is_img2video else "文生视频", model)
 
@@ -124,13 +141,13 @@ class VideoService:
     async def _generate_gemini(
             self,
             prompt: str,
+            model: str,
             img_data_list: Optional[list[str]] = None,
     ) -> VideoResponse:
         import tempfile, os
         if not self.gemini_key:
             raise ValueError("Gemini Key 未配置（platform_key.gemini_key）")
 
-        model = self.registry.get("video", "gemini")
         is_img2video = bool(img_data_list)
         LOG.info("Gemini Veo %s: model=%s", "图生视频" if is_img2video else "文生视频", model)
 
