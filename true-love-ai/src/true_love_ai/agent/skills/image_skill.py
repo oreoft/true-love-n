@@ -71,7 +71,8 @@ async def generate_image(params: dict, ctx: dict) -> str:
         "name": "analyze_image",
         "description": (
             "分析图片内容，回答关于图片的问题。"
-            "当用户发送图片并要求分析或提问时使用。"
+            "当用户发送图片（消息中含 [图片:...] 或 [引用图片:...]）并要求分析或提问时使用。"
+            "从消息中提取图片路径（如 wx_imgs/xxx.jpg）传入 image_path。"
         ),
         "parameters": {
             "type": "object",
@@ -82,7 +83,7 @@ async def generate_image(params: dict, ctx: dict) -> str:
                 },
                 "image_path": {
                     "type": "string",
-                    "description": "图片文件路径"
+                    "description": "图片文件路径，如 wx_imgs/xxx.jpg"
                 }
             },
             "required": ["question", "image_path"]
@@ -98,8 +99,11 @@ async def analyze_image(params: dict, ctx: dict) -> str:
 
     try:
         import base64
-        with open(image_path, "rb") as f:
-            img_data = base64.b64encode(f.read()).decode()
+        from true_love_ai.agent.server_client import fetch_media_bytes
+        data = await fetch_media_bytes(image_path)
+        if not data:
+            return "呜呜~图片获取失败了捏，可能文件不存在~"
+        img_data = base64.b64encode(data).decode()
 
         from true_love_ai.services.image_service import ImageService
         result = await ImageService().analyze_image(
@@ -109,4 +113,4 @@ async def analyze_image(params: dict, ctx: dict) -> str:
         return result or "呜呜~图片分析失败了捏~"
     except Exception as e:
         LOG.error("analyze_image error: %s", e)
-        return "呜呜~图片分析出错了捏~"
+        return f"呜呜~图片分析出错了捏：{e}"

@@ -164,10 +164,10 @@ class AgentLoop:
         if msg_type == "image":
             image_msg = msg.get("image_msg") or {}
             file_path = image_msg.get("file_path", "")
-            base_desc = content or "请分析这张图片"
+            desc = content or "请分析这张图片"
             if file_path:
-                return f"[图片:{file_path}] {base_desc}"
-            return base_desc
+                return f"[图片:{file_path}] {desc}"
+            return desc
 
         if msg_type == "link":
             link_msg = msg.get("link_msg") or {}
@@ -181,8 +181,10 @@ class AgentLoop:
         if msg_type == "file":
             file_msg = msg.get("file_msg") or {}
             file_path = file_msg.get("file_path", "")
-            file_name = file_msg.get("file_name", "")
-            return f"[文件: {file_name or file_path}] {content}" if (file_name or file_path) else content or None
+            if file_path:
+                desc = content or "请分析这个文件"
+                return f"[文件:{file_path}] {desc}"
+            return content or None
 
         if msg_type == "video":
             return f"[视频消息] {content}" if content else "[视频消息]"
@@ -198,6 +200,10 @@ class AgentLoop:
             elif refer_type == "video":
                 file_path = (refer_msg.get("video_msg") or {}).get("file_path", "")
                 suffix = f"[引用视频:{file_path}]" if file_path else "[引用视频]"
+            elif refer_type == "file":
+                file_msg = refer_msg.get("file_msg") or {}
+                file_path = file_msg.get("file_path", "")
+                suffix = f"[引用文件:{file_path}]" if file_path else "[引用文件]"
             else:
                 suffix = f"[引用{refer_type}内容]: {refer_content}"
             return f"{content}\n\n{suffix}" if content else suffix
@@ -205,13 +211,13 @@ class AgentLoop:
         return content or None
 
     async def _execute_tool(
-        self,
-        tool_call: dict,
-        session_id: str,
-        sender: str,
-        is_group: bool,
-        receiver: str,
-        at_user: str,
+            self,
+            tool_call: dict,
+            session_id: str,
+            sender: str,
+            is_group: bool,
+            receiver: str,
+            at_user: str,
     ) -> str:
         """执行单个 tool，返回结果字符串"""
         name = tool_call["name"]

@@ -73,15 +73,16 @@ class LLMRouter:
             prompt: str,
             image_data: str,
             model: Optional[str] = None,
+            mime_type: str = "image/jpeg",
             **kwargs,
     ) -> str:
         resolved = model or self._model("vision")
-        LOG.info("vision: model=%s", resolved)
+        LOG.info("vision: model=%s mime=%s", resolved, mime_type)
         messages = [{
             "role": "user",
             "content": [
                 {"type": "text", "text": prompt},
-                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_data}"}},
+                {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{image_data}"}},
             ],
         }]
         return await self.chat(messages, model=resolved, **kwargs)

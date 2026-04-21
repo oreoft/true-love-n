@@ -32,4 +32,5 @@ def ensure_skills_loaded():
         wechat_qr_skill,
         job_skill,
         model_skill,
+        file_skill,
     )
