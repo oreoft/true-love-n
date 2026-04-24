@@ -144,8 +144,15 @@ async def fetch_media_bytes(file_path: str, timeout: float = 15.0) -> bytes | No
 
 # ==================== 历史记录查询 ====================
 
-async def query_history(chat_id: str, sender: str, limit: int = 100) -> list[dict]:
+async def query_history(chat_id: str, sender: str, limit: int = 500) -> list[dict]:
     result = await _async_post("/query/history", {
         "chat_id": chat_id, "sender": sender, "limit": limit,
     }, timeout=15.0)
+    return result.get("data", {}).get("messages", [])
+
+
+async def query_group_history(chat_id: str, limit: int = 1000) -> list[dict]:
+    result = await _async_post("/query/history", {
+        "chat_id": chat_id, "limit": limit,
+    }, timeout=20.0)
     return result.get("data", {}).get("messages", [])

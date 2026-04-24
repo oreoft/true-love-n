@@ -160,28 +160,31 @@ def _trigger_ai(msg: ChatMsg) -> None:
 @router.post("/query/history")
 async def query_history(request: dict):
     """
-    查询群消息历史（供 AI 的 analyze_speech skill 调用）
+    查询群消息历史（供 AI skill 调用）
 
     Body:
         - token: 鉴权 token
-        - chat_id: 群聊 ID
-        - sender: 发送者昵称
+        - chat_id: 群聊 ID（必填）
+        - sender: 发送者昵称（可选，不传则查全群）
         - limit: 最大返回条数（默认100）
+        - tail_id: 游标 ID，仅返回 id < tail_id 的消息（可选，用于向前翻页）
     """
     verify_token(request.get("token", ""))
 
     chat_id = request.get("chat_id", "")
-    sender = request.get("sender", "")
+    sender = request.get("sender") or None
     limit = int(request.get("limit", 100))
+    tail_id = request.get("tail_id")
+    tail_id = int(tail_id) if tail_id is not None else None
 
-    if not chat_id or not sender:
-        raise ValidationException("chat_id 和 sender 不能为空")
+    if not chat_id:
+        raise ValidationException("chat_id 不能为空")
 
     from ..core.db_engine import SessionLocal
     with SessionLocal() as db:
-        messages = GroupMessageRepository(db).get_recent_messages(chat_id, sender, limit)
+        messages = GroupMessageRepository(db).get_messages(chat_id, sender, limit, tail_id)
 
-    LOG.info("query/history: chat_id=%s, sender=%s, count=%d", chat_id, sender, len(messages))
+    LOG.info("query/history: chat_id=%s, sender=%s, tail_id=%s, count=%d", chat_id, sender, tail_id, len(messages))
     return ApiResponse(data={"messages": messages})
 
 

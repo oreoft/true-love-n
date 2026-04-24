@@ -99,38 +99,36 @@ class GroupMessageRepository:
             LOG.warning(f"Failed to serialize field: {e}")
             return None
 
-    def get_recent_messages(self, chat_id: str, sender: str, limit: int = 100) -> list[dict]:
+    def get_messages(self, chat_id: str, sender: str = None,
+                     limit: int = 100, tail_id: int = None) -> list[dict]:
         """
-        获取指定群聊中某个特定用户的最近N条发言
-        
+        查询群消息，支持按发送者过滤和游标分页。
+
         Args:
             chat_id: 群聊ID
-            sender: 发送者
-            limit: 返回的最大消息数量
-            
-        Returns:
-            以字典形式返回最近发言的列表
+            sender: 发送者昵称，None 则查全群
+            limit: 返回最大条数
+            tail_id: 游标，仅返回 id < tail_id 的消息（用于向前翻页，预留）
         """
         try:
-            query = self.session.query(GroupMessage).filter(
-                GroupMessage.chat_id == chat_id,
-                GroupMessage.sender == sender
-            ).order_by(GroupMessage.created_at.desc()).limit(limit)
-            
-            # 由于查出来是倒序的（最新的在前面），我们在返回时翻转使其按照时间正序排列
-            messages = query.all()
+            query = self.session.query(GroupMessage).filter(GroupMessage.chat_id == chat_id)
+            if sender:
+                query = query.filter(GroupMessage.sender == sender)
+            if tail_id is not None:
+                query = query.filter(GroupMessage.id < tail_id)
+            messages = query.order_by(GroupMessage.created_at.desc()).limit(limit).all()
             messages.reverse()
-            
-            result = []
-            for msg in messages:
-                result.append({
+            return [
+                {
+                    "id": msg.id,
                     "msg_id": msg.msg_id,
                     "chat_id": msg.chat_id,
                     "sender": msg.sender,
                     "content": msg.content,
-                    "created_at": msg.created_at.strftime('%Y-%m-%d %H:%M:%S') if msg.created_at else None
-                })
-            return result
+                    "created_at": msg.created_at.strftime('%Y-%m-%d %H:%M:%S') if msg.created_at else None,
+                }
+                for msg in messages
+            ]
         except Exception as e:
-            LOG.error(f"Failed to fetch recent messages for chat_id={chat_id}, sender={sender}: {e}")
+            LOG.error(f"Failed to fetch messages for chat_id={chat_id}, sender={sender}: {e}")
             return []

@@ -150,7 +150,7 @@ def _fetch_from_ai(file_id: str, file_type: str) -> tuple[str, str]:
 
     try:
         LOG.info("→ 从 AI 下载文件: %s", url)
-        resp = _requests.get(url, timeout=(5, 60))
+        resp = _requests.get(url, timeout=(10, 60))
         resp.raise_for_status()
         local_path.write_bytes(resp.content)
         LOG.info("← AI 文件已写入共享目录: %s (%d bytes)", local_path, len(resp.content))

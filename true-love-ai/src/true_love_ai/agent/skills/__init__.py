@@ -23,6 +23,7 @@ def ensure_skills_loaded():
         listen_skill,
         profile_skill,
         analyze_speech_skill,
+        analyze_group_skill,
         image_skill,
         video_skill,
         search_skill,
