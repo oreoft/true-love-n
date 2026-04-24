@@ -5,6 +5,7 @@ Loki Client - Loki 日志查询客户端
 直接访问 Grafana Cloud Loki API（使用 Basic Auth）。
 """
 
+import json
 import logging
 import time
 from dataclasses import dataclass, asdict
@@ -80,31 +81,48 @@ class LokiClient:
     def _parse_log_line(self, line: str, labels: dict, ts_ns: int) -> LogEntry:
         """
         解析日志行
-        
+
         Loki 返回的数据结构：
         - labels 中包含 service_name, level 等信息
-        - line 是纯日志内容
+        - line 是 JSON 格式日志内容（由 JsonFormatter 生成）
+
+        时间戳优先使用 JSON body 中的 timestamp 字段（实际打日志时间），
+        避免 LokiQueueHandler 异步推送导致的入库时间偏差。
         """
-        # 从 labels 获取服务名和等级
         service = labels.get('service_name', labels.get('service', 'unknown'))
         level = labels.get('level', 'INFO').upper()
+        content = line.strip()
 
-        # 标准化 level
+        # 优先从 JSON body 提取实际打日志时间和内容
+        actual_ts_ns = ts_ns
+        try:
+            log_data = json.loads(line)
+            content = log_data.get('message', content)
+            if 'level' in log_data:
+                level = log_data['level'].upper()
+            if 'service' in log_data:
+                service = log_data['service']
+            if 'timestamp' in log_data:
+                # JsonFormatter 写入的是 ISO 格式 UTC 时间，转为纳秒时间戳
+                dt_log = datetime.fromisoformat(log_data['timestamp'])
+                actual_ts_ns = int(dt_log.timestamp() * 1_000_000_000)
+        except Exception:
+            pass
+
         if level == 'WARNING':
             level = 'WARN'
         if level not in ('INFO', 'WARN', 'ERROR', 'DEBUG'):
             level = 'INFO'
 
-        # 从时间戳生成时间字符串
-        dt = datetime.fromtimestamp(ts_ns / 1_000_000_000)
+        dt = datetime.fromtimestamp(actual_ts_ns / 1_000_000_000)
         time_str = dt.strftime('%Y-%m-%d %H:%M:%S.') + f'{dt.microsecond // 1000:03d}'
 
         return LogEntry(
-            timestamp=ts_ns // 1_000_000,  # 转为毫秒
+            timestamp=actual_ts_ns // 1_000_000,
             time_str=time_str,
             level=level,
             service=service,
-            content=line.strip(),
+            content=content,
             raw=line
         )
 
