@@ -51,7 +51,8 @@ class LokiClient:
             return
 
         config = Config()
-        loki_config = getattr(config, 'LOKI', {}) or {}
+
+        loki_config = config.LOKI or {}
 
         self.loki_url = loki_config.get('loki_url', '').rstrip('/')
         self.user_id = loki_config.get('user_id', '')

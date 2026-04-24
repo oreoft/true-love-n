@@ -38,17 +38,10 @@ class Config:
         yconfig = self._load_config()
         if yconfig:
             self.AUTO_NOTICE: dict = yconfig.get("auto_notice")
-            self.ENABLE_BOT: dict = yconfig["enable_bot"]
-            self.GITHUB: dict = yconfig.get("github", {})
-            self.LLM_BOT: dict = yconfig.get(self.ENABLE_BOT, None)
             self.HTTP_TOKEN: dict = yconfig.get("http_token")
             self.HTTP = yconfig.get("http")
-            self.CARD: dict = yconfig.get("card", {})
             self.BASE_SERVER: dict = yconfig.get("base_server")
-            self.REMAINDER: dict = yconfig.get("remainder", {})
             self.ASR: dict = yconfig.get("asr", {})
-            self.BROWSERLESS: str = yconfig.get("browserless", "")
             self.AI_SERVICE: dict = yconfig.get("ai_service", {})
             self.ALAPI: dict = yconfig.get("alapi", {})
             self.LOKI: dict = yconfig.get("loki", {})
-            self.MUNINN: dict = yconfig.get("muninn", {})
