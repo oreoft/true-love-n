@@ -148,7 +148,7 @@ window.useLokiLogs = function(showToast) {
             count = await fetchLokiLogs(startMs, endMs, 'backward', false);
         }
         
-        if (count > 0 && lokiAutoScroll.value) {
+        if (count > 0 && isNearBottom()) {
             nextTick(() => {
                 scrollLokiToBottom();
             });
@@ -184,6 +184,11 @@ window.useLokiLogs = function(showToast) {
         }
     };
     
+    // 判断是否在底部附近（150px 阈值）
+    const isNearBottom = () => {
+        return window.scrollY + window.innerHeight >= document.body.scrollHeight - 150;
+    };
+
     // 滚动控制 - 使用页面滚动
     const scrollLokiToBottom = () => {
         window.scrollTo({
@@ -191,44 +196,47 @@ window.useLokiLogs = function(showToast) {
             behavior: 'smooth'
         });
     };
-    
+
     const scrollToBottom = () => {
+        lokiAutoScroll.value = true;
         scrollLokiToBottom();
     };
-    
+
     const scrollToTop = () => {
         window.scrollTo({
             top: 0,
             behavior: 'smooth'
         });
     };
-    
-    // 滚动事件处理（页面滚动）- 不再自动触发加载，改为点击按钮加载
+
+    // 滚动事件：根据位置实时更新 autoScroll 状态
     const handleLokiScroll = () => {
-        // 现在改为点击按钮加载，不再监听滚动
+        lokiAutoScroll.value = isNearBottom();
     };
-    
+
     const toggleLokiAutoScroll = () => {
         lokiAutoScroll.value = !lokiAutoScroll.value;
         if (lokiAutoScroll.value) {
             scrollLokiToBottom();
         }
     };
-    
+
     // 轮询控制
     const startLokiPolling = () => {
         if (lokiPollTimer) return;
         lokiPolling.value = true;
+        window.addEventListener('scroll', handleLokiScroll, { passive: true });
         lokiPollTimer = setInterval(() => {
             loadNewerLogs();
         }, 15000);
     };
-    
+
     const stopLokiPolling = () => {
         if (lokiPollTimer) {
             clearInterval(lokiPollTimer);
             lokiPollTimer = null;
         }
+        window.removeEventListener('scroll', handleLokiScroll);
         lokiPolling.value = false;
     };
     
