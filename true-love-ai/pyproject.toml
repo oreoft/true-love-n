@@ -2,7 +2,7 @@
 name = "true-love-ai"
 version = "0.2.0"
 description = "True Love AI service - 真爱粉 AI 服务"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     # Web 框架
     "fastapi>=0.115.0",
@@ -23,6 +23,8 @@ dependencies = [
     "beautifulsoup4>=4.12.0",
     "qrcode>=8.2",
     "pillow>=12.2.0",
+    # Papa John's ordering
+    "pajohns>=0.1.0",
 ]
 
 [project.optional-dependencies]

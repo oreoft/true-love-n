@@ -34,4 +34,5 @@ def ensure_skills_loaded():
         job_skill,
         model_skill,
         file_skill,
+        pajohns_skill,
     )
