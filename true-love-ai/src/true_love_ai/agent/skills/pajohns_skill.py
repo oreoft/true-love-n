@@ -3,10 +3,21 @@
 import asyncio
 import logging
 import os
+import re
 
 from true_love_ai.agent.skill_registry import register_skill
 
 LOG = logging.getLogger("PajohnsSkill")
+
+
+def _strip_md(text: str) -> str:
+    """去除微信不支持的 Markdown 符号"""
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)   # **bold**
+    text = re.sub(r'\*(.+?)\*', r'\1', text)         # *italic*
+    text = re.sub(r'_(.+?)_', r'\1', text)            # _italic_
+    text = re.sub(r'`(.+?)`', r'\1', text)            # `code`
+    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)  # # headers
+    return text
 
 _PAJOHNS_DIR = os.path.expanduser("~/.pajohns")
 _AUTH_FILE = os.path.join(_PAJOHNS_DIR, "auth_cookie.txt")
@@ -212,15 +223,17 @@ async def pajohns_order(params: dict, ctx: dict) -> str:
             deal_id = params.get("deal_id")
             if deal_id is None:
                 return "请告诉我您要选择的优惠套餐 ID（Deal ID）。"
-            return await asyncio.to_thread(skill.select_deal, int(deal_id))
+            result = await asyncio.to_thread(skill.select_deal, int(deal_id))
+            return "[系统提示] 以下披萨配置菜单必须原文完整转发给用户，禁止省略、总结或改写任何选项。\n\n" + _strip_md(result)
 
         elif action == "configure_pizza":
             pizza_index = int(params.get("pizza_index", 0))
             pizza_config = params.get("pizza_config")
             if not pizza_config:
-                # 未传配置时，展示当前可选项供用户参考
-                return await asyncio.to_thread(skill.get_pizza_options, pizza_index)
-            return await asyncio.to_thread(skill.configure_pizza, pizza_index, pizza_config)
+                result = await asyncio.to_thread(skill.get_pizza_options, pizza_index)
+                return "[系统提示] 以下披萨配置菜单必须原文完整转发给用户，禁止省略、总结或改写任何选项。\n\n" + _strip_md(result)
+            result = await asyncio.to_thread(skill.configure_pizza, pizza_index, pizza_config)
+            return _strip_md(result)
 
         elif action == "add_to_cart":
             return await asyncio.to_thread(skill.add_to_cart)
