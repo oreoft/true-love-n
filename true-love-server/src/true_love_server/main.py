@@ -43,8 +43,9 @@ def main():
     notice_master()
 
     # 注册并异步启动定时任务
-    job = Job()
-    job.async_enable_jobs()
+    if config.APP_ENV == "prod":
+        job = Job()
+        job.async_enable_jobs()
 
     # 启动持久化调度器
     from .services.scheduler_service import start_scheduler
@@ -72,5 +73,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-

@@ -30,8 +30,9 @@ class Config:
         config_path = "config.yaml" if app_env == "prod" else "config-dev.yaml"
         LOG.info("_load_config 开始刷新配置 (APP_ENV=%s, file=%s)", app_env or "dev", config_path)
         with open(config_path, "r", encoding='utf-8') as fp:
-            updated_config = yaml.safe_load(fp)
+            updated_config: dict = yaml.safe_load(fp)
         LOG.info("_load_config 刷新配置成功: [%s]", updated_config)
+        updated_config["app_env"] = app_env
         return updated_config
 
     def reload(self) -> None:
@@ -45,3 +46,4 @@ class Config:
             self.AI_SERVICE: dict = yconfig.get("ai_service", {})
             self.ALAPI: dict = yconfig.get("alapi", {})
             self.LOKI: dict = yconfig.get("loki", {})
+            self.APP_ENV: dict = yconfig.get("app_env", "")
