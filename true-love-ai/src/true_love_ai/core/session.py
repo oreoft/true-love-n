@@ -168,6 +168,8 @@ class Session:
         time_hint = (
             f"{self.get_current_time_context()}\n"
             f"你已接入多模态 Agent 系统，能够执行特定的技能任务。\n"
+            f"【重要】在群聊中，当用户使用「这个/那个/他说的/之前提到的/刚才讲的」等指代词，"
+            f"且当前对话上下文中找不到对应内容时，必须先调用 fetch_group_context 补充群聊记录后再回答，不得猜测或编造。\n"
             f"如果你想知道你具备哪些拓展技能能力，以下是当前加载的专属技能列表：\n{skill_text}"
             f"{dynamic_section}\n"
         )
