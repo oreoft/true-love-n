@@ -36,4 +36,5 @@ def ensure_skills_loaded():
         file_skill,
         pajohns_skill,
         dynamic_skill_manage,
+        group_context_skill,
     )
