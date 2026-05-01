@@ -35,4 +35,5 @@ def ensure_skills_loaded():
         model_skill,
         file_skill,
         pajohns_skill,
+        dynamic_skill_manage,
     )
