@@ -42,8 +42,8 @@ async def analyze_group(params: dict, ctx: dict) -> str:
     question = params.get("question", "").strip()
     session_id = ctx.get("session_id", "")
 
-    from true_love_ai.agent.server_client import query_group_history
-    history = await query_group_history(session_id, limit=500)
+    from true_love_ai.agent.skills._group_message import fetch_group_messages
+    history = await fetch_group_messages(session_id, limit=500)
 
     if not history:
         return "我没能获取到群里最近的聊天记录，没有足够的信息来分析捏~"

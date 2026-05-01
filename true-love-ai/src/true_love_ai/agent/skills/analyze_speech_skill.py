@@ -53,8 +53,8 @@ async def analyze_speech(params: dict, ctx: dict) -> str:
     await _send(receiver, random.choice(wait_msgs), at_user)
 
     # 从 Server 查询历史
-    from true_love_ai.agent.server_client import query_history
-    history = await query_history(session_id, target_person, limit=100)
+    from true_love_ai.agent.skills._group_message import fetch_group_messages
+    history = await fetch_group_messages(session_id, limit=100, sender=target_person)
 
     if not history:
         return f"我没能获取到[{display_name}]在群里以前的发言记录哦，所以我没有足够的信息来分析捏~"

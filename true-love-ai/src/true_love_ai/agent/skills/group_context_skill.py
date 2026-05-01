@@ -56,15 +56,15 @@ async def fetch_group_context(params: dict, ctx: dict) -> str:
     keyword = (params.get("keyword") or "").strip()
     limit = min(int(params.get("limit") or _DEFAULT_LIMIT), _MAX_LIMIT)
 
-    from true_love_ai.agent.server_client import query_group_history
+    from true_love_ai.agent.skills._group_message import fetch_group_messages
 
     if keyword:
-        raw = await query_group_history(session_id, limit=_KEYWORD_FETCH)
+        raw = await fetch_group_messages(session_id, limit=_KEYWORD_FETCH)
         matched = [m for m in raw if keyword in m.get("content", "")]
         messages = matched[-_KEYWORD_RETURN:]
         LOG.info("fetch_group_context: keyword=%s, fetched=%d, matched=%d", keyword, len(raw), len(matched))
     else:
-        messages = await query_group_history(session_id, limit=limit)
+        messages = await fetch_group_messages(session_id, limit=limit)
         LOG.info("fetch_group_context: no keyword, fetched=%d", len(messages))
 
     if not messages:
