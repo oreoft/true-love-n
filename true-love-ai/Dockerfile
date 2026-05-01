@@ -4,7 +4,7 @@
 # 使用 uv 进行依赖管理的高效容器化构建
 
 # 基础镜像阶段 - 安装 uv
-FROM python:3.11-slim AS builder
+FROM python:3.12-slim AS builder
 
 # 安装 uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -29,7 +29,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # ============================================
 # 运行阶段 - 最小化镜像
 # ============================================
-FROM python:3.11-slim AS runtime
+FROM python:3.12-slim AS runtime
 
 # 安装 curl 用于健康检查
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
