@@ -19,9 +19,7 @@ class ChatRequest:
     message: ChatMsg
 
     def to_dict(self) -> dict[str, Any]:
-        result = self.message.to_dict()
-        result["token"] = self.token
-        return result
+        return {"token": self.token, "msg": self.message.to_dict()}
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), ensure_ascii=False)

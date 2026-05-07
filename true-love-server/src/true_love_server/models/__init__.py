@@ -1,22 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Models package
-"""
+from true_love_common.chat_msg import ChatMsg, ImageMsg, VoiceMsg, VideoMsg, FileMsg, LinkMsg
 
-from .chat_msg import (
-    ChatMsg,
-    ImageMsg,
-    VoiceMsg,
-    VideoMsg,
-    FileMsg,
-    LinkMsg,
-)
-
-__all__ = [
-    "ChatMsg",
-    "ImageMsg",
-    "VoiceMsg",
-    "VideoMsg",
-    "FileMsg",
-    "LinkMsg",
-]
+__all__ = ["ChatMsg", "ImageMsg", "VoiceMsg", "VideoMsg", "FileMsg", "LinkMsg"]

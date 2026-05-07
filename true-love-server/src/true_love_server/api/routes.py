@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse
 from .deps import verify_token
 from .exception_handlers import ApiResponse, ValidationException
 from ..core import Config
-from ..models import ChatMsg
+from true_love_common.chat_msg import ChatMsg
 from ..services import base_client
 from ..services.listen_manager import get_listen_manager
 from ..services.loki_client import get_loki_client
@@ -106,7 +106,7 @@ async def on_message(
 
     verify_token(request.get('token', ''))
 
-    msg = ChatMsg.from_dict(request)
+    msg = ChatMsg.from_dict(request.get("msg", {}))
     background_tasks.add_task(_handle_incoming_message, msg)
 
     return ApiResponse(data="")
