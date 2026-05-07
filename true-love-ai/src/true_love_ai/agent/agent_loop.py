@@ -20,6 +20,7 @@ import logging
 import re
 from typing import Optional
 
+from true_love_common.chat_msg import ChatMsg
 from true_love_ai.core.session import get_session_manager
 from true_love_ai.llm.router import get_llm_router
 from true_love_ai.memory.memory_manager import get_user_context
@@ -49,19 +50,13 @@ class AgentLoop:
         self.llm_router = get_llm_router()
         self.session_manager = get_session_manager()
 
-    async def run(self, msg: dict) -> None:
-        """
-        处理一条消息（完整 agent loop）。
-
-        Args:
-            msg: ChatMsg.to_dict() 格式的字典
-        """
-        platform = msg.get("platform", "wechat")
-        sender_id = msg.get("sender_id", "")
-        sender_name = msg.get("sender_name", "") or sender_id
-        chat_id = msg.get("chat_id", "")
-        is_group = msg.get("is_group", False)
-        msg_type = msg.get("msg_type", "text")
+    async def run(self, msg: ChatMsg) -> None:
+        platform = msg.platform
+        sender_id = msg.sender_id
+        sender_name = msg.sender_name or sender_id
+        chat_id = msg.chat_id
+        is_group = msg.is_group
+        msg_type = msg.msg_type
 
         # session key 加 platform 前缀，天然隔离多平台
         _session_base = chat_id if is_group else sender_id
@@ -147,13 +142,12 @@ class AgentLoop:
             session.add_message("assistant", reply)
             await self._send_reply(receiver, reply, at_user, platform=platform)
 
-    def _build_user_content(self, msg: dict) -> Optional[str]:
+    def _build_user_content(self, msg: ChatMsg) -> Optional[str]:
         """把各类消息类型转换为 LLM 可理解的文本"""
-        msg_type = msg.get("msg_type", "text")
-        content = _clean_content(msg.get("content", ""))
+        msg_type = msg.msg_type
+        content = _clean_content(msg.content)
 
         if msg_type == "text":
-            # 检查是否含链接，若有则附上链接内容
             url = self._extract_first_link(content)
             if url:
                 crawled = self._crawl_content(url)
@@ -162,21 +156,16 @@ class AgentLoop:
             return content or None
 
         if msg_type == "voice":
-            voice_msg = msg.get("voice_msg") or {}
-            text = voice_msg.get("text_content", "")
+            text = msg.voice_msg.text_content if msg.voice_msg else ""
             return f"[语音转文字]: {text}" if text else None
 
         if msg_type == "image":
-            image_msg = msg.get("image_msg") or {}
-            file_path = image_msg.get("file_path", "")
+            ref = msg.image_msg.resource.ref if (msg.image_msg and msg.image_msg.resource) else ""
             desc = content or "请分析这张图片"
-            if file_path:
-                return f"[图片:{file_path}] {desc}"
-            return desc
+            return f"[图片:{ref}] {desc}" if ref else desc
 
         if msg_type == "link":
-            link_msg = msg.get("link_msg") or {}
-            url = link_msg.get("url", "")
+            url = msg.link_msg.url if msg.link_msg else ""
             if url:
                 crawled = self._crawl_content(url)
                 desc = content or "请分析这个链接"
@@ -184,35 +173,31 @@ class AgentLoop:
             return content or None
 
         if msg_type == "file":
-            file_msg = msg.get("file_msg") or {}
-            file_path = file_msg.get("file_path", "")
-            if file_path:
+            ref = msg.file_msg.resource.ref if (msg.file_msg and msg.file_msg.resource) else ""
+            if ref:
                 desc = content or "请分析这个文件"
-                return f"[文件:{file_path}] {desc}"
+                return f"[文件:{ref}] {desc}"
             return content or None
 
         if msg_type == "video":
             return f"[视频消息] {content}" if content else "[视频消息]"
 
-        quoted = msg.get("refer_msg")
-        if quoted:
-            q_type = quoted.get("msg_type", "")
-            q_content = quoted.get("content", "")
+        if msg.refer_msg:
+            quoted = msg.refer_msg
+            q_type = quoted.msg_type
+            q_content = quoted.content
 
-            def _get_ref(sub_key: str) -> str:
-                sub = quoted.get(sub_key) or {}
-                # 新格式：resource.ref；旧格式：file_path
-                resource = sub.get("resource") or {}
-                return resource.get("ref") or sub.get("file_path", "")
+            def _get_ref(sub_msg) -> str:
+                return sub_msg.resource.ref if (sub_msg and sub_msg.resource) else ""
 
             if q_type == "image":
-                ref = _get_ref("image_msg")
+                ref = _get_ref(quoted.image_msg)
                 suffix = f"[引用图片:{ref}]" if ref else "[引用图片]"
             elif q_type == "video":
-                ref = _get_ref("video_msg")
+                ref = _get_ref(quoted.video_msg)
                 suffix = f"[引用视频:{ref}]" if ref else "[引用视频]"
             elif q_type == "file":
-                ref = _get_ref("file_msg")
+                ref = _get_ref(quoted.file_msg)
                 suffix = f"[引用文件:{ref}]" if ref else "[引用文件]"
             else:
                 suffix = f"[引用{q_type}内容]: {q_content}"
