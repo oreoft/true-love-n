@@ -16,12 +16,12 @@ class PermissionDenied(Exception):
 
 def require_permission(skill_name: str, ctx: dict) -> None:
     """检查调用者是否有权限执行指定 skill，无权限直接抛出 PermissionDenied。"""
-    sender = ctx.get("sender", "")
+    sender_id = ctx.get("sender_id", "")
     perms: dict[str, list[str]] = get_config().skill_permissions
 
     allowed = perms.get(skill_name)
     if allowed is None:
         allowed = perms.get("default")
 
-    if allowed is not None and sender not in allowed:
+    if allowed is not None and sender_id not in allowed:
         raise PermissionDenied("诶嘿~这个功能你没有权限使用哦~")

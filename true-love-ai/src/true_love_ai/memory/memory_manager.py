@@ -35,7 +35,7 @@ def _format_key(key: str) -> str:
     return _CATEGORY_LABELS.get(key, key)
 
 
-def get_user_context(group_id: str, sender: str) -> Optional[str]:
+def get_user_context(group_id: str, sender_id: str) -> Optional[str]:
     """
     获取某人在某群的画像记忆，拼接为纯文本供注入 system prompt。
 
@@ -46,7 +46,7 @@ def get_user_context(group_id: str, sender: str) -> Optional[str]:
     try:
         with SessionLocal() as db:
             repo = UserMemoryRepository(db)
-            memories = repo.get_by_user(group_id, sender)
+            memories = repo.get_by_user(group_id, sender_id)
 
         if not memories:
             return None
@@ -54,28 +54,28 @@ def get_user_context(group_id: str, sender: str) -> Optional[str]:
         parts = [f"{_format_key(m['key'])}：{m['value']}" for m in memories]
         return " | ".join(parts)
     except Exception as e:
-        LOG.error("get_user_context 失败: group=%s sender=%s err=%s", group_id, sender, e)
+        LOG.error("get_user_context 失败: group=%s sender_id=%s err=%s", group_id, sender_id, e)
         return None
 
 
-def list_user_memory(group_id: str, sender: str) -> list[dict]:
+def list_user_memory(group_id: str, sender_id: str) -> list[dict]:
     """返回用户所有记忆条目，供 query_user_memory skill 使用"""
     try:
         with SessionLocal() as db:
             repo = UserMemoryRepository(db)
-            return repo.get_by_user(group_id, sender)
+            return repo.get_by_user(group_id, sender_id)
     except Exception as e:
-        LOG.error("list_user_memory 失败: group=%s sender=%s err=%s", group_id, sender, e)
+        LOG.error("list_user_memory 失败: group=%s sender_id=%s err=%s", group_id, sender_id, e)
         return []
 
 
-def upsert_user_memory(group_id: str, sender: str, facts: list[dict], source: str = "skill") -> int:
+def upsert_user_memory(group_id: str, sender_id: str, facts: list[dict], source: str = "skill") -> int:
     """
     批量写入用户记忆条目。
 
     Args:
-        group_id: 群 ID（私聊时传 sender）
-        sender:   发送者昵称
+        group_id: 群 ID（私聊时传 sender_id）
+        sender_id:   发送者昵称
         facts:    [{key, value}, ...] 列表
         source:   来源标记
 
@@ -93,21 +93,21 @@ def upsert_user_memory(group_id: str, sender: str, facts: list[dict], source: st
                 key = fact.get("key", "").strip()
                 value = fact.get("value", "").strip()
                 if key and value:
-                    if repo.upsert(group_id, sender, key, value, source):
+                    if repo.upsert(group_id, sender_id, key, value, source):
                         success_count += 1
     except Exception as e:
         LOG.error("upsert_user_memory 失败: %s", e)
 
-    LOG.info("写入记忆 %d 条: group=%s sender=%s", success_count, group_id, sender)
+    LOG.info("写入记忆 %d 条: group=%s sender_id=%s", success_count, group_id, sender_id)
     return success_count
 
 
-def clear_user_memory(group_id: str, sender: str) -> int:
+def clear_user_memory(group_id: str, sender_id: str) -> int:
     """清除某人在某群的所有记忆，返回删除条数"""
     try:
         with SessionLocal() as db:
             repo = UserMemoryRepository(db)
-            return repo.delete_by_user(group_id, sender)
+            return repo.delete_by_user(group_id, sender_id)
     except Exception as e:
         LOG.error("clear_user_memory 失败: %s", e)
         return 0

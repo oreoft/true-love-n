@@ -49,7 +49,7 @@ async def analyze_group(params: dict, ctx: dict) -> str:
         return "我没能获取到群里最近的聊天记录，没有足够的信息来分析捏~"
 
     chat_history_text = "\n".join(
-        [f"[{item['created_at']}][{item['sender']}] {item['content']}" for item in history]
+        [f"[{item['created_at']}][{item['sender_name']}] {item['content']}" for item in history]
     )
     LOG.info("开始群聊分析，问题: [%s]，共 %d 条记录", question, len(history))
 

@@ -39,4 +39,4 @@ class VideoResponse(BaseModel):
     prompt: str = Field(..., description="使用的 prompt")
     video_url: Optional[str] = Field(default=None)
     video_base64: Optional[str] = Field(default=None)
-    video_id: Optional[str] = Field(default=None, description="文件 ID，通过 /download-video 获取")
+    video_id: Optional[str] = Field(default=None, description="视频文件名（不含目录），路径为 gen_video/{video_id}.mp4")

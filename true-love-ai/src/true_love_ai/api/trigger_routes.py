@@ -36,8 +36,8 @@ async def trigger(request: dict, background_tasks: BackgroundTasks):
     if not msg:
         return APIResponse.error("msg 不能为空")
 
-    LOG.info("收到 trigger: sender=%s, type=%s, is_group=%s",
-             msg.get("sender"), msg.get("msg_type"), msg.get("is_group"))
+    LOG.info("收到 trigger: sender_id=%s, type=%s, is_group=%s",
+             msg.get("sender_id"), msg.get("msg_type"), msg.get("is_group"))
 
     # 触发 skill 模块加载（保证 skills 已注册）
     from true_love_ai.agent.skills import ensure_skills_loaded
@@ -56,7 +56,7 @@ async def _run_agent(msg: dict) -> None:
         from true_love_ai.agent.agent_loop import get_agent_loop
         await get_agent_loop().run(msg)
     except Exception as e:
-        LOG.exception("Agent Loop 执行异常: sender=%s, err=%s", msg.get("sender"), e)
+        LOG.exception("Agent Loop 执行异常: sender_id=%s, err=%s", msg.get("sender_id"), e)
         await _send_fallback(msg)
 
 
@@ -64,10 +64,10 @@ async def _send_fallback(msg: dict) -> None:
     """Agent 崩溃时给用户发兜底消息"""
     try:
         is_group = msg.get("is_group", False)
-        sender = msg.get("sender", "")
+        sender_id = msg.get("sender_id", "")
         chat_id = msg.get("chat_id", "")
-        receiver = chat_id if is_group else sender
-        at_user = sender if is_group else ""
+        receiver = chat_id if is_group else sender_id
+        at_user = sender_id if is_group else ""
         if not receiver:
             return
         from true_love_ai.agent.server_client import send_text

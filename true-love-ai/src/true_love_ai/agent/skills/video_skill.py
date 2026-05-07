@@ -45,7 +45,8 @@ async def generate_video(params: dict, ctx: dict) -> str:
 
         if result and result.video_id:
             from true_love_ai.agent.server_client import send_file
-            await send_file(receiver, result.video_id, file_type="video")
+            from true_love_ai.services.video_service import GEN_VIDEO_DIR
+            await send_file(receiver, f"{GEN_VIDEO_DIR.name}/{result.video_id}.mp4")
             return "好耶~视频已生成并发送！"
 
         return "呜呜~视频生成失败了捏，稍后再试试吧~"

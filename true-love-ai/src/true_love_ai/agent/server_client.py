@@ -71,22 +71,32 @@ async def _async_post(path: str, payload: dict, timeout: float = 10.0) -> dict:
 
 # ==================== 消息发送 ====================
 
-def send_text_sync(receiver: str, content: str, at_user: str = "") -> bool:
+def send_text_sync(receiver: str, content: str, at_user: str = "",
+                   platform: str = "wechat") -> bool:
     """同步发送文本消息（用于启动/关闭通知等非异步场景）"""
-    result = _post("/action/send", {"receiver": receiver, "content": content, "at_user": at_user})
-    return result.get("code") == 0
-
-
-async def send_text(receiver: str, content: str, at_user: str = "") -> bool:
-    result = await _async_post("/action/send", {
-        "receiver": receiver, "content": content, "at_user": at_user,
+    result = _post("/action/send", {
+        "receiver": receiver, "content": content, "at_user": at_user, "platform": platform,
     })
     return result.get("code") == 0
 
 
-async def send_file(receiver: str, file_id: str, file_type: str = "image") -> bool:
+async def send_text(receiver: str, content: str, at_user: str = "",
+                    platform: str = "wechat") -> bool:
+    result = await _async_post("/action/send", {
+        "receiver": receiver, "content": content, "at_user": at_user, "platform": platform,
+    })
+    return result.get("code") == 0
+
+
+async def send_file(receiver: str, path: str, platform: str = "wechat") -> bool:
+    """
+    通知 Server 发送 AI 生成的文件。
+
+    path: AI 本地相对路径，如 gen_img/abc123.jpg、gen_video/abc123.mp4
+          Server 会用自己配置的 ai_host 拼出完整 URL 再下载。
+    """
     result = await _async_post("/action/send-file", {
-        "receiver": receiver, "file_id": file_id, "file_type": file_type,
+        "receiver": receiver, "path": path, "platform": platform,
     })
     return result.get("code") == 0
 
@@ -130,7 +140,7 @@ async def fetch_media_bytes(file_path: str, timeout: float = 15.0) -> bytes | No
     url = f"{_get_server_url()}/media/{rel}"
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
-            res = await client.get(url, params={"token": _get_token()}, headers=_trace_headers())
+            res = await client.get(url, headers=_trace_headers())
             res.raise_for_status()
             ct = res.headers.get("content-type", "")
             if "application/json" in ct or "text/" in ct:
@@ -144,9 +154,9 @@ async def fetch_media_bytes(file_path: str, timeout: float = 15.0) -> bytes | No
 
 # ==================== 历史记录查询 ====================
 
-async def query_history(chat_id: str, sender: str, limit: int = 500) -> list[dict]:
+async def query_history(chat_id: str, sender_id: str, limit: int = 500) -> list[dict]:
     result = await _async_post("/query/history", {
-        "chat_id": chat_id, "sender": sender, "limit": limit,
+        "chat_id": chat_id, "sender_id": sender_id, "limit": limit,
     }, timeout=15.0)
     return result.get("data", {}).get("messages", [])
 

@@ -145,12 +145,12 @@ async def skill_save(params: dict, ctx: dict) -> str:
             description=description,
             command=command,
             parameters=params_json,
-            creator=ctx.get("sender", ""),
+            creator=ctx.get("sender_id", ""),
         )
 
     if ok:
         action = "更新" if existing else "保存"
-        LOG.info("dynamic skill %s: id=%s creator=%s", action, skill_id, ctx.get("sender"))
+        LOG.info("dynamic skill %s: id=%s creator=%s", action, skill_id, ctx.get("sender_id"))
         return f"技能「{name}」已{action}（ID: {skill_id}）。下次直接说触发词就能用了～"
     return "保存失败，请稍后重试"
 

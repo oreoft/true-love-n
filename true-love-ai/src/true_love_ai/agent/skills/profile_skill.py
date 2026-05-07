@@ -66,12 +66,12 @@ async def save_user_profile(params: dict, ctx: dict) -> str:
             )
 
     group_id = ctx.get("session_id", "")
-    sender = ctx.get("sender", "")
+    sender_id = ctx.get("sender_id", "")
 
     try:
         from true_love_ai.memory.memory_manager import upsert_user_memory
-        upsert_user_memory(group_id, sender, [{"key": key, "value": value}], source="profile_skill")
-        LOG.info("用户 [%s] 保存画像: %s = %s", sender, key, value)
+        upsert_user_memory(group_id, sender_id, [{"key": key, "value": value}], source="profile_skill")
+        LOG.info("用户 [%s] 保存画像: %s = %s", sender_id, key, value)
 
         if key == "timezone":
             return f"好的，我已经把你的时区永久设置为 {value} 啦！以后有关时间的推算都会按这个来哦~"
@@ -99,16 +99,17 @@ async def save_user_profile(params: dict, ctx: dict) -> str:
 })
 async def query_user_memory(params: dict, ctx: dict) -> str:
     group_id = ctx.get("session_id", "")
-    sender = ctx.get("sender", "")
+    sender_id = ctx.get("sender_id", "")
+    sender_name = ctx.get("sender_name", sender_id)
 
     try:
         from true_love_ai.memory.memory_manager import list_user_memory
-        memories = list_user_memory(group_id, sender)
+        memories = list_user_memory(group_id, sender_id)
 
         if not memories:
-            return f"我的数据库里还没有关于你（{sender}）的任何记忆哦~"
+            return f"我的数据库里还没有关于你（{sender_name}）的任何记忆哦~"
 
-        lines = [f"以下是我记住的关于你（{sender}）的信息："]
+        lines = [f"以下是我记住的关于你（{sender_name}）的信息："]
         for m in memories:
             updated = m.get("updated_at") or ""
             lines.append(f"  {m['key']} = {m['value']}（来源: {m.get('source', '?')}，更新: {updated}）")

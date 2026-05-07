@@ -18,7 +18,7 @@ class ChatService:
     def __init__(self):
         self.llm_router = get_llm_router()
 
-    async def extract_memory_facts(self, text: str, sender: str) -> list[dict]:
+    async def extract_memory_facts(self, text: str, sender_id: str) -> list[dict]:
         """
         从发言分析报告中提取结构化用户事实，写入记忆库。
 
@@ -26,7 +26,7 @@ class ChatService:
             [{key, value}] 列表，异常时返回空列表。
         """
         extract_prompt = (
-            f"请从下面这段关于用户「{sender}」的分析报告中，提取关键个人事实。\n"
+            f"请从下面这段关于用户「{sender_id}」的分析报告中，提取关键个人事实。\n"
             "以 JSON 数组格式返回，每项包含 key 和 value 两个字段。\n"
             "key 只能是以下之一：personality（性格）/ occupation（职业）/ preference（爱好偏好）/ fact（其他事实）/ timezone（所在时区）\n"
             "要求：\n"
@@ -53,7 +53,7 @@ class ChatService:
 
             allowed = {"personality", "occupation", "preference", "fact", "timezone"}
             facts = [f for f in facts if isinstance(f, dict) and f.get("key") in allowed and f.get("value")]
-            LOG.info("extract_memory_facts: sender=%s, 提取到 %d 条", sender, len(facts))
+            LOG.info("extract_memory_facts: sender_id=%s, 提取到 %d 条", sender_id, len(facts))
             return facts
         except Exception as e:
             LOG.warning("extract_memory_facts 失败，返回空列表: %s", e)

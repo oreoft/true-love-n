@@ -82,10 +82,10 @@ async def wechat_qr_connect(params: dict, ctx: dict) -> str:
             buf = io.BytesIO()
             img.save(buf, format="JPEG")
 
-            file_id = uuid.uuid4().hex
-            (GEN_IMG_DIR / f"{file_id}.jpg").write_bytes(buf.getvalue())
+            filename = f"{uuid.uuid4().hex}.jpg"
+            (GEN_IMG_DIR / filename).write_bytes(buf.getvalue())
             await send_text(receiver, message)
-            await send_file(receiver, file_id, file_type="image")
+            await send_file(receiver, f"{GEN_IMG_DIR.name}/{filename}")
             return "好的！二维码已发送，请用微信扫描完成领养哦~"
         except Exception as e:
             LOG.error("生成/发送二维码失败: %s", e)

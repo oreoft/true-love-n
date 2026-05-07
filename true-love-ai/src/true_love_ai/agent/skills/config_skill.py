@@ -26,7 +26,7 @@ async def reload_config(params: dict, ctx: dict) -> str:
 
     try:
         _reload()
-        LOG.info("AI 配置已重载, 操作者: %s", ctx.get("sender", ""))
+        LOG.info("AI 配置已重载, 操作者: %s", ctx.get("sender_id", ""))
         return "好耶~AI 服务配置已重新加载成功！"
     except Exception as e:
         LOG.error("reload_config error: %s", e)

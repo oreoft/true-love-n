@@ -34,14 +34,16 @@ LOG = logging.getLogger("AnalyzeSpeechSkill")
 })
 async def analyze_speech(params: dict, ctx: dict) -> str:
     target = params.get("target", "self")
-    sender = ctx.get("sender", "")
+    sender_id = ctx.get("sender_id", "")
+    sender_name = ctx.get("sender_name", sender_id)
     session_id = ctx.get("session_id", "")
     receiver = ctx.get("receiver", "")
     at_user = ctx.get("at_user", "")
 
     is_self = target.strip().lower() == "self"
-    target_person = sender if is_self else target.strip().lstrip("@").strip()
-    display_name = target_person
+    # 分析自己：用 sender_id 查历史；分析他人：用用户输入的昵称（服务端按 sender_name 匹配）
+    target_person = sender_id if is_self else target.strip().lstrip("@").strip()
+    display_name = sender_name if is_self else target_person
 
     # 发安抚语（通过 Server 发送）
     wait_msgs = [
@@ -54,7 +56,7 @@ async def analyze_speech(params: dict, ctx: dict) -> str:
 
     # 从 Server 查询历史
     from true_love_ai.agent.skills._group_message import fetch_group_messages
-    history = await fetch_group_messages(session_id, limit=100, sender=target_person)
+    history = await fetch_group_messages(session_id, limit=100, sender_id=target_person)
 
     if not history:
         return f"我没能获取到[{display_name}]在群里以前的发言记录哦，所以我没有足够的信息来分析捏~"
@@ -85,14 +87,14 @@ async def analyze_speech(params: dict, ctx: dict) -> str:
     return answer
 
 
-async def _extract_and_save_memory(analysis_text: str, sender: str, group_id: str) -> None:
+async def _extract_and_save_memory(analysis_text: str, sender_id: str, group_id: str) -> None:
     """后台从分析报告中提取结构化记忆并写入 AI SQLite"""
     try:
         from true_love_ai.services.chat_service import ChatService
-        facts = await ChatService().extract_memory_facts(analysis_text, sender)
+        facts = await ChatService().extract_memory_facts(analysis_text, sender_id)
         if facts:
             from true_love_ai.memory.memory_manager import upsert_user_memory
-            count = upsert_user_memory(group_id, sender, facts, source="analyze_speech")
-            LOG.info("记忆写入完成: %d 条, sender=%s, group=%s", count, sender, group_id)
+            count = upsert_user_memory(group_id, sender_id, facts, source="analyze_speech")
+            LOG.info("记忆写入完成: %d 条, sender_id=%s, group=%s", count, sender_id, group_id)
     except Exception as e:
         LOG.error("提取记忆失败: %s", e)

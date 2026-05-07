@@ -70,6 +70,6 @@ async def fetch_group_context(params: dict, ctx: dict) -> str:
     if not messages:
         return "未找到相关群聊记录"
 
-    lines = [f"[{m['created_at']}][{m['sender']}] {m['content']}" for m in messages]
+    lines = [f"[{m['created_at']}][{m['sender_name']}] {m['content']}" for m in messages]
     header = f"以下是本群最近 {len(lines)} 条聊天记录（{'含关键词: ' + keyword if keyword else '无过滤'}）：\n"
     return header + "\n".join(lines)

@@ -56,16 +56,21 @@ class AgentLoop:
         Args:
             msg: ChatMsg.to_dict() 格式的字典
         """
-        sender = msg.get("sender", "")
+        platform = msg.get("platform", "wechat")
+        sender_id = msg.get("sender_id", "")
+        sender_name = msg.get("sender_name", "") or sender_id
         chat_id = msg.get("chat_id", "")
         is_group = msg.get("is_group", False)
         msg_type = msg.get("msg_type", "text")
 
-        session_id = chat_id if is_group else sender
-        at_user = sender if is_group else ""
-        receiver = chat_id if is_group else sender
+        # session key 加 platform 前缀，天然隔离多平台
+        _session_base = chat_id if is_group else sender_id
+        session_id = f"{platform}:{_session_base}"
+        at_user = sender_id if is_group else ""
+        receiver = chat_id if is_group else sender_id
 
-        LOG.info("AgentLoop.run: sender=%s, session=%s, type=%s", sender, session_id, msg_type)
+        LOG.info("AgentLoop.run: platform=%s sender_id=%s sender_name=%s session=%s type=%s",
+                 platform, sender_id, sender_name, session_id, msg_type)
 
         # 构建用户侧消息内容
         user_content = self._build_user_content(msg)
@@ -75,7 +80,7 @@ class AgentLoop:
             return
 
         # 获取用户画像并注入 session
-        user_ctx = get_user_context(session_id, sender)
+        user_ctx = get_user_context(session_id, sender_id)
         session = self.session_manager.get_or_create(session_id, user_ctx=user_ctx)
         session.add_message("user", user_content)
 
@@ -124,7 +129,7 @@ class AgentLoop:
 
             # 2. 并行执行所有 tool，把结果追加到 messages
             tool_results = await asyncio.gather(*[
-                self._execute_tool(tc, session_id, sender, is_group, receiver, at_user)
+                self._execute_tool(tc, session_id, sender_id, sender_name, is_group, receiver, at_user)
                 for tc in tool_calls
             ])
             for tc, tool_result in zip(tool_calls, tool_results):
@@ -140,7 +145,7 @@ class AgentLoop:
 
         if reply:
             session.add_message("assistant", reply)
-            await self._send_reply(receiver, reply, at_user)
+            await self._send_reply(receiver, reply, at_user, platform=platform)
 
     def _build_user_content(self, msg: dict) -> Optional[str]:
         """把各类消息类型转换为 LLM 可理解的文本"""
@@ -189,23 +194,28 @@ class AgentLoop:
         if msg_type == "video":
             return f"[视频消息] {content}" if content else "[视频消息]"
 
-        # refer 消息：附上被引用内容
-        refer_msg = msg.get("refer_msg")
-        if refer_msg:
-            refer_type = refer_msg.get("msg_type", "")
-            refer_content = refer_msg.get("content", "")
-            if refer_type == "image":
-                file_path = (refer_msg.get("image_msg") or {}).get("file_path", "")
-                suffix = f"[引用图片:{file_path}]" if file_path else "[引用图片]"
-            elif refer_type == "video":
-                file_path = (refer_msg.get("video_msg") or {}).get("file_path", "")
-                suffix = f"[引用视频:{file_path}]" if file_path else "[引用视频]"
-            elif refer_type == "file":
-                file_msg = refer_msg.get("file_msg") or {}
-                file_path = file_msg.get("file_path", "")
-                suffix = f"[引用文件:{file_path}]" if file_path else "[引用文件]"
+        quoted = msg.get("refer_msg")
+        if quoted:
+            q_type = quoted.get("msg_type", "")
+            q_content = quoted.get("content", "")
+
+            def _get_ref(sub_key: str) -> str:
+                sub = quoted.get(sub_key) or {}
+                # 新格式：resource.ref；旧格式：file_path
+                resource = sub.get("resource") or {}
+                return resource.get("ref") or sub.get("file_path", "")
+
+            if q_type == "image":
+                ref = _get_ref("image_msg")
+                suffix = f"[引用图片:{ref}]" if ref else "[引用图片]"
+            elif q_type == "video":
+                ref = _get_ref("video_msg")
+                suffix = f"[引用视频:{ref}]" if ref else "[引用视频]"
+            elif q_type == "file":
+                ref = _get_ref("file_msg")
+                suffix = f"[引用文件:{ref}]" if ref else "[引用文件]"
             else:
-                suffix = f"[引用{refer_type}内容]: {refer_content}"
+                suffix = f"[引用{q_type}内容]: {q_content}"
             return f"{content}\n\n{suffix}" if content else suffix
 
         return content or None
@@ -214,7 +224,8 @@ class AgentLoop:
             self,
             tool_call: dict,
             session_id: str,
-            sender: str,
+            sender_id: str,
+            sender_name: str,
             is_group: bool,
             receiver: str,
             at_user: str,
@@ -226,7 +237,8 @@ class AgentLoop:
 
         ctx = {
             "session_id": session_id,
-            "sender": sender,
+            "sender_id": sender_id,
+            "sender_name": sender_name,
             "is_group": is_group,
             "receiver": receiver,
             "at_user": at_user,
@@ -256,13 +268,14 @@ class AgentLoop:
             LOG.exception("tool %s 执行异常: %s", name, e)
             return f"[执行失败] {e}"
 
-    async def _send_reply(self, receiver: str, content: str, at_user: str) -> None:
+    async def _send_reply(self, receiver: str, content: str, at_user: str,
+                          platform: str = "wechat") -> None:
         """通过 Server 发送最终回复"""
         from true_love_ai.agent.server_client import send_text
         try:
-            ok = await send_text(receiver, content, at_user)
+            ok = await send_text(receiver, content, at_user, platform=platform)
             if not ok:
-                LOG.error("发送回复失败: receiver=%s", receiver)
+                LOG.error("发送回复失败: receiver=%s platform=%s", receiver, platform)
         except Exception as e:
             LOG.exception("发送回复异常: %s", e)
 

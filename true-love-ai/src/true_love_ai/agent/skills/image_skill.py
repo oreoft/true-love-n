@@ -59,9 +59,9 @@ async def generate_image(params: dict, ctx: dict) -> str:
         result = await ImageService().generate_image(image_prompt=prompt, provider=provider)
 
         if result and result.img:
-            file_id = uuid.uuid4().hex
-            (GEN_IMG_DIR / f"{file_id}.jpg").write_bytes(base64.b64decode(result.img))
-            await send_file(receiver, file_id, file_type="image")
+            filename = f"{uuid.uuid4().hex}.jpg"
+            (GEN_IMG_DIR / filename).write_bytes(base64.b64decode(result.img))
+            await send_file(receiver, f"{GEN_IMG_DIR.name}/{filename}")
             return "好耶~图片已生成并发送！"
 
         return "呜呜~图片生成失败了捏，稍后再试试吧~"
@@ -199,9 +199,9 @@ async def edit_image(params: dict, ctx: dict) -> str:
         if not img_bytes:
             return "呜呜~图片生成失败了捏~"
 
-        file_id = uuid.uuid4().hex
-        (GEN_IMG_DIR / f"{file_id}.jpg").write_bytes(img_bytes)
-        await send_file(receiver, file_id, file_type="image")
+        filename = f"{uuid.uuid4().hex}.jpg"
+        (GEN_IMG_DIR / filename).write_bytes(img_bytes)
+        await send_file(receiver, f"{GEN_IMG_DIR.name}/{filename}")
         return "好耶~图片已生成并发送！"
 
     except Exception as e:

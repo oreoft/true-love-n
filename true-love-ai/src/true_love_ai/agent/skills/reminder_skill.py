@@ -61,7 +61,7 @@ async def set_reminder(params: dict, ctx: dict) -> str:
 
         # 主动引导时区设置
         from true_love_ai.memory.memory_manager import get_user_context
-        user_ctx = get_user_context(ctx.get("session_id", ""), ctx.get("sender", ""))
+        user_ctx = get_user_context(ctx.get("session_id", ""), ctx.get("sender_id", ""))
         if not user_ctx or ("时区" not in user_ctx and "timezone" not in user_ctx.lower()):
             reply += "\n\n(诶，我看你还没设置所在地，刚才的推算是按北京时间瞎估的哦~ 如果人在其他时区可以告诉我，我会永远记住哒！)"
         return reply
