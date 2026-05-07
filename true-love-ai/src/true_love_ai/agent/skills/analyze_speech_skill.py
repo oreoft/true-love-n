@@ -41,9 +41,8 @@ async def analyze_speech(params: dict, ctx: dict) -> str:
     at_user = ctx.get("at_user", "")
 
     is_self = target.strip().lower() == "self"
-    # 分析自己：用 sender_id 查历史；分析他人：用用户输入的昵称（服务端按 sender_name 匹配）
-    target_person = sender_id if is_self else target.strip().lstrip("@").strip()
-    display_name = sender_name if is_self else target_person
+    target_name = target.strip().lstrip("@").strip()
+    display_name = sender_name if is_self else target_name
 
     # 发安抚语（通过 Server 发送）
     wait_msgs = [
@@ -56,7 +55,10 @@ async def analyze_speech(params: dict, ctx: dict) -> str:
 
     # 从 Server 查询历史
     from true_love_ai.agent.skills._group_message import fetch_group_messages
-    history = await fetch_group_messages(session_id, limit=100, sender_id=target_person)
+    if is_self:
+        history = await fetch_group_messages(session_id, limit=100, sender_id=sender_id)
+    else:
+        history = await fetch_group_messages(session_id, limit=100, sender_name=target_name)
 
     if not history:
         return f"我没能获取到[{display_name}]在群里以前的发言记录哦，所以我没有足够的信息来分析捏~"

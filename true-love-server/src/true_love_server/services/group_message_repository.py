@@ -61,7 +61,7 @@ class GroupMessageRepository:
             LOG.warning("serialize field failed: %s", e)
             return None
 
-    def get_messages(self, chat_id: str, sender_id: str = None,
+    def get_messages(self, chat_id: str, sender_id: str = None, sender_name: str = None,
                      limit: int = 100, tail_id: int = None,
                      platform: str = None) -> list[dict]:
         try:
@@ -70,6 +70,8 @@ class GroupMessageRepository:
                 query = query.filter(GroupMessage.platform == platform)
             if sender_id:
                 query = query.filter(GroupMessage.sender_id == sender_id)
+            if sender_name:
+                query = query.filter(GroupMessage.sender_name == sender_name)
             if tail_id is not None:
                 query = query.filter(GroupMessage.id < tail_id)
             messages = query.order_by(GroupMessage.created_at.desc()).limit(limit).all()

@@ -75,7 +75,7 @@ def upsert_user_memory(group_id: str, sender_id: str, facts: list[dict], source:
 
     Args:
         group_id: 群 ID（私聊时传 sender_id）
-        sender_id:   发送者昵称
+        sender_id:   发送者唯一 ID
         facts:    [{key, value}, ...] 列表
         source:   来源标记
 
