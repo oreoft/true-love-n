@@ -7,7 +7,7 @@ ChatMsg 消息协议定义
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict
 from typing import Optional, Any
 
 

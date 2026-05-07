@@ -1,11 +1,11 @@
-from .chat_msg import ChatMsgDict, ResourceRefDict, ImageMsgDict, VoiceMsgDict, VideoMsgDict, FileMsgDict, LinkMsgDict
+from .chat_msg import ChatMsg, ResourceRef, ImageMsg, VoiceMsg, VideoMsg, FileMsg, LinkMsg
 
 __all__ = [
-    "ChatMsgDict",
-    "ResourceRefDict",
-    "ImageMsgDict",
-    "VoiceMsgDict",
-    "VideoMsgDict",
-    "FileMsgDict",
-    "LinkMsgDict",
+    "ChatMsg",
+    "ResourceRef",
+    "ImageMsg",
+    "VoiceMsg",
+    "VideoMsg",
+    "FileMsg",
+    "LinkMsg",
 ]

@@ -988,6 +988,7 @@ dependencies = [
     { name = "pyyaml" },
     { name = "qrcode" },
     { name = "sqlalchemy" },
+    { name = "true-love-common" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -1019,9 +1020,15 @@ requires-dist = [
     { name = "qrcode", specifier = ">=8.2" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.0" },
     { name = "sqlalchemy", specifier = ">=2.0.0" },
+    { name = "true-love-common", directory = "../true-love-common" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32.0" },
 ]
 provides-extras = ["dev"]
+
+[[package]]
+name = "true-love-common"
+version = "0.1.0"
+source = { directory = "../true-love-common" }
 
 [[package]]
 name = "typing-extensions"

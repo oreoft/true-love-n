@@ -575,6 +575,11 @@ wheels = [
 ]
 
 [[package]]
+name = "true-love-common"
+version = "0.1.0"
+source = { directory = "../true-love-common" }
+
+[[package]]
 name = "true-love-server"
 version = "0.2.0"
 source = { editable = "." }
@@ -591,6 +596,7 @@ dependencies = [
     { name = "requests" },
     { name = "schedule" },
     { name = "sqlalchemy" },
+    { name = "true-love-common" },
     { name = "uvicorn" },
 ]
 
@@ -608,6 +614,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.32.5" },
     { name = "schedule", specifier = ">=1.2.2" },
     { name = "sqlalchemy", specifier = ">=2.0.0" },
+    { name = "true-love-common", directory = "../true-love-common" },
     { name = "uvicorn", specifier = ">=0.32.0" },
 ]
 
