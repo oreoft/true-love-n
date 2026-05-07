@@ -2,167 +2,186 @@
 """
 消息模型 - Server 端
 
-与 Base 端结构一致的统一消息模型。
+通用消息结构，支持多平台（wechat / lark / ...）。
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Optional, Any
 
 
+# ==================== 资源引用 ====================
+
+@dataclass
+class ResourceRef:
+    """统一资源引用：本地路径 或 HTTP URL"""
+    ref: str                    # 本地路径 或 HTTP URL
+    source: str = "local"       # "local" | "url"
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ResourceRef":
+        return cls(ref=data.get("ref", ""), source=data.get("source", "local"))
+
+
+# ==================== 媒体消息子类型 ====================
+
 @dataclass
 class ImageMsg:
-    """图片消息数据"""
-    file_path: Optional[str] = None
+    resource: Optional[ResourceRef] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ImageMsg":
+        resource = ResourceRef.from_dict(data["resource"]) if data.get("resource") else None
+        return cls(resource=resource)
 
 
 @dataclass
 class VoiceMsg:
-    """语音消息数据"""
     text_content: Optional[str] = None
+    resource: Optional[ResourceRef] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "VoiceMsg":
+        resource = ResourceRef.from_dict(data["resource"]) if data.get("resource") else None
+        return cls(text_content=data.get("text_content"), resource=resource)
 
 
 @dataclass
 class VideoMsg:
-    """视频消息数据"""
-    file_path: Optional[str] = None
+    resource: Optional[ResourceRef] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "VideoMsg":
+        resource = ResourceRef.from_dict(data["resource"]) if data.get("resource") else None
+        return cls(resource=resource)
 
 
 @dataclass
 class FileMsg:
-    """文件消息数据"""
-    file_path: Optional[str] = None
     file_name: Optional[str] = None
+    resource: Optional[ResourceRef] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "FileMsg":
+        resource = ResourceRef.from_dict(data["resource"]) if data.get("resource") else None
+        return cls(file_name=data.get("file_name"), resource=resource)
 
 
 @dataclass
 class LinkMsg:
-    """链接消息数据"""
     url: Optional[str] = None
+    title: Optional[str] = None
 
+    @classmethod
+    def from_dict(cls, data: dict) -> "LinkMsg":
+        return cls(url=data.get("url"), title=data.get("title"))
+
+
+# ==================== 主消息体 ====================
 
 @dataclass
 class ChatMsg:
-    """
-    统一消息模型
-    
-    与 Base 端的 ChatMessage 结构一致。
-    """
-    # ===== 通用字段 =====
-    msg_type: str
-    sender: str
-    chat_id: str
-    content: str = ""
+    """通用消息模型，支持多平台。"""
+
+    # 平台标识
+    platform: str = "wechat"            # "wechat" | "lark"
+
+    # 消息元信息
+    msg_type: str = "text"              # text/image/voice/video/file/link/unknown
+    msg_id: str = ""
+    msg_hash: str = ""
+
+    # 发送者（两个字段都尽量填）
+    sender_id: str = ""                 # 平台唯一 ID（open_id / wxid）；微信暂时用昵称填
+    sender_name: str = ""               # 昵称/显示名；可为空
+
+    # 会话
+    chat_id: str = ""                   # 平台唯一会话 ID；微信暂时用群名填
+    chat_name: str = ""                 # 群名 / 好友名（显示用，可为空）
     is_group: bool = False
+
+    # 标志位
     is_self: bool = False
     is_at_me: bool = False
-    msg_id: str = ''
-    msg_hash: str = ''
 
-    # ===== 类型特有字段（按需填充，其他为 None）=====
+    # 消息内容
+    content: str = ""
     image_msg: Optional[ImageMsg] = None
     voice_msg: Optional[VoiceMsg] = None
     video_msg: Optional[VideoMsg] = None
     file_msg: Optional[FileMsg] = None
     link_msg: Optional[LinkMsg] = None
-    refer_msg: Optional['ChatMsg'] = None
+    refer_msg: Optional['ChatMsg'] = None   # 引用/回复消息（最多一层）
 
-    # ===== 类型判断便捷方法 =====
-
-    def is_text(self) -> bool:
-        """是否文本消息"""
-        return self.msg_type == 'text'
-
-    def is_image(self) -> bool:
-        """是否图片消息"""
-        return self.msg_type == 'image'
-
-    def is_voice(self) -> bool:
-        """是否语音消息"""
-        return self.msg_type == 'voice'
-
-    def is_video(self) -> bool:
-        """是否视频消息"""
-        return self.msg_type == 'video'
-
-    def is_file(self) -> bool:
-        """是否文件消息"""
-        return self.msg_type == 'file'
-
-    def is_link(self) -> bool:
-        """是否链接消息"""
-        return self.msg_type == 'link'
-
-    def has_refer(self) -> bool:
-        """是否有引用消息"""
-        return self.refer_msg is not None
-
-    def from_group(self) -> bool:
-        """是否来自群聊"""
-        return self.is_group
-
-    # ===== 便捷取值属性（兼容旧代码）=====
+    # ==================== 便捷属性 ====================
 
     @property
-    def file_path(self) -> Optional[str]:
-        """获取文件路径（图片/视频/文件）"""
-        if self.image_msg and self.image_msg.file_path:
-            return self.image_msg.file_path
-        if self.video_msg and self.video_msg.file_path:
-            return self.video_msg.file_path
-        if self.file_msg and self.file_msg.file_path:
-            return self.file_msg.file_path
-        return None
+    def effective_sender_id(self) -> str:
+        return self.sender_id
+
+    @property
+    def effective_chat_id(self) -> str:
+        return self.chat_id
+
+    def is_text(self) -> bool:
+        return self.msg_type == "text"
+
+    def is_image(self) -> bool:
+        return self.msg_type == "image"
+
+    def is_voice(self) -> bool:
+        return self.msg_type == "voice"
+
+    def is_video(self) -> bool:
+        return self.msg_type == "video"
+
+    def is_file(self) -> bool:
+        return self.msg_type == "file"
+
+    def is_link(self) -> bool:
+        return self.msg_type == "link"
+
+    def has_refer(self) -> bool:
+        return self.refer_msg is not None
 
     @property
     def voice_text(self) -> Optional[str]:
-        """获取语音转文字"""
         return self.voice_msg.text_content if self.voice_msg else None
 
     @property
     def url(self) -> Optional[str]:
-        """获取链接"""
         return self.link_msg.url if self.link_msg else None
 
-    # ===== 引用消息便捷方法 =====
-
-    def get_refer_type(self) -> Optional[str]:
-        """获取引用消息类型"""
-        return self.refer_msg.msg_type if self.refer_msg else None
-
-    def get_refer_content(self) -> Optional[str]:
-        """获取引用消息内容"""
-        return self.refer_msg.content if self.refer_msg else None
-
-    def get_refer_file_path(self) -> Optional[str]:
-        """获取引用消息的文件路径"""
-        if not self.refer_msg:
-            return None
-        return self.refer_msg.file_path  # 复用 property
-
-    # ===== 序列化/反序列化 =====
+    # ==================== 序列化 ====================
 
     @classmethod
     def from_dict(cls, data: dict) -> "ChatMsg":
-        """从字典创建实例"""
+        sender_id = data.get("sender_id", "")
+        sender_name = data.get("sender_name", "")
+
+        # chat_name 兼容：旧版 chat_id 就是群名
+        chat_id = data.get("chat_id", "")
+        chat_name = data.get("chat_name") or chat_id
+
         return cls(
+            platform=data.get("platform", "wechat"),
             msg_type=data.get("msg_type", "text"),
-            sender=data.get("sender", ""),
-            chat_id=data.get("chat_id", ""),
-            content=data.get("content", ""),
             msg_id=data.get("msg_id", ""),
             msg_hash=data.get("msg_hash", ""),
+            sender_id=sender_id,
+            sender_name=sender_name,
+            chat_id=chat_id,
+            chat_name=chat_name,
             is_group=data.get("is_group", False),
             is_self=data.get("is_self", False),
             is_at_me=data.get("is_at_me", False),
-            image_msg=ImageMsg(**data["image_msg"]) if data.get("image_msg") else None,
-            voice_msg=VoiceMsg(**data["voice_msg"]) if data.get("voice_msg") else None,
-            video_msg=VideoMsg(**data["video_msg"]) if data.get("video_msg") else None,
-            file_msg=FileMsg(**data["file_msg"]) if data.get("file_msg") else None,
-            link_msg=LinkMsg(**data["link_msg"]) if data.get("link_msg") else None,
+            content=data.get("content", ""),
+            image_msg=ImageMsg.from_dict(data["image_msg"]) if data.get("image_msg") else None,
+            voice_msg=VoiceMsg.from_dict(data["voice_msg"]) if data.get("voice_msg") else None,
+            video_msg=VideoMsg.from_dict(data["video_msg"]) if data.get("video_msg") else None,
+            file_msg=FileMsg.from_dict(data["file_msg"]) if data.get("file_msg") else None,
+            link_msg=LinkMsg.from_dict(data["link_msg"]) if data.get("link_msg") else None,
             refer_msg=cls.from_dict(data["refer_msg"]) if data.get("refer_msg") else None,
         )
 
     def to_dict(self) -> dict[str, Any]:
-        """转换为字典"""
-        from dataclasses import asdict
         return asdict(self)

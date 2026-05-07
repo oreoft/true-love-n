@@ -34,9 +34,8 @@ _MEDIA_ROOT = Path("wx_imgs")
 
 
 @router.get("/media/{file_path:path}")
-async def get_media(file_path: str, token: str = Query(...)):
+async def get_media(file_path: str):
     """提供 wx_imgs 目录下的媒体文件（供 AI 服务跨机读取）"""
-    verify_token(token)
     safe = (_MEDIA_ROOT / file_path).resolve()
     if not str(safe).startswith(str(_MEDIA_ROOT.resolve())):
         raise ValidationException("forbidden")
@@ -150,9 +149,9 @@ def _trigger_ai(msg: ChatMsg) -> None:
             timeout=(5,10),
         )
         resp.raise_for_status()
-        LOG.info("AI trigger 成功: sender=%s", msg.sender)
+        LOG.info("AI trigger 成功: sender_id=%s", msg.sender_id)
     except Exception as e:
-        LOG.error("AI trigger 失败: sender=%s, err=%s", msg.sender, e)
+        LOG.error("AI trigger 失败: sender_id=%s, err=%s", msg.sender_id, e)
 
 
 # ==================== 查询接口（供 AI 回调使用）====================
@@ -165,14 +164,14 @@ async def query_history(request: dict):
     Body:
         - token: 鉴权 token
         - chat_id: 群聊 ID（必填）
-        - sender: 发送者昵称（可选，不传则查全群）
+        - sender_id: 发送者唯一 ID（可选，不传则查全群）
         - limit: 最大返回条数（默认100）
         - tail_id: 游标 ID，仅返回 id < tail_id 的消息（可选，用于向前翻页）
     """
     verify_token(request.get("token", ""))
 
     chat_id = request.get("chat_id", "")
-    sender = request.get("sender") or None
+    sender_id = request.get("sender_id") or None
     limit = int(request.get("limit", 100))
     tail_id = request.get("tail_id")
     tail_id = int(tail_id) if tail_id is not None else None
@@ -182,9 +181,9 @@ async def query_history(request: dict):
 
     from ..core.db_engine import SessionLocal
     with SessionLocal() as db:
-        messages = GroupMessageRepository(db).get_messages(chat_id, sender, limit, tail_id)
+        messages = GroupMessageRepository(db).get_messages(chat_id, sender_id, limit, tail_id)
 
-    LOG.info("query/history: chat_id=%s, sender=%s, tail_id=%s, count=%d", chat_id, sender, tail_id, len(messages))
+    LOG.info("query/history: chat_id=%s, sender_id=%s, tail_id=%s, count=%d", chat_id, sender_id, tail_id, len(messages))
     return ApiResponse(data={"messages": messages})
 
 

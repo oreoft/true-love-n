@@ -3,7 +3,6 @@
 Database Engine - 数据库引擎
 """
 
-import sqlite3
 import logging
 from typing import Generator
 
@@ -25,24 +24,7 @@ DBS_DIR = "dbs"
 os.makedirs(DBS_DIR, exist_ok=True)
 
 
-# ==================== 原有的 mc_devices 数据库逻辑 ====================
-
-def create_db_and_table():
-    """创建 mc_devices 表（原有逻辑）"""
-    db_path = os.path.join(DBS_DIR, 'mc_devices.db')
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS mc_devices (
-        sender TEXT PRIMARY KEY,
-        device_id TEXT NOT NULL
-    );
-    ''')
-    conn.commit()
-    conn.close()
-
-
-# ==================== SQLAlchemy 数据库引擎（用于群消息记录）====================
+# ==================== SQLAlchemy 数据库引擎 ====================
 
 # 数据库文件路径
 DATABASE_URL = f"sqlite:///{DBS_DIR}/group_messages.db"

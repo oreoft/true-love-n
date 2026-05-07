@@ -12,6 +12,7 @@ from fastapi import APIRouter
 
 from .deps import verify_token
 from .exception_handlers import ApiResponse, ValidationException
+from .. import Config
 from ..services import base_client
 from ..services.listen_manager import get_listen_manager
 from ..services.scheduler_service import scheduler
@@ -39,25 +40,27 @@ listen_manager = get_listen_manager()
 @action_router.post("/send")
 async def action_send(request: dict):
     """
-    发送文本消息到 WeChat
+    发送文本消息
 
     Body:
-        - token: 鉴权 token
-        - receiver: 接收者（群名或好友昵称）
-        - content: 消息内容
-        - at_user: 要@的用户昵称（可选，群聊时使用）
+        - token:    鉴权 token
+        - receiver: 接收者（chat_id 或群名）
+        - content:  消息内容
+        - at_user:  要@的用户（可选）
+        - platform: 目标平台 "wechat"(默认) | "lark"
     """
     verify_token(request.get("token", ""))
 
     receiver = request.get("receiver", "")
     content = request.get("content", "")
     at_user = request.get("at_user", "")
+    platform = request.get("platform", "wechat")
 
     if not receiver or not content:
         raise ValidationException("receiver 和 content 不能为空")
 
-    LOG.info("action/send: receiver=%s, at_user=%s, content=%s", receiver, at_user, content[:50])
-    success, error_msg = base_client.send_text(receiver, at_user, content)
+    LOG.info("action/send: platform=%s receiver=%s at_user=%s content=%s", platform, receiver, at_user, content[:50])
+    success, error_msg = base_client.send_text(receiver, at_user, content, platform=platform)
 
     if not success:
         raise ValidationException(f"消息发送失败: {error_msg}")
@@ -68,96 +71,39 @@ async def action_send(request: dict):
 @action_router.post("/send-file")
 async def action_send_file(request: dict):
     """
-    发送文件/图片/视频到 WeChat
+    发送文件/图片/视频
 
     Body:
-        - token: 鉴权 token
+        - token:    鉴权 token
         - receiver: 接收者
-        - file_id: AI 生成的文件 ID（优先，Server 从 AI 下载后转发）
-        - path: 文件路径（Server 本地路径，兜底）
-        - file_type: 文件类型 image | video | file（默认 image）
+        - platform: 目标平台 "wechat"(默认) | "lark"
+        - path:     AI 生成文件的相对路径，如 gen_img/abc.jpg、gen_video/abc.mp4
+                    Server 用配置的 ai_host 拼出完整 URL 下载后转发给 Base
     """
     verify_token(request.get("token", ""))
 
     receiver = request.get("receiver", "")
-    file_id = request.get("file_id", "")
+    platform = request.get("platform", "wechat")
     path = request.get("path", "")
-    file_type = request.get("file_type", "image")
 
-    if not receiver or (not file_id and not path):
-        raise ValidationException("receiver 和 file_id/path 不能为空")
+    if not receiver:
+        raise ValidationException("receiver 不能为空")
+    if not path:
+        raise ValidationException("path 不能为空")
 
-    # 如果是 file_id，从 AI 服务下载到 Server 本地
-    tmp_path = None
-    if file_id:
-        path, tmp_path = _fetch_from_ai(file_id, file_type)
-        if not path:
-            raise ValidationException(f"从 AI 下载文件失败: {file_id}")
+    ai_host = (Config().AI_SERVICE or {}).get("host", "").rstrip("/")
+    if not ai_host:
+        raise ValidationException("AI_SERVICE.host 未配置")
 
-    LOG.info("action/send-file: receiver=%s, type=%s, path=%s", receiver, file_type, path)
+    url = f"{ai_host}/media/{path}"
+    LOG.info("action/send-file: platform=%s receiver=%s url=%s", platform, receiver, url)
 
-    try:
-        if file_type == "video":
-            success, error_msg = base_client.send_video(path, receiver)
-        else:
-            success, error_msg = base_client.send_img(path, receiver)
-    finally:
-        if tmp_path:
-            import os
-            try:
-                os.unlink(tmp_path)
-            except Exception:
-                pass
+    success, error_msg = base_client.send_file(url, receiver, platform=platform)
 
     if not success:
         raise ValidationException(f"文件发送失败: {error_msg}")
 
     return ApiResponse(data=None)
-
-
-def _fetch_from_ai(file_id: str, file_type: str) -> tuple[str, str]:
-    """
-    从 AI 服务下载文件，存到与 Base 共享的目录，返回 (Base可读相对路径, Server本地绝对路径)
-
-    共享目录通过 docker-compose 软链挂载：
-      /app/gen-img  →  SMB /mnt/.../true-love-base/gen-img  →  Base工作目录 gen-img/
-      /app/gen-video → SMB /mnt/.../true-love-base/gen-video → Base工作目录 gen-video/
-    Base 读取时使用相对路径（如 gen-img/xxx.jpg）。
-    """
-    import uuid as _uuid
-    import requests as _requests
-    from pathlib import Path
-    from ..core import Config
-
-    cfg = Config()
-    ai_host = (cfg.AI_SERVICE or {}).get("host", "").rstrip("/")
-    token = (cfg.HTTP_TOKEN or [""])[0]
-
-    if not ai_host:
-        LOG.error("AI_SERVICE.host 未配置，无法下载文件")
-        return "", ""
-
-    if file_type == "video":
-        suffix, subdir, endpoint = ".mp4", "gen-video", "download-video"
-    else:
-        suffix, subdir, endpoint = ".jpg", "gen-img", "download-image"
-
-    url = f"{ai_host}/{endpoint}/{file_id}?token={token}"
-    local_dir = Path(f"/app/{subdir}")
-    local_dir.mkdir(parents=True, exist_ok=True)
-    local_path = local_dir / f"{_uuid.uuid4().hex}{suffix}"
-    relative_path = f"{subdir}/{local_path.name}"
-
-    try:
-        LOG.info("→ 从 AI 下载文件: %s", url)
-        resp = _requests.get(url, timeout=(10, 60))
-        resp.raise_for_status()
-        local_path.write_bytes(resp.content)
-        LOG.info("← AI 文件已写入共享目录: %s (%d bytes)", local_path, len(resp.content))
-        return relative_path, str(local_path)
-    except Exception as e:
-        LOG.error("✗ 从 AI 下载文件失败: file_id=%s, err=%s", file_id, e)
-        return "", ""
 
 
 # ==================== 提醒管理 ====================

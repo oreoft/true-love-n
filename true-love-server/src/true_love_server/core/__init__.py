@@ -8,7 +8,5 @@ Core module - 核心模块
 from .logging_config import LoggingConfig
 from .configuration import Config
 from .context_vars import local_msg_id
-from .db_engine import create_db_and_table
-
-__all__ = ["LoggingConfig", "Config", "local_msg_id", "create_db_and_table"]
+__all__ = ["LoggingConfig", "Config", "local_msg_id"]
 

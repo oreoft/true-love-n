@@ -13,7 +13,7 @@ import uvicorn
 from .services import base_client
 from .jobs import Job
 from .api import create_app
-from .core import Config, create_db_and_table
+from .core import Config
 from .core.db_engine import init_db
 
 LOG = logging.getLogger("Main")
@@ -35,9 +35,7 @@ def notice_master():
 
 def main():
     """主函数"""
-    # 初始化数据库
-    create_db_and_table()  # 原有的 mc_devices 表
-    init_db()  # 新增的群消息表
+    init_db()
 
     # 通知 master
     notice_master()
