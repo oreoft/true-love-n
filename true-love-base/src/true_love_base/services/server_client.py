@@ -12,9 +12,9 @@ import time
 
 import requests
 
+from true_love_common.chat_msg import ChatMsg
 from true_love_base.configuration import Config
 from true_love_base.models.api import ChatRequest, ChatResponse
-from true_love_base.models.message import ChatMessage
 
 config = Config()
 LOG = logging.getLogger("ServerClient")
@@ -116,7 +116,7 @@ _circuit_breaker = CircuitBreaker(threshold=3, reset_timeout=60)
 
 # ==================== API 函数 ====================
 
-def get_chat(msg: ChatMessage) -> str:
+def get_chat(msg: ChatMsg) -> str:
     """
     发送消息到服务端获取回复
     

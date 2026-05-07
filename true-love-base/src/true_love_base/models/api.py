@@ -6,30 +6,24 @@ API Models - HTTP API 请求/响应模型
 """
 
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from typing import Any, Optional
 
-from true_love_base.models.message import ChatMessage
+from true_love_common.chat_msg import ChatMsg
 
 
 @dataclass
 class ChatRequest:
-    """
-    发送到 server 的聊天请求
-    
-    包装 ChatMessage，添加认证 token。
-    """
+    """发送到 server 的聊天请求，包装 ChatMsg 并附加认证 token。"""
     token: str
-    message: ChatMessage
-    
+    message: ChatMsg
+
     def to_dict(self) -> dict[str, Any]:
-        """转换为字典"""
-        result = asdict(self.message)
+        result = self.message.to_dict()
         result["token"] = self.token
         return result
-    
+
     def to_json(self) -> str:
-        """转换为 JSON 字符串"""
         return json.dumps(self.to_dict(), ensure_ascii=False)
 
 

@@ -1,103 +1,68 @@
 # -*- coding: utf-8 -*-
-"""
-消息转换器 - 简化版
-
-将 wxautox4 的消息对象转换为统一的 ChatMessage 模型。
-
-文件路径处理说明：
-- 媒体文件下载到 Server 的 wx_imgs 目录（通过 WxParam.DEFAULT_SAVE_PATH 设置）
-- 下载后转换为相对路径（如 wx_imgs/filename.jpg）传输给 Server
-- Server 可以直接使用相对路径访问文件
-"""
-
 import logging
 from typing import Any, Optional
 
-from true_love_base.models.message import (
-    ChatMessage,
-    ImageMsg,
-    VoiceMsg,
-    VideoMsg,
-    FileMsg,
-    LinkMsg,
-)
+from true_love_common.chat_msg import ChatMsg, ImageMsg, VoiceMsg, VideoMsg, FileMsg, LinkMsg, ResourceRef
 from true_love_base.utils.path_resolver import to_server_path
 
 LOG = logging.getLogger("MessageConverter")
 
-# 引用内容 → 消息类型映射
 QUOTE_TYPE_MAP = {
-    '图片': 'image',
-    '[图片]': 'image',
-    '视频': 'video',
-    '[视频]': 'video',
-    '语音': 'voice',
-    '[语音]': 'voice',
-    '文件': 'file',
-    '[文件]': 'file',
+    '图片': 'image',   '[图片]': 'image',
+    '视频': 'video',   '[视频]': 'video',
+    '语音': 'voice',   '[语音]': 'voice',
+    '文件': 'file',    '[文件]': 'file',
 }
 
 
-def convert_message(
-        raw_msg: Any,
-        chat_name: str,
-        is_at_me: bool,
-) -> ChatMessage:
-    """
-    将 wxautox4 消息转换为 ChatMessage
-    
-    Args:
-        raw_msg: wxautox4 的原始消息对象
-        chat_name: 聊天对象名称
-        is_at_me: 是否 @ 了我
-
-    Returns:
-        ChatMessage 实例
-    """
+def convert_message(raw_msg: Any, chat_name: str, is_at_me: bool) -> ChatMsg:
     try:
         msg_type = getattr(raw_msg, 'type', 'text')
         msg_id = getattr(raw_msg, 'id', '')
         msg_hash = getattr(raw_msg, 'hash', '')
         content = getattr(raw_msg, 'content', str(raw_msg))
 
-        # 使用 chat_info.chat_type 判断群聊（更可靠）
         chat_info = getattr(raw_msg, 'chat_info', {}) or {}
         is_group = chat_info.get('chat_type') == 'group'
-        # 如果是群聊，使用 sender 作为发送者, 否则使用 chat_name, 防止系统sender发一些奇怪的名字
         sender = getattr(raw_msg, 'sender', chat_name) if is_group else chat_name
 
-        # 构建基础消息
-        msg = ChatMessage(
+        msg = ChatMsg(
+            platform="wechat",
             msg_type=msg_type if msg_type != 'quote' else 'refer',
-            sender=sender,
-            chat_id=chat_name,
-            content=content,
-            is_group=is_group,
-            is_at_me=is_at_me,
             msg_id=msg_id,
             msg_hash=msg_hash,
+            sender_id=sender,
+            sender_name=sender,
+            chat_id=chat_name,
+            chat_name=chat_name,
+            is_group=is_group,
+            is_at_me=is_at_me,
+            content=content,
         )
 
-        # 按类型填充特有字段
         if msg_type == 'image':
             file_path = _download(raw_msg, "image")
-            msg.image_msg = ImageMsg(file_path=file_path)
+            if file_path:
+                msg.image_msg = ImageMsg(resource=ResourceRef(ref=file_path))
 
         elif msg_type == 'voice':
             text_content = _to_text(raw_msg)
             msg.voice_msg = VoiceMsg(text_content=text_content)
-            # 如果有转文字结果，用它作为 content
             if text_content:
                 msg.content = text_content
 
         elif msg_type == 'video':
             file_path = _download(raw_msg, "video")
-            msg.video_msg = VideoMsg(file_path=file_path)
+            if file_path:
+                msg.video_msg = VideoMsg(resource=ResourceRef(ref=file_path))
 
         elif msg_type == 'file':
             file_path = _download(raw_msg, "file")
             file_name = getattr(raw_msg, 'file_name', None) or getattr(raw_msg, 'filename', None)
-            msg.file_msg = FileMsg(file_path=file_path, file_name=file_name)
+            msg.file_msg = FileMsg(
+                file_name=file_name,
+                resource=ResourceRef(ref=file_path) if file_path else None,
+            )
 
         elif msg_type == 'link':
             url = raw_msg.get_url() if hasattr(raw_msg, 'get_url') else None
@@ -110,40 +75,24 @@ def convert_message(
 
     except Exception as e:
         LOG.error(f"Failed to convert message: {e}")
-        return ChatMessage(
-            msg_type='text',
-            sender=chat_name,
+        return ChatMsg(
+            platform="wechat",
+            msg_type="text",
+            sender_id=chat_name,
+            sender_name=chat_name,
             chat_id=chat_name,
+            chat_name=chat_name,
             content=str(raw_msg),
-            is_group=False,
-            msg_hash='',
-            msg_id='',
         )
 
 
 def _download(raw_msg: Any, media_type: str) -> Optional[str]:
-    """
-    下载媒体文件，返回 Server 可用的相对路径
-    
-    wxautox4 会将文件下载到 WxParam.DEFAULT_SAVE_PATH（已设置为 server/wx_imgs）
-    下载后将完整路径转换为相对路径（如 wx_imgs/filename.jpg）供 Server 直接使用
-    
-    Args:
-        raw_msg: wxautox4 消息对象
-        media_type: 媒体类型（用于日志）
-        
-    Returns:
-        Server 可用的相对路径，如 "wx_imgs/filename.jpg"
-    """
     if not hasattr(raw_msg, 'download'):
         return None
     try:
-        # wxautox4 下载文件，返回完整路径
         full_path = raw_msg.download()
         if not full_path:
             return None
-
-        # 转换为 Server 可用的相对路径
         relative_path = to_server_path(str(full_path))
         LOG.debug(f"Downloaded {media_type}: {full_path} -> {relative_path}")
         return relative_path
@@ -153,7 +102,6 @@ def _download(raw_msg: Any, media_type: str) -> Optional[str]:
 
 
 def _download_quote_media(raw_msg: Any, media_type: str) -> Optional[str]:
-    """下载引用消息中的图片或视频，返回 Server 可用的相对路径"""
     try:
         full_path = raw_msg.download_quote_image()
         if not full_path:
@@ -167,59 +115,48 @@ def _download_quote_media(raw_msg: Any, media_type: str) -> Optional[str]:
 
 
 def _to_text(raw_msg: Any) -> Optional[str]:
-    """语音转文字"""
     if not hasattr(raw_msg, 'to_text'):
         return None
     try:
-        text = raw_msg.to_text()
-        LOG.debug(f"Voice to_text: {text}")
-        return text
+        return raw_msg.to_text()
     except Exception as e:
         LOG.warning(f"Voice to_text failed: {e}")
         return None
 
 
-def _build_refer_msg(raw_msg: Any, chat_name: str, is_group: bool) -> ChatMessage:
-    """
-    构建引用消息
-    
-    wxauto 的 QuoteMessage 结构：
-    - content: 用户输入的回复文字
-    - quote_content: 被引用的内容（字符串，如 "图片"、"视频" 或实际文字）
-    - quote_nickname: 被引用消息的发送者
-    """
+def _build_refer_msg(raw_msg: Any, chat_name: str, is_group: bool) -> ChatMsg:
     quote_content = getattr(raw_msg, 'quote_content', '')
     quote_sender = getattr(raw_msg, 'quote_nickname', '') or 'unknown'
 
-    # 判断被引用的内容类型
     refer_type = QUOTE_TYPE_MAP.get(quote_content, 'text')
     if quote_content.endswith('.pdf'):
         refer_type = 'file'
 
     LOG.info(f"Building refer_msg: type={refer_type}, content={quote_content}, sender={quote_sender}")
 
-    refer = ChatMessage(
+    refer = ChatMsg(
+        platform="wechat",
         msg_type=refer_type,
-        sender=quote_sender,
+        sender_id=quote_sender,
+        sender_name=quote_sender,
         chat_id=chat_name,
-        content=quote_content if refer_type == 'text' else '',
+        chat_name=chat_name,
         is_group=is_group,
-        msg_id='',
-        msg_hash='',
+        content=quote_content if refer_type == 'text' else '',
     )
 
-    # 图片 / 视频：下载被引用的媒体文件
     if refer_type in ('image', 'video') and hasattr(raw_msg, 'download_quote_image'):
         file_path = _download_quote_media(raw_msg, refer_type)
         if file_path:
             if refer_type == 'image':
-                refer.image_msg = ImageMsg(file_path=file_path)
+                refer.image_msg = ImageMsg(resource=ResourceRef(ref=file_path))
             else:
-                refer.video_msg = VideoMsg(file_path=file_path)
+                refer.video_msg = VideoMsg(resource=ResourceRef(ref=file_path))
 
-    # 文件：quote_content 即文件名，微信已下载到 wx_imgs/ 下
     elif refer_type == 'file':
-        file_path = f"wx_imgs/{quote_content}"
-        refer.file_msg = FileMsg(file_path=file_path, file_name=quote_content)
+        refer.file_msg = FileMsg(
+            file_name=quote_content,
+            resource=ResourceRef(ref=f"wx_imgs/{quote_content}"),
+        )
 
     return refer

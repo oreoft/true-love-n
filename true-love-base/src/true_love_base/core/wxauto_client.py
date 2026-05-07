@@ -13,8 +13,8 @@ from typing import Callable, Optional
 from true_love_base.wxautox4x.wxautox4x import WeChat
 from wxautox4.param import WxParam
 
+from true_love_common.chat_msg import ChatMsg
 from true_love_base.models.message_converter import convert_message
-from true_love_base.models import ChatMessage
 from true_love_base.utils.path_resolver import get_wx_imgs_dir
 
 LOG = logging.getLogger("WxAutoClient")
@@ -26,7 +26,7 @@ if _wx_imgs_dir:
     WxParam.DEFAULT_SAVE_PATH = _wx_imgs_dir
     LOG.info(f"Set WxParam.DEFAULT_SAVE_PATH to: {_wx_imgs_dir}")
 
-MessageCallback = Callable[[ChatMessage, str], None]
+MessageCallback = Callable[[ChatMsg, str], None]
 
 
 class WxAutoClient():
@@ -230,7 +230,7 @@ class WxAutoClient():
 
                 # 转换消息
                 message = convert_message(raw_msg, chat_name, is_at_me)
-                LOG.info('Converted message: %r', message.to_dict())
+                LOG.info('Converted message: %r', message)
                 LOG.info('---------------END-----------------')
 
                 # 所有消息无脑转发给 server，由 server 负责存储和路由
