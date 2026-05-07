@@ -200,9 +200,19 @@ class SessionManager:
         self.user_prompt_map = config.llm.user_prompt_map if config.llm else {}
 
     def _resolve_prompt(self, session_id: str) -> str:
+        # 1. 精确匹配（最高优先级）：platform:id
         prompt_name = self.user_prompt_map.get(session_id)
         if prompt_name and prompt_name in self.prompts:
             return self.prompts[prompt_name]
+
+        # 2. 平台通配符：platform:*
+        if ":" in session_id:
+            platform = session_id.split(":", 1)[0]
+            wildcard_name = self.user_prompt_map.get(f"{platform}:*")
+            if wildcard_name and wildcard_name in self.prompts:
+                return self.prompts[wildcard_name]
+
+        # 3. 全局默认
         return self.default_prompt
 
     def _make_compress_fn(self) -> Callable[[list[dict]], Awaitable[str]]:
