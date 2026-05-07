@@ -221,15 +221,9 @@ class WxAutoClient():
                     return
                 LOG.info('------------ Raw message info ------------\n%s', self._dump_obj_attrs(raw_msg))
                 LOG.info('------------ Raw chat info ------------\n%s', self._dump_obj_attrs(chat))
-                # 使用 chat_info.chat_type 判断群聊（更可靠）
-                chat_info = getattr(raw_msg, 'chat_info', {}) or {}
-                is_group = chat_info.get('chat_type') == 'group'
-                content = getattr(raw_msg, 'content', str(raw_msg))
-                trigger_word = "真爱粉" if raw_msg.type == 'voice' else "@真爱粉"
-                is_at_me = is_group and (trigger_word in content or 'zaf' in content.lower())
 
                 # 转换消息
-                message = convert_message(raw_msg, chat_name, is_at_me)
+                message = convert_message(raw_msg, chat_name)
                 LOG.info('Converted message: %r', message)
                 LOG.info('---------------END-----------------')
 

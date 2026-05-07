@@ -8,22 +8,26 @@ from true_love_base.utils.path_resolver import to_server_path
 LOG = logging.getLogger("MessageConverter")
 
 QUOTE_TYPE_MAP = {
-    '图片': 'image',   '[图片]': 'image',
-    '视频': 'video',   '[视频]': 'video',
-    '语音': 'voice',   '[语音]': 'voice',
-    '文件': 'file',    '[文件]': 'file',
+    '图片': 'image', '[图片]': 'image',
+    '视频': 'video', '[视频]': 'video',
+    '语音': 'voice', '[语音]': 'voice',
+    '文件': 'file', '[文件]': 'file',
 }
 
 
-def convert_message(raw_msg: Any, chat_name: str, is_at_me: bool) -> ChatMsg:
+def convert_message(raw_msg: Any, chat_name: str) -> ChatMsg:
     try:
         msg_type = getattr(raw_msg, 'type', 'text')
         msg_id = getattr(raw_msg, 'id', '')
         msg_hash = getattr(raw_msg, 'hash', '')
         content = getattr(raw_msg, 'content', str(raw_msg))
 
+        # 使用 chat_info.chat_type 判断群聊（更可靠）
         chat_info = getattr(raw_msg, 'chat_info', {}) or {}
         is_group = chat_info.get('chat_type') == 'group'
+
+        trigger_word = "真爱粉" if raw_msg.type == 'voice' else "@真爱粉"
+        is_at_me = is_group and (trigger_word in content or 'zaf' in content.lower())
         sender = getattr(raw_msg, 'sender', chat_name) if is_group else chat_name
 
         msg = ChatMsg(
