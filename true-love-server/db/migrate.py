@@ -41,6 +41,8 @@ def migrate(conn: sqlite3.Connection) -> None:
     )
 
     if "sender" in _cols(conn, "group_messages"):
+        # ix_group_messages_sender 索引引用了 sender 列，必须先删索引才能删列
+        conn.execute("DROP INDEX IF EXISTS ix_group_messages_sender")
         conn.execute("ALTER TABLE group_messages DROP COLUMN sender")
 
 
@@ -58,9 +60,10 @@ def run(db_path: str) -> None:
         log.info("Migration %s: applying — %s", VERSION, DESCRIPTION)
         try:
             migrate(conn)
+            from datetime import datetime
             conn.execute(
-                "INSERT INTO schema_migrations (version, description) VALUES (?, ?)",
-                (VERSION, DESCRIPTION),
+                "INSERT INTO schema_migrations (version, description, applied_at) VALUES (?, ?, ?)",
+                (VERSION, DESCRIPTION, datetime.now().isoformat()),
             )
             conn.commit()
             log.info("Migration %s: done", VERSION)

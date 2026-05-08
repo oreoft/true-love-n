@@ -39,9 +39,10 @@ def run(db_path: str) -> None:
         log.info("Migration %s: applying — %s", VERSION, DESCRIPTION)
         try:
             migrate(conn)
+            from datetime import datetime
             conn.execute(
-                "INSERT INTO schema_migrations (version, description) VALUES (?, ?)",
-                (VERSION, DESCRIPTION),
+                "INSERT INTO schema_migrations (version, description, applied_at) VALUES (?, ?, ?)",
+                (VERSION, DESCRIPTION, datetime.now().isoformat()),
             )
             conn.commit()
             log.info("Migration %s: done", VERSION)
