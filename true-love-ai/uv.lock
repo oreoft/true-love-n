@@ -1027,7 +1027,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "true-love-common"
-version = "0.1.0"
+version = "0.1.1"
 source = { directory = "../true-love-common" }
 
 [[package]]
