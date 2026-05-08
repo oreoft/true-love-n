@@ -2,6 +2,7 @@
 # True Love AI - Multi-stage Dockerfile
 # ============================================
 # 使用 uv 进行依赖管理的高效容器化构建
+# 构建上下文：repo 根目录（需要访问 ../true-love-common 路径依赖）
 
 # 基础镜像阶段 - 安装 uv
 FROM python:3.12-slim AS builder
@@ -12,17 +13,20 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # 设置工作目录
 WORKDIR /app
 
+# 复制 path 依赖（true-love-common），路径对应 pyproject.toml 中的 ../true-love-common
+COPY true-love-common/ /true-love-common/
+
 # 复制依赖文件
-COPY pyproject.toml uv.lock ./
+COPY true-love-ai/pyproject.toml true-love-ai/uv.lock ./
 
 # 使用 uv 安装依赖（利用缓存）
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project
 
 # 复制源代码
-COPY src/ ./src/
+COPY true-love-ai/src/ ./src/
 # migration 定义（db/migrate.py → src/migrate.py，供 db_engine import）
-COPY db/migrate.py ./src/migrate.py
+COPY true-love-ai/db/migrate.py ./src/migrate.py
 
 # 安装项目本身
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -42,9 +46,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app/src \
     APP_ENV=prod
-
-# 创建非 root 用户（可选，生产环境推荐）
-# RUN useradd --create-home --shell /bin/bash appuser
 
 WORKDIR /app
 
@@ -69,4 +70,3 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # 启动命令
 CMD ["python", "-m", "true_love_ai"]
-
