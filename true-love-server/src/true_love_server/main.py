@@ -5,6 +5,7 @@ Main Entry Point - 主入口
 启动真爱粉服务端。
 """
 
+import asyncio
 import signal
 import logging
 
@@ -20,14 +21,25 @@ LOG = logging.getLogger("Main")
 config = Config()
 
 
+def _run_async(coro):
+    """在当前线程创建独立事件循环执行协程，用于 event loop 启动前/信号处理中。"""
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(coro)
+    except Exception:
+        pass
+    finally:
+        loop.close()
+
+
 def notice_master():
     """启动通知和信号处理"""
     master = config.BASE_SERVER.get("master_name")
-    base_client.send_text(master, "", "真爱粉server启动成功...")
+    _run_async(base_client.send_text(master, "", "真爱粉server启动成功..."))
 
     def handler(sig, frame):
         """退出前清理环境"""
-        base_client.send_text(master, "", "真爱粉server正在关闭...")
+        _run_async(base_client.send_text(master, "", "真爱粉server正在关闭..."))
         exit(0)
 
     signal.signal(signal.SIGINT, handler)
