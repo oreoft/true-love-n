@@ -11,6 +11,23 @@ import requests
 LOG = logging.getLogger("BaseClient")
 
 
+def api_response_ok(res: requests.Response) -> tuple[bool, str]:
+    """检查 HTTP 和业务响应码。HTTP 200 但 code != 0 也算失败。"""
+    res.raise_for_status()
+    try:
+        data = res.json()
+    except Exception:
+        return True, ""
+
+    if isinstance(data, dict):
+        code = data.get("code", 0)
+        if str(code) != "0":
+            return False, data.get("message") or data.get("msg") or str(data)
+        if data.get("success") is False:
+            return False, data.get("message") or data.get("msg") or str(data)
+    return True, ""
+
+
 class BaseClient(ABC):
     """Base 服务客户端抽象接口，每个平台提供独立实现。"""
 

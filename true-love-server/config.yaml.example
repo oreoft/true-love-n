@@ -12,6 +12,9 @@
 # Base service address (base 服务地址)
 base_server:
   host: "http://localhost:5000"
+  hosts:
+    wechat: "http://localhost:5000"
+    lark: ""
   # Note: self_wxid is kept for backward compatibility but may not be needed
   self_wxid: "wxid_xxx"  
   master_wxid: "wxid_xxx"  # Your wxid for notifications
@@ -130,4 +133,3 @@ logging:
   root:
     level: INFO
     handlers: [console, info_file_handler, error_file_handler]
-

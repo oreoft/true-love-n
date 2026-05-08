@@ -38,12 +38,18 @@ def get_base_client(platform: str = "wechat") -> BaseClient:
     """根据平台名称返回对应的 BaseClient 实例。"""
     cfg = Config()
     base_server: dict = cfg.BASE_SERVER or {}
-    host = base_server.get("hosts", {}).get(platform, "")
+    if platform not in _REGISTRY:
+        raise ValueError(f"未注册的平台: {platform}")
+
+    hosts = base_server.get("hosts", {}) or {}
+    host = hosts.get(platform) or (base_server.get("host", "") if platform == "wechat" else "")
+    if not host:
+        raise ValueError(f"base_server.hosts.{platform} 未配置")
 
     token_list = cfg.HTTP_TOKEN or []
     token = token_list[0] if token_list else ""
 
-    client_cls = _REGISTRY.get(platform, WeChatBaseClient)
+    client_cls = _REGISTRY[platform]
     return client_cls(host=host, token=token)
 
 
@@ -56,10 +62,20 @@ def get_wechat_client() -> WeChatBaseClient:
 
 def send_text(send_receiver: str, at_receiver: str, content: str,
               platform: str = "wechat", raise_on_error: bool = False) -> tuple[bool, str]:
-    return get_base_client(platform).send_text(send_receiver, at_receiver, content,
-                                               raise_on_error=raise_on_error)
+    try:
+        return get_base_client(platform).send_text(send_receiver, at_receiver, content,
+                                                   raise_on_error=raise_on_error)
+    except Exception as e:
+        if raise_on_error:
+            raise
+        return False, str(e)
 
 
 def send_file(ref: str, receiver: str,
               platform: str = "wechat", raise_on_error: bool = False) -> tuple[bool, str]:
-    return get_base_client(platform).send_file(ref, receiver, raise_on_error=raise_on_error)
+    try:
+        return get_base_client(platform).send_file(ref, receiver, raise_on_error=raise_on_error)
+    except Exception as e:
+        if raise_on_error:
+            raise
+        return False, str(e)

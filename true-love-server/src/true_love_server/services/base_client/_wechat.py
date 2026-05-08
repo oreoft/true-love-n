@@ -7,7 +7,7 @@ import time
 
 import requests
 
-from ._interface import BaseClient, download_to_tmp
+from ._interface import BaseClient, api_response_ok, download_to_tmp
 
 LOG = logging.getLogger("WeChatBaseClient")
 _TIMEOUT = (2, 10)
@@ -35,8 +35,7 @@ class WeChatBaseClient(BaseClient):
         payload = json.dumps({"sendReceiver": receiver, "atReceiver": at_user, "content": content},
                              ensure_ascii=False)
         try:
-            self._post("send_text", url, payload).raise_for_status()
-            return True, ""
+            return api_response_ok(self._post("send_text", url, payload))
         except Exception as e:
             LOG.error("✗ [send_text][wechat] 失败: %s", e)
             if raise_on_error:
@@ -52,8 +51,7 @@ class WeChatBaseClient(BaseClient):
 
             url = f"{self.host}/send/file"
             payload = json.dumps({"path": actual_path, "sendReceiver": receiver}, ensure_ascii=False)
-            self._post("send_file", url, payload).raise_for_status()
-            return True, ""
+            return api_response_ok(self._post("send_file", url, payload))
         except Exception as e:
             LOG.error("✗ [send_file][wechat] 失败: %s", e)
             if raise_on_error:

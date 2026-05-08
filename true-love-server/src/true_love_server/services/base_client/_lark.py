@@ -7,7 +7,7 @@ import time
 
 import requests
 
-from ._interface import BaseClient
+from ._interface import BaseClient, api_response_ok
 
 LOG = logging.getLogger("LarkBaseClient")
 _TIMEOUT = (2, 10)
@@ -37,8 +37,7 @@ class LarkBaseClient(BaseClient):
             "at_user": at_user or "",
         }, ensure_ascii=False)
         try:
-            self._post("send_text", url, payload).raise_for_status()
-            return True, ""
+            return api_response_ok(self._post("send_text", url, payload))
         except Exception as e:
             LOG.error("✗ [send_text][lark] 失败: %s", e)
             if raise_on_error:
@@ -67,8 +66,7 @@ class LarkBaseClient(BaseClient):
             "resource": {"ref": ref, "source": "url" if ref.startswith("http") else "local"},
         }, ensure_ascii=False)
         try:
-            self._post("send_file", url, payload).raise_for_status()
-            return True, ""
+            return api_response_ok(self._post("send_file", url, payload))
         except Exception as e:
             LOG.error("✗ [send_file][lark] 失败: %s", e)
             if raise_on_error:

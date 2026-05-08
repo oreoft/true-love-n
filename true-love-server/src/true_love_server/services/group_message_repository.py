@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import logging
+import hashlib
 from dataclasses import asdict
 from typing import Optional
 
@@ -19,10 +20,12 @@ class GroupMessageRepository:
 
     def save(self, msg) -> bool:
         try:
+            platform = getattr(msg, "platform", "wechat")
+            msg_hash = getattr(msg, "msg_hash", "") or self._fallback_hash(msg, platform)
             group_msg = GroupMessage(
-                platform=getattr(msg, "platform", "wechat"),
+                platform=platform,
                 msg_id=msg.msg_id,
-                msg_hash=msg.msg_hash,
+                msg_hash=msg_hash,
                 msg_type=msg.msg_type,
                 sender_id=msg.sender_id,
                 sender_name=msg.sender_name or msg.sender_id,
@@ -40,16 +43,16 @@ class GroupMessageRepository:
             )
             self.session.add(group_msg)
             self.session.commit()
-            LOG.info("saved msg: platform=%s msg_hash=%s", group_msg.platform, msg.msg_hash)
+            LOG.info("saved msg: platform=%s msg_hash=%s", group_msg.platform, msg_hash)
             return True
         except IntegrityError:
             self.session.rollback()
-            LOG.warning("duplicate msg ignored: msg_hash=%s", msg.msg_hash)
-            return True
+            LOG.warning("duplicate msg ignored: msg_hash=%s", msg_hash)
+            return False
         except Exception as e:
             self.session.rollback()
             LOG.error("save failed: %s", e)
-            return False
+            return True
 
     @staticmethod
     def _serialize(field) -> Optional[str]:
@@ -60,6 +63,18 @@ class GroupMessageRepository:
         except Exception as e:
             LOG.warning("serialize field failed: %s", e)
             return None
+
+    @staticmethod
+    def _fallback_hash(msg, platform: str) -> str:
+        raw = "|".join([
+            platform or "",
+            getattr(msg, "chat_id", "") or "",
+            getattr(msg, "msg_id", "") or "",
+            getattr(msg, "sender_id", "") or "",
+            getattr(msg, "msg_type", "") or "",
+            getattr(msg, "content", "") or "",
+        ])
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
     def get_messages(self, chat_id: str, sender_id: str = None, sender_name: str = None,
                      limit: int = 100, tail_id: int = None,

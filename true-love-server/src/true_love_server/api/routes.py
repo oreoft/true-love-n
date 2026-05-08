@@ -149,6 +149,13 @@ def _trigger_ai(msg: ChatMsg) -> None:
             timeout=(5,10),
         )
         resp.raise_for_status()
+        try:
+            data = resp.json()
+        except Exception:
+            data = {}
+        if isinstance(data, dict) and str(data.get("code", 0)) != "0":
+            LOG.error("AI trigger 返回业务失败: sender_id=%s res=%s", msg.sender_id, data)
+            return
         LOG.info("AI trigger 成功: sender_id=%s", msg.sender_id)
     except Exception as e:
         LOG.error("AI trigger 失败: sender_id=%s, err=%s", msg.sender_id, e)

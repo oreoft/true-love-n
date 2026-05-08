@@ -71,7 +71,7 @@ class AgentLoop:
         user_content = self._build_user_content(msg)
         if not user_content:
             LOG.warning("无法解析消息内容，跳过: type=%s", msg_type)
-            await self._send_reply(receiver, "抱歉，这种消息我暂时还不太看得懂呢~", at_user)
+            await self._send_reply(receiver, "抱歉，这种消息我暂时还不太看得懂呢~", at_user, platform=platform)
             return
 
         # 获取用户画像并注入 session
@@ -176,10 +176,13 @@ class AgentLoop:
             return content or None
 
         if msg_type == "file":
-            ref = msg.file_msg.resource.ref if (msg.file_msg and msg.file_msg.resource) else ""
+            resource = msg.file_msg.resource if msg.file_msg else None
+            ref = resource.ref if resource else ""
+            source = resource.source if resource else "local"
+            resource_str = f"{source}:{ref}" if source != "local" else ref
             if ref:
                 desc = content or "请分析这个文件"
-                return f"[文件:{ref}] {desc}"
+                return f"[文件:{resource_str}] {desc}"
             return content or None
 
         if msg_type == "video":
@@ -191,7 +194,11 @@ class AgentLoop:
             q_content = quoted.content
 
             def _get_ref(sub_msg) -> str:
-                return sub_msg.resource.ref if (sub_msg and sub_msg.resource) else ""
+                if not sub_msg or not sub_msg.resource:
+                    return ""
+                ref = sub_msg.resource.ref
+                source = sub_msg.resource.source
+                return f"{source}:{ref}" if source != "local" else ref
 
             if q_type == "image":
                 ref = _get_ref(quoted.image_msg)

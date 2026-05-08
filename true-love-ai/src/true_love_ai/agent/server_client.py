@@ -147,7 +147,9 @@ async def fetch_media_bytes(ref: str, source: str = "local", timeout: float = 15
         if maybe_source in ("lark", "url", "local"):
             source, ref = maybe_source, maybe_ref
 
-    if source == "url":
+    if ref.startswith("http://") or ref.startswith("https://"):
+        url = ref
+    elif source == "url":
         url = ref
     elif source == "lark":
         lark_host = (get_config().base_server.lark_host or "").rstrip("/")
