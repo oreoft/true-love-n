@@ -78,8 +78,7 @@ async def send_msg(request: dict):
     if not receiver_map.get(send_receiver) or not content:
         raise ValidationException("诶嘿~接收者没注册或者内容是空的呢，检查一下吧~")
 
-    # 开始发送（同步接口，失败需要返回错误）
-    success, error_msg = base_client.send_text(
+    success, error_msg = await base_client.send_text(
         receiver_map.get(send_receiver, ""),
         receiver_map.get(at_receiver, ""),
         content
@@ -344,7 +343,7 @@ async def get_all_message(request: dict):
     if not chat_name:
         raise ValidationException("chat_name 不能为空哦~")
 
-    result = base_client.get_wechat_client().execute_chat(chat_name, "GetAllMessage", {})
+    result = await base_client.get_wechat_client().execute_chat(chat_name, "GetAllMessage", {})
     if not result.get("success"):
         raise ValidationException(result.get("message", "获取消息失败"))
     return ApiResponse(data=result)

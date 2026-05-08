@@ -60,21 +60,21 @@ def get_wechat_client() -> WeChatBaseClient:
 
 # ==================== 跨平台模块级快捷函数 ====================
 
-def send_text(send_receiver: str, at_receiver: str, content: str,
-              platform: str = "wechat", raise_on_error: bool = False) -> tuple[bool, str]:
+async def send_text(send_receiver: str, at_receiver: str, content: str,
+                    platform: str = "wechat", raise_on_error: bool = False) -> tuple[bool, str]:
     try:
-        return get_base_client(platform).send_text(send_receiver, at_receiver, content,
-                                                   raise_on_error=raise_on_error)
+        return await get_base_client(platform).send_text(send_receiver, at_receiver, content,
+                                                         raise_on_error=raise_on_error)
     except Exception as e:
         if raise_on_error:
             raise
         return False, str(e)
 
 
-def send_file(ref: str, receiver: str,
-              platform: str = "wechat", raise_on_error: bool = False) -> tuple[bool, str]:
+async def send_file(ref: str, receiver: str,
+                    platform: str = "wechat", raise_on_error: bool = False) -> tuple[bool, str]:
     try:
-        return get_base_client(platform).send_file(ref, receiver, raise_on_error=raise_on_error)
+        return await get_base_client(platform).send_file(ref, receiver, raise_on_error=raise_on_error)
     except Exception as e:
         if raise_on_error:
             raise

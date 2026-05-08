@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
-from true_love_common.http.client import HttpResult, get, trace_headers
+from true_love_common.http.client import HttpResult, async_get, get, trace_headers
 
 LOG = logging.getLogger("BaseClient")
 
@@ -37,13 +37,13 @@ class BaseClient(ABC):
         self.token = token
 
     @abstractmethod
-    def send_text(self, receiver: str, at_user: str, content: str,
-                  raise_on_error: bool = False) -> tuple[bool, str]:
+    async def send_text(self, receiver: str, at_user: str, content: str,
+                        raise_on_error: bool = False) -> tuple[bool, str]:
         """发送文本消息。"""
 
     @abstractmethod
-    def send_file(self, ref: str, receiver: str,
-                  raise_on_error: bool = False) -> tuple[bool, str]:
+    async def send_file(self, ref: str, receiver: str,
+                        raise_on_error: bool = False) -> tuple[bool, str]:
         """
         发送文件。
 
@@ -64,7 +64,7 @@ def _download_dir_for(suffix: str) -> Path:
     return Path("files-save")
 
 
-def download_to_tmp(url: str) -> str:
+async def download_to_tmp(url: str) -> str:
     """从 URL 下载到 Base/Server 共享目录，返回 Base 可解析的相对路径。"""
     url_path = unquote(urlparse(url).path)
     filename = Path(url_path).name or "download.bin"
@@ -74,7 +74,7 @@ def download_to_tmp(url: str) -> str:
 
     file_path = save_dir / filename
     LOG.info("→ 下载资源: %s", url)
-    resp = get(url, timeout=(10, 60))
+    resp = await async_get(url, timeout=(10, 60))
     resp.raise_for_status()
     file_path.write_bytes(resp.content)
     rel_path = file_path.as_posix()

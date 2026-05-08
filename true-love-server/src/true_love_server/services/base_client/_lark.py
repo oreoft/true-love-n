@@ -4,7 +4,7 @@
 import json
 import logging
 
-from true_love_common.http.client import HttpResult, post
+from true_love_common.http.client import HttpResult, async_post
 
 from ._interface import BaseClient, api_response_ok, trace_headers
 
@@ -14,16 +14,16 @@ _TIMEOUT = (2, 10)
 
 class LarkBaseClient(BaseClient):
 
-    def _post(self, label: str, url: str, payload: str) -> HttpResult:
-        return post(
+    async def _post(self, label: str, url: str, payload: str) -> HttpResult:
+        return await async_post(
             url,
             headers=trace_headers({"Content-Type": "application/json"}),
             data=payload,
             timeout=_TIMEOUT,
         )
 
-    def send_text(self, receiver: str, at_user: str, content: str,
-                  raise_on_error: bool = False) -> tuple[bool, str]:
+    async def send_text(self, receiver: str, at_user: str, content: str,
+                        raise_on_error: bool = False) -> tuple[bool, str]:
         url = f"{self.host}/action/send"
         payload = json.dumps({
             "token": self.token,
@@ -32,7 +32,7 @@ class LarkBaseClient(BaseClient):
             "at_user": at_user or "",
         }, ensure_ascii=False)
         try:
-            return api_response_ok(self._post("send_text", url, payload))
+            return api_response_ok(await self._post("send_text", url, payload))
         except Exception as e:
             LOG.error("Lark send_text failed: %s", e)
             if raise_on_error:
@@ -50,8 +50,8 @@ class LarkBaseClient(BaseClient):
             return "audio"
         return "file"
 
-    def send_file(self, ref: str, receiver: str,
-                  raise_on_error: bool = False) -> tuple[bool, str]:
+    async def send_file(self, ref: str, receiver: str,
+                        raise_on_error: bool = False) -> tuple[bool, str]:
         """Lark 出站文件只透传 AI 图床 URL，由 lark-agent-base 负责上传到 Lark。"""
         if not ref.startswith("http://") and not ref.startswith("https://"):
             return False, f"Lark 文件发送只支持 URL: {ref}"
@@ -64,7 +64,7 @@ class LarkBaseClient(BaseClient):
             "url": ref,
         }, ensure_ascii=False)
         try:
-            return api_response_ok(self._post("send_file", url, payload))
+            return api_response_ok(await self._post("send_file", url, payload))
         except Exception as e:
             LOG.error("Lark send_file failed: %s", e)
             if raise_on_error:
