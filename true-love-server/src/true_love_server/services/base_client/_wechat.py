@@ -15,10 +15,12 @@ _TIMEOUT = (2, 10)
 class WeChatBaseClient(BaseClient):
 
     def _post(self, label: str, url: str, payload: str) -> HttpResult:
-        LOG.info("→ [%s] req:[%s]", label, payload[:500])
-        res = post(url, headers=trace_headers({"Content-Type": "application/json"}), data=payload, timeout=_TIMEOUT)
-        LOG.info("← [%s] cost:[%.0fms] code:[%s] res:[%s]", label, res.cost_ms, res.status_code, res.text[:500])
-        return res
+        return post(
+            url,
+            headers=trace_headers({"Content-Type": "application/json"}),
+            data=payload,
+            timeout=_TIMEOUT,
+        )
 
     # ==================== 通用接口实现 ====================
 
@@ -30,7 +32,7 @@ class WeChatBaseClient(BaseClient):
         try:
             return api_response_ok(self._post("send_text", url, payload))
         except Exception as e:
-            LOG.error("✗ [send_text][wechat] 失败: %s", e)
+            LOG.error("WeChat send_text failed: %s", e)
             if raise_on_error:
                 raise
             return False, str(e)
@@ -43,7 +45,7 @@ class WeChatBaseClient(BaseClient):
             payload = json.dumps({"path": download_to_tmp(ref), "sendReceiver": receiver}, ensure_ascii=False)
             return api_response_ok(self._post("send_file", url, payload))
         except Exception as e:
-            LOG.error("✗ [send_file][wechat] 失败: %s", e)
+            LOG.error("WeChat send_file failed: %s", e)
             if raise_on_error:
                 raise
             return False, str(e)
@@ -63,7 +65,7 @@ class WeChatBaseClient(BaseClient):
             res.raise_for_status()
             return (res.data or {})["data"]
         except Exception as e:
-            LOG.error("✗ [get_by_room_id] 失败: %s", e)
+            LOG.error("WeChat get_by_room_id failed: %s", e)
         return {}
 
     def add_listen_chat(self, nickname: str) -> dict:
@@ -74,7 +76,7 @@ class WeChatBaseClient(BaseClient):
             result = res.data or {}
             return {"success": result.get("code") == 0, "data": result.get("data"), "message": result.get("msg", "")}
         except Exception as e:
-            LOG.error("✗ [add_listen_chat] 失败: %s", e)
+            LOG.error("WeChat add_listen_chat failed: %s", e)
             return {"success": False, "data": None, "message": str(e)}
 
     def execute_wx(self, method_name: str, params: dict = None) -> dict:
@@ -85,7 +87,7 @@ class WeChatBaseClient(BaseClient):
             result = res.data or {}
             return {"success": result.get("code") == 0, "data": result.get("data"), "message": result.get("msg", "")}
         except Exception as e:
-            LOG.error("✗ [execute_wx] 失败: %s", e)
+            LOG.error("WeChat execute_wx failed: %s", e)
             return {"success": False, "data": None, "message": str(e)}
 
     def execute_chat(self, chat_name: str, method_name: str, params: dict = None) -> dict:
@@ -97,7 +99,7 @@ class WeChatBaseClient(BaseClient):
             result = res.data or {}
             return {"success": result.get("code") == 0, "data": result.get("data"), "message": result.get("msg", "")}
         except Exception as e:
-            LOG.error("✗ [execute_chat] 失败: %s", e)
+            LOG.error("WeChat execute_chat failed: %s", e)
             return {"success": False, "data": None, "message": str(e)}
 
     def batch_chat_info(self, chat_names: list[str]) -> dict:
@@ -110,5 +112,5 @@ class WeChatBaseClient(BaseClient):
             result = res.data or {}
             return {"success": result.get("code") == 0, "data": result.get("data"), "message": result.get("msg", "")}
         except Exception as e:
-            LOG.error("✗ [batch_chat_info] 失败: %s", e)
+            LOG.error("WeChat batch_chat_info failed: %s", e)
             return {"success": False, "data": None, "message": str(e)}

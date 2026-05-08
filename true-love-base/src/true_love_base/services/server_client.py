@@ -137,8 +137,6 @@ def get_chat(msg: ChatMsg) -> str:
         request = ChatRequest(token=config.http_token, message=msg)
         payload = request.to_json()
 
-        LOG.info("→ [/on-message] req:[%s]", payload[:500])
-
         # 使用 Session 发起请求（连接复用）
         session = _get_session()
         response = post(
@@ -148,8 +146,6 @@ def get_chat(msg: ChatMsg) -> str:
             timeout=(2, 10),
             session=session,
         )
-
-        LOG.info("← [/on-message] cost:[%.0fms] code:[%s]", response.cost_ms, response.status_code)
 
         # 检查 HTTP 状态
         response.raise_for_status()
@@ -162,11 +158,11 @@ def get_chat(msg: ChatMsg) -> str:
             _circuit_breaker.record_success()
             return chat_response.data or ""
         else:
-            LOG.error("✗ [/on-message] server 返回错误: %s", resp_data)
+            LOG.error("Server /on-message returned business error: %s", resp_data)
             return _get_error_message()
 
     except Exception as e:
-        LOG.error("✗ [/on-message] 异常: %s", e)
+        LOG.error("Server /on-message failed: %s", e)
         _circuit_breaker.record_failure()
         return _get_error_message()
 

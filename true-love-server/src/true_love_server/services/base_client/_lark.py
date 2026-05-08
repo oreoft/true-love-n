@@ -15,10 +15,12 @@ _TIMEOUT = (2, 10)
 class LarkBaseClient(BaseClient):
 
     def _post(self, label: str, url: str, payload: str) -> HttpResult:
-        LOG.info("→ [%s] req:[%s]", label, payload[:500])
-        res = post(url, headers=trace_headers({"Content-Type": "application/json"}), data=payload, timeout=_TIMEOUT)
-        LOG.info("← [%s] cost:[%.0fms] code:[%s] res:[%s]", label, res.cost_ms, res.status_code, res.text[:500])
-        return res
+        return post(
+            url,
+            headers=trace_headers({"Content-Type": "application/json"}),
+            data=payload,
+            timeout=_TIMEOUT,
+        )
 
     def send_text(self, receiver: str, at_user: str, content: str,
                   raise_on_error: bool = False) -> tuple[bool, str]:
@@ -32,7 +34,7 @@ class LarkBaseClient(BaseClient):
         try:
             return api_response_ok(self._post("send_text", url, payload))
         except Exception as e:
-            LOG.error("✗ [send_text][lark] 失败: %s", e)
+            LOG.error("Lark send_text failed: %s", e)
             if raise_on_error:
                 raise
             return False, str(e)
@@ -64,7 +66,7 @@ class LarkBaseClient(BaseClient):
         try:
             return api_response_ok(self._post("send_file", url, payload))
         except Exception as e:
-            LOG.error("✗ [send_file][lark] 失败: %s", e)
+            LOG.error("Lark send_file failed: %s", e)
             if raise_on_error:
                 raise
             return False, str(e)

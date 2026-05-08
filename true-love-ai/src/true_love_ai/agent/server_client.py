@@ -6,7 +6,6 @@ AI Agent 执行完后，通过这个客户端调用 Server 的 /action/* 接口
 来完成 WeChat 操作（发消息、管理提醒、管理监听等）。
 """
 
-import json
 import logging
 
 from true_love_common.http.client import async_get, async_post_json, post_json
@@ -29,13 +28,10 @@ def _post(path: str, payload: dict, timeout: float = 10.0) -> dict:
     """同步 POST"""
     url = f"{_get_server_url()}{path}"
     payload["token"] = _get_token()
-    req_str = json.dumps(payload, ensure_ascii=False)
-    LOG.info("→ [%s] req:[%s]", path, req_str[:500])
     result = post_json(url, payload, timeout=timeout)
-    LOG.info("← [%s] cost:[%.0fms] code:[%s] res:[%s]", path, result.cost_ms, result.status_code, result.text[:500])
     if result.ok:
         return result.data if isinstance(result.data, dict) else {}
-    LOG.error("✗ [%s] 失败: %s", path, result.error or result.text)
+    LOG.error("Server callback failed path=%s error=%s", path, result.error or result.text)
     return {"code": -1, "msg": result.error or result.text}
 
 
@@ -43,13 +39,10 @@ async def _async_post(path: str, payload: dict, timeout: float = 10.0) -> dict:
     """异步 POST"""
     url = f"{_get_server_url()}{path}"
     payload["token"] = _get_token()
-    req_str = json.dumps(payload, ensure_ascii=False)
-    LOG.info("→ [%s] req:[%s]", path, req_str[:500])
     result = await async_post_json(url, payload, timeout=timeout)
-    LOG.info("← [%s] cost:[%.0fms] code:[%s] res:[%s]", path, result.cost_ms, result.status_code, result.text[:500])
     if result.ok:
         return result.data if isinstance(result.data, dict) else {}
-    LOG.error("✗ [%s] 失败: %s", path, result.error or result.text)
+    LOG.error("Server callback failed path=%s error=%s", path, result.error or result.text)
     return {"code": -1, "msg": result.error or result.text}
 
 
