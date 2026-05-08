@@ -7,7 +7,7 @@ import time
 
 import requests
 
-from ._interface import BaseClient, api_response_ok
+from ._interface import BaseClient, api_response_ok, trace_headers
 
 LOG = logging.getLogger("LarkBaseClient")
 _TIMEOUT = (2, 10)
@@ -18,7 +18,7 @@ class LarkBaseClient(BaseClient):
     def _post(self, label: str, url: str, payload: str) -> requests.Response:
         LOG.info("→ [%s] req:[%s]", label, payload[:500])
         start = time.time()
-        res = requests.post(url, headers={"Content-Type": "application/json"},
+        res = requests.post(url, headers=trace_headers({"Content-Type": "application/json"}),
                             data=payload, timeout=_TIMEOUT)
         cost = (time.time() - start) * 1000
         try:

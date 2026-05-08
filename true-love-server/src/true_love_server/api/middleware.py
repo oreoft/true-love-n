@@ -30,12 +30,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         # 检查是否跳过日志
         skip_log = request.url.path in self.SKIP_LOG_PATHS
 
-        # 提取或生成 trace_id
-        from true_love_server.core.trace import set_trace_id
-        trace_id = request.headers.get("X-Trace-ID", "")
-        if not trace_id:
-            trace_id = str(uuid.uuid4())[:8]
-        set_trace_id(trace_id)
+        # 提取或生成 GCP trace context
+        from true_love_server.core.trace import GCP_TRACE_HEADER, get_gcp_trace_header, set_trace_from_gcp_header
+        set_trace_from_gcp_header(request.headers.get(GCP_TRACE_HEADER))
 
         # 记录请求开始时间
         start_time = time.time()
@@ -61,6 +58,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         # 处理请求
         response = await call_next(request)
+        response.headers[GCP_TRACE_HEADER] = get_gcp_trace_header()
 
         # 计算耗时
         cost = (time.time() - start_time) * 1000

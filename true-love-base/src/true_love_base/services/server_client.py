@@ -138,14 +138,14 @@ def get_chat(msg: ChatMsg) -> str:
 
         LOG.info("→ [/on-message] req:[%s]", payload[:500])
 
-        from true_love_base.core.trace import get_trace_id
+        from true_love_base.core.trace import GCP_TRACE_HEADER, get_gcp_trace_header
         # 使用 Session 发起请求（连接复用）
         session = _get_session()
         start_time = time.time()
         response = session.post(
             CHAT_ENDPOINT,
             data=payload,
-            headers={"X-Trace-ID": get_trace_id()},
+            headers={GCP_TRACE_HEADER: get_gcp_trace_header()},
             timeout=(2, 10),
         )
 
@@ -187,5 +187,4 @@ def _get_error_message() -> str:
     if _circuit_breaker.fail_count < 3:
         return "啊哦~，可能内容太长搬运超时，再试试捏"
     return "啊哦~, 服务正在重新调整，请稍后重试再试"
-
 

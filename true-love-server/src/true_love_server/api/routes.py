@@ -142,11 +142,11 @@ def _trigger_ai(msg: ChatMsg) -> None:
         "msg": msg.to_dict(),
     }
     try:
-        from true_love_server.core.trace import get_trace_id
+        from true_love_server.core.trace import GCP_TRACE_HEADER, get_gcp_trace_header
         resp = requests.post(
             f"{ai_host}/trigger",
             json=payload,
-            headers={"X-Trace-ID": get_trace_id()},
+            headers={GCP_TRACE_HEADER: get_gcp_trace_header()},
             timeout=(5,10),
         )
         resp.raise_for_status()

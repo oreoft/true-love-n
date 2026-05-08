@@ -37,13 +37,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         # 检查是否跳过日志
         skip_log = request.url.path in self.SKIP_LOG_PATHS
         
-        # 提取或生成 trace_id
-        import uuid as _uuid
-        from true_love_ai.core.trace import set_trace_id
-        trace_id = request.headers.get("X-Trace-ID", "")
-        if not trace_id:
-            trace_id = str(_uuid.uuid4())[:8]
-        set_trace_id(trace_id)
+        # 提取或生成 GCP trace context
+        from true_love_ai.core.trace import GCP_TRACE_HEADER, get_gcp_trace_header, set_trace_from_gcp_header
+        set_trace_from_gcp_header(request.headers.get(GCP_TRACE_HEADER))
 
         # 请求日志
         body = b""
@@ -90,9 +86,11 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             )
         
         # 重新构建响应（因为body_iterator已被消费）
+        headers = dict(response.headers)
+        headers[GCP_TRACE_HEADER] = get_gcp_trace_header()
         return Response(
             content=response_body,
             status_code=response.status_code,
-            headers=dict(response.headers),
+            headers=headers,
             media_type=response.media_type
         )

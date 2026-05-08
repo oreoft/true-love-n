@@ -1,12 +1,34 @@
 # -*- coding: utf-8 -*-
-from contextvars import ContextVar
+"""Trace helpers re-exported from true-love-common."""
 
-_trace_id: ContextVar[str] = ContextVar('trace_id', default='-')
+from true_love_common.observability.trace import (
+    GCP_TRACE_HEADER,
+    TraceContext,
+    clear_trace_context,
+    get_gcp_trace_header,
+    get_span_id,
+    get_trace_context,
+    get_trace_id,
+    is_trace_sampled,
+    new_span_id,
+    new_trace_id,
+    set_trace_context,
+    set_trace_from_gcp_header,
+    set_trace_id,
+)
 
-
-def get_trace_id() -> str:
-    return _trace_id.get()
-
-
-def set_trace_id(tid: str) -> None:
-    _trace_id.set(tid or '-')
+__all__ = [
+    "GCP_TRACE_HEADER",
+    "TraceContext",
+    "clear_trace_context",
+    "get_gcp_trace_header",
+    "get_span_id",
+    "get_trace_context",
+    "get_trace_id",
+    "is_trace_sampled",
+    "new_span_id",
+    "new_trace_id",
+    "set_trace_context",
+    "set_trace_from_gcp_header",
+    "set_trace_id",
+]

@@ -27,8 +27,8 @@ def _get_token() -> str:
 
 
 def _trace_headers() -> dict:
-    from true_love_ai.core.trace import get_trace_id
-    return {"X-Trace-ID": get_trace_id()}
+    from true_love_ai.core.trace import GCP_TRACE_HEADER, get_gcp_trace_header
+    return {GCP_TRACE_HEADER: get_gcp_trace_header()}
 
 
 def _post(path: str, payload: dict, timeout: float = 10.0) -> dict:

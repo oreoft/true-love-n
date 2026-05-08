@@ -11,6 +11,14 @@ import requests
 LOG = logging.getLogger("BaseClient")
 
 
+def trace_headers(extra: dict[str, str] | None = None) -> dict[str, str]:
+    from true_love_server.core.trace import GCP_TRACE_HEADER, get_gcp_trace_header
+
+    headers = dict(extra or {})
+    headers[GCP_TRACE_HEADER] = get_gcp_trace_header()
+    return headers
+
+
 def api_response_ok(res: requests.Response) -> tuple[bool, str]:
     """检查 HTTP 和业务响应码。HTTP 200 但 code != 0 也算失败。"""
     res.raise_for_status()
@@ -73,7 +81,7 @@ def download_to_tmp(url: str) -> str:
 
     file_path = save_dir / filename
     LOG.info("→ 下载资源: %s", url)
-    resp = requests.get(url, timeout=(10, 60))
+    resp = requests.get(url, headers=trace_headers(), timeout=(10, 60))
     resp.raise_for_status()
     file_path.write_bytes(resp.content)
     rel_path = file_path.as_posix()

@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from queue import Queue
 from typing import Any, Optional
 
-from true_love_common.observability.sanitize import sanitize_value
+from true_love_common.observability.sanitize import sanitize_text, sanitize_value
 from true_love_common.observability.trace import get_span_id, get_trace_id
 
 
@@ -38,7 +38,7 @@ class JsonFormatter(logging.Formatter):
             "level": record.levelname,
             "service": self.service_name,
             "logger": record.name,
-            "message": record.getMessage(),
+            "message": sanitize_text(record.getMessage()),
             "trace_id": getattr(record, "trace_id", get_trace_id()),
             "span_id": getattr(record, "span_id", get_span_id()),
         }
@@ -90,6 +90,11 @@ class LoggingConfig:
         log_level: int = logging.INFO,
         json_format: bool = True,
         enable_async: bool = False,
+        queue_size: int = 10000,
+        enable_loki: bool = False,
+        loki_url: str = "",
+        loki_user_id: str = "",
+        loki_api_key: str = "",
     ) -> None:
         if cls._initialized:
             return
@@ -106,6 +111,28 @@ class LoggingConfig:
         console_handler.setLevel(log_level)
         console_handler.setFormatter(formatter)
         console_handler.addFilter(trace_filter)
+        handlers: list[logging.Handler] = [console_handler]
+
+        loki_enabled = False
+        if enable_loki and loki_url and loki_user_id and loki_api_key:
+            try:
+                from logging_loki import LokiQueueHandler
+
+                loki_handler = LokiQueueHandler(
+                    Queue(queue_size),
+                    url=f"{loki_url.rstrip('/')}/loki/api/v1/push",
+                    tags={"service_name": service_name},
+                    auth=(loki_user_id, loki_api_key),
+                    version="1",
+                )
+                loki_handler.setLevel(log_level)
+                loki_handler.addFilter(trace_filter)
+                handlers.append(loki_handler)
+                loki_enabled = True
+            except ImportError:
+                print("[LoggingConfig] 警告: 未安装 python-logging-loki，Loki 推送已禁用")
+            except Exception as e:
+                print(f"[LoggingConfig] 警告: 无法创建 LokiHandler: {e}")
 
         root_logger = logging.getLogger()
         root_logger.setLevel(log_level)
@@ -113,9 +140,10 @@ class LoggingConfig:
         root_logger.addFilter(trace_filter)
 
         if enable_async:
-            cls._setup_async_logging(root_logger, [console_handler])
+            cls._setup_async_logging(root_logger, handlers, trace_filter)
         else:
-            root_logger.addHandler(console_handler)
+            for handler in handlers:
+                root_logger.addHandler(handler)
 
         cls._initialized = True
         logging.getLogger("LoggingConfig").info(
@@ -123,6 +151,7 @@ class LoggingConfig:
             service_name,
             json_format,
             enable_async,
+            extra={"extra_fields": {"loki": loki_enabled}},
         )
 
     @classmethod
@@ -140,10 +169,12 @@ class LoggingConfig:
         cls,
         root_logger: logging.Logger,
         handlers: list[logging.Handler],
+        trace_filter: logging.Filter,
     ) -> None:
         cls._log_queue = Queue(-1)
         queue_handler = logging.handlers.QueueHandler(cls._log_queue)
         queue_handler.setLevel(logging.DEBUG)
+        queue_handler.addFilter(trace_filter)
         root_logger.addHandler(queue_handler)
 
         cls._log_listener = logging.handlers.QueueListener(
