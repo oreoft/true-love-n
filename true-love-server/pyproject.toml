@@ -31,7 +31,7 @@ build-backend = "hatchling.build"
 packages = ["src/true_love_server"]
 
 [tool.uv.sources]
-true-love-common = { path = "../true-love-common" }
+true-love-common = { path = "../true-love-common", editable = true }
 
 [tool.hatch.build]
 sources = ["src"]

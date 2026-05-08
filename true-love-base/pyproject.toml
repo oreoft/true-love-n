@@ -31,6 +31,6 @@ build-backend = "hatchling.build"
 packages = ["src/true_love_base"]
 
 [tool.uv.sources]
-true-love-common = { path = "../true-love-common" }
+true-love-common = { path = "../true-love-common", editable = true }
 
 # $env:UV_PROJECT_ENVIRONMENT="C:\Users\admin\.venvs\true-love-base"; $env:UV_VENV_PATH=$env:UV_PROJECT_ENVIRONMENT
