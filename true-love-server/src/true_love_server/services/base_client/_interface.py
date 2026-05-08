@@ -2,8 +2,9 @@
 """BaseClient 抽象接口 + 公共工具"""
 
 import logging
-import tempfile
 from abc import ABC, abstractmethod
+from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 import requests
 
@@ -33,19 +34,31 @@ class BaseClient(ABC):
         """
 
 
-def download_to_tmp(url: str) -> str:
-    """从 URL 下载文件到临时目录，返回临时文件路径。后缀从 URL 路径推断。"""
-    url_path = url.split("?")[0]
-    if "." in url_path.rsplit("/", 1)[-1]:
-        suffix = "." + url_path.rsplit(".", 1)[-1].lower()
-    else:
-        suffix = ".bin"
+_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
+_VIDEO_EXTS = {".mp4", ".mov", ".avi", ".mkv"}
 
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+
+def _download_dir_for(suffix: str) -> Path:
+    if suffix in _IMAGE_EXTS:
+        return Path("gen-img")
+    if suffix in _VIDEO_EXTS:
+        return Path("gen-video")
+    return Path("files-save")
+
+
+def download_to_tmp(url: str) -> str:
+    """从 URL 下载到 Base/Server 共享目录，返回 Base 可解析的相对路径。"""
+    url_path = unquote(urlparse(url).path)
+    filename = Path(url_path).name or "download.bin"
+    suffix = Path(filename).suffix.lower() or ".bin"
+    save_dir = _download_dir_for(suffix)
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    file_path = save_dir / filename
     LOG.info("→ 下载资源: %s", url)
     resp = requests.get(url, timeout=(10, 60))
     resp.raise_for_status()
-    tmp.write(resp.content)
-    tmp.close()
-    LOG.info("← 写入临时文件: %s (%d bytes)", tmp.name, len(resp.content))
-    return tmp.name
+    file_path.write_bytes(resp.content)
+    rel_path = file_path.as_posix()
+    LOG.info("← 写入共享文件: %s (%d bytes)", rel_path, len(resp.content))
+    return rel_path

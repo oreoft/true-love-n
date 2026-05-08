@@ -3,7 +3,6 @@
 
 import json
 import logging
-import os
 import time
 
 import requests
@@ -46,13 +45,10 @@ class WeChatBaseClient(BaseClient):
 
     def send_file(self, ref: str, receiver: str,
                   raise_on_error: bool = False) -> tuple[bool, str]:
-        """ref 为 URL 时先下载到临时文件，为本地路径时直接发送。"""
+        """ref 为 URL 时先下载到共享目录，为本地路径时直接发送。"""
         is_url = ref.startswith("http://") or ref.startswith("https://")
-        tmp_path = None
         try:
             actual_path = download_to_tmp(ref) if is_url else ref
-            if is_url:
-                tmp_path = actual_path
 
             url = f"{self.host}/send/file"
             payload = json.dumps({"path": actual_path, "sendReceiver": receiver}, ensure_ascii=False)
@@ -63,12 +59,6 @@ class WeChatBaseClient(BaseClient):
             if raise_on_error:
                 raise
             return False, str(e)
-        finally:
-            if tmp_path:
-                try:
-                    os.unlink(tmp_path)
-                except Exception:
-                    pass
 
     # ==================== WeChat 专属操作 ====================
 
