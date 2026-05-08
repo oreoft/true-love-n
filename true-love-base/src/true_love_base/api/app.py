@@ -3,6 +3,7 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from true_love_common.integrations.fastapi import HttpLoggingMiddleware
 
 from true_love_base.api.routes import router
 
@@ -15,6 +16,12 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+    )
+    application.add_middleware(
+        HttpLoggingMiddleware,
+        service_name="tl-base",
+        skip_paths={"/ping"},
+        max_response_body_chars=200,
     )
     application.include_router(router)
     return application

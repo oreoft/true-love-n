@@ -8,8 +8,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from true_love_common.integrations.fastapi import HttpLoggingMiddleware
 
-from true_love_ai.api.middleware import LoggingMiddleware, TimingMiddleware
 from true_love_ai.api.routes import router
 from true_love_ai.api.trigger_routes import trigger_router
 from true_love_ai.api.data_routes import data_router
@@ -46,9 +46,12 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # 自定义中间件（注意顺序：后添加的先执行，TimingMiddleware 需要在 LoggingMiddleware 之前执行完）
-    application.add_middleware(TimingMiddleware)
-    application.add_middleware(LoggingMiddleware)
+    application.add_middleware(
+        HttpLoggingMiddleware,
+        service_name="tl-ai",
+        skip_paths={"/health"},
+        max_response_body_chars=200,
+    )
 
     # 注册路由
     application.include_router(router)

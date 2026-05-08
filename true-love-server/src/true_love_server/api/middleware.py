@@ -1,79 +1,11 @@
 # -*- coding: utf-8 -*-
-"""
-Middleware - 中间件
+"""Middleware - 中间件"""
 
-请求/响应日志记录等中间件。
-"""
-
-import logging
-import time
-import uuid
-
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
+from true_love_common.integrations.fastapi import HttpLoggingMiddleware
 
-LOG = logging.getLogger("Middleware")
-
-
-class RequestLoggingMiddleware(BaseHTTPMiddleware):
-    """请求日志中间件"""
-
-    # 不记录日志的路径（健康检查等高频接口）
-    SKIP_LOG_PATHS = {"/health", "/ping", "/admin/loki/logs"}
-
-    async def dispatch(self, request: Request, call_next):
-        # 生成请求 ID
-        request_id = str(uuid.uuid4())[:8]
-        request.state.request_id = request_id
-
-        # 检查是否跳过日志
-        skip_log = request.url.path in self.SKIP_LOG_PATHS
-
-        # 提取或生成 GCP trace context
-        from true_love_server.core.trace import GCP_TRACE_HEADER, get_gcp_trace_header, set_trace_from_gcp_header
-        set_trace_from_gcp_header(request.headers.get(GCP_TRACE_HEADER))
-
-        # 记录请求开始时间
-        start_time = time.time()
-
-        # 获取请求体（需要缓存以便后续使用）
-        body = await request.body()
-        body_text = body.decode('utf-8', errors='replace')[:2000] if body else ""
-
-        if not skip_log:
-            LOG.info(
-                "Request:[%s] [%s %s], req:[%s]",
-                request_id,
-                request.method,
-                request.url.path,
-                body_text
-            )
-
-        # 重新设置请求体（因为已经被读取）
-        async def receive():
-            return {"type": "http.request", "body": body}
-
-        request._receive = receive
-
-        # 处理请求
-        response = await call_next(request)
-        response.headers[GCP_TRACE_HEADER] = get_gcp_trace_header()
-
-        # 计算耗时
-        cost = (time.time() - start_time) * 1000
-
-        if not skip_log:
-            LOG.info(
-                "Response:[%s] [%s %s, cost:%.0fms], status:[%s]",
-                request_id,
-                request.method,
-                request.url.path,
-                cost,
-                response.status_code
-            )
-
-        return response
+RequestLoggingMiddleware = HttpLoggingMiddleware
 
 
 def setup_middleware(app: FastAPI):
@@ -87,4 +19,9 @@ def setup_middleware(app: FastAPI):
         allow_headers=["*"],
     )
 
-    app.add_middleware(RequestLoggingMiddleware)
+    app.add_middleware(
+        HttpLoggingMiddleware,
+        service_name="tl-server",
+        skip_paths={"/health", "/ping", "/admin/loki/logs"},
+        max_response_body_chars=200,
+    )
