@@ -84,7 +84,8 @@ async def action_send_file(request: dict):
         - receiver: 接收者
         - platform: 目标平台 "wechat"(默认) | "lark"
         - path:     AI 生成文件的相对路径，如 gen_img/abc.jpg、gen_video/abc.mp4
-                    Server 用配置的 ai_host 拼出完整 URL 下载后转发给 Base
+                    Server 用配置的 ai_host 拼出完整 URL；
+                    WeChat 下载到共享本地目录后发送，Lark 直接透传 URL。
     """
     verify_token(request.get("token", ""))
 

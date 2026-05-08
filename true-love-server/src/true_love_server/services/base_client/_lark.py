@@ -57,13 +57,16 @@ class LarkBaseClient(BaseClient):
 
     def send_file(self, ref: str, receiver: str,
                   raise_on_error: bool = False) -> tuple[bool, str]:
-        """Lark Base 支持直接传 URL，由 lark-agent-base 负责上传到 Lark。"""
+        """Lark 出站文件只透传 AI 图床 URL，由 lark-agent-base 负责上传到 Lark。"""
+        if not ref.startswith("http://") and not ref.startswith("https://"):
+            return False, f"Lark 文件发送只支持 URL: {ref}"
+
         url = f"{self.host}/action/send-file"
         payload = json.dumps({
             "token": self.token,
             "receiver": receiver,
             "file_type": self._infer_file_type(ref),
-            "resource": {"ref": ref, "source": "url" if ref.startswith("http") else "local"},
+            "url": ref,
         }, ensure_ascii=False)
         try:
             return api_response_ok(self._post("send_file", url, payload))
