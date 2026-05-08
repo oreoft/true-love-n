@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from true_love_common.chat_msg import ChatMsg
+from true_love_common.http.response import ApiResponse, BizCode
 
 
 @dataclass
@@ -49,37 +50,10 @@ class ChatResponse:
         return self.code == 0
 
 
-@dataclass
-class ApiResponse:
-    """
-    通用 API 响应模型
-    """
-    code: int
-    message: str
-    data: Any = None
-    
-    def to_dict(self) -> dict:
-        return {
-            "code": self.code,
-            "message": self.message,
-            "data": self.data,
-        }
-    
-    @classmethod
-    def success(cls, data: Any = None, message: str = "success") -> "ApiResponse":
-        """成功响应"""
-        return cls(code=0, message=message, data=data)
-    
-    @classmethod
-    def error(cls, code: int, message: str) -> "ApiResponse":
-        """错误响应"""
-        return cls(code=code, message=message, data=None)
-
-
 # 预定义的错误响应
 class ApiErrors:
     """API 错误定义"""
-    ROBOT_NOT_READY = ApiResponse.error(101, "Robot not ready")
-    SEND_FAILED = ApiResponse.error(102, "Send failed, please retry")
-    INVALID_PARAMS = ApiResponse.error(103, "Invalid parameters")
-    INTERNAL_ERROR = ApiResponse.error(500, "Internal server error")
+    ROBOT_NOT_READY = ApiResponse.error(BizCode.ROBOT_NOT_READY, "Robot not ready")
+    SEND_FAILED = ApiResponse.error(BizCode.SEND_FAILED, "Send failed, please retry")
+    INVALID_PARAMS = ApiResponse.error(BizCode.TOKEN_ERROR, "Invalid parameters")
+    INTERNAL_ERROR = ApiResponse.error(BizCode.INTERNAL_ERROR, "Internal server error")

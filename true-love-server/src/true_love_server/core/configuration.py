@@ -5,7 +5,7 @@ import logging
 
 import yaml
 
-from .logging_config import LoggingConfig
+from true_love_common.observability.logging import LoggingConfig
 
 # 初始化日志配置（在加载任何配置之前）
 LoggingConfig.setup("tl-server")

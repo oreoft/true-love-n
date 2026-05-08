@@ -9,10 +9,15 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from true_love_common.http.exceptions import AppException
+from true_love_common.http.response import ApiResponse, BizCode
 from true_love_common.observability.sanitize import (
     DEFAULT_MAX_TEXT_LENGTH,
     DEFAULT_SENSITIVE_KEYS,
@@ -26,6 +31,7 @@ from true_love_common.observability.trace import (
 )
 
 LOG = logging.getLogger("HttpMiddleware")
+EXCEPTION_LOG = logging.getLogger("ExceptionHandler")
 
 
 @dataclass(frozen=True)
@@ -248,3 +254,41 @@ def _format_body(
             max_text_length=max_chars,
         )
     return sanitize_text(text, max_length=max_chars)
+
+
+async def app_exception_handler(request: Request, exc: AppException):
+    EXCEPTION_LOG.warning(
+        "Business exception code=%s message=%s path=%s",
+        exc.code,
+        exc.message,
+        request.url.path,
+    )
+    return JSONResponse(
+        status_code=200,
+        content=ApiResponse(code=exc.code, message=exc.message, data=exc.data).to_dict(),
+    )
+
+
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    EXCEPTION_LOG.warning("Request validation failed path=%s errors=%s", request.url.path, exc.errors())
+    return JSONResponse(
+        status_code=200,
+        content=ApiResponse(code=BizCode.VALIDATION_ERROR, message="invalid parameters", data=exc.errors()).to_dict(),
+    )
+
+
+def make_generic_exception_handler(internal_message: str = "internal server error"):
+    async def generic_exception_handler(request: Request, exc: Exception):
+        EXCEPTION_LOG.exception("Unhandled exception path=%s error=%s", request.url.path, exc)
+        return JSONResponse(
+            status_code=200,
+            content=ApiResponse(code=BizCode.INTERNAL_ERROR, message=internal_message, data=None).to_dict(),
+        )
+
+    return generic_exception_handler
+
+
+def setup_exception_handlers(app: FastAPI, *, internal_message: str = "internal server error") -> None:
+    app.add_exception_handler(AppException, app_exception_handler)
+    app.add_exception_handler(RequestValidationError, validation_exception_handler)
+    app.add_exception_handler(Exception, make_generic_exception_handler(internal_message))

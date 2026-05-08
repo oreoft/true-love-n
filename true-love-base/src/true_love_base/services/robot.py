@@ -100,7 +100,7 @@ class Robot:
         with self._chat_locks[chat_name]:
             try:
                 # 以 msg_hash 作为 trace_id 起点（线程内设置，不影响其他线程）
-                from true_love_base.core.trace import set_trace_id
+                from true_love_common.observability.trace import set_trace_id
                 set_trace_id(msg.msg_hash or msg.msg_id or '-')
 
                 self.LOG.info(f"Processing message from [{chat_name}]: {msg}")

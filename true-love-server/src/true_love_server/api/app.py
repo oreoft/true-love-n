@@ -9,12 +9,13 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from true_love_common.integrations.fastapi import HttpLoggingMiddleware
 
 from .routes import router
 from .action_routes import action_router
-from .middleware import setup_middleware
 from .exception_handlers import setup_exception_handlers
 
 LOG = logging.getLogger("FastAPIApp")
@@ -37,8 +38,19 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # 设置中间件
-    setup_middleware(app)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    app.add_middleware(
+        HttpLoggingMiddleware,
+        service_name="tl-server",
+        skip_paths={"/health", "/ping", "/admin/loki/logs"},
+        max_response_body_chars=200,
+    )
 
     # 设置异常处理器
     setup_exception_handlers(app)

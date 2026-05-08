@@ -13,6 +13,7 @@ import time
 import requests
 
 from true_love_common.chat_msg import ChatMsg
+from true_love_common.http.client import post
 from true_love_base.configuration import Config
 from true_love_base.models.api import ChatRequest, ChatResponse
 
@@ -138,25 +139,23 @@ def get_chat(msg: ChatMsg) -> str:
 
         LOG.info("→ [/on-message] req:[%s]", payload[:500])
 
-        from true_love_base.core.trace import GCP_TRACE_HEADER, get_gcp_trace_header
         # 使用 Session 发起请求（连接复用）
         session = _get_session()
-        start_time = time.time()
-        response = session.post(
+        response = post(
             CHAT_ENDPOINT,
             data=payload,
-            headers={GCP_TRACE_HEADER: get_gcp_trace_header()},
+            headers={"Content-Type": "application/json"},
             timeout=(2, 10),
+            session=session,
         )
 
-        cost_ms = (time.time() - start_time) * 1000
-        LOG.info("← [/on-message] cost:[%.0fms] code:[%s]", cost_ms, response.status_code)
+        LOG.info("← [/on-message] cost:[%.0fms] code:[%s]", response.cost_ms, response.status_code)
 
         # 检查 HTTP 状态
         response.raise_for_status()
 
         # 解析响应
-        resp_data = response.json()
+        resp_data = response.data if isinstance(response.data, dict) else {}
         chat_response = ChatResponse.from_dict(resp_data)
 
         if chat_response.is_success:
@@ -165,16 +164,6 @@ def get_chat(msg: ChatMsg) -> str:
         else:
             LOG.error("✗ [/on-message] server 返回错误: %s", resp_data)
             return _get_error_message()
-
-    except requests.exceptions.Timeout:
-        LOG.error("✗ [/on-message] 超时")
-        _circuit_breaker.record_failure()
-        return _get_error_message()
-
-    except requests.exceptions.RequestException as e:
-        LOG.error("✗ [/on-message] 失败: %s", e)
-        _circuit_breaker.record_failure()
-        return _get_error_message()
 
     except Exception as e:
         LOG.error("✗ [/on-message] 异常: %s", e)
@@ -187,4 +176,3 @@ def _get_error_message() -> str:
     if _circuit_breaker.fail_count < 3:
         return "啊哦~，可能内容太长搬运超时，再试试捏"
     return "啊哦~, 服务正在重新调整，请稍后重试再试"
-

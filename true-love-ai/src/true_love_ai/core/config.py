@@ -12,7 +12,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from .config_llm import LLMConfig
 from .config_http import HTTPConfig, SessionConfig
 from .config_services import PlatformKeyConfig, BaseServerConfig, NexuConfig, MuninnConfig, GithubConfig
-from .logging_config import LoggingConfig
+from true_love_common.observability.logging import LoggingConfig
 
 LoggingConfig.setup("tl-ai")
 

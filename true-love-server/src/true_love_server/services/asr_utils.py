@@ -13,7 +13,7 @@ import logging
 import time
 from datetime import datetime
 
-import requests
+from true_love_common.http.client import post
 
 from ..core import Config
 
@@ -124,8 +124,9 @@ def upload_audio(audio_file_path):
     }
     payload = json.dumps(params)
     headers = get_submit_headers(service, method, endpoint, payload)
-    response = requests.post(f"https://{endpoint}/", headers=headers, data=payload)
-    return response.json()
+    response = post(f"https://{endpoint}/", headers=headers, data=payload)
+    response.raise_for_status()
+    return response.data or {}
 
 
 def do_asr(audio_file_path):
@@ -181,9 +182,10 @@ def get_result(task_id, polling_interval=2):
     while True:
         try:
             # 发送GET请求获取结果
-            response = requests.post(f"https://{endpoint}/", data=payload, headers=headers)
+            response = post(f"https://{endpoint}/", data=payload, headers=headers)
+            response.raise_for_status()
             # 解析响应数据
-            result = response.json()
+            result = response.data or {}
             # 如果任务已完成,返回结果
             if result.get("Response", {}).get("Data").get("Status") == 2:
                 return result.get("Response", {}).get("Data").get("Result")
@@ -193,5 +195,4 @@ def get_result(task_id, polling_interval=2):
         except Exception:
             logging.exception("asr get_result error")
             return "语言识别失败, 让用户再试一次"
-
 

@@ -13,7 +13,7 @@ from typing import Optional
 
 import yaml
 
-from .core.logging_config import LoggingConfig
+from true_love_common.observability.logging import LoggingConfig
 from .utils.path_resolver import get_listen_chats_file
 
 

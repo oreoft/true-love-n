@@ -45,16 +45,16 @@ async def muninn_cdk(params: dict, ctx: dict) -> str:
         return "诶嘿~请指定会员等级和有效天数哦，例如：等级 pro，30天~"
 
     try:
-        import httpx
+        from true_love_common.http.client import async_post
         url = f"{cfg.api_base_url}/membership/admin/cdk/generate"
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(
-                url,
-                headers={"X-Admin-Token": cfg.admin_token, "Content-Type": "application/json"},
-                json={"level": level, "duration_days": days, "count": 1},
-            )
-        if resp.status_code == 200:
-            result = resp.json()
+        resp = await async_post(
+            url,
+            headers={"X-Admin-Token": cfg.admin_token, "Content-Type": "application/json"},
+            json={"level": level, "duration_days": days, "count": 1},
+            timeout=30,
+        )
+        if resp.ok:
+            result = resp.data or {}
             if result.get("code") == 0:
                 codes = result.get("data", {}).get("codes", [])
                 if codes:

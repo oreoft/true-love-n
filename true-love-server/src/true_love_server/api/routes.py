@@ -9,10 +9,9 @@ import logging
 import time
 from pathlib import Path
 
-import requests
-
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from fastapi.responses import FileResponse
+from true_love_common.http.client import post_json
 
 from .deps import verify_token
 from .exception_handlers import ApiResponse, ValidationException
@@ -142,18 +141,13 @@ def _trigger_ai(msg: ChatMsg) -> None:
         "msg": msg.to_dict(),
     }
     try:
-        from true_love_server.core.trace import GCP_TRACE_HEADER, get_gcp_trace_header
-        resp = requests.post(
+        resp = post_json(
             f"{ai_host}/trigger",
-            json=payload,
-            headers={GCP_TRACE_HEADER: get_gcp_trace_header()},
+            payload,
             timeout=(5,10),
         )
         resp.raise_for_status()
-        try:
-            data = resp.json()
-        except Exception:
-            data = {}
+        data = resp.data if isinstance(resp.data, dict) else {}
         if isinstance(data, dict) and str(data.get("code", 0)) != "0":
             LOG.error("AI trigger 返回业务失败: sender_id=%s res=%s", msg.sender_id, data)
             return

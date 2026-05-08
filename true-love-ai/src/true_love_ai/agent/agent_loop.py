@@ -280,11 +280,10 @@ class AgentLoop:
         if not url:
             return ""
         try:
-            import httpx
+            from true_love_common.http.client import get
             request_url = "https://www.textise.net/showtext.aspx?strURL=" + url
             headers = {"User-Agent": "PostmanRuntime/7.40.0"}
-            with httpx.Client(timeout=30) as client:
-                response = client.get(request_url, headers=headers)
+            response = get(request_url, headers=headers, timeout=30)
             content = response.text
             content = re.sub(r"\(http.*?\)", "", content)
             return content.replace("[]", "").replace("\n\n", "\n").strip()[:3000]

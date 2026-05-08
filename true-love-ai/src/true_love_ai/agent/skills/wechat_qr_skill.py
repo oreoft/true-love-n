@@ -26,7 +26,6 @@ LOG = logging.getLogger("WechatQrSkill")
 })
 async def wechat_qr_connect(params: dict, ctx: dict) -> str:
     from true_love_ai.core.config import get_config
-    import httpx
 
     cfg = get_config()
     nexu = cfg.nexu
@@ -40,12 +39,12 @@ async def wechat_qr_connect(params: dict, ctx: dict) -> str:
     last_error = None
     for attempt in range(1, 4):
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                res = await client.post(url, headers=headers)
-                res.raise_for_status()
-                qr_data = res.json()
-                LOG.info("Nexu qr-start 响应: %s", qr_data)
-                break
+            from true_love_common.http.client import async_post
+            res = await async_post(url, headers=headers, timeout=30.0)
+            res.raise_for_status()
+            qr_data = res.data if isinstance(res.data, dict) else {}
+            LOG.info("Nexu qr-start 响应: %s", qr_data)
+            break
         except Exception as e:
             last_error = e
             LOG.warning("调用 Nexu qr-start 失败 (第%d次): %s", attempt, e)
@@ -97,26 +96,25 @@ async def wechat_qr_connect(params: dict, ctx: dict) -> str:
 
 async def _wait_and_bind(session_key: str, base_url: str, headers: dict) -> None:
     """后台轮询扫码结果，完成最终绑定（复用旧 ChatService 逻辑）"""
-    import httpx
+    from true_love_common.http.client import async_post
 
     wait_url = f"{base_url}/api/v1/channels/wechat/qr-wait"
     connect_url = f"{base_url}/api/v1/channels/wechat/connect"
 
     try:
-        async with httpx.AsyncClient(timeout=600.0) as client:
-            LOG.info("开始后台轮询 wechat-qr-wait, sessionKey=%s", session_key)
-            wait_res = await client.post(wait_url, json={"sessionKey": session_key}, headers=headers)
-            wait_res.raise_for_status()
-            wait_data = wait_res.json()
-            LOG.info("wechat-qr-wait 结果: %s", wait_data)
+        LOG.info("开始后台轮询 wechat-qr-wait, sessionKey=%s", session_key)
+        wait_res = await async_post(wait_url, json={"sessionKey": session_key}, headers=headers, timeout=600.0)
+        wait_res.raise_for_status()
+        wait_data = wait_res.data if isinstance(wait_res.data, dict) else {}
+        LOG.info("wechat-qr-wait 结果: %s", wait_data)
 
-            if wait_data.get("connected") and wait_data.get("accountId"):
-                account_id = wait_data["accountId"]
-                LOG.info("扫码成功，绑定 accountId=%s", account_id)
-                conn_res = await client.post(connect_url, json={"accountId": account_id}, headers=headers)
-                conn_res.raise_for_status()
-                LOG.info("微信通道绑定成功: %s", conn_res.json())
-            else:
-                LOG.warning("qr-wait 返回非预期结果或超时: %s", wait_data)
+        if wait_data.get("connected") and wait_data.get("accountId"):
+            account_id = wait_data["accountId"]
+            LOG.info("扫码成功，绑定 accountId=%s", account_id)
+            conn_res = await async_post(connect_url, json={"accountId": account_id}, headers=headers, timeout=30.0)
+            conn_res.raise_for_status()
+            LOG.info("微信通道绑定成功: %s", conn_res.data)
+        else:
+            LOG.warning("qr-wait 返回非预期结果或超时: %s", wait_data)
     except Exception as e:
         LOG.error("后台微信扫码绑定流程出错: %s", e)

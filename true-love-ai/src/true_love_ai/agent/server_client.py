@@ -8,9 +8,8 @@ AI Agent 执行完后，通过这个客户端调用 Server 的 /action/* 接口
 
 import json
 import logging
-import time
 
-import httpx
+from true_love_common.http.client import async_get, async_post_json, post_json
 
 from true_love_ai.core.config import get_config
 
@@ -26,28 +25,18 @@ def _get_token() -> str:
     return config.http.token[0] if config.http and config.http.token else ""
 
 
-def _trace_headers() -> dict:
-    from true_love_ai.core.trace import GCP_TRACE_HEADER, get_gcp_trace_header
-    return {GCP_TRACE_HEADER: get_gcp_trace_header()}
-
-
 def _post(path: str, payload: dict, timeout: float = 10.0) -> dict:
     """同步 POST"""
     url = f"{_get_server_url()}{path}"
     payload["token"] = _get_token()
     req_str = json.dumps(payload, ensure_ascii=False)
     LOG.info("→ [%s] req:[%s]", path, req_str[:500])
-    try:
-        start = time.time()
-        with httpx.Client(timeout=timeout) as client:
-            res = client.post(url, json=payload, headers=_trace_headers())
-            res.raise_for_status()
-        cost = (time.time() - start) * 1000
-        LOG.info("← [%s] cost:[%.0fms] code:[%s] res:[%s]", path, cost, res.status_code, res.text[:500])
-        return res.json()
-    except Exception as e:
-        LOG.error("✗ [%s] 失败: %s", path, e)
-        return {"code": -1, "msg": str(e)}
+    result = post_json(url, payload, timeout=timeout)
+    LOG.info("← [%s] cost:[%.0fms] code:[%s] res:[%s]", path, result.cost_ms, result.status_code, result.text[:500])
+    if result.ok:
+        return result.data if isinstance(result.data, dict) else {}
+    LOG.error("✗ [%s] 失败: %s", path, result.error or result.text)
+    return {"code": -1, "msg": result.error or result.text}
 
 
 async def _async_post(path: str, payload: dict, timeout: float = 10.0) -> dict:
@@ -56,17 +45,12 @@ async def _async_post(path: str, payload: dict, timeout: float = 10.0) -> dict:
     payload["token"] = _get_token()
     req_str = json.dumps(payload, ensure_ascii=False)
     LOG.info("→ [%s] req:[%s]", path, req_str[:500])
-    try:
-        start = time.time()
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            res = await client.post(url, json=payload, headers=_trace_headers())
-            res.raise_for_status()
-        cost = (time.time() - start) * 1000
-        LOG.info("← [%s] cost:[%.0fms] code:[%s] res:[%s]", path, cost, res.status_code, res.text[:500])
-        return res.json()
-    except Exception as e:
-        LOG.error("✗ [%s] 失败: %s", path, e)
-        return {"code": -1, "msg": str(e)}
+    result = await async_post_json(url, payload, timeout=timeout)
+    LOG.info("← [%s] cost:[%.0fms] code:[%s] res:[%s]", path, result.cost_ms, result.status_code, result.text[:500])
+    if result.ok:
+        return result.data if isinstance(result.data, dict) else {}
+    LOG.error("✗ [%s] 失败: %s", path, result.error or result.text)
+    return {"code": -1, "msg": result.error or result.text}
 
 
 # ==================== 消息发送 ====================
@@ -158,18 +142,15 @@ async def fetch_media_bytes(ref: str, platform: str = "wechat", timeout: float =
             LOG.error("fetch_media_bytes: media host 未配置 platform=%s", platform)
             return None
         url = f"{media_host}/media/{ref.lstrip('/')}"
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            res = await client.get(url, headers=_trace_headers())
-            res.raise_for_status()
-            ct = res.headers.get("content-type", "")
-            if "application/json" in ct or "text/" in ct:
-                LOG.error("fetch_media_bytes 返回非媒体内容: ref=%s platform=%s content-type=%s", ref, platform, ct)
-                return None
-            return res.content
-    except Exception as e:
-        LOG.error("fetch_media_bytes 失败: ref=%s platform=%s err=%s", ref, platform, e)
+    result = await async_get(url, timeout=timeout)
+    if not result.ok:
+        LOG.error("fetch_media_bytes 失败: ref=%s platform=%s err=%s", ref, platform, result.error or result.text)
         return None
+    ct = result.headers.get("content-type", "")
+    if "application/json" in ct or "text/" in ct:
+        LOG.error("fetch_media_bytes 返回非媒体内容: ref=%s platform=%s content-type=%s", ref, platform, ct)
+        return None
+    return result.content
 
 
 # ==================== 历史记录查询 ====================

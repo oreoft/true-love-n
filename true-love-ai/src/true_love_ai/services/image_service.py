@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-import httpx
+from true_love_common.http.client import async_get
 from true_love_ai.core.config import get_config
 from true_love_ai.core.model_registry import get_model_registry
 from true_love_ai.llm.router import get_llm_router, get_openai_client
@@ -56,10 +56,9 @@ class ImageService:
             if item and item.b64_json:
                 return ImageResponse(prompt=prompt, img=item.b64_json)
             if item and item.url:
-                async with httpx.AsyncClient() as hc:
-                    r = await hc.get(item.url, timeout=60.0)
-                    if r.status_code == 200:
-                        return ImageResponse(prompt=prompt, img=base64.b64encode(r.content).decode())
+                r = await async_get(item.url, timeout=60.0)
+                if r.ok:
+                    return ImageResponse(prompt=prompt, img=base64.b64encode(r.content).decode())
             raise ValueError("返回数据异常")
         except Exception as e:
             err = str(e).lower()

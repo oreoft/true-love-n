@@ -51,9 +51,8 @@ async def deploy(params: dict, ctx: dict) -> str:
         "Content-Type": "application/json",
     }
     try:
-        import httpx
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(url, headers=headers, content=json.dumps({"ref": "master"}))
+        from true_love_common.http.client import async_post
+        resp = await async_post(url, headers=headers, content=json.dumps({"ref": "master"}), timeout=15)
         LOG.info("deploy %s response: %s", env, resp.status_code)
         return f"好耶~{env} 部署命令已发送，等待 GitHub Actions 执行结果吧~"
     except Exception as e:

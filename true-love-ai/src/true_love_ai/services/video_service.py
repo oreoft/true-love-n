@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-import httpx
+from true_love_common.http.client import HttpResult, async_get, async_post
 
 from true_love_ai.core.config import get_config
 from true_love_ai.core.model_registry import get_model_registry
@@ -79,14 +79,9 @@ class VideoService:
         if is_img2video:
             body["input_reference"] = img_data_list[0]
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(
-                f"{self.base_url}/v1/videos",
-                headers=self._headers(),
-                json=body,
-            )
-            self._raise_for_video_error(resp)
-            data = resp.json()
+        resp = await async_post(f"{self.base_url}/v1/videos", headers=self._headers(), json=body, timeout=60.0)
+        self._raise_for_video_error(resp)
+        data = resp.data if isinstance(resp.data, dict) else {}
 
         video_id = data.get("id")
         if not video_id:
@@ -102,13 +97,9 @@ class VideoService:
 
     async def _poll_and_download(self, video_id: str) -> bytes:
         for attempt in range(120):
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.get(
-                    f"{self.base_url}/v1/videos/{video_id}",
-                    headers=self._headers(),
-                )
-                self._raise_for_video_error(resp)
-                data = resp.json()
+            resp = await async_get(f"{self.base_url}/v1/videos/{video_id}", headers=self._headers(), timeout=30.0)
+            self._raise_for_video_error(resp)
+            data = resp.data if isinstance(resp.data, dict) else {}
 
             status = data.get("status", "")
             if status == "completed":
@@ -120,16 +111,12 @@ class VideoService:
         else:
             raise ValueError("视频生成超时，请稍后再试~")
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            resp = await client.get(
-                f"{self.base_url}/v1/videos/{video_id}/content",
-                headers=self._headers(),
-            )
-            self._raise_for_video_error(resp)
-            return resp.content
+        resp = await async_get(f"{self.base_url}/v1/videos/{video_id}/content", headers=self._headers(), timeout=120.0)
+        self._raise_for_video_error(resp)
+        return resp.content
 
     @staticmethod
-    def _raise_for_video_error(resp: httpx.Response) -> None:
+    def _raise_for_video_error(resp: HttpResult) -> None:
         if resp.status_code == 429:
             raise ValueError("呜呜~视频酱今天太累了，等一会再来找我玩吧~")
         if resp.status_code >= 400:

@@ -194,10 +194,9 @@ async def edit_image(params: dict, ctx: dict) -> str:
 
         img_bytes = base64.b64decode(item.b64_json) if item.b64_json else None
         if not img_bytes and item.url:
-            import httpx
-            async with httpx.AsyncClient() as hc:
-                r = await hc.get(item.url, timeout=60.0)
-                img_bytes = r.content if r.status_code == 200 else None
+            from true_love_common.http.client import async_get
+            r = await async_get(item.url, timeout=60.0)
+            img_bytes = r.content if r.ok else None
 
         if not img_bytes:
             return "呜呜~图片生成失败了捏~"

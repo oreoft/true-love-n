@@ -3,7 +3,7 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from true_love_common.integrations.fastapi import HttpLoggingMiddleware
+from true_love_common.integrations.fastapi import HttpLoggingMiddleware, setup_exception_handlers
 
 from true_love_base.api.routes import router
 
@@ -23,6 +23,7 @@ def create_app() -> FastAPI:
         skip_paths={"/ping"},
         max_response_body_chars=200,
     )
+    setup_exception_handlers(application)
     application.include_router(router)
     return application
 

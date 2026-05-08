@@ -108,7 +108,6 @@ def fetch_baidu_references(keyword: str) -> list[dict]:
 
 async def fetch_baidu_references_httpx(keyword: str) -> list[dict]:
     import json
-    import httpx
     from urllib.parse import quote_plus
 
     """
@@ -130,31 +129,24 @@ async def fetch_baidu_references_httpx(keyword: str) -> list[dict]:
     }
 
     try:
-        LOG.info(f"百度搜索(httpx): {keyword}")
+        from true_love_common.http.client import async_get
 
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-            response = await client.get(url, headers=headers)
-            response.raise_for_status()
+        LOG.info(f"百度搜索(common-http): {keyword}")
+        response = await async_get(url, headers=headers, timeout=30.0, follow_redirects=True)
+        response.raise_for_status()
+        data = response.data if isinstance(response.data, dict) else {}
 
-            # 解析响应
-            data = response.json()
+        reference_list = [
+            {"content": entry['abs'], "source_url": entry['url']}
+            for entry in data['feed']['entry']
+            if 'abs' in entry and 'url' in entry
+        ]
 
-            # 提取搜索结果
-            reference_list = [
-                {"content": entry['abs'], "source_url": entry['url']}
-                for entry in data['feed']['entry']
-                if 'abs' in entry and 'url' in entry
-            ]
+        LOG.info(f"百度搜索结果数量: {len(reference_list)}")
 
-            LOG.info(f"百度搜索结果数量: {len(reference_list)}")
-
-    except httpx.TimeoutException:
-        LOG.error(f"百度搜索超时(httpx), keyword: {keyword}")
-    except httpx.HTTPStatusError as e:
-        LOG.error(f"百度搜索HTTP错误(httpx): {e.response.status_code}")
     except json.JSONDecodeError as e:
-        LOG.error(f"百度搜索响应解析失败(httpx): {e}")
+        LOG.error(f"百度搜索响应解析失败(common-http): {e}")
     except Exception:
-        LOG.exception(f"百度搜索失败(httpx), keyword: {keyword}")
+        LOG.exception(f"百度搜索失败(common-http), keyword: {keyword}")
 
     return reference_list

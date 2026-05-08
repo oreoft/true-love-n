@@ -3,9 +3,8 @@
 
 import json
 import logging
-import time
 
-import requests
+from true_love_common.http.client import HttpResult, post
 
 from ._interface import BaseClient, api_response_ok, download_to_tmp, trace_headers
 
@@ -15,16 +14,10 @@ _TIMEOUT = (2, 10)
 
 class WeChatBaseClient(BaseClient):
 
-    def _post(self, label: str, url: str, payload: str) -> requests.Response:
+    def _post(self, label: str, url: str, payload: str) -> HttpResult:
         LOG.info("→ [%s] req:[%s]", label, payload[:500])
-        start = time.time()
-        res = requests.post(url, headers=trace_headers({"Content-Type": "application/json"}),
-                            data=payload, timeout=_TIMEOUT)
-        cost = (time.time() - start) * 1000
-        try:
-            LOG.info("← [%s] cost:[%.0fms] code:[%s] res:[%s]", label, cost, res.status_code, res.json())
-        except Exception:
-            LOG.info("← [%s] cost:[%.0fms] code:[%s] res:[%s]", label, cost, res.status_code, res.text[:500])
+        res = post(url, headers=trace_headers({"Content-Type": "application/json"}), data=payload, timeout=_TIMEOUT)
+        LOG.info("← [%s] cost:[%.0fms] code:[%s] res:[%s]", label, res.cost_ms, res.status_code, res.text[:500])
         return res
 
     # ==================== 通用接口实现 ====================
@@ -68,7 +61,7 @@ class WeChatBaseClient(BaseClient):
         try:
             res = self._post("get_by_room_id", f"{self.host}/get/by/room-id", payload)
             res.raise_for_status()
-            return res.json()["data"]
+            return (res.data or {})["data"]
         except Exception as e:
             LOG.error("✗ [get_by_room_id] 失败: %s", e)
         return {}
@@ -78,7 +71,7 @@ class WeChatBaseClient(BaseClient):
         try:
             res = self._post("add_listen_chat", f"{self.host}/listen/add", payload)
             res.raise_for_status()
-            result = res.json()
+            result = res.data or {}
             return {"success": result.get("code") == 0, "data": result.get("data"), "message": result.get("msg", "")}
         except Exception as e:
             LOG.error("✗ [add_listen_chat] 失败: %s", e)
@@ -89,7 +82,7 @@ class WeChatBaseClient(BaseClient):
         try:
             res = self._post("execute_wx", f"{self.host}/execute/wx", payload)
             res.raise_for_status()
-            result = res.json()
+            result = res.data or {}
             return {"success": result.get("code") == 0, "data": result.get("data"), "message": result.get("msg", "")}
         except Exception as e:
             LOG.error("✗ [execute_wx] 失败: %s", e)
@@ -101,7 +94,7 @@ class WeChatBaseClient(BaseClient):
         try:
             res = self._post("execute_chat", f"{self.host}/execute/chat", payload)
             res.raise_for_status()
-            result = res.json()
+            result = res.data or {}
             return {"success": result.get("code") == 0, "data": result.get("data"), "message": result.get("msg", "")}
         except Exception as e:
             LOG.error("✗ [execute_chat] 失败: %s", e)
@@ -114,7 +107,7 @@ class WeChatBaseClient(BaseClient):
         try:
             res = self._post("batch_chat_info", f"{self.host}/execute/batch-chat-info", payload)
             res.raise_for_status()
-            result = res.json()
+            result = res.data or {}
             return {"success": result.get("code") == 0, "data": result.get("data"), "message": result.get("msg", "")}
         except Exception as e:
             LOG.error("✗ [batch_chat_info] 失败: %s", e)

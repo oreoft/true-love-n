@@ -20,7 +20,7 @@ LOG = logging.getLogger("GoldSkill")
 })
 async def gold_price(params: dict, ctx: dict) -> str:
     try:
-        import httpx
+        from true_love_common.http.client import async_post
         url = "https://openapi.boc.cn/unlogin/finance/query_market_price"
         headers = {
             "Content-Type": "application/json;charset=UTF-8",
@@ -30,10 +30,9 @@ async def gold_price(params: dict, ctx: dict) -> str:
             ),
             "clentid": "540",
         }
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(url, headers=headers, json={"rateCode": "AUA/CNY"})
-        if resp.status_code == 200:
-            info = resp.json().get("xpadgjlInfo", {})
+        resp = await async_post(url, headers=headers, json={"rateCode": "AUA/CNY"}, timeout=10)
+        if resp.ok:
+            info = (resp.data or {}).get("xpadgjlInfo", {})
             if info:
                 bid = info.get("bid1", "--")
                 ask = info.get("ask1", "--")

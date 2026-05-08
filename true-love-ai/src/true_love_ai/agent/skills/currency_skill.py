@@ -41,12 +41,10 @@ async def currency_query(params: dict, ctx: dict) -> str:
         return "诶嘿~暂时只支持美元、澳币、日元的汇率查询哦~"
 
     try:
-        import httpx
+        from true_love_common.http.client import async_get
         url = "https://www.boc.cn/sourcedb/whpj"
         headers = {"User-Agent": "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/129.0.0.0 Safari/537.36"}
-        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
-            resp = await client.get(url, headers=headers)
-        resp.encoding = resp.apparent_encoding if hasattr(resp, 'apparent_encoding') else 'utf-8'
+        resp = await async_get(url, headers=headers, timeout=10, follow_redirects=True)
         from bs4 import BeautifulSoup
         table = BeautifulSoup(resp.text, "html.parser").find("table", {"align": "left"})
         if table:

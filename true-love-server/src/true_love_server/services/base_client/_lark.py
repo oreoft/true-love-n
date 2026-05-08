@@ -3,9 +3,8 @@
 
 import json
 import logging
-import time
 
-import requests
+from true_love_common.http.client import HttpResult, post
 
 from ._interface import BaseClient, api_response_ok, trace_headers
 
@@ -15,16 +14,10 @@ _TIMEOUT = (2, 10)
 
 class LarkBaseClient(BaseClient):
 
-    def _post(self, label: str, url: str, payload: str) -> requests.Response:
+    def _post(self, label: str, url: str, payload: str) -> HttpResult:
         LOG.info("→ [%s] req:[%s]", label, payload[:500])
-        start = time.time()
-        res = requests.post(url, headers=trace_headers({"Content-Type": "application/json"}),
-                            data=payload, timeout=_TIMEOUT)
-        cost = (time.time() - start) * 1000
-        try:
-            LOG.info("← [%s] cost:[%.0fms] code:[%s] res:[%s]", label, cost, res.status_code, res.json())
-        except Exception:
-            LOG.info("← [%s] cost:[%.0fms] code:[%s] res:[%s]", label, cost, res.status_code, res.text[:500])
+        res = post(url, headers=trace_headers({"Content-Type": "application/json"}), data=payload, timeout=_TIMEOUT)
+        LOG.info("← [%s] cost:[%.0fms] code:[%s] res:[%s]", label, res.cost_ms, res.status_code, res.text[:500])
         return res
 
     def send_text(self, receiver: str, at_user: str, content: str,

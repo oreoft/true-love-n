@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from true_love_common.integrations.fastapi import HttpLoggingMiddleware
+from true_love_common.integrations.fastapi import HttpLoggingMiddleware, setup_exception_handlers
 
 from true_love_ai.api.routes import router
 from true_love_ai.api.trigger_routes import trigger_router
@@ -52,6 +52,7 @@ def create_app() -> FastAPI:
         skip_paths={"/health"},
         max_response_body_chars=200,
     )
+    setup_exception_handlers(application, internal_message="发生未知错误, 稍后再试试捏")
 
     # 注册路由
     application.include_router(router)

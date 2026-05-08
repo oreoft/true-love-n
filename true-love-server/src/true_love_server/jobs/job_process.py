@@ -15,9 +15,9 @@ from concurrent import futures
 from datetime import datetime
 
 import pytz
-import requests
 from bs4 import BeautifulSoup
 from PIL import Image
+from true_love_common.http.client import get, post
 
 from ..services import base_client
 from ..core import Config
@@ -43,9 +43,9 @@ def _fetch_ai_data(path: str, params: dict = None) -> str:
         token = _config.HTTP_TOKEN[0] if _config.HTTP_TOKEN else ""
         url = f"{ai_host}{path}"
         query_params = {"token": token, **(params or {})}
-        resp = requests.get(url, params=query_params, timeout=15)
+        resp = get(url, params=query_params, timeout=15)
         resp.raise_for_status()
-        return resp.json().get("data", {}).get("text", "")
+        return (resp.data or {}).get("data", {}).get("text", "")
     except Exception as e:
         LOG.error("_fetch_ai_data %s 失败: %s", path, e)
         return ""
@@ -201,7 +201,7 @@ def download_moyu_file():
             LOG.error(f"download_moyu_file Failed to fetch data. Retry count:{i}, Error:{e}")
             time.sleep(5)
     if file_url:
-        response = requests.get(file_url, timeout=DEFAULT_TIMEOUT)
+        response = get(file_url, timeout=DEFAULT_TIMEOUT)
         response.raise_for_status()
         with open(full_file_path, 'wb') as f:
             f.write(response.content)
@@ -230,7 +230,7 @@ def download_zao_bao_file():
     response = None
     for i in range(retry_count):
         try:
-            response = requests.post(url, data=payload, headers=headers, timeout=DEFAULT_TIMEOUT)
+            response = post(url, data=payload, headers=headers, timeout=DEFAULT_TIMEOUT)
             response.raise_for_status()
             break
         except Exception as e:
@@ -255,7 +255,7 @@ def async_download_moyu_file():
 
 def get_moyu_url_by_wx():
     url = "https://mp.weixin.qq.com/mp/appmsgalbum?action=getalbum&album_id=3743225907507462153"
-    response = requests.get(url, timeout=DEFAULT_TIMEOUT)
+    response = get(url, timeout=DEFAULT_TIMEOUT)
 
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -277,7 +277,7 @@ def send_to_jina(link):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36'
     }
-    response = requests.get(link, headers=headers, timeout=DEFAULT_TIMEOUT)
+    response = get(link, headers=headers, timeout=DEFAULT_TIMEOUT)
 
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -323,4 +323,3 @@ def check_image_openable(image_path):
 
 if __name__ == '__main__':
     download_moyu_file();
-
