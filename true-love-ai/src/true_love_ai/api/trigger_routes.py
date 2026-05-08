@@ -57,6 +57,6 @@ async def _send_fallback(msg: ChatMsg) -> None:
         if not receiver:
             return
         from true_love_ai.agent.server_client import send_text
-        await send_text(receiver, "啊哦~处理消息时出了点问题，稍后再试试捏~", at_user)
+        await send_text(receiver, "啊哦~处理消息时出了点问题，稍后再试试捏~", at_user, platform=msg.platform)
     except Exception as ex:
         LOG.error("发送兜底消息失败: %s", ex)

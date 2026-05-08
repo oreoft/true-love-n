@@ -46,6 +46,7 @@ async def generate_image(params: dict, ctx: dict) -> str:
     prompt = params.get("prompt", "")
     provider = params.get("provider")
     receiver = ctx.get("receiver", "")
+    platform = ctx.get("platform", "wechat")
 
     if not prompt:
         return "诶嘿~请告诉我你想要什么样的图片哦~"
@@ -61,7 +62,7 @@ async def generate_image(params: dict, ctx: dict) -> str:
         if result and result.img:
             filename = f"{uuid.uuid4().hex}.jpg"
             (GEN_IMG_DIR / filename).write_bytes(base64.b64decode(result.img))
-            await send_file(receiver, f"{GEN_IMG_DIR.name}/{filename}")
+            await send_file(receiver, f"{GEN_IMG_DIR.name}/{filename}", platform=platform)
             return "好耶~图片已生成并发送！"
 
         return "呜呜~图片生成失败了捏，稍后再试试吧~"
@@ -160,6 +161,7 @@ async def edit_image(params: dict, ctx: dict) -> str:
     image_path = params.get("image_path", "")
     prompt = params.get("prompt", "")
     receiver = ctx.get("receiver", "")
+    platform = ctx.get("platform", "wechat")
 
     if not image_path or not prompt:
         return "诶嘿~请提供图片路径和修改要求哦~"
@@ -201,7 +203,7 @@ async def edit_image(params: dict, ctx: dict) -> str:
 
         filename = f"{uuid.uuid4().hex}.jpg"
         (GEN_IMG_DIR / filename).write_bytes(img_bytes)
-        await send_file(receiver, f"{GEN_IMG_DIR.name}/{filename}")
+        await send_file(receiver, f"{GEN_IMG_DIR.name}/{filename}", platform=platform)
         return "好耶~图片已生成并发送！"
 
     except Exception as e:

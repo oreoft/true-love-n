@@ -104,10 +104,12 @@ async def send_file(receiver: str, path: str, platform: str = "wechat") -> bool:
 # ==================== 提醒管理 ====================
 
 async def add_reminder(job_id: str, target_time_iso: str, receiver: str,
-                       content: str, at_user: str = "") -> dict:
+                       content: str, at_user: str = "",
+                       platform: str = "wechat") -> dict:
     return await _async_post("/action/reminder/add", {
         "job_id": job_id, "target_time_iso": target_time_iso,
         "receiver": receiver, "at_user": at_user, "content": content,
+        "platform": platform,
     })
 
 
@@ -116,8 +118,11 @@ async def delete_reminder(job_id: str) -> bool:
     return result.get("code") == 0
 
 
-async def query_reminders(receiver: str) -> list[dict]:
-    result = await _async_post("/action/reminder/query", {"receiver": receiver})
+async def query_reminders(receiver: str, platform: str = "wechat") -> list[dict]:
+    result = await _async_post("/action/reminder/query", {
+        "receiver": receiver,
+        "platform": platform,
+    })
     return result.get("data", {}).get("jobs", [])
 
 
@@ -155,8 +160,8 @@ async def fetch_media_bytes(file_path: str, timeout: float = 15.0) -> bytes | No
 # ==================== 历史记录查询 ====================
 
 async def query_history(chat_id: str, sender_id: str = "", sender_name: str = "",
-                        limit: int = 500) -> list[dict]:
-    payload = {"chat_id": chat_id, "limit": limit}
+                        limit: int = 500, platform: str = "wechat") -> list[dict]:
+    payload = {"chat_id": chat_id, "limit": limit, "platform": platform}
     if sender_id:
         payload["sender_id"] = sender_id
     if sender_name:
@@ -165,8 +170,9 @@ async def query_history(chat_id: str, sender_id: str = "", sender_name: str = ""
     return result.get("data", {}).get("messages", [])
 
 
-async def query_group_history(chat_id: str, limit: int = 1000) -> list[dict]:
+async def query_group_history(chat_id: str, limit: int = 1000,
+                              platform: str = "wechat") -> list[dict]:
     result = await _async_post("/query/history", {
-        "chat_id": chat_id, "limit": limit,
+        "chat_id": chat_id, "limit": limit, "platform": platform,
     }, timeout=20.0)
     return result.get("data", {}).get("messages", [])

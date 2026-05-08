@@ -20,11 +20,17 @@ from ..services.scheduler_service import scheduler
 LOG = logging.getLogger("ActionRoutes")
 
 
-def _send_reminder(receiver: str, at_user: str, content: str, job_id: str) -> None:
+def _send_reminder(receiver: str, at_user: str, content: str, job_id: str,
+                   platform: str = "wechat") -> None:
     """模块级提醒触发函数（APScheduler SQLAlchemy jobstore 要求可序列化）"""
-    LOG.info("提醒触发: job_id=%s, receiver=%s", job_id, receiver)
+    LOG.info("提醒触发: job_id=%s, platform=%s, receiver=%s", job_id, platform, receiver)
     try:
-        success, msg = base_client.send_text(receiver, at_user, f"⏰ 【提醒功能】：\n\n{content}")
+        success, msg = base_client.send_text(
+            receiver,
+            at_user,
+            f"⏰ 【提醒功能】：\n\n{content}",
+            platform=platform,
+        )
         if not success:
             LOG.error("提醒发送失败: %s", msg)
     except Exception as exc:
@@ -119,6 +125,7 @@ async def action_add_reminder(request: dict):
         - target_time_iso: ISO-8601 触达时间（含时区，如 2026-04-14T10:30:00+08:00）
         - receiver: 发送目标（群名或好友昵称）
         - at_user: 要@的用户（可选）
+        - platform: 目标平台 "wechat"(默认) | "lark"
         - content: 提醒内容
     """
     verify_token(request.get("token", ""))
@@ -127,6 +134,7 @@ async def action_add_reminder(request: dict):
     target_time_iso = request.get("target_time_iso", "")
     receiver = request.get("receiver", "")
     at_user = request.get("at_user", "")
+    platform = request.get("platform", "wechat")
     content = request.get("content", "")
 
     if not job_id or not target_time_iso or not receiver or not content:
@@ -150,9 +158,21 @@ async def action_add_reminder(request: dict):
         run_date=dt,
         id=job_id,
         replace_existing=True,
-        kwargs={"receiver": receiver, "at_user": at_user, "content": content, "job_id": job_id},
+        kwargs={
+            "receiver": receiver,
+            "at_user": at_user,
+            "content": content,
+            "job_id": job_id,
+            "platform": platform,
+        },
     )
-    LOG.info("action/reminder/add: job_id=%s, time=%s, receiver=%s", job_id, target_time_iso, receiver)
+    LOG.info(
+        "action/reminder/add: job_id=%s, platform=%s, time=%s, receiver=%s",
+        job_id,
+        platform,
+        target_time_iso,
+        receiver,
+    )
     return ApiResponse(data={"job_id": job_id})
 
 
@@ -188,10 +208,12 @@ async def action_query_reminder(request: dict):
     Body:
         - token: 鉴权 token
         - receiver: 接收者（用于过滤，只返回该接收者的提醒）
+        - platform: 目标平台 "wechat"(默认) | "lark"
     """
     verify_token(request.get("token", ""))
 
     receiver = request.get("receiver", "")
+    platform = request.get("platform", "wechat")
 
     jobs = scheduler.get_jobs()
     result = []
@@ -200,13 +222,15 @@ async def action_query_reminder(request: dict):
         # job_id 格式：reminder_{receiver}_{timestamp}（由 AI 侧生成）
         if receiver and not job.id.startswith(f"reminder_{receiver}_"):
             continue
+        if (job.kwargs or {}).get("platform", "wechat") != platform:
+            continue
         if job.next_run_time:
             result.append({
                 "job_id": job.id,
                 "next_run_time": job.next_run_time.isoformat(),
             })
 
-    LOG.info("action/reminder/query: receiver=%s, count=%d", receiver, len(result))
+    LOG.info("action/reminder/query: platform=%s receiver=%s, count=%d", platform, receiver, len(result))
     return ApiResponse(data={"jobs": result})
 
 

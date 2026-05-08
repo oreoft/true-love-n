@@ -124,7 +124,7 @@ class AgentLoop:
 
             # 2. 并行执行所有 tool，把结果追加到 messages
             tool_results = await asyncio.gather(*[
-                self._execute_tool(tc, session_id, sender_id, sender_name, is_group, receiver, at_user)
+                self._execute_tool(tc, session_id, sender_id, sender_name, is_group, receiver, at_user, platform)
                 for tc in tool_calls
             ])
             for tc, tool_result in zip(tool_calls, tool_results):
@@ -214,6 +214,7 @@ class AgentLoop:
             is_group: bool,
             receiver: str,
             at_user: str,
+            platform: str,
     ) -> str:
         """执行单个 tool，返回结果字符串"""
         name = tool_call["name"]
@@ -227,6 +228,7 @@ class AgentLoop:
             "is_group": is_group,
             "receiver": receiver,
             "at_user": at_user,
+            "platform": platform,
         }
 
         try:
@@ -235,7 +237,7 @@ class AgentLoop:
                 import random
                 from true_love_ai.agent.server_client import send_text
                 msg = random.choice(notify_msg) if isinstance(notify_msg, list) else notify_msg
-                await send_text(receiver, msg, at_user)
+                await send_text(receiver, msg, at_user, platform=platform)
 
             result = await asyncio.wait_for(
                 skill_registry.execute(name, args, ctx),

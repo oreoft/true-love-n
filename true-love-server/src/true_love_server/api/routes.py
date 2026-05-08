@@ -166,12 +166,14 @@ async def query_history(request: dict):
         - chat_id: 群聊 ID（必填）
         - sender_id:   发送者唯一 ID（可选，与 sender_name 互斥，优先级更高）
         - sender_name: 发送者昵称（可选，同名时返回所有匹配，仅在无法获取 ID 时使用）
+        - platform: 平台 "wechat"(默认) | "lark"
         - limit: 最大返回条数（默认100）
         - tail_id: 游标 ID，仅返回 id < tail_id 的消息（可选，用于向前翻页）
     """
     verify_token(request.get("token", ""))
 
     chat_id = request.get("chat_id", "")
+    platform = request.get("platform", "wechat")
     sender_id = request.get("sender_id") or None
     sender_name = request.get("sender_name") or None
     limit = int(request.get("limit", 100))
@@ -183,10 +185,17 @@ async def query_history(request: dict):
 
     from ..core.db_engine import SessionLocal
     with SessionLocal() as db:
-        messages = GroupMessageRepository(db).get_messages(chat_id, sender_id, sender_name, limit, tail_id)
+        messages = GroupMessageRepository(db).get_messages(
+            chat_id,
+            sender_id,
+            sender_name,
+            limit,
+            tail_id,
+            platform=platform,
+        )
 
-    LOG.info("query/history: chat_id=%s, sender_id=%s, sender_name=%s, tail_id=%s, count=%d",
-             chat_id, sender_id, sender_name, tail_id, len(messages))
+    LOG.info("query/history: platform=%s chat_id=%s, sender_id=%s, sender_name=%s, tail_id=%s, count=%d",
+             platform, chat_id, sender_id, sender_name, tail_id, len(messages))
     return ApiResponse(data={"messages": messages})
 
 

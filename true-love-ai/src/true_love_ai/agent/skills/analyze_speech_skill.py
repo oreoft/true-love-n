@@ -39,6 +39,7 @@ async def analyze_speech(params: dict, ctx: dict) -> str:
     session_id = ctx.get("session_id", "")
     receiver = ctx.get("receiver", "")
     at_user = ctx.get("at_user", "")
+    platform = ctx.get("platform", "wechat")
 
     is_self = target.strip().lower() == "self"
     target_name = target.strip().lstrip("@").strip()
@@ -51,14 +52,14 @@ async def analyze_speech(params: dict, ctx: dict) -> str:
         f"正在检索[{display_name}]最近的发言数据，看我稍后怎么评价...",
     ]
     from true_love_ai.agent.server_client import send_text as _send
-    await _send(receiver, random.choice(wait_msgs), at_user)
+    await _send(receiver, random.choice(wait_msgs), at_user, platform=platform)
 
     # 从 Server 查询历史
     from true_love_ai.agent.skills._group_message import fetch_group_messages
     if is_self:
-        history = await fetch_group_messages(session_id, limit=100, sender_id=sender_id)
+        history = await fetch_group_messages(receiver, limit=100, sender_id=sender_id, platform=platform)
     else:
-        history = await fetch_group_messages(session_id, limit=100, sender_name=target_name)
+        history = await fetch_group_messages(receiver, limit=100, sender_name=target_name, platform=platform)
 
     if not history:
         return f"我没能获取到[{display_name}]在群里以前的发言记录哦，所以我没有足够的信息来分析捏~"
