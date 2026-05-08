@@ -16,6 +16,7 @@ class BaseServerConfig(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
 
     host: str = ""
+    lark_host: str = ""
     self_wxid: str = ""
     master_wxid: str = ""
     master_group: str = ""

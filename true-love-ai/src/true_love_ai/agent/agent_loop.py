@@ -160,9 +160,12 @@ class AgentLoop:
             return f"[语音转文字]: {text}" if text else None
 
         if msg_type == "image":
-            ref = msg.image_msg.resource.ref if (msg.image_msg and msg.image_msg.resource) else ""
+            resource = msg.image_msg.resource if msg.image_msg else None
+            ref = resource.ref if resource else ""
+            source = resource.source if resource else "local"
+            resource_str = f"{source}:{ref}" if source != "local" else ref
             desc = content or "请分析这张图片"
-            return f"[图片:{ref}] {desc}" if ref else desc
+            return f"[图片:{resource_str}] {desc}" if ref else desc
 
         if msg_type == "link":
             url = msg.link_msg.url if msg.link_msg else ""

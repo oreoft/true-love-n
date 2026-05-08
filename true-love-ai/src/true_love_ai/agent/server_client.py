@@ -138,22 +138,37 @@ async def listen_remove(chat_name: str) -> dict:
 
 # ==================== 媒体文件获取 ====================
 
-async def fetch_media_bytes(file_path: str, timeout: float = 15.0) -> bytes | None:
-    """从 Server 拉取媒体文件，返回原始字节"""
-    # 去掉绝对路径前缀和 wx_imgs/ 前缀，统一取相对路径
-    rel = file_path.lstrip("/").removeprefix("wx_imgs/")
-    url = f"{_get_server_url()}/media/{rel}"
+async def fetch_media_bytes(ref: str, source: str = "local", timeout: float = 15.0) -> bytes | None:
+    """拉取媒体文件原始字节，根据 source 路由到不同服务。
+    ref 可携带 source 前缀，格式为 "{source}:{ref}"，如 "lark:img_v3_xxx"。
+    """
+    if not ref.startswith("http") and ":" in ref:
+        maybe_source, maybe_ref = ref.split(":", 1)
+        if maybe_source in ("lark", "url", "local"):
+            source, ref = maybe_source, maybe_ref
+
+    if source == "url":
+        url = ref
+    elif source == "lark":
+        lark_host = (get_config().base_server.lark_host or "").rstrip("/")
+        if not lark_host:
+            LOG.error("fetch_media_bytes: base_server.lark_host 未配置")
+            return None
+        url = f"{lark_host}/media/{ref}"
+    else:
+        rel = ref.lstrip("/").removeprefix("wx_imgs/")
+        url = f"{_get_server_url()}/media/{rel}"
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             res = await client.get(url, headers=_trace_headers())
             res.raise_for_status()
             ct = res.headers.get("content-type", "")
             if "application/json" in ct or "text/" in ct:
-                LOG.error("fetch_media_bytes 返回非媒体内容: path=%s content-type=%s", file_path, ct)
+                LOG.error("fetch_media_bytes 返回非媒体内容: ref=%s source=%s content-type=%s", ref, source, ct)
                 return None
             return res.content
     except Exception as e:
-        LOG.error("fetch_media_bytes 失败: path=%s err=%s", file_path, e)
+        LOG.error("fetch_media_bytes 失败: ref=%s source=%s err=%s", ref, source, e)
         return None
 
 
