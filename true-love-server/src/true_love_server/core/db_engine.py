@@ -5,9 +5,7 @@ Database Engine - 数据库引擎
 
 import logging
 import os
-
 from typing import Generator
-
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 
@@ -43,6 +41,7 @@ def init_db():
 
         LOG.info("Database initialized: %s", DATABASE_URL)
         migrate.run(_DB_PATH)
+
 
     except Exception as e:
         LOG.error("Failed to initialize database: %s", e)

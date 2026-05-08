@@ -45,7 +45,7 @@ def init_db():
         Base.metadata.create_all(bind=engine)
 
         with engine.connect() as conn:
-            conn.execute(text("PRAGMA jour1nal_mode=WAL"))
+            conn.execute(text("PRAGMA journal_mode=WAL"))
             conn.commit()
 
         LOG.info("AI Database initialized: %s", DATABASE_URL)
