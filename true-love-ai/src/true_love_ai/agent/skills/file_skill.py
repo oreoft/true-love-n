@@ -54,6 +54,7 @@ def _detect_mime(file_path: str) -> str:
 async def read_file(params: dict, ctx: dict) -> str:
     file_path = params.get("file_path", "")
     question = params.get("question", "请分析这份文件的内容")
+    platform = ctx.get("platform", "wechat")
 
     if not file_path:
         return "诶嘿~请提供文件路径哦~"
@@ -65,7 +66,7 @@ async def read_file(params: dict, ctx: dict) -> str:
     try:
         import base64
         from true_love_ai.agent.server_client import fetch_media_bytes
-        data = await fetch_media_bytes(file_path)
+        data = await fetch_media_bytes(file_path, platform=platform)
         if not data:
             return "呜呜~文件获取失败了捏，可能文件不存在~"
 

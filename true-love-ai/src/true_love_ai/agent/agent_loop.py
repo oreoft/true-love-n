@@ -162,10 +162,8 @@ class AgentLoop:
         if msg_type == "image":
             resource = msg.image_msg.resource if msg.image_msg else None
             ref = resource.ref if resource else ""
-            source = resource.source if resource else "local"
-            resource_str = f"{source}:{ref}" if source != "local" else ref
             desc = content or "请分析这张图片"
-            return f"[图片:{resource_str}] {desc}" if ref else desc
+            return f"[图片:{ref}] {desc}" if ref else desc
 
         if msg_type == "link":
             url = msg.link_msg.url if msg.link_msg else ""
@@ -178,11 +176,9 @@ class AgentLoop:
         if msg_type == "file":
             resource = msg.file_msg.resource if msg.file_msg else None
             ref = resource.ref if resource else ""
-            source = resource.source if resource else "local"
-            resource_str = f"{source}:{ref}" if source != "local" else ref
             if ref:
                 desc = content or "请分析这个文件"
-                return f"[文件:{resource_str}] {desc}"
+                return f"[文件:{ref}] {desc}"
             return content or None
 
         if msg_type == "video":
@@ -196,9 +192,7 @@ class AgentLoop:
             def _get_ref(sub_msg) -> str:
                 if not sub_msg or not sub_msg.resource:
                     return ""
-                ref = sub_msg.resource.ref
-                source = sub_msg.resource.source
-                return f"{source}:{ref}" if source != "local" else ref
+                return sub_msg.resource.ref
 
             if q_type == "image":
                 ref = _get_ref(quoted.image_msg)

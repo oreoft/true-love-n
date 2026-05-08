@@ -104,6 +104,7 @@ async def generate_image(params: dict, ctx: dict) -> str:
 async def analyze_image(params: dict, ctx: dict) -> str:
     question = params.get("question", "请分析这张图片")
     image_path = params.get("image_path", "")
+    platform = ctx.get("platform", "wechat")
 
     if not image_path:
         return "诶嘿~请提供图片路径哦~"
@@ -111,7 +112,7 @@ async def analyze_image(params: dict, ctx: dict) -> str:
     try:
         import base64
         from true_love_ai.agent.server_client import fetch_media_bytes
-        data = await fetch_media_bytes(image_path)
+        data = await fetch_media_bytes(image_path, platform=platform)
         if not data:
             return "呜呜~图片获取失败了捏，可能文件不存在~"
         img_data = base64.b64encode(data).decode()
@@ -174,7 +175,7 @@ async def edit_image(params: dict, ctx: dict) -> str:
         from true_love_ai.llm.router import get_openai_client
         from true_love_ai.services.image_service import GEN_IMG_DIR
 
-        data = await fetch_media_bytes(image_path)
+        data = await fetch_media_bytes(image_path, platform=platform)
         if not data:
             return "呜呜~图片获取失败了捏，可能文件不存在~"
         model = get_model_registry().get("image_edit", "default")
