@@ -9,6 +9,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+import httpx
+
 from true_love_common.observability.sanitize import sanitize_json_text, sanitize_text
 from true_love_common.observability.trace import GCP_TRACE_HEADER, get_gcp_trace_header
 
@@ -54,20 +56,24 @@ def request(
     *,
     headers: dict[str, str] | None = None,
     timeout: Any = None,
-    session: Any = None,
+    client: httpx.Client | None = None,
+    session: httpx.Client | None = None,
     raise_for_status: bool = False,
     **kwargs: Any,
 ) -> HttpResult:
-    import requests
-
     method = method.upper()
     merged_headers = trace_headers(headers)
+    httpx_timeout = _normalize_timeout(timeout)
     _log_start(method, url, kwargs)
     start = time.perf_counter()
     try:
-        requester = session.request if session is not None else requests.request
-        response = requester(method, url, headers=merged_headers, timeout=timeout, **kwargs)
-        result = _result_from_response(method, url, response, (time.perf_counter() - start) * 1000)
+        active_client = client or session
+        if active_client is not None:
+            response = active_client.request(method, url, headers=merged_headers, timeout=httpx_timeout, **kwargs)
+        else:
+            with httpx.Client(timeout=httpx_timeout) as active_client:
+                response = active_client.request(method, url, headers=merged_headers, **kwargs)
+        result = _result_from_httpx_response(method, url, response, (time.perf_counter() - start) * 1000)
         _log_end(result)
         if raise_for_status:
             response.raise_for_status()
@@ -108,14 +114,13 @@ async def async_request(
     raise_for_status: bool = False,
     **kwargs: Any,
 ) -> HttpResult:
-    import httpx
-
     method = method.upper()
     merged_headers = trace_headers(headers)
+    httpx_timeout = _normalize_timeout(timeout)
     _log_start(method, url, kwargs)
     start = time.perf_counter()
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        async with httpx.AsyncClient(timeout=httpx_timeout) as client:
             response = await client.request(method, url, headers=merged_headers, **kwargs)
         result = _result_from_httpx_response(method, url, response, (time.perf_counter() - start) * 1000)
         _log_end(result)
@@ -149,21 +154,6 @@ async def async_post_json(url: str, payload: dict[str, Any], **kwargs: Any) -> H
     return await async_post(url, json=payload, **kwargs)
 
 
-def _result_from_response(method: str, url: str, response: Any, cost_ms: float) -> HttpResult:
-    text = response.text or ""
-    return HttpResult(
-        method=method,
-        url=url,
-        ok=200 <= response.status_code < 400,
-        status_code=response.status_code,
-        headers=dict(response.headers),
-        text=text,
-        content=response.content or b"",
-        data=_safe_json(text),
-        cost_ms=cost_ms,
-    )
-
-
 def _result_from_httpx_response(method: str, url: str, response: Any, cost_ms: float) -> HttpResult:
     text = response.text or ""
     return HttpResult(
@@ -186,6 +176,20 @@ def _safe_json(text: str) -> Any:
         return json.loads(text)
     except Exception:
         return None
+
+
+def _normalize_timeout(timeout: Any) -> httpx.Timeout | float | None:
+    if timeout is None or isinstance(timeout, (int, float, httpx.Timeout)):
+        return timeout
+    if isinstance(timeout, tuple) and len(timeout) == 2:
+        connect_timeout, read_timeout = timeout
+        return httpx.Timeout(
+            connect=connect_timeout,
+            read=read_timeout,
+            write=read_timeout,
+            pool=connect_timeout,
+        )
+    return timeout
 
 
 def _log_start(method: str, url: str, kwargs: dict[str, Any]) -> None:

@@ -10,7 +10,7 @@ import logging
 import threading
 import time
 
-import requests
+import httpx
 
 from true_love_common.chat_msg import ChatMsg
 from true_love_common.http.client import post
@@ -24,26 +24,25 @@ LOG = logging.getLogger("ServerClient")
 SERVER_HOST = "http://localhost:8088"
 CHAT_ENDPOINT = f"{SERVER_HOST}/on-message"
 
-# ==================== HTTP Session 连接复用 ====================
+# ==================== HTTP Client 连接复用 ====================
 
-_session = None
-_session_lock = threading.Lock()
+_client = None
+_client_lock = threading.Lock()
 
 
-def _get_session() -> requests.Session:
+def _get_client() -> httpx.Client:
     """
-    获取全局 HTTP Session（线程安全）
+    获取全局 HTTP Client（线程安全）
     
     复用 TCP 连接，减少握手开销。
     """
-    global _session
-    if _session is None:
-        with _session_lock:
-            if _session is None:
-                _session = requests.Session()
-                _session.headers.update({"Content-Type": "application/json"})
-                LOG.info("HTTP Session created for connection reuse")
-    return _session
+    global _client
+    if _client is None:
+        with _client_lock:
+            if _client is None:
+                _client = httpx.Client(headers={"Content-Type": "application/json"})
+                LOG.info("HTTP client created for connection reuse")
+    return _client
 
 
 # ==================== 线程安全的熔断器 ====================
@@ -137,14 +136,14 @@ def get_chat(msg: ChatMsg) -> str:
         request = ChatRequest(token=config.http_token, message=msg)
         payload = request.to_json()
 
-        # 使用 Session 发起请求（连接复用）
-        session = _get_session()
+        # 使用 HTTP client 发起请求（连接复用）
+        client = _get_client()
         response = post(
             CHAT_ENDPOINT,
             data=payload,
             headers={"Content-Type": "application/json"},
             timeout=(2, 10),
-            session=session,
+            client=client,
         )
 
         # 检查 HTTP 状态

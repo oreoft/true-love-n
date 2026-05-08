@@ -5,7 +5,6 @@ description = "True Love Common — 各服务共享的协议定义"
 requires-python = ">=3.12"
 dependencies = [
     "httpx>=0.28.0",
-    "requests>=2.32.5",
 ]
 
 [build-system]
