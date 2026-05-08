@@ -31,7 +31,7 @@ LOG = logging.getLogger("AgentLoop")
 # 单次会话最大 tool 调用轮次（防止死循环）
 MAX_TOOL_ITERATIONS = 6
 # 单个 skill 执行超时（秒）
-SKILL_TIMEOUT_SECONDS = 120
+SKILL_TIMEOUT_SECONDS = 300
 
 # 触发词清理
 _TRIGGER_PATTERNS = [re.compile(p, re.IGNORECASE) for p in [r"@真爱粉\s*", r"\bzaf\b"]]
