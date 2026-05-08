@@ -14,11 +14,12 @@ from typing import Optional, Any
 @dataclass
 class ResourceRef:
     ref: str
-    source: str = "local"  # "local" | "url"
+    source: str = "local"  # "local" | "http"
 
     @classmethod
     def from_dict(cls, d: dict) -> ResourceRef:
-        return cls(ref=d.get("ref", ""), source=d.get("source", "local"))
+        source = d.get("source", "local")
+        return cls(ref=d.get("ref", ""), source="http" if source == "url" else source)
 
 
 @dataclass

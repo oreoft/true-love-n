@@ -44,13 +44,10 @@ class WeChatBaseClient(BaseClient):
 
     def send_file(self, ref: str, receiver: str,
                   raise_on_error: bool = False) -> tuple[bool, str]:
-        """ref 为 URL 时先下载到共享目录，为本地路径时直接发送。"""
-        is_url = ref.startswith("http://") or ref.startswith("https://")
+        """发送文件。ref 为 AI 图床 URL 时，先下载到共享目录再传 path 给 wx base。"""
         try:
-            actual_path = download_to_tmp(ref) if is_url else ref
-
             url = f"{self.host}/send/file"
-            payload = json.dumps({"path": actual_path, "sendReceiver": receiver}, ensure_ascii=False)
+            payload = json.dumps({"path": download_to_tmp(ref), "sendReceiver": receiver}, ensure_ascii=False)
             return api_response_ok(self._post("send_file", url, payload))
         except Exception as e:
             LOG.error("✗ [send_file][wechat] 失败: %s", e)

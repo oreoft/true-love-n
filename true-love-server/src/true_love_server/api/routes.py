@@ -36,7 +36,8 @@ _MEDIA_ROOT = Path("wx_imgs")
 @router.get("/media/{file_path:path}")
 async def get_media(file_path: str):
     """提供 wx_imgs 目录下的媒体文件（供 AI 服务跨机读取）"""
-    safe = (_MEDIA_ROOT / file_path).resolve()
+    rel_path = file_path.lstrip("/").removeprefix(f"{_MEDIA_ROOT.name}/")
+    safe = (_MEDIA_ROOT / rel_path).resolve()
     if not str(safe).startswith(str(_MEDIA_ROOT.resolve())):
         raise ValidationException("forbidden")
     if not safe.exists():
