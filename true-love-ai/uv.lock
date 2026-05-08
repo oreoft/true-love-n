@@ -1029,6 +1029,16 @@ provides-extras = ["dev"]
 name = "true-love-common"
 version = "0.1.1"
 source = { editable = "../true-love-common" }
+dependencies = [
+    { name = "httpx" },
+    { name = "requests" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = ">=0.28.0" },
+    { name = "requests", specifier = ">=2.32.5" },
+]
 
 [[package]]
 name = "typing-extensions"
