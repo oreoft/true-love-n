@@ -12,7 +12,7 @@ import sys
 from threading import Thread, Event
 from typing import Callable
 
-from true_love_base import server
+from true_love_base.api import server
 from true_love_base.configuration import Config
 from true_love_base.core import WxAutoClient
 from true_love_base.services.listen_store import ListenStore
