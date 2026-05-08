@@ -25,8 +25,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # 复制源代码
 COPY true-love-server/src/ ./src/
-# migration 定义（db/migrate.py → src/migrate.py，供 db_engine import）
-COPY true-love-server/db/migrate.py ./src/migrate.py
 
 # 安装项目本身
 RUN --mount=type=cache,target=/root/.cache/uv \

@@ -9,7 +9,7 @@ from typing import Generator
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 
-from db import migrate
+from . import migrate
 from ..models.group_message import Base
 from ..models.schema_migration import SchemaMigration  # noqa: F401 — 确保 create_all() 能建表
 
