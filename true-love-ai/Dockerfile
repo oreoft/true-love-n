@@ -50,6 +50,9 @@ WORKDIR /app
 # 从 builder 复制虚拟环境
 COPY --from=builder /app/.venv /app/.venv
 
+# 复制 editable path dependency，.venv 中的 true-love-common 指向该源码路径
+COPY --from=builder /true-love-common /true-love-common
+
 # 复制源代码
 COPY --from=builder /app/src /app/src
 
