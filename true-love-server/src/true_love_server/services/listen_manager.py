@@ -74,7 +74,7 @@ class ListenManager:
             return {"listeners": [], "summary": {"healthy": 0, "unhealthy": 0}}
 
         # 通过 execute/wx 调用 GetAllSubWindow
-        result = base_client.execute_wx("GetAllSubWindow", {})
+        result = base_client.get_wechat_client().execute_wx("GetAllSubWindow", {})
         if not result.get("success"):
             LOG.error(f"GetAllSubWindow failed: {result.get('message')}")
             # 获取失败，所有标记为 unhealthy
@@ -104,7 +104,7 @@ class ListenManager:
         # 批量获取 ChatInfo（一次请求获取所有）
         chat_info_results = {}
         if chats_with_window:
-            batch_result = base_client.batch_chat_info(chats_with_window)
+            batch_result = base_client.get_wechat_client().batch_chat_info(chats_with_window)
             if batch_result.get("success") and batch_result.get("data"):
                 chat_info_results = batch_result["data"].get("results", {})
             else:
@@ -164,13 +164,13 @@ class ListenManager:
             return {"success": True, "message": f"[{chat_name}] already exists"}
 
         # Step 1: 切换到聊天窗口
-        chat_with_result = base_client.execute_wx("ChatWith", {"who": chat_name})
+        chat_with_result = base_client.get_wechat_client().execute_wx("ChatWith", {"who": chat_name})
         if not chat_with_result.get("success"):
             LOG.error(f"ChatWith failed for [{chat_name}]: {chat_with_result.get('message')}")
             return {"success": False, "message": f"ChatWith failed: {chat_with_result.get('message')}"}
 
         # Step 2: 调用 Base 的 /listen/add 添加监听
-        result = base_client.add_listen_chat(chat_name)
+        result = base_client.get_wechat_client().add_listen_chat(chat_name)
 
         if result.get("success"):
             # SDK 添加成功，写入本地（除非 skip_store）
@@ -198,7 +198,7 @@ class ListenManager:
             {"success": bool, "message": str}
         """
         # 调用 Base 的 RemoveListenChat
-        result = base_client.execute_wx("RemoveListenChat", {"nickname": chat_name})
+        result = base_client.get_wechat_client().execute_wx("RemoveListenChat", {"nickname": chat_name})
 
         if result.get("success"):
             LOG.info(f"Removed listener for [{chat_name}]")
@@ -304,14 +304,14 @@ class ListenManager:
 
         # Step 1: 切换到聊天页面
         try:
-            result = base_client.execute_wx("SwitchToChat", {})
+            result = base_client.get_wechat_client().execute_wx("SwitchToChat", {})
             steps.append({"step": "switch_to_chat", "success": result.get("success", False)})
         except Exception as e:
             steps.append({"step": "switch_to_chat", "success": False, "error": str(e)})
 
         # Step 2: 尝试关闭子窗口（幂等操作）
         try:
-            result = base_client.execute_chat(chat_name, "Close", {})
+            result = base_client.get_wechat_client().execute_chat(chat_name, "Close", {})
             steps.append({"step": "close_window", "success": result.get("success", False)})
         except Exception as e:
             steps.append({"step": "close_window", "success": False, "error": str(e)})
@@ -377,13 +377,13 @@ class ListenManager:
         # Step 1: 关闭所有子窗口
         closed_count = 0
         try:
-            result = base_client.execute_wx("GetAllSubWindow", {})
+            result = base_client.get_wechat_client().execute_wx("GetAllSubWindow", {})
             if result.get("success"):
                 sub_windows = result.get("data", []) or []
                 for w in sub_windows:
                     who = w.get("who") if isinstance(w, dict) else None
                     if who:
-                        close_result = base_client.execute_chat(who, "Close", {})
+                        close_result = base_client.get_wechat_client().execute_chat(who, "Close", {})
                         if close_result.get("success"):
                             closed_count += 1
             steps.append({"step": "close_all_windows", "success": True, "closed": closed_count})
@@ -394,9 +394,9 @@ class ListenManager:
 
         # Step 2: 切换页面刷新 UI（联系人和对话来回切一下）
         try:
-            base_client.execute_wx("SwitchToContact", {})
+            base_client.get_wechat_client().execute_wx("SwitchToContact", {})
             time.sleep(0.3)
-            base_client.execute_wx("SwitchToChat", {})
+            base_client.get_wechat_client().execute_wx("SwitchToChat", {})
             time.sleep(0.3)
             steps.append({"step": "switch_pages", "success": True})
             LOG.info("Switched pages to refresh UI")

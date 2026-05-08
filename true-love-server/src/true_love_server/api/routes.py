@@ -333,7 +333,7 @@ async def get_all_message(request: dict):
     if not chat_name:
         raise ValidationException("chat_name 不能为空哦~")
 
-    result = base_client.execute_chat(chat_name, "GetAllMessage", {})
+    result = base_client.get_wechat_client().execute_chat(chat_name, "GetAllMessage", {})
     if not result.get("success"):
         raise ValidationException(result.get("message", "获取消息失败"))
     return ApiResponse(data=result)

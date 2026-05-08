@@ -108,8 +108,8 @@ def notice_ao_yuan_schedule():
     zao_bao_path = 'zaobao-jpg/' + get_current_date('Australia/Melbourne') + '.jpg'
     for room_id in room_ids:
         base_client.send_text(room_id, "", msg)
-        base_client.send_img(moyu_dir, room_id)
-        base_client.send_img(zao_bao_path, room_id)
+        base_client.get_wechat_client().send_img(moyu_dir, room_id)
+        base_client.get_wechat_client().send_img(zao_bao_path, room_id)
         time.sleep(5)
     return True
 
@@ -136,11 +136,11 @@ def send_daily_notice(room_id, content='早上好☀️家人萌~', tz: str = "A
     base_client.send_text(room_id, '', content)
     if check_image_openable(moyu_file_path):
         time.sleep(2)
-        moyu_res = base_client.send_img(moyu_file_path, room_id)
+        moyu_res = base_client.get_wechat_client().send_img(moyu_file_path, room_id)
         LOG.info(f"send_image: {moyu_file_path}, result: {moyu_res}")
     if check_image_openable(zao_bao_file_path):
         time.sleep(2)
-        zao_bao_res = base_client.send_img(zao_bao_file_path, room_id)
+        zao_bao_res = base_client.get_wechat_client().send_img(zao_bao_file_path, room_id)
         LOG.info(f"send_image: {moyu_file_path}, result: {zao_bao_res}")
 
 
