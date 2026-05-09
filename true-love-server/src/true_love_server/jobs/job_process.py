@@ -231,13 +231,13 @@ def download_zao_bao_file():
     response = None
     for i in range(retry_count):
         try:
-            response = post(url, data=payload, headers=headers, timeout=DEFAULT_TIMEOUT)
+            response = post(url, data=payload, headers=headers, timeout=DEFAULT_TIMEOUT, follow_redirects=True)
             response.raise_for_status()
             break
         except Exception as e:
             LOG.error(f"download_zao_bao_file 尝试 {i + 1}/{retry_count} 失败: {e}")
             time.sleep(2)
-    if not response:
+    if response is None or not response.ok or not response.content:
         LOG.error("所有下载尝试均失败，未能获取到早报图片")
         return
 
@@ -323,4 +323,4 @@ def check_image_openable(image_path):
 
 
 if __name__ == '__main__':
-    download_moyu_file();
+    download_zao_bao_file();

@@ -155,7 +155,10 @@ async def async_post_json(url: str, payload: dict[str, Any], **kwargs: Any) -> H
 
 
 def _result_from_httpx_response(method: str, url: str, response: Any, cost_ms: float) -> HttpResult:
-    text = response.text or ""
+    try:
+        text = response.text or ""
+    except Exception:
+        text = ""
     return HttpResult(
         method=method,
         url=url,
