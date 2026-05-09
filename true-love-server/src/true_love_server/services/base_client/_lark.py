@@ -9,7 +9,7 @@ from true_love_common.http.client import HttpResult, async_post
 from ._interface import BaseClient, api_response_ok, trace_headers
 
 LOG = logging.getLogger("LarkBaseClient")
-_TIMEOUT = (2, 10)
+_TIMEOUT = (10, 30)
 
 
 class LarkBaseClient(BaseClient):
