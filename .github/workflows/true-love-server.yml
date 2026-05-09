@@ -56,10 +56,12 @@ jobs:
             type=sha,prefix=
 
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./true-love-server
           file: ./true-love-server/Dockerfile
+          build-contexts: |
+            common=./true-love-common
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

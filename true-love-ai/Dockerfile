@@ -13,18 +13,18 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # 设置工作目录
 WORKDIR /app
 
-# 复制 path 依赖（true-love-common），路径对应 pyproject.toml 中的 ../true-love-common
-COPY true-love-common/ /true-love-common/
+# 复制 path 依赖（true-love-common），由 CI 通过 --build-context common=./true-love-common 注入
+COPY --from=common . /true-love-common/
 
 # 复制依赖文件
-COPY true-love-ai/pyproject.toml true-love-ai/uv.lock ./
+COPY pyproject.toml uv.lock ./
 
 # 使用 uv 安装依赖（利用缓存）
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project
 
 # 复制源代码
-COPY true-love-ai/src/ ./src/
+COPY src/ ./src/
 
 # 安装项目本身
 RUN --mount=type=cache,target=/root/.cache/uv \

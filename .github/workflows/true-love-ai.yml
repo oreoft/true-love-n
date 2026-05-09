@@ -68,8 +68,10 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./true-love-ai
           file: ./true-love-ai/Dockerfile
+          build-contexts: |
+            common=./true-love-common
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
