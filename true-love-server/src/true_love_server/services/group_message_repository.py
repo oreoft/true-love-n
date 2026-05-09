@@ -21,7 +21,8 @@ class GroupMessageRepository:
     def save(self, msg) -> bool:
         try:
             platform = getattr(msg, "platform", "wechat")
-            msg_hash = getattr(msg, "msg_hash", "") or self._fallback_hash(msg, platform)
+            msg_id_val = getattr(msg, "msg_id", "")
+            msg_hash = msg_id_val or getattr(msg, "msg_hash", "") or self._fallback_hash(msg, platform)
             group_msg = GroupMessage(
                 platform=platform,
                 msg_id=msg.msg_id,
