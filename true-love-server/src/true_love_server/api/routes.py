@@ -113,12 +113,17 @@ async def on_message(
 
 def _handle_incoming_message(msg: ChatMsg) -> None:
     """存储消息（best-effort）并按需触发 AI，两个逻辑互相独立"""
+    is_new = True
     try:
         from ..core.db_engine import SessionLocal
         with SessionLocal() as db:
-            GroupMessageRepository(db).save(msg)
+            is_new = GroupMessageRepository(db).save(msg)
     except Exception as e:
         LOG.error(f"消息存储失败: {e}", exc_info=True)
+
+    if not is_new:
+        LOG.warning("重复消息已过滤，跳过 AI 触发: msg_hash=%s sender_id=%s", msg.msg_hash, msg.sender_id)
+        return
 
     if msg.is_at_me or not msg.is_group:
         try:
