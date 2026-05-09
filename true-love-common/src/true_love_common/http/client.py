@@ -83,7 +83,7 @@ def request(
             method=method,
             url=url,
             ok=False,
-            error=str(exc),
+            error=repr(exc),
             error_type=exc.__class__.__name__,
             cost_ms=(time.perf_counter() - start) * 1000,
         )
@@ -132,7 +132,7 @@ async def async_request(
             method=method,
             url=url,
             ok=False,
-            error=str(exc),
+            error=repr(exc),
             error_type=exc.__class__.__name__,
             cost_ms=(time.perf_counter() - start) * 1000,
         )
@@ -229,10 +229,11 @@ def _log_end(result: HttpResult) -> None:
 
 def _log_error(result: HttpResult) -> None:
     LOG.error(
-        "HTTP OUT error method=%s url=%s cost_ms=%.0f error=%s",
+        "HTTP OUT error method=%s url=%s cost_ms=%.0f error_type=%s error=%s",
         result.method,
         result.url,
         result.cost_ms,
+        result.error_type,
         result.error,
         extra={
             "event": "http.out.error",
