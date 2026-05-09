@@ -48,7 +48,7 @@ def create_app() -> FastAPI:
     app.add_middleware(
         HttpLoggingMiddleware,
         service_name="tl-server",
-        skip_paths={"/health", "/ping", "/admin/loki/logs"},
+        skip_paths={"/health", "/ping", "/admin/loki/logs", "/static"},
         max_response_body_chars=200,
     )
 

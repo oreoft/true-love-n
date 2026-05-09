@@ -203,7 +203,7 @@ async def query_history(request: dict):
 # ==================== Listen 监听管理接口 ====================
 
 @router.get("/admin/listen/status")
-async def get_listen_status(token: str = Query(default="")):
+async def get_listen_status():
     """
     获取监听状态
 
@@ -215,7 +215,6 @@ async def get_listen_status(token: str = Query(default="")):
         - listeners: 每个监听的状态列表
         - summary: 状态汇总 {"healthy": N, "unhealthy": M}
     """
-    verify_token(token)
     result = await listen_manager.get_listener_status()
     return ApiResponse(data=result)
 
@@ -229,7 +228,6 @@ async def add_listen(request: dict):
         - token:     鉴权 token
         - chat_name: 聊天对象名称（好友昵称或群名）
     """
-    verify_token(request.get('token', ''))
     chat_name = request.get('chat_name', '')
     if not chat_name:
         raise ValidationException("chat_name 不能为空哦~")
@@ -250,7 +248,6 @@ async def remove_listen(request: dict):
         - token:     鉴权 token
         - chat_name: 聊天对象名称
     """
-    verify_token(request.get('token', ''))
     chat_name = request.get('chat_name', '')
     if not chat_name:
         raise ValidationException("chat_name 不能为空哦~")
@@ -275,7 +272,6 @@ async def refresh_listen(request: dict = Body(default={})):
         - fail_count: 失败数
         - listeners: 每个监听的详情列表
     """
-    verify_token(request.get('token', ''))
     result = await listen_manager.refresh_listen()
     # refresh 返回的是统计结果，根据 fail_count 判断是否有失败
     if result.get("fail_count", 0) > 0:
@@ -299,7 +295,6 @@ async def reset_listen(request: dict):
         - message: 结果描述
         - steps: 各步骤执行情况
     """
-    verify_token(request.get('token', ''))
     chat_name = request.get('chat_name', '')
     if not chat_name:
         raise ValidationException("chat_name 不能为空哦~")
@@ -328,7 +323,6 @@ async def reset_all_listen(request: dict = Body(default={})):
         - failed: 恢复失败的列表
         - steps: 各步骤执行情况
     """
-    verify_token(request.get('token', ''))
     result = await listen_manager.reset_all_listeners()
     if not result.get("success"):
         raise ValidationException(result.get("message", "重置所有监听失败"))

@@ -90,7 +90,11 @@ class HttpLoggingMiddleware(BaseHTTPMiddleware):
         request.state.request_id = request_id
 
         trace_context = set_trace_from_gcp_header(request.headers.get(GCP_TRACE_HEADER))
-        skip_log = request.url.path in self.config.skip_paths or request.method in self.config.skip_methods
+        path = request.url.path
+        skip_log = (
+            any(path == p or path.startswith(p + "/") for p in self.config.skip_paths)
+            or request.method in self.config.skip_methods
+        )
 
         body = b""
         if self.config.log_request_body and request.method in {"POST", "PUT", "PATCH"}:
