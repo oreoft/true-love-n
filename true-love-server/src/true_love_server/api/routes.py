@@ -9,7 +9,7 @@ import logging
 import time
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Body, HTTPException, Query
 from fastapi.responses import FileResponse
 from true_love_common.http.client import post_json
 
@@ -203,19 +203,20 @@ async def query_history(request: dict):
 # ==================== Listen 监听管理接口 ====================
 
 @router.get("/admin/listen/status")
-async def get_listen_status():
+async def get_listen_status(token: str = Query(default="")):
     """
     获取监听状态
-    
+
     状态定义（只有两种）：
     - healthy: 子窗口存在 AND ChatInfo 能正确响应
     - unhealthy: 子窗口不存在 OR ChatInfo 无法响应
-    
+
     Returns:
         - listeners: 每个监听的状态列表
         - summary: 状态汇总 {"healthy": N, "unhealthy": M}
     """
-    result = listen_manager.get_listener_status()
+    verify_token(token)
+    result = await listen_manager.get_listener_status()
     return ApiResponse(data=result)
 
 
@@ -223,15 +224,17 @@ async def get_listen_status():
 async def add_listen(request: dict):
     """
     添加监听的聊天对象
-    
+
     Request Body:
+        - token:     鉴权 token
         - chat_name: 聊天对象名称（好友昵称或群名）
     """
+    verify_token(request.get('token', ''))
     chat_name = request.get('chat_name', '')
     if not chat_name:
         raise ValidationException("chat_name 不能为空哦~")
 
-    result = listen_manager.add_listen(chat_name)
+    result = await listen_manager.add_listen(chat_name)
     if not result.get("success"):
         raise ValidationException(result.get("message", "添加监听失败"))
 
@@ -242,36 +245,38 @@ async def add_listen(request: dict):
 async def remove_listen(request: dict):
     """
     移除监听的聊天对象
-    
+
     Request Body:
+        - token:     鉴权 token
         - chat_name: 聊天对象名称
     """
+    verify_token(request.get('token', ''))
     chat_name = request.get('chat_name', '')
     if not chat_name:
         raise ValidationException("chat_name 不能为空哦~")
 
-    result = listen_manager.remove_listen(chat_name)
+    result = await listen_manager.remove_listen(chat_name)
     if not result.get("success"):
         raise ValidationException(result.get("message", "移除监听失败"))
     return ApiResponse(data=result)
 
 
 @router.post("/admin/listen/refresh")
-async def refresh_listen():
+async def refresh_listen(request: dict = Body(default={})):
     """
     智能刷新监听列表
-    
-    流程：
-    1. 获取监听状态
-    2. healthy 的跳过，unhealthy 的执行 reset
-    
+
+    Request Body:
+        - token: 鉴权 token
+
     Returns:
         - total: 总监听数
         - success_count: 成功数
         - fail_count: 失败数
         - listeners: 每个监听的详情列表
     """
-    result = listen_manager.refresh_listen()
+    verify_token(request.get('token', ''))
+    result = await listen_manager.refresh_listen()
     # refresh 返回的是统计结果，根据 fail_count 判断是否有失败
     if result.get("fail_count", 0) > 0:
         raise ValidationException(f"刷新部分失败: {result.get('fail_count')} 个监听恢复失败")
@@ -282,34 +287,39 @@ async def refresh_listen():
 async def reset_listen(request: dict):
     """
     重置单个监听
-    
+
     通过关闭子窗口、移除监听、重新添加监听的方式恢复异常的监听。
-    
+
     Request Body:
+        - token:     鉴权 token
         - chat_name: 聊天对象名称
-        
+
     Returns:
         - success: 是否成功
         - message: 结果描述
         - steps: 各步骤执行情况
     """
+    verify_token(request.get('token', ''))
     chat_name = request.get('chat_name', '')
     if not chat_name:
         raise ValidationException("chat_name 不能为空哦~")
 
-    result = listen_manager.reset_listener(chat_name)
+    result = await listen_manager.reset_listener(chat_name)
     if not result.get("success"):
         raise ValidationException(result.get("message", "重置监听失败"))
     return ApiResponse(data=result)
 
 
 @router.post("/admin/listen/reset-all")
-async def reset_all_listen():
+async def reset_all_listen(request: dict = Body(default={})):
     """
     重置所有监听
-    
+
     通过停止所有监听、关闭所有子窗口、刷新 UI、重新添加所有监听的方式恢复。
-    
+
+    Request Body:
+        - token: 鉴权 token
+
     Returns:
         - success: 是否成功
         - message: 结果描述
@@ -318,7 +328,8 @@ async def reset_all_listen():
         - failed: 恢复失败的列表
         - steps: 各步骤执行情况
     """
-    result = listen_manager.reset_all_listeners()
+    verify_token(request.get('token', ''))
+    result = await listen_manager.reset_all_listeners()
     if not result.get("success"):
         raise ValidationException(result.get("message", "重置所有监听失败"))
     return ApiResponse(data=result)

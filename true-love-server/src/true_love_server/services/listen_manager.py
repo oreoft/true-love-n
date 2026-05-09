@@ -11,8 +11,8 @@ Listen Manager - 监听管理器
 - 提供监听状态查询、增删、刷新、重置等功能
 """
 
+import asyncio
 import logging
-import time
 from typing import Optional
 
 from .listen_store import get_listen_store
@@ -55,7 +55,7 @@ class ListenManager:
         """
         return self._store.list_all()
 
-    def get_listener_status(self) -> dict:
+    async def get_listener_status(self) -> dict:
         """
         获取监听状态
         
@@ -74,7 +74,7 @@ class ListenManager:
             return {"listeners": [], "summary": {"healthy": 0, "unhealthy": 0}}
 
         # 通过 execute/wx 调用 GetAllSubWindow
-        result = base_client.get_wechat_client().execute_wx("GetAllSubWindow", {})
+        result = await base_client.get_wechat_client().execute_wx("GetAllSubWindow", {})
         if not result.get("success"):
             LOG.error(f"GetAllSubWindow failed: {result.get('message')}")
             # 获取失败，所有标记为 unhealthy
@@ -104,7 +104,7 @@ class ListenManager:
         # 批量获取 ChatInfo（一次请求获取所有）
         chat_info_results = {}
         if chats_with_window:
-            batch_result = base_client.get_wechat_client().batch_chat_info(chats_with_window)
+            batch_result = await base_client.get_wechat_client().batch_chat_info(chats_with_window)
             if batch_result.get("success") and batch_result.get("data"):
                 chat_info_results = batch_result["data"].get("results", {})
             else:
@@ -142,7 +142,7 @@ class ListenManager:
 
     # ==================== 增删接口 ====================
 
-    def add_listen(self, chat_name: str, skip_store: bool = False) -> dict:
+    async def add_listen(self, chat_name: str, skip_store: bool = False) -> dict:
         """
         添加监听
         
@@ -164,13 +164,13 @@ class ListenManager:
             return {"success": True, "message": f"[{chat_name}] already exists"}
 
         # Step 1: 切换到聊天窗口
-        chat_with_result = base_client.get_wechat_client().execute_wx("ChatWith", {"who": chat_name})
+        chat_with_result = await base_client.get_wechat_client().execute_wx("ChatWith", {"who": chat_name})
         if not chat_with_result.get("success"):
             LOG.error(f"ChatWith failed for [{chat_name}]: {chat_with_result.get('message')}")
             return {"success": False, "message": f"ChatWith failed: {chat_with_result.get('message')}"}
 
         # Step 2: 调用 Base 的 /listen/add 添加监听
-        result = base_client.get_wechat_client().add_listen_chat(chat_name)
+        result = await base_client.get_wechat_client().add_listen_chat(chat_name)
 
         if result.get("success"):
             # SDK 添加成功，写入本地（除非 skip_store）
@@ -182,7 +182,7 @@ class ListenManager:
             LOG.error(f"Failed to add listener for [{chat_name}]: {result.get('message')}")
             return {"success": False, "message": result.get("message", "Unknown error")}
 
-    def remove_listen(self, chat_name: str, skip_store: bool = False) -> dict:
+    async def remove_listen(self, chat_name: str, skip_store: bool = False) -> dict:
         """
         移除监听
         
@@ -198,7 +198,7 @@ class ListenManager:
             {"success": bool, "message": str}
         """
         # 调用 Base 的 RemoveListenChat
-        result = base_client.get_wechat_client().execute_wx("RemoveListenChat", {"nickname": chat_name})
+        result = await base_client.get_wechat_client().execute_wx("RemoveListenChat", {"nickname": chat_name})
 
         if result.get("success"):
             LOG.info(f"Removed listener for [{chat_name}]")
@@ -213,7 +213,7 @@ class ListenManager:
 
     # ==================== 刷新/重置接口 ====================
 
-    def refresh_listen(self) -> dict:
+    async def refresh_listen(self) -> dict:
         """
         智能刷新监听
         
@@ -224,7 +224,7 @@ class ListenManager:
         Returns:
             刷新结果
         """
-        status = self.get_listener_status()
+        status = await self.get_listener_status()
         listeners = status.get("listeners", [])
 
         if not listeners:
@@ -260,7 +260,7 @@ class ListenManager:
             else:
                 # unhealthy: 执行 reset
                 listener_info["action"] = "reset"
-                reset_result = self.reset_listener(chat_name)
+                reset_result = await self.reset_listener(chat_name)
                 success = reset_result.get("success", False)
                 listener_info["success"] = success
                 listener_info["after"] = "healthy" if success else "unhealthy"
@@ -280,7 +280,7 @@ class ListenManager:
             "listeners": result_listeners
         }
 
-    def reset_listener(self, chat_name: str) -> dict:
+    async def reset_listener(self, chat_name: str) -> dict:
         """
         重置单个监听
         
@@ -304,32 +304,32 @@ class ListenManager:
 
         # Step 1: 切换到聊天页面
         try:
-            result = base_client.get_wechat_client().execute_wx("SwitchToChat", {})
+            result = await base_client.get_wechat_client().execute_wx("SwitchToChat", {})
             steps.append({"step": "switch_to_chat", "success": result.get("success", False)})
         except Exception as e:
             steps.append({"step": "switch_to_chat", "success": False, "error": str(e)})
 
         # Step 2: 尝试关闭子窗口（幂等操作）
         try:
-            result = base_client.get_wechat_client().execute_chat(chat_name, "Close", {})
+            result = await base_client.get_wechat_client().execute_chat(chat_name, "Close", {})
             steps.append({"step": "close_window", "success": result.get("success", False)})
         except Exception as e:
             steps.append({"step": "close_window", "success": False, "error": str(e)})
 
         # Step 3: 移除监听（skip_store=True，不删除本地记录）
         try:
-            result = self.remove_listen(chat_name, skip_store=True)
+            result = await self.remove_listen(chat_name, skip_store=True)
             steps.append({"step": "remove_listen", "success": result.get("success", False)})
         except Exception as e:
             steps.append({"step": "remove_listen", "success": False, "error": str(e)})
 
         # Step 4: 等待 UI 稳定
-        time.sleep(0.5)
+        await asyncio.sleep(0.5)
         steps.append({"step": "wait", "success": True, "duration": 0.5})
 
         # Step 5: 重新添加监听（skip_store=True，不重复写入本地记录）
         try:
-            result = self.add_listen(chat_name, skip_store=True)
+            result = await self.add_listen(chat_name, skip_store=True)
             steps.append({"step": "add_listen", "success": result.get("success", False)})
 
             if result.get("success"):
@@ -344,7 +344,7 @@ class ListenManager:
             LOG.error(f"Exception re-adding listener for [{chat_name}]: {e}")
             return {"success": False, "message": str(e), "steps": steps}
 
-    def reset_all_listeners(self) -> dict:
+    async def reset_all_listeners(self) -> dict:
         """
         重置所有监听
         
@@ -377,13 +377,13 @@ class ListenManager:
         # Step 1: 关闭所有子窗口
         closed_count = 0
         try:
-            result = base_client.get_wechat_client().execute_wx("GetAllSubWindow", {})
+            result = await base_client.get_wechat_client().execute_wx("GetAllSubWindow", {})
             if result.get("success"):
                 sub_windows = result.get("data", []) or []
                 for w in sub_windows:
                     who = w.get("who") if isinstance(w, dict) else None
                     if who:
-                        close_result = base_client.get_wechat_client().execute_chat(who, "Close", {})
+                        close_result = await base_client.get_wechat_client().execute_chat(who, "Close", {})
                         if close_result.get("success"):
                             closed_count += 1
             steps.append({"step": "close_all_windows", "success": True, "closed": closed_count})
@@ -394,10 +394,10 @@ class ListenManager:
 
         # Step 2: 切换页面刷新 UI（联系人和对话来回切一下）
         try:
-            base_client.get_wechat_client().execute_wx("SwitchToContact", {})
-            time.sleep(0.3)
-            base_client.get_wechat_client().execute_wx("SwitchToChat", {})
-            time.sleep(0.3)
+            await base_client.get_wechat_client().execute_wx("SwitchToContact", {})
+            await asyncio.sleep(0.3)
+            await base_client.get_wechat_client().execute_wx("SwitchToChat", {})
+            await asyncio.sleep(0.3)
             steps.append({"step": "switch_pages", "success": True})
             LOG.info("Switched pages to refresh UI")
         except Exception as e:
@@ -407,7 +407,7 @@ class ListenManager:
         # Step 3: 挨个调用 reset_listener（幂等操作）
         for chat_name in db_chats:
             try:
-                result = self.reset_listener(chat_name)
+                result = await self.reset_listener(chat_name)
                 if result.get("success"):
                     recovered.append(chat_name)
                     LOG.info(f"Reset listener for [{chat_name}] succeeded")

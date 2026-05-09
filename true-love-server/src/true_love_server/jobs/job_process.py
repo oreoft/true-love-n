@@ -5,6 +5,7 @@ Job Process - 定时任务处理
 包含各种定时任务的具体实现。
 """
 
+import asyncio
 import concurrent
 import functools
 import logging
@@ -78,7 +79,7 @@ def notice_mei_yuan():
     LOG.info(numbers)
     if len(numbers) > 2 and float(numbers[2]) <= 700:
         for room_id in room_ids:
-            base_client.send_text(room_id, "", "提醒现在的美元汇率情况低于700：\n" + rsp)
+            asyncio.run(base_client.send_text(room_id, "", "提醒现在的美元汇率情况低于700：\n" + rsp))
             time.sleep(5)
     return True
 
@@ -90,7 +91,7 @@ def notice_library_schedule():
     msg = "早上好☀️宝子们，\n\n"
     if rsp2 and "失败" not in rsp2: msg = msg + "今日汇率情况：\n" + rsp2
     for room_id in room_ids:
-        base_client.send_text(room_id, "", msg)
+        asyncio.run(base_client.send_text(room_id, "", msg))
         time.sleep(5)
     return True
 
@@ -107,9 +108,9 @@ def notice_ao_yuan_schedule():
     # 使用相对路径，base 端会自动解析到 true-love-server 目录
     zao_bao_path = 'zaobao-jpg/' + get_current_date('Australia/Melbourne') + '.jpg'
     for room_id in room_ids:
-        base_client.send_text(room_id, "", msg)
-        base_client.get_wechat_client().send_img(moyu_dir, room_id)
-        base_client.get_wechat_client().send_img(zao_bao_path, room_id)
+        asyncio.run(base_client.send_text(room_id, "", msg))
+        asyncio.run(base_client.get_wechat_client().send_img(moyu_dir, room_id))
+        asyncio.run(base_client.get_wechat_client().send_img(zao_bao_path, room_id))
         time.sleep(5)
     return True
 
@@ -133,14 +134,14 @@ def send_daily_notice(room_id, content='早上好☀️家人萌~', tz: str = "A
     if r_resp3 and "失败" not in r_resp3:
         content += "\n\n今日黄金汇率情况：\n" + r_resp3
 
-    base_client.send_text(room_id, '', content)
+    asyncio.run(base_client.send_text(room_id, '', content))
     if check_image_openable(moyu_file_path):
         time.sleep(2)
-        moyu_res = base_client.get_wechat_client().send_img(moyu_file_path, room_id)
+        moyu_res = asyncio.run(base_client.get_wechat_client().send_img(moyu_file_path, room_id))
         LOG.info(f"send_image: {moyu_file_path}, result: {moyu_res}")
     if check_image_openable(zao_bao_file_path):
         time.sleep(2)
-        zao_bao_res = base_client.get_wechat_client().send_img(zao_bao_file_path, room_id)
+        zao_bao_res = asyncio.run(base_client.get_wechat_client().send_img(zao_bao_file_path, room_id))
         LOG.info(f"send_image: {moyu_file_path}, result: {zao_bao_res}")
 
 
@@ -170,7 +171,7 @@ def notice_usa_moyu_schedule():
 @log_function_execution
 def notice_test():
     for test_room_id in test_room_ids:
-        base_client.send_text(test_room_id, "", "test")
+        asyncio.run(base_client.send_text(test_room_id, "", "test"))
         LOG.info("notice_test success")
 
 
