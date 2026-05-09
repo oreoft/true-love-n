@@ -202,7 +202,7 @@ def download_moyu_file():
             LOG.error(f"download_moyu_file Failed to fetch data. Retry count:{i}, Error:{e}")
             time.sleep(5)
     if file_url:
-        response = get(file_url, timeout=DEFAULT_TIMEOUT)
+        response = get(file_url, timeout=DEFAULT_TIMEOUT, follow_redirects=True)
         response.raise_for_status()
         with open(full_file_path, 'wb') as f:
             f.write(response.content)
@@ -256,7 +256,7 @@ def async_download_moyu_file():
 
 def get_moyu_url_by_wx():
     url = "https://mp.weixin.qq.com/mp/appmsgalbum?action=getalbum&album_id=3743225907507462153"
-    response = get(url, timeout=DEFAULT_TIMEOUT)
+    response = get(url, timeout=DEFAULT_TIMEOUT, follow_redirects=True)
 
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -278,7 +278,7 @@ def send_to_jina(link):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36'
     }
-    response = get(link, headers=headers, timeout=DEFAULT_TIMEOUT)
+    response = get(link, headers=headers, timeout=DEFAULT_TIMEOUT, follow_redirects=True)
 
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, 'html.parser')
