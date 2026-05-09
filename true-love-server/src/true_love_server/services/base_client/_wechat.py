@@ -42,7 +42,8 @@ class WeChatBaseClient(BaseClient):
         """发送文件。ref 为 AI 图床 URL 时，先下载到共享目录再传 path 给 wx base。"""
         try:
             url = f"{self.host}/send/file"
-            payload = json.dumps({"path": await download_to_tmp(ref), "sendReceiver": receiver}, ensure_ascii=False)
+            path = ref if not ref.startswith(("http://", "https://")) else await download_to_tmp(ref)
+            payload = json.dumps({"path": path, "sendReceiver": receiver}, ensure_ascii=False)
             return api_response_ok(await self._post("send_file", url, payload))
         except Exception as e:
             LOG.error("WeChat send_file failed: %s", e)
