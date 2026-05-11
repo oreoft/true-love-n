@@ -1288,3 +1288,96 @@ body {
     }
 }
 
+/* ==================== Reminder Table ==================== */
+
+.reminder-table-wrapper {
+    overflow-x: auto;
+    padding: 0 16px 16px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.reminder-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.reminder-table th {
+    text-align: left;
+    padding: 10px 12px;
+    background: #f9fafb;
+    border-bottom: 2px solid #e5e7eb;
+    color: #6b7280;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.reminder-table td {
+    padding: 12px;
+    border-bottom: 1px solid #f3f4f6;
+    vertical-align: middle;
+}
+
+.reminder-table tr:last-child td {
+    border-bottom: none;
+}
+
+.reminder-table tr:hover td {
+    background: #f9fafb;
+}
+
+.reminder-receiver {
+    font-family: monospace;
+    font-size: 12px;
+    color: #6b7280;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.reminder-content {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.reminder-time {
+    white-space: nowrap;
+}
+
+.time-local {
+    display: block;
+    font-weight: 500;
+    font-size: 13px;
+}
+
+.time-offset {
+    display: block;
+    font-size: 11px;
+    color: #9ca3af;
+    margin-top: 2px;
+}
+
+.platform-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.platform-badge.wechat {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.platform-badge.lark {
+    background: #dbeafe;
+    color: #2563eb;
+}
+

@@ -31,11 +31,17 @@
                     >
                         📋 列表
                     </button>
-                    <button 
+                    <button
                         :class="['btn', 'btn-sm', activeTab === 'logs' ? 'btn-primary' : 'btn-outline-light']"
                         @click="switchTab('logs')"
                     >
                         📝 日志
+                    </button>
+                    <button
+                        :class="['btn', 'btn-sm', activeTab === 'reminders' ? 'btn-primary' : 'btn-outline-light']"
+                        @click="switchTab('reminders')"
+                    >
+                        ⏰ 提醒
                     </button>
                 </div>
             </div>
@@ -236,6 +242,64 @@
             </div>
         </template>
         
+        <!-- Reminders Page -->
+        <template v-else-if="activeTab === 'reminders'">
+            <div class="list-container">
+                <div class="list-header">
+                    <span class="list-title">定时提醒 ({{ reminders.length }})</span>
+                    <button class="btn btn-outline btn-sm" @click="fetchReminders" :disabled="reminderLoading">
+                        {{ reminderLoading ? '加载中...' : '刷新' }}
+                    </button>
+                </div>
+
+                <div v-if="reminderLoading && reminders.length === 0" class="loading">
+                    <div class="spinner"></div>
+                    <p>加载中...</p>
+                </div>
+
+                <div v-else-if="reminders.length === 0 && !reminderLoading" class="empty-state">
+                    <div class="empty-icon">⏰</div>
+                    <p class="empty-text">暂无待执行的提醒任务</p>
+                </div>
+
+                <div v-else class="reminder-table-wrapper">
+                    <table class="reminder-table">
+                        <thead>
+                            <tr>
+                                <th>接收者</th>
+                                <th>提醒内容</th>
+                                <th>触发时间</th>
+                                <th>平台</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="job in reminders" :key="job.job_id">
+                                <td class="reminder-receiver">{{ job.receiver }}</td>
+                                <td class="reminder-content">{{ job.content }}</td>
+                                <td class="reminder-time">
+                                    <span class="time-local">{{ job._time.full }}</span>
+                                    <span class="time-offset">{{ job._time.offset }}</span>
+                                </td>
+                                <td>
+                                    <span :class="['platform-badge', job.platform]">{{ job.platform }}</span>
+                                </td>
+                                <td>
+                                    <button
+                                        class="btn btn-danger btn-sm"
+                                        @click="deleteReminder(job.job_id, job.content)"
+                                        :disabled="deletingItems[job.job_id]"
+                                    >
+                                        {{ deletingItems[job.job_id] ? '删除中...' : '删除' }}
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </template>
+
         <!-- Add Modal -->
         <div v-if="showAddModal" class="modal-overlay" @click.self="showAddModal = false">
             <div class="modal">
@@ -304,6 +368,7 @@
     <script src="/static/js/useConfirm.js"></script>
     <script src="/static/js/useListPage.js"></script>
     <script src="/static/js/useLokiLogs.js"></script>
+    <script src="/static/js/useReminderPage.js"></script>
     <script src="/static/js/app.js"></script>
 </body>
 </html>
