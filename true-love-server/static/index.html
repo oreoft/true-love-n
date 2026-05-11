@@ -257,6 +257,9 @@
                         <button class="btn btn-outline btn-sm" @click="fetchReminders" :disabled="reminderLoading">
                             {{ reminderLoading ? '刷新中...' : '刷新' }}
                         </button>
+                        <button class="btn btn-primary btn-sm" @click="openAddModal">
+                            ＋ 添加提醒
+                        </button>
                     </div>
                 </div>
             </div>
@@ -299,7 +302,14 @@
                                 <td>
                                     <span :class="['platform-badge', job.platform]">{{ job.platform }}</span>
                                 </td>
-                                <td>
+                                <td style="display: flex; gap: 6px;">
+                                    <button
+                                        class="btn btn-outline btn-sm"
+                                        @click="openEditModal(job)"
+                                        :disabled="deletingItems[job.job_id]"
+                                    >
+                                        修改
+                                    </button>
                                     <button
                                         class="btn btn-danger btn-sm"
                                         @click="deleteReminder(job.job_id, job.content)"
@@ -314,6 +324,75 @@
                 </div>
             </div>
         </template>
+
+        <!-- Reminder Add Modal -->
+        <div v-if="addModal.show" class="modal-overlay" @click.self="addModal.show = false">
+            <div class="modal">
+                <h3 class="modal-title">添加提醒</h3>
+                <div class="reminder-form">
+                    <div class="form-field">
+                        <label>接收者 <span class="form-required">*</span></label>
+                        <input v-model="addModal.receiver" class="modal-input" placeholder="chat_id 或群名" />
+                    </div>
+                    <div class="form-field">
+                        <label>提醒内容 <span class="form-required">*</span></label>
+                        <input v-model="addModal.content" class="modal-input" placeholder="如：去开会" />
+                    </div>
+                    <div class="form-field">
+                        <label>触发时间 <span class="form-required">*</span></label>
+                        <input v-model="addModal.targetTime" type="datetime-local" class="modal-input" />
+                    </div>
+                    <div class="form-field">
+                        <label>@用户（可选）</label>
+                        <input v-model="addModal.atUser" class="modal-input" placeholder="被@用户 ID" />
+                    </div>
+                    <div class="form-field">
+                        <label>平台</label>
+                        <select v-model="addModal.platform" class="modal-input">
+                            <option value="wechat">wechat</option>
+                            <option value="lark">lark</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-outline" @click="addModal.show = false">取消</button>
+                    <button class="btn btn-primary" @click="submitAdd" :disabled="addModal.loading">
+                        {{ addModal.loading ? '添加中...' : '确认添加' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reminder Edit Modal -->
+        <div v-if="editModal.show" class="modal-overlay" @click.self="editModal.show = false">
+            <div class="modal">
+                <h3 class="modal-title">修改提醒</h3>
+                <div class="reminder-form">
+                    <div class="form-field">
+                        <label>当前内容</label>
+                        <p class="form-hint">{{ editModal.originalContent }}</p>
+                    </div>
+                    <div class="form-field">
+                        <label>新内容（不修改可留空）</label>
+                        <input v-model="editModal.newContent" class="modal-input" placeholder="留空则保留原内容" />
+                    </div>
+                    <div class="form-field">
+                        <label>当前时间</label>
+                        <p class="form-hint">{{ editModal.originalTime }}</p>
+                    </div>
+                    <div class="form-field">
+                        <label>新时间（不修改可留空）</label>
+                        <input v-model="editModal.newTime" type="datetime-local" class="modal-input" />
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-outline" @click="editModal.show = false">取消</button>
+                    <button class="btn btn-primary" @click="submitEdit" :disabled="editModal.loading">
+                        {{ editModal.loading ? '保存中...' : '保存修改' }}
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <!-- Add Modal -->
         <div v-if="showAddModal" class="modal-overlay" @click.self="showAddModal = false">

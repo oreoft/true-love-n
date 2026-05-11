@@ -1381,3 +1381,41 @@ body {
     color: #2563eb;
 }
 
+/* ==================== Reminder Form (Add/Edit Modal) ==================== */
+
+.reminder-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.form-field label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.form-field .modal-input {
+    margin-bottom: 0;
+}
+
+.form-required {
+    color: #ef4444;
+}
+
+.form-hint {
+    font-size: 13px;
+    color: #6b7280;
+    background: #f9fafb;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+}
+

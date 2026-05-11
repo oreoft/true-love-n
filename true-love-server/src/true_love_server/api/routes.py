@@ -461,56 +461,57 @@ async def query_loki_logs(
 
 # ==================== Admin 定时提醒管理接口 ====================
 
+from ..services import reminder_service as _rs
+
+
 @router.get("/admin/reminder/list")
 async def list_reminders():
-    """
-    列出所有待执行的定时提醒任务（Admin 用，不按 receiver 过滤）
-
-    Returns:
-        - jobs: 提醒任务列表，每项包含 job_id, receiver, content, at_user, platform, next_run_time
-    """
-    from ..services.scheduler_service import scheduler
-
-    jobs = scheduler.get_jobs()
-    result = []
-    for job in jobs:
-        if not job.id.startswith("reminder_"):
-            continue
-        if not job.next_run_time:
-            continue
-        kwargs = job.kwargs or {}
-        result.append({
-            "job_id": job.id,
-            "receiver": kwargs.get("receiver", ""),
-            "content": kwargs.get("content", ""),
-            "at_user": kwargs.get("at_user", ""),
-            "platform": kwargs.get("platform", "wechat"),
-            "next_run_time": job.next_run_time.isoformat(),
-        })
-
-    result.sort(key=lambda x: x["next_run_time"])
+    result = _rs.list_all_reminders()
     LOG.info("admin/reminder/list: count=%d", len(result))
     return ApiResponse(data={"jobs": result, "total": len(result)})
 
 
+@router.post("/admin/reminder/add")
+async def admin_add_reminder(request: dict):
+    receiver = request.get("receiver", "").strip()
+    content = request.get("content", "").strip()
+    target_time_iso = request.get("target_time_iso", "").strip()
+    at_user = request.get("at_user", "").strip()
+    platform = request.get("platform", "wechat").strip()
+    if not receiver or not content or not target_time_iso:
+        raise ValidationException("receiver、content、target_time_iso 不能为空")
+    job_id = _rs.make_job_id(receiver)
+    try:
+        data = _rs.add_reminder(job_id, target_time_iso, receiver, content, at_user, platform)
+    except ValueError as e:
+        raise ValidationException(str(e))
+    LOG.info("admin/reminder/add: job_id=%s", job_id)
+    return ApiResponse(data=data)
+
+
+@router.post("/admin/reminder/update")
+async def admin_update_reminder(request: dict):
+    job_id = request.get("job_id", "").strip()
+    new_time_iso = request.get("new_time_iso", "").strip()
+    new_content = request.get("new_content", "").strip()
+    if not job_id:
+        raise ValidationException("job_id 不能为空")
+    try:
+        data = _rs.update_reminder(job_id, new_time_iso, new_content)
+    except ValueError as e:
+        raise ValidationException(str(e))
+    LOG.info("admin/reminder/update: job_id=%s", job_id)
+    return ApiResponse(data=data)
+
+
 @router.post("/admin/reminder/delete")
 async def admin_delete_reminder(request: dict):
-    """
-    Admin 删除指定提醒任务
-
-    Body:
-        - job_id: 要删除的任务 ID
-    """
-    from ..services.scheduler_service import scheduler
-
     job_id = request.get("job_id", "").strip()
     if not job_id:
         raise ValidationException("job_id 不能为空")
-
-    job = scheduler.get_job(job_id)
-    if not job:
-        raise ValidationException(f"未找到提醒任务: {job_id}")
-
-    scheduler.remove_job(job_id)
+    try:
+        data = _rs.delete_reminder(job_id)
+    except ValueError as e:
+        raise ValidationException(str(e))
     LOG.info("admin/reminder/delete: job_id=%s", job_id)
-    return ApiResponse(data={"job_id": job_id})
+    return ApiResponse(data=data)

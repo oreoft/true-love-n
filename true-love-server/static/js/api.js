@@ -64,6 +64,16 @@ window.api = {
     // Reminder API
     fetchReminderList: () => apiRequest('/admin/reminder/list'),
 
+    addReminder: (receiver, content, targetTimeIso, atUser, platform) => apiRequest('/admin/reminder/add', {
+        method: 'POST',
+        body: JSON.stringify({ receiver, content, target_time_iso: targetTimeIso, at_user: atUser, platform })
+    }),
+
+    updateReminder: (jobId, newTimeIso, newContent) => apiRequest('/admin/reminder/update', {
+        method: 'POST',
+        body: JSON.stringify({ job_id: jobId, new_time_iso: newTimeIso, new_content: newContent })
+    }),
+
     deleteReminder: (jobId) => apiRequest('/admin/reminder/delete', {
         method: 'POST',
         body: JSON.stringify({ job_id: jobId })
