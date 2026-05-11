@@ -457,3 +457,60 @@ async def query_loki_logs(
         "query_end_ms": end_ms,
         "count": len(logs)
     })
+
+
+# ==================== Admin 定时提醒管理接口 ====================
+
+@router.get("/admin/reminder/list")
+async def list_reminders():
+    """
+    列出所有待执行的定时提醒任务（Admin 用，不按 receiver 过滤）
+
+    Returns:
+        - jobs: 提醒任务列表，每项包含 job_id, receiver, content, at_user, platform, next_run_time
+    """
+    from ..services.scheduler_service import scheduler
+
+    jobs = scheduler.get_jobs()
+    result = []
+    for job in jobs:
+        if not job.id.startswith("reminder_"):
+            continue
+        if not job.next_run_time:
+            continue
+        kwargs = job.kwargs or {}
+        result.append({
+            "job_id": job.id,
+            "receiver": kwargs.get("receiver", ""),
+            "content": kwargs.get("content", ""),
+            "at_user": kwargs.get("at_user", ""),
+            "platform": kwargs.get("platform", "wechat"),
+            "next_run_time": job.next_run_time.isoformat(),
+        })
+
+    result.sort(key=lambda x: x["next_run_time"])
+    LOG.info("admin/reminder/list: count=%d", len(result))
+    return ApiResponse(data={"jobs": result, "total": len(result)})
+
+
+@router.post("/admin/reminder/delete")
+async def admin_delete_reminder(request: dict):
+    """
+    Admin 删除指定提醒任务
+
+    Body:
+        - job_id: 要删除的任务 ID
+    """
+    from ..services.scheduler_service import scheduler
+
+    job_id = request.get("job_id", "").strip()
+    if not job_id:
+        raise ValidationException("job_id 不能为空")
+
+    job = scheduler.get_job(job_id)
+    if not job:
+        raise ValidationException(f"未找到提醒任务: {job_id}")
+
+    scheduler.remove_job(job_id)
+    LOG.info("admin/reminder/delete: job_id=%s", job_id)
+    return ApiResponse(data={"job_id": job_id})
