@@ -9,21 +9,24 @@
         setup() {
             // Tab state
             const activeTab = ref('list');
-            
+
             // Toast & Confirm
             const { toasts, showToast } = useToast();
             const { confirmModal, showConfirm } = useConfirm();
-            
+
             // List page
             const listPage = useListPage(showToast, showConfirm);
-            
+
             // Loki logs page
             const lokiLogs = useLokiLogs(showToast);
-            
+
+            // Reminder page
+            const reminderPage = useReminderPage(showToast, showConfirm);
+
             // Tab 切换
             const switchTab = (tab) => {
                 activeTab.value = tab;
-                
+
                 if (tab === 'logs') {
                     if (lokiLogs.lokiLogs.value.length === 0) {
                         lokiLogs.initLokiLogs();
@@ -32,32 +35,39 @@
                 } else {
                     lokiLogs.stopLokiPolling();
                 }
+
+                if (tab === 'reminders') {
+                    reminderPage.fetchReminders();
+                }
             };
-            
+
             // 初始化
             onMounted(() => {
                 listPage.fetchStatus();
             });
-            
+
             // 清理
             onUnmounted(() => {
                 lokiLogs.stopLokiPolling();
             });
-            
+
             return {
                 // Tab
                 activeTab,
                 switchTab,
-                
+
                 // Toast & Confirm
                 toasts,
                 confirmModal,
-                
-                // List page - spread all properties
+
+                // List page
                 ...listPage,
-                
-                // Loki logs page - spread all properties
-                ...lokiLogs
+
+                // Loki logs page
+                ...lokiLogs,
+
+                // Reminder page
+                ...reminderPage
             };
         }
     }).mount('#app');
