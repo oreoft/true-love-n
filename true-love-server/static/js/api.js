@@ -59,6 +59,14 @@ window.api = {
     
     // Loki API
     fetchLokiLogs: (startMs, endMs, limit = 50, direction = 'backward') =>
-        apiRequest(`/admin/loki/logs?start_ms=${startMs}&end_ms=${endMs}&limit=${limit}&direction=${direction}`)
+        apiRequest(`/admin/loki/logs?start_ms=${startMs}&end_ms=${endMs}&limit=${limit}&direction=${direction}`),
+
+    // Reminder API
+    fetchReminderList: () => apiRequest('/admin/reminder/list'),
+
+    deleteReminder: (jobId) => apiRequest('/admin/reminder/delete', {
+        method: 'POST',
+        body: JSON.stringify({ job_id: jobId })
+    })
 };
 
