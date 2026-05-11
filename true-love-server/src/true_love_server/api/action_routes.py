@@ -227,13 +227,76 @@ async def action_query_reminder(request: dict):
         if (job.kwargs or {}).get("platform", "wechat") != platform:
             continue
         if job.next_run_time:
+            kwargs = job.kwargs or {}
             result.append({
                 "job_id": job.id,
+                "content": kwargs.get("content", ""),
                 "next_run_time": job.next_run_time.isoformat(),
             })
 
     LOG.info("action/reminder/query: platform=%s receiver=%s, count=%d", platform, receiver, len(result))
     return ApiResponse(data={"jobs": result})
+
+
+@action_router.post("/reminder/update")
+async def action_update_reminder(request: dict):
+    """
+    修改已有定时提醒任务（时间或内容）
+
+    Body:
+        - token: 鉴权 token
+        - job_id: 要修改的任务 ID
+        - new_time_iso: 新的 ISO-8601 触达时间（可选，不传则保留原时间）
+        - new_content: 新的提醒内容（可选，不传则保留原内容）
+    """
+    verify_token(request.get("token", ""))
+
+    job_id = request.get("job_id", "").strip()
+    new_time_iso = request.get("new_time_iso", "").strip()
+    new_content = request.get("new_content", "").strip()
+
+    if not job_id:
+        raise ValidationException("job_id 不能为空")
+    if not new_time_iso and not new_content:
+        raise ValidationException("new_time_iso 和 new_content 至少提供一个")
+
+    job = scheduler.get_job(job_id)
+    if not job:
+        raise ValidationException(f"未找到提醒任务: {job_id}")
+
+    old_kwargs = dict(job.kwargs or {})
+    old_run_time = job.next_run_time
+
+    # 解析新时间（如果提供）
+    if new_time_iso:
+        try:
+            import dateutil.parser
+            from datetime import datetime
+            dt = dateutil.parser.isoparse(new_time_iso)
+            now = datetime.now(dt.tzinfo)
+            if dt <= now:
+                raise ValidationException(f"新目标时间 {new_time_iso} 已是过去时间")
+        except ValidationException:
+            raise
+        except Exception as e:
+            raise ValidationException(f"时间格式解析失败: {new_time_iso}, 错误: {e}")
+    else:
+        dt = old_run_time
+
+    new_kwargs = {**old_kwargs, "content": new_content if new_content else old_kwargs.get("content", "")}
+
+    # 用相同 job_id 删除旧任务并重新注册
+    scheduler.remove_job(job_id)
+    scheduler.add_job(
+        _send_reminder,
+        'date',
+        run_date=dt,
+        id=job_id,
+        kwargs=new_kwargs,
+    )
+    LOG.info("action/reminder/update: job_id=%s, new_time=%s, new_content=%s",
+             job_id, dt.isoformat(), new_kwargs.get("content", ""))
+    return ApiResponse(data={"job_id": job_id, "next_run_time": dt.isoformat()})
 
 
 # ==================== 监听管理 ====================

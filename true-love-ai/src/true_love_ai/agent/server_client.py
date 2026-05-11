@@ -95,6 +95,15 @@ async def delete_reminder(job_id: str) -> bool:
     return result.get("code") == 0
 
 
+async def update_reminder(job_id: str, new_time_iso: str = "",
+                          new_content: str = "") -> dict:
+    return await _async_post("/action/reminder/update", {
+        "job_id": job_id,
+        "new_time_iso": new_time_iso,
+        "new_content": new_content,
+    })
+
+
 async def query_reminders(receiver: str, platform: str = "wechat") -> list[dict]:
     result = await _async_post("/action/reminder/query", {
         "receiver": receiver,
