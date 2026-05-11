@@ -244,12 +244,27 @@
         
         <!-- Reminders Page -->
         <template v-else-if="activeTab === 'reminders'">
+            <!-- Summary Bar -->
+            <div class="summary-bar">
+                <div class="summary-content">
+                    <div class="summary-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">待执行提醒</span>
+                            <span class="stat-value">{{ reminders.length }}</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-outline btn-sm" @click="fetchReminders" :disabled="reminderLoading">
+                            {{ reminderLoading ? '刷新中...' : '刷新' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- List -->
             <div class="list-container">
                 <div class="list-header">
                     <span class="list-title">定时提醒 ({{ reminders.length }})</span>
-                    <button class="btn btn-outline btn-sm" @click="fetchReminders" :disabled="reminderLoading">
-                        {{ reminderLoading ? '加载中...' : '刷新' }}
-                    </button>
                 </div>
 
                 <div v-if="reminderLoading && reminders.length === 0" class="loading">
