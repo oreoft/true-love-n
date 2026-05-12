@@ -10,49 +10,18 @@ import asyncio
 import json
 import logging
 import re
-import subprocess
 
 from true_love_ai.agent.skill_registry import register_skill
 from true_love_ai.agent.skills.permission import require_permission
-from true_love_ai.core.db_engine import SessionLocal
-from true_love_ai.memory.dynamic_skill_repository import DynamicSkillRepository
+from true_love_ai.memory import dynamic_skill_service as _ss
 
 LOG = logging.getLogger("DynamicSkillManage")
 
-# 保存时拦截的危险命令模式
-_BLOCKED_CMD = re.compile(
-    r'\brm\s+-[rf]'
-    r'|\brmdir\b'
-    r'|\bdd\s+if='
-    r'|\bsudo\b'
-    r'|\bsu\s'
-    r'|\bchmod\b'
-    r'|\bchown\b'
-    r'|\bpasswd\b'
-    r'|\bshutdown\b'
-    r'|\breboot\b'
-    r'|\bpoweroff\b'
-    r'|\|\s*(sh|bash|zsh|fish)\b'
-    r'|>\s*/',
-    re.IGNORECASE,
-)
-
-# 参数值中禁止的 shell 元字符（防止命令注入）
+# 参数值中禁止的 shell 元字符（防止命令注入，仅在执行时校验）
 _UNSAFE_PARAM = re.compile(r'[;&|`$()<>\\]')
-
-_SKILL_ID_RE = re.compile(r'^[a-z0-9][a-z0-9_]{1,62}$')
 
 _EXEC_TIMEOUT = 30
 _OUTPUT_LIMIT = 2000
-
-
-def _validate_command(command: str) -> str | None:
-    """返回拦截原因字符串，None 表示通过"""
-    if _BLOCKED_CMD.search(command):
-        return "命令包含危险操作（rm -rf / sudo / 写入系统路径等），已拒绝保存"
-    if len(command) > 2000:
-        return "命令长度超过 2000 字符限制"
-    return None
 
 
 def _substitute_params(command: str, param_defs: dict, overrides: dict) -> str:
@@ -120,39 +89,16 @@ async def skill_save(params: dict, ctx: dict) -> str:
     description = params.get("description", "").strip()
     command = params.get("command", "").strip()
     param_defs = params.get("parameters") or {}
+    creator = ctx.get("sender_id", "")
 
-    if not _SKILL_ID_RE.match(skill_id):
-        return "ID 格式不合法，必须是小写英文+数字+下划线，长度 2-63，如 query_pypi_version"
-    if not name:
-        return "技能名称不能为空"
-    if not description:
-        return "触发描述不能为空"
-    if not command:
-        return "命令不能为空"
+    try:
+        result = _ss.save_skill(skill_id, name, description, command, param_defs, creator)
+    except (ValueError, RuntimeError) as e:
+        return str(e)
 
-    blocked_reason = _validate_command(command)
-    if blocked_reason:
-        return f"技能保存被拒绝：{blocked_reason}"
-
-    params_json = json.dumps(param_defs, ensure_ascii=False) if param_defs else None
-
-    with SessionLocal() as db:
-        repo = DynamicSkillRepository(db)
-        existing = repo.get(skill_id)
-        ok = repo.save(
-            id=skill_id,
-            name=name,
-            description=description,
-            command=command,
-            parameters=params_json,
-            creator=ctx.get("sender_id", ""),
-        )
-
-    if ok:
-        action = "更新" if existing else "保存"
-        LOG.info("dynamic skill %s: id=%s creator=%s", action, skill_id, ctx.get("sender_id"))
-        return f"技能「{name}」已{action}（ID: {skill_id}）。下次直接说触发词就能用了～"
-    return "保存失败，请稍后重试"
+    action = "更新" if result["is_update"] else "保存"
+    LOG.info("dynamic skill %s: id=%s creator=%s", action, skill_id, creator)
+    return f"技能「{name}」已{action}（ID: {skill_id}）。下次直接说触发词就能用了～"
 
 
 @register_skill({
@@ -187,47 +133,45 @@ async def skill_run(params: dict, ctx: dict) -> str:
     skill_id = params.get("id", "").strip()
     overrides = params.get("params") or {}
 
-    with SessionLocal() as db:
-        repo = DynamicSkillRepository(db)
-        skill = repo.get(skill_id)
-        if not skill:
-            return f"未找到技能 '{skill_id}'，请检查 ID 是否正确"
+    skill = _ss.get_skill(skill_id)
+    if not skill:
+        return f"未找到技能 '{skill_id}'，请检查 ID 是否正确"
 
-        # 执行前也做一次命令安全校验（防止历史数据绕过）
-        blocked_reason = _validate_command(skill.command)
-        if blocked_reason:
-            LOG.warning("skill_run 拦截: id=%s reason=%s", skill_id, blocked_reason)
-            return f"技能执行被拒绝：{blocked_reason}"
+    # 执行前也做一次命令安全校验（防止历史数据绕过）
+    blocked_reason = _ss.validate_command(skill["command"])
+    if blocked_reason:
+        LOG.warning("skill_run 拦截: id=%s reason=%s", skill_id, blocked_reason)
+        return f"技能执行被拒绝：{blocked_reason}"
 
-        param_defs = json.loads(skill.parameters) if skill.parameters else {}
-        try:
-            command = _substitute_params(skill.command, param_defs, overrides)
-        except ValueError as e:
-            return f"参数错误：{e}"
+    param_defs = json.loads(skill["parameters"]) if skill["parameters"] else {}
+    try:
+        command = _substitute_params(skill["command"], param_defs, overrides)
+    except ValueError as e:
+        return f"参数错误：{e}"
 
-        LOG.info("执行动态技能: id=%s command=%s", skill_id, command[:200])
+    LOG.info("执行动态技能: id=%s command=%s", skill_id, command[:200])
 
-        try:
-            proc = await asyncio.wait_for(
-                asyncio.create_subprocess_shell(
-                    command,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.STDOUT,
-                ),
-                timeout=5,  # 进程启动超时
-            )
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=_EXEC_TIMEOUT)
-        except asyncio.TimeoutError:
-            return f"技能「{skill.name}」执行超时（>{_EXEC_TIMEOUT}s）"
-        except Exception as e:
-            LOG.exception("skill_run 执行异常: id=%s err=%s", skill_id, e)
-            return f"执行失败：{e}"
+    try:
+        proc = await asyncio.wait_for(
+            asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            ),
+            timeout=5,
+        )
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=_EXEC_TIMEOUT)
+    except asyncio.TimeoutError:
+        return f"技能「{skill['name']}」执行超时（>{_EXEC_TIMEOUT}s）"
+    except Exception as e:
+        LOG.exception("skill_run 执行异常: id=%s err=%s", skill_id, e)
+        return f"执行失败：{e}"
 
-        repo.increment_usage(skill_id)
+    _ss.increment_skill_usage(skill_id)
 
     output = stdout.decode("utf-8", errors="replace").strip()
     if not output:
-        return f"技能「{skill.name}」执行完成，无输出"
+        return f"技能「{skill['name']}」执行完成，无输出"
     if len(output) > _OUTPUT_LIMIT:
         output = output[:_OUTPUT_LIMIT] + f"\n...（输出已截断，共 {len(output)} 字符）"
     return output
