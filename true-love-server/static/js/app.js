@@ -23,6 +23,9 @@
             // Reminder page
             const reminderPage = useReminderPage(showToast, showConfirm);
 
+            // Skill page
+            const skillPage = useSkillPage(showToast, showConfirm);
+
             // Tab 切换
             const switchTab = (tab) => {
                 activeTab.value = tab;
@@ -38,6 +41,9 @@
 
                 if (tab === 'reminders') {
                     reminderPage.fetchReminders();
+                }
+                if (tab === 'skills') {
+                    skillPage.fetchSkills();
                 }
             };
 
@@ -67,7 +73,10 @@
                 ...lokiLogs,
 
                 // Reminder page
-                ...reminderPage
+                ...reminderPage,
+
+                // Skill page
+                ...skillPage
             };
         }
     }).mount('#app');

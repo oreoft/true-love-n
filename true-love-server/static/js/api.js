@@ -77,6 +77,19 @@ window.api = {
     deleteReminder: (jobId) => apiRequest('/admin/reminder/delete', {
         method: 'POST',
         body: JSON.stringify({ job_id: jobId })
-    })
+    }),
+
+    // Skill API
+    fetchSkillList: () => apiRequest('/admin/skill/list'),
+
+    saveSkill: (id, name, description, command, parameters) => apiRequest('/admin/skill/save', {
+        method: 'POST',
+        body: JSON.stringify({ id, name, description, command, parameters })
+    }),
+
+    deleteSkill: (id) => apiRequest('/admin/skill/delete', {
+        method: 'POST',
+        body: JSON.stringify({ id })
+    }),
 };
 

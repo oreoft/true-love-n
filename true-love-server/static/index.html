@@ -43,6 +43,12 @@
                     >
                         ⏰ 提醒
                     </button>
+                    <button
+                        :class="['btn', 'btn-sm', activeTab === 'skills' ? 'btn-primary' : 'btn-outline-light']"
+                        @click="switchTab('skills')"
+                    >
+                        ⚙️ 技能
+                    </button>
                 </div>
             </div>
         </header>
@@ -325,6 +331,87 @@
             </div>
         </template>
 
+        <template v-else-if="activeTab === 'skills'">
+            <!-- Summary Bar -->
+            <div class="summary-bar">
+                <div class="summary-content">
+                    <div class="summary-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">动态技能</span>
+                            <span class="stat-value">{{ skills.length }}</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-outline btn-sm" @click="fetchSkills" :disabled="skillLoading">
+                            {{ skillLoading ? '刷新中...' : '刷新' }}
+                        </button>
+                        <button class="btn btn-primary btn-sm" @click="openSkillAddModal">
+                            ＋ 添加技能
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- List -->
+            <div class="list-container">
+                <div class="list-header">
+                    <span class="list-title">动态技能 ({{ skills.length }})</span>
+                </div>
+
+                <div v-if="skillLoading && skills.length === 0" class="loading">
+                    <div class="spinner"></div>
+                    <p>加载中...</p>
+                </div>
+
+                <div v-else-if="skills.length === 0 && !skillLoading" class="empty-state">
+                    <div class="empty-icon">⚙️</div>
+                    <p class="empty-text">暂无动态技能</p>
+                </div>
+
+                <div v-else class="skill-table-wrapper">
+                    <table class="skill-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>名称</th>
+                                <th>描述</th>
+                                <th>命令</th>
+                                <th>使用次数</th>
+                                <th>最后使用</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="skill in skills" :key="skill.id">
+                                <td class="skill-id">{{ skill.id }}</td>
+                                <td class="skill-name">{{ skill.name }}</td>
+                                <td class="skill-desc">{{ skill.description }}</td>
+                                <td class="skill-cmd">{{ skill.command }}</td>
+                                <td class="skill-usage">{{ skill.usage_count }}</td>
+                                <td class="skill-time">{{ skill._lastUsed }}</td>
+                                <td style="display: flex; gap: 6px;">
+                                    <button
+                                        class="btn btn-outline btn-sm"
+                                        @click="openSkillEditModal(skill)"
+                                        :disabled="skillDeletingItems[skill.id]"
+                                    >
+                                        修改
+                                    </button>
+                                    <button
+                                        class="btn btn-danger btn-sm"
+                                        @click="deleteSkill(skill.id, skill.name)"
+                                        :disabled="skillDeletingItems[skill.id]"
+                                    >
+                                        {{ skillDeletingItems[skill.id] ? '删除中...' : '删除' }}
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </template>
+
         <!-- Reminder Add Modal -->
         <div v-if="addModal.show" class="modal-overlay" @click.self="addModal.show = false">
             <div class="modal">
@@ -389,6 +476,76 @@
                     <button class="btn btn-outline" @click="editModal.show = false">取消</button>
                     <button class="btn btn-primary" @click="submitEdit" :disabled="editModal.loading">
                         {{ editModal.loading ? '保存中...' : '保存修改' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Skill Add Modal -->
+        <div v-if="skillAddModal.show" class="modal-overlay" @click.self="skillAddModal.show = false">
+            <div class="modal modal-lg">
+                <h3 class="modal-title">添加技能</h3>
+                <div class="reminder-form">
+                    <div class="form-field">
+                        <label>技能 ID <span class="form-required">*</span></label>
+                        <input v-model="skillAddModal.id" class="modal-input" placeholder="小写英文+下划线，如 query_pypi" />
+                    </div>
+                    <div class="form-field">
+                        <label>名称 <span class="form-required">*</span></label>
+                        <input v-model="skillAddModal.name" class="modal-input" placeholder="如：查询PyPI包版本" />
+                    </div>
+                    <div class="form-field">
+                        <label>描述（触发词）<span class="form-required">*</span></label>
+                        <textarea v-model="skillAddModal.description" class="modal-input modal-textarea" placeholder="注入LLM上下文，描述触发场景"></textarea>
+                    </div>
+                    <div class="form-field">
+                        <label>命令 <span class="form-required">*</span></label>
+                        <textarea v-model="skillAddModal.command" class="modal-input modal-textarea" placeholder="shell 命令，支持 {param} 占位符"></textarea>
+                    </div>
+                    <div class="form-field">
+                        <label>参数定义（可选，JSON）</label>
+                        <textarea v-model="skillAddModal.parameters" class="modal-input modal-textarea" placeholder='如：{"pkg":{"default":"requests","desc":"包名"}}'></textarea>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-outline" @click="skillAddModal.show = false">取消</button>
+                    <button class="btn btn-primary" @click="submitSkillAdd" :disabled="skillAddModal.loading">
+                        {{ skillAddModal.loading ? '添加中...' : '确认添加' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Skill Edit Modal -->
+        <div v-if="skillEditModal.show" class="modal-overlay" @click.self="skillEditModal.show = false">
+            <div class="modal modal-lg">
+                <h3 class="modal-title">修改技能</h3>
+                <div class="reminder-form">
+                    <div class="form-field">
+                        <label>技能 ID（不可修改）</label>
+                        <p class="form-hint">{{ skillEditModal.id }}</p>
+                    </div>
+                    <div class="form-field">
+                        <label>名称 <span class="form-required">*</span></label>
+                        <input v-model="skillEditModal.name" class="modal-input" />
+                    </div>
+                    <div class="form-field">
+                        <label>描述（触发词）<span class="form-required">*</span></label>
+                        <textarea v-model="skillEditModal.description" class="modal-input modal-textarea"></textarea>
+                    </div>
+                    <div class="form-field">
+                        <label>命令 <span class="form-required">*</span></label>
+                        <textarea v-model="skillEditModal.command" class="modal-input modal-textarea"></textarea>
+                    </div>
+                    <div class="form-field">
+                        <label>参数定义（JSON，清空则删除）</label>
+                        <textarea v-model="skillEditModal.parameters" class="modal-input modal-textarea"></textarea>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-outline" @click="skillEditModal.show = false">取消</button>
+                    <button class="btn btn-primary" @click="submitSkillEdit" :disabled="skillEditModal.loading">
+                        {{ skillEditModal.loading ? '保存中...' : '保存修改' }}
                     </button>
                 </div>
             </div>
@@ -463,6 +620,7 @@
     <script src="/static/js/useListPage.js"></script>
     <script src="/static/js/useLokiLogs.js"></script>
     <script src="/static/js/useReminderPage.js"></script>
+    <script src="/static/js/useSkillPage.js"></script>
     <script src="/static/js/app.js"></script>
 </body>
 </html>
