@@ -515,3 +515,51 @@ async def admin_delete_reminder(request: dict):
         raise ValidationException(str(e))
     LOG.info("admin/reminder/delete: job_id=%s", job_id)
     return ApiResponse(data=data)
+
+
+# ==================== Admin 动态技能管理接口 ====================
+
+from ..services import ai_skill_client as _skill_client
+
+
+@router.get("/admin/skill/list")
+async def admin_list_skills():
+    try:
+        skills = await _skill_client.list_skills()
+    except RuntimeError as e:
+        raise ValidationException(str(e))
+    LOG.info("admin/skill/list: count=%d", len(skills))
+    return ApiResponse(data={"skills": skills, "total": len(skills)})
+
+
+@router.post("/admin/skill/save")
+async def admin_save_skill(request: dict):
+    skill_id = request.get("id", "").strip()
+    name = request.get("name", "").strip()
+    description = request.get("description", "").strip()
+    command = request.get("command", "").strip()
+    parameters = request.get("parameters") or ""
+    if not skill_id or not name or not description or not command:
+        raise ValidationException("id、name、description、command 不能为空")
+    try:
+        data = await _skill_client.save_skill(
+            skill_id, name, description, command,
+            parameters.strip() if parameters.strip() else None,
+        )
+    except RuntimeError as e:
+        raise ValidationException(str(e))
+    LOG.info("admin/skill/save: id=%s", skill_id)
+    return ApiResponse(data=data)
+
+
+@router.post("/admin/skill/delete")
+async def admin_delete_skill(request: dict):
+    skill_id = request.get("id", "").strip()
+    if not skill_id:
+        raise ValidationException("id 不能为空")
+    try:
+        data = await _skill_client.delete_skill(skill_id)
+    except RuntimeError as e:
+        raise ValidationException(str(e))
+    LOG.info("admin/skill/delete: id=%s", skill_id)
+    return ApiResponse(data=data)
