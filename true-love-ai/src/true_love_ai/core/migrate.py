@@ -13,16 +13,15 @@ def _cols(conn: sqlite3.Connection, table: str) -> set[str]:
     return {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
 
 
-# 对应 db/migrations/001_rename_sender_to_sender_id.sql
-VERSION = "001"
-DESCRIPTION = "user_memory: rename sender to sender_id"
+# 对应 db/migrations/002_dynamic_skills_add_permissions.sql
+VERSION = "002"
+DESCRIPTION = "dynamic_skills: add permissions column"
 
 
 def migrate(conn: sqlite3.Connection) -> None:
-    """user_memory 表：将 sender 列重命名为 sender_id"""
-    existing = _cols(conn, "user_memory")
-    if "sender" in existing and "sender_id" not in existing:
-        conn.execute("ALTER TABLE user_memory RENAME COLUMN sender TO sender_id")
+    """dynamic_skills 表：新增 permissions 列（权限白名单 JSON 数组）"""
+    if "permissions" not in _cols(conn, "dynamic_skills"):
+        conn.execute("ALTER TABLE dynamic_skills ADD COLUMN permissions TEXT")
 
 
 def run(db_path: str) -> None:

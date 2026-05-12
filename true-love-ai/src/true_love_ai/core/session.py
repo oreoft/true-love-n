@@ -10,22 +10,30 @@ import logging
 import threading
 from datetime import datetime, timedelta
 from typing import Optional, Callable, Awaitable
-
+from true_love_ai.core.db_engine import SessionLocal
+from true_love_ai.memory.dynamic_skill_repository import DynamicSkillRepository
+from true_love_ai.agent.skills.permission import check_permission
+import json
 from true_love_ai.core.config import get_config
 
 LOG = logging.getLogger(__name__)
 
 
-def _load_dynamic_skill_hints() -> str:
-    """从 DB 读取所有动态技能，返回注入 prompt 的文本（name + description 一行一条）"""
+def _load_dynamic_skill_hints(platform: str = "", sender_id: str = "") -> str:
+    """从 DB 读取当前用户有权限的动态技能，返回注入 prompt 的文本。"""
     try:
-        from true_love_ai.core.db_engine import SessionLocal
-        from true_love_ai.memory.dynamic_skill_repository import DynamicSkillRepository
+
         with SessionLocal() as db:
             skills = DynamicSkillRepository(db).list_all()
         if not skills:
             return ""
-        return "\n".join(f"- {s.id}（{s.name}）: {s.description}" for s in skills)
+        ctx = {"platform": platform, "sender_id": sender_id}
+        visible = []
+        for s in skills:
+            perms = json.loads(s.permissions) if s.permissions else None
+            if check_permission(s.id, ctx, perms):
+                visible.append(f"- {s.id}（{s.name}）: {s.description}")
+        return "\n".join(visible)
     except Exception as e:
         LOG.warning("加载动态技能列表失败: %s", e)
         return ""
@@ -35,13 +43,13 @@ class Session:
     """单个会话（纯 DB 存储消息）"""
 
     def __init__(
-        self,
-        session_id: str,
-        system_prompt: str,
-        ttl_seconds: int = 86400,
-        compress_threshold: int = 50,
-        compress_keep_recent: int = 10,
-        compress_fn: Optional[Callable[[list[dict]], Awaitable[str]]] = None,
+            self,
+            session_id: str,
+            system_prompt: str,
+            ttl_seconds: int = 86400,
+            compress_threshold: int = 50,
+            compress_keep_recent: int = 10,
+            compress_fn: Optional[Callable[[list[dict]], Awaitable[str]]] = None,
     ):
         self.session_id = session_id
         self.system_prompt = system_prompt
@@ -137,7 +145,7 @@ class Session:
         """把文本包装成带 cache_control 的 content block（支持 Anthropic prompt caching）"""
         return [{"type": "text", "text": text, "cache_control": {"type": "ephemeral"}}]
 
-    def get_messages_for_llm(self) -> list[dict]:
+    def get_messages_for_llm(self, platform: str = "", sender_id: str = "") -> list[dict]:
         from true_love_ai.memory.session_repository import get_session_repo
         from true_love_ai.agent.skill_registry import get_all_tool_schemas
 
@@ -156,10 +164,10 @@ class Session:
                 ),
             })
 
-        skills = get_all_tool_schemas()
+        skills = get_all_tool_schemas(platform=platform, sender_id=sender_id)
         skill_text = "\n".join(f"- {s['function']['name']}: {s['function']['description']}" for s in skills)
 
-        dynamic_skill_text = _load_dynamic_skill_hints()
+        dynamic_skill_text = _load_dynamic_skill_hints(platform=platform, sender_id=sender_id)
         dynamic_section = (
             f"\n\n【动态技能列表】（通过 skill_run 执行，通过 skill_save 新增）\n{dynamic_skill_text}"
             if dynamic_skill_text else ""
@@ -226,10 +234,10 @@ class SessionManager:
         return _compress_fn
 
     def get_or_create(
-        self,
-        session_id: str,
-        system_prompt: Optional[str] = None,
-        user_ctx: Optional[str] = None,
+            self,
+            session_id: str,
+            system_prompt: Optional[str] = None,
+            user_ctx: Optional[str] = None,
     ) -> Session:
         with self._lock:
             self._cleanup_expired()

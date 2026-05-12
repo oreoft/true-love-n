@@ -83,7 +83,7 @@ class AgentLoop:
         tools = skill_registry.get_all_tool_schemas(platform=platform, sender_id=sender_id)
 
         # 开始 Agent Loop
-        messages = session.get_messages_for_llm()
+        messages = session.get_messages_for_llm(platform=platform, sender_id=sender_id)
         reply = None
 
         for iteration in range(MAX_TOOL_ITERATIONS):
