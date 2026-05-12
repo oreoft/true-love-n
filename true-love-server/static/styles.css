@@ -1428,16 +1428,21 @@ body {
 
 .skill-table {
     width: 100%;
+    min-width: 960px;
     border-collapse: collapse;
     font-size: 13px;
+    table-layout: fixed;
 }
 
 .skill-table th,
 .skill-table td {
-    padding: 10px 12px;
+    padding: 10px 14px;
     text-align: left;
     border-bottom: 1px solid #f0f0f0;
-    vertical-align: top;
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .skill-table th {
@@ -1445,50 +1450,53 @@ body {
     font-weight: 600;
     color: #666;
     font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    white-space: nowrap;
 }
 
-.skill-table tr:hover {
+.skill-table tr:hover td {
     background: #fafffe;
+}
+
+/* 列宽分配（合计 100%） */
+.skill-table th:nth-child(1) { width: 13%; }   /* ID */
+.skill-table th:nth-child(2) { width: 11%; }   /* 名称 */
+.skill-table th:nth-child(3) { width: 24%; }   /* 描述 */
+.skill-table th:nth-child(4) { width: 23%; }   /* 命令 */
+.skill-table th:nth-child(5) { width: 7%;  text-align: center; } /* 次数 */
+.skill-table th:nth-child(6) { width: 9%;  }   /* 最后使用 */
+.skill-table th:nth-child(7) { width: 13%; }   /* 操作 */
+
+.skill-table td:last-child {
+    overflow: visible;
 }
 
 .skill-id {
     font-family: monospace;
     font-size: 12px;
     color: #888;
-    white-space: nowrap;
-    max-width: 120px;
 }
 
 .skill-name {
     font-weight: 500;
-    white-space: nowrap;
-    max-width: 120px;
 }
 
-.skill-desc,
-.skill-cmd {
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+.skill-desc {
     color: #555;
     font-size: 12px;
 }
 
 .skill-cmd {
     font-family: monospace;
+    color: #555;
+    font-size: 12px;
 }
 
 .skill-usage {
     text-align: center;
     color: #888;
-    white-space: nowrap;
 }
 
 .skill-time {
-    white-space: nowrap;
     color: #888;
     font-size: 12px;
 }

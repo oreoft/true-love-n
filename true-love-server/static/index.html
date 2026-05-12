@@ -389,7 +389,8 @@
                                 <td class="skill-cmd">{{ skill.command }}</td>
                                 <td class="skill-usage">{{ skill.usage_count }}</td>
                                 <td class="skill-time">{{ skill._lastUsed }}</td>
-                                <td style="display: flex; gap: 6px;">
+                                <td>
+                                    <div style="display: flex; gap: 6px;">
                                     <button
                                         class="btn btn-outline btn-sm"
                                         @click="openSkillEditModal(skill)"
@@ -404,6 +405,7 @@
                                     >
                                         {{ skillDeletingItems[skill.id] ? '删除中...' : '删除' }}
                                     </button>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>

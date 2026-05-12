@@ -66,22 +66,15 @@ nexu:
   base_url: "http://localhost:3010"
   token: ""
 
-muninn:
-  api_base_url: ""
-  admin_token: ""
-
-github:
-  token: "ghp_xxx"
-
 # ==================== Skill 权限配置 ====================
-# 查找顺序：skill 名 → default → 未配置则所有人可用
+# 格式：["*"] / ["wechat:*"] / ["wechat:sender_id", "lark:*"]
+# 兼容旧格式：["昵称"]（无 : 时视为任意平台该用户）
+# 未配置某 skill 时所有人可用（规则1）；skill 代码/DB 中声明的权限优先（规则2）
 
 skill_permissions:
-  default: ["管理员昵称"]
-  list_models: ["管理员昵称"]
-  set_model: ["管理员昵称"]
-  run_job: ["管理员昵称"]
-  deploy: ["管理员昵称"]
-  reload_config: ["管理员昵称"]
-  listen_manage: ["管理员昵称"]
-  muninn_cdk: ["管理员昵称"]
+  skill_save: ["wechat:管理员ID"]
+  list_models: ["wechat:管理员ID"]
+  set_model: ["wechat:管理员ID"]
+  run_job: ["wechat:管理员ID"]
+  reload_config: ["wechat:管理员ID"]
+  listen_manage: ["wechat:管理员ID"]
