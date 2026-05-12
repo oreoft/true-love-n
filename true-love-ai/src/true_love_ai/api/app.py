@@ -13,6 +13,7 @@ from true_love_common.integrations.fastapi import HttpLoggingMiddleware, setup_e
 from true_love_ai.api.routes import router
 from true_love_ai.api.trigger_routes import trigger_router
 from true_love_ai.api.data_routes import data_router
+from true_love_ai.api.skill_routes import skill_router
 
 LOG = logging.getLogger(__name__)
 
@@ -58,6 +59,7 @@ def create_app() -> FastAPI:
     application.include_router(router)
     application.include_router(trigger_router)
     application.include_router(data_router)
+    application.include_router(skill_router)
 
     # 健康检查
     @application.get("/")
