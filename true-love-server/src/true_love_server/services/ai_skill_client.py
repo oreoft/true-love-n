@@ -14,7 +14,10 @@ LOG = logging.getLogger("AiSkillClient")
 
 
 def _ai_url() -> str:
-    return (Config().AI_SERVICE or {}).get("host", "").rstrip("/")
+    url = (Config().AI_SERVICE or {}).get("host", "").rstrip("/")
+    if not url:
+        raise RuntimeError("AI_SERVICE.host 未配置")
+    return url
 
 
 def _token() -> str:
