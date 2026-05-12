@@ -30,18 +30,3 @@ class NexuConfig(BaseSettings):
     token: str = ""
 
 
-class MuninnConfig(BaseSettings):
-    """Muninn CDK 服务配置"""
-    model_config = SettingsConfigDict(extra="ignore")
-
-    api_base_url: str = ""
-    admin_token: str = ""
-    allow_user: list[str] = []
-
-
-class GithubConfig(BaseSettings):
-    """GitHub Actions 部署配置"""
-    model_config = SettingsConfigDict(extra="ignore")
-
-    token: str = ""
-    allow_user: list[str] = []

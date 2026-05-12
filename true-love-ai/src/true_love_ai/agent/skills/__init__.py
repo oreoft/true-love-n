@@ -27,8 +27,6 @@ def ensure_skills_loaded():
         image_skill,
         video_skill,
         search_skill,
-        muninn_skill,
-        deploy_skill,
         config_skill,
         wechat_qr_skill,
         job_skill,

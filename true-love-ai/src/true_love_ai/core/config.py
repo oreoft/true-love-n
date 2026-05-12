@@ -11,7 +11,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .config_llm import LLMConfig
 from .config_http import HTTPConfig, SessionConfig
-from .config_services import PlatformKeyConfig, BaseServerConfig, NexuConfig, MuninnConfig, GithubConfig
+from .config_services import PlatformKeyConfig, BaseServerConfig, NexuConfig
 from true_love_common.observability.logging import LoggingConfig
 
 LoggingConfig.setup("tl-ai")
@@ -37,8 +37,6 @@ class Config(BaseSettings):
     platform_key: PlatformKeyConfig = PlatformKeyConfig()
     base_server: BaseServerConfig = BaseServerConfig()
     nexu: NexuConfig = NexuConfig()
-    muninn: MuninnConfig = MuninnConfig()
-    github: GithubConfig = GithubConfig()
 
     logging: Optional[dict] = None
 
@@ -77,8 +75,6 @@ __all__ = [
     "PlatformKeyConfig",
     "BaseServerConfig",
     "NexuConfig",
-    "MuninnConfig",
-    "GithubConfig",
     "get_config",
     "reload_config",
 ]
