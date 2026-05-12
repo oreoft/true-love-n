@@ -11,7 +11,7 @@ from typing import Callable, Awaitable
 
 LOG = logging.getLogger("SkillRegistry")
 
-# {name: {"schema": {...}, "handler": async fn}}
+# {name: {"schema": {...}, "handler": async fn, "permissions": dict|None}}
 _skills: dict[str, dict] = {}
 
 
@@ -26,28 +26,39 @@ def register_skill(schema: dict):
             "name": "skill_name",
             "description": "...",
             "parameters": {...}
-        }
+        },
+        "permissions": ["*"]   # 可选，代码级权限（规则2）
+                               # ["*"] / ["wechat:*"] / ["wechat:user1", "lark:*"]
     }
 
     被装饰的函数签名：async def fn(params: dict, ctx: dict) -> str
     """
     def decorator(fn: Callable[[dict, dict], Awaitable[str]]):
         name = schema["function"]["name"]
-        _skills[name] = {"schema": schema, "handler": fn}
+        _skills[name] = {
+            "schema": schema,
+            "handler": fn,
+            "permissions": schema.get("permissions"),
+        }
         LOG.debug("Registered skill: %s", name)
         return fn
     return decorator
 
 
-def get_all_tool_schemas() -> list[dict]:
-    """获取所有已注册 skill 的 tool schema 列表（供 LLM tools 参数使用）"""
+def get_all_tool_schemas(platform: str = "", sender_id: str = "") -> list[dict]:
+    """获取当前用户有权限使用的 skill tool schema 列表（供 LLM tools 参数使用）"""
     import copy
+    from true_love_ai.agent.skills.permission import check_permission
+
     schemas = []
-    for s in _skills.values():
+    ctx = {"platform": platform, "sender_id": sender_id}
+    for name, s in _skills.items():
+        if not check_permission(name, ctx, s["permissions"]):
+            continue
         schema = copy.deepcopy(s["schema"])
-        schema.pop("notify", None)  # notify 是内部字段，不传给 LLM
+        schema.pop("notify", None)
+        schema.pop("permissions", None)  # 内部字段，不传给 LLM
         params = schema.get("function", {}).get("parameters", {})
-        # Gemini 不接受 properties: {}，空时删掉该字段
         if isinstance(params.get("properties"), dict) and not params["properties"]:
             params.pop("properties", None)
             params.pop("required", None)
@@ -62,10 +73,14 @@ def get_notify(name: str) -> str | None:
 
 
 async def execute(name: str, params: dict, ctx: dict) -> str:
-    """执行指定 skill"""
+    """执行指定 skill（含权限检查）"""
+    from true_love_ai.agent.skills.permission import require_permission
+
     skill = _skills.get(name)
     if not skill:
         return f"[未知 skill: {name}]"
+
+    require_permission(name, ctx, skill["permissions"])
     return await skill["handler"](params, ctx)
 
 

@@ -26,8 +26,9 @@ class Config(BaseSettings):
     """
     model_config = SettingsConfigDict(extra="ignore")
 
-    # 每个 skill 的允许用户列表，key 为 skill 名称，"default" 为兜底
-    # 未配置某 skill 时走 default；default 也未配置时所有人可用
+    # 每个 skill 的权限白名单，key 为 skill 名称
+    # 格式：["*"] / ["wechat:*"] / ["wechat:user1", "lark:*"]
+    # 未配置时所有人可用（规则1）；skill 代码/DB 中声明的权限优先（规则2）
     skill_permissions: dict[str, list[str]] = {}
 
     llm: Optional[LLMConfig] = None

@@ -506,6 +506,10 @@
                         <label>参数定义（可选，JSON）</label>
                         <textarea v-model="skillAddModal.parameters" class="modal-input modal-textarea" placeholder='如：{"pkg":{"default":"requests","desc":"包名"}}'></textarea>
                     </div>
+                    <div class="form-field">
+                        <label>权限（可选，JSON）</label>
+                        <textarea v-model="skillAddModal.permissions" class="modal-input modal-textarea" placeholder='如：["wechat:admin123"] 或 ["lark:*"]'></textarea>
+                    </div>
                 </div>
                 <div class="modal-actions">
                     <button class="btn btn-outline" @click="skillAddModal.show = false">取消</button>
@@ -540,6 +544,10 @@
                     <div class="form-field">
                         <label>参数定义（JSON，清空则删除）</label>
                         <textarea v-model="skillEditModal.parameters" class="modal-input modal-textarea"></textarea>
+                    </div>
+                    <div class="form-field">
+                        <label>权限（JSON，清空则删除）</label>
+                        <textarea v-model="skillEditModal.permissions" class="modal-input modal-textarea" placeholder='如：["wechat:admin123"] 或 ["lark:*"]'></textarea>
                     </div>
                 </div>
                 <div class="modal-actions">

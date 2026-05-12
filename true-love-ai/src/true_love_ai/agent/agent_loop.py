@@ -79,8 +79,8 @@ class AgentLoop:
         session = self.session_manager.get_or_create(session_id, user_ctx=user_ctx)
         session.add_message("user", user_content)
 
-        # 获取当前可用 tools
-        tools = skill_registry.get_all_tool_schemas()
+        # 获取当前用户有权限使用的 tools
+        tools = skill_registry.get_all_tool_schemas(platform=platform, sender_id=sender_id)
 
         # 开始 Agent Loop
         messages = session.get_messages_for_llm()

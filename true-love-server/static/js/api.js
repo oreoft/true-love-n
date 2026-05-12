@@ -82,9 +82,9 @@ window.api = {
     // Skill API
     fetchSkillList: () => apiRequest('/admin/skill/list'),
 
-    saveSkill: (id, name, description, command, parameters) => apiRequest('/admin/skill/save', {
+    saveSkill: (id, name, description, command, parameters, permissions) => apiRequest('/admin/skill/save', {
         method: 'POST',
-        body: JSON.stringify({ id, name, description, command, parameters })
+        body: JSON.stringify({ id, name, description, command, parameters, permissions })
     }),
 
     deleteSkill: (id) => apiRequest('/admin/skill/delete', {

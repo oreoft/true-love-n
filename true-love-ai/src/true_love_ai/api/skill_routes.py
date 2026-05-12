@@ -37,10 +37,12 @@ async def save_skill(request: dict):
     description = request.get("description", "").strip()
     command = request.get("command", "").strip()
     parameters = request.get("parameters") or ""
+    permissions = request.get("permissions") or None
     creator = request.get("creator", "admin").strip()
 
     try:
-        result = _ss.save_skill(skill_id, name, description, command, parameters, creator)
+        result = _ss.save_skill(skill_id, name, description, command,
+                                parameters, creator, permissions)
     except (ValueError, RuntimeError) as e:
         return APIResponse.error(str(e))
 

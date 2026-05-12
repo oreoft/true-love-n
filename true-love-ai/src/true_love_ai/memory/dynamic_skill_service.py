@@ -65,6 +65,25 @@ def normalize_parameters(parameters) -> str | None:
     return None
 
 
+def normalize_permissions(permissions) -> str | None:
+    """将 permissions 规范化为 JSON 字符串或 None；格式非法时抛 ValueError。
+    期望格式：["*"] / ["wechat:*"] / ["wechat:user1", "lark:*"]
+    """
+    if not permissions:
+        return None
+    if isinstance(permissions, list):
+        return json.dumps(permissions, ensure_ascii=False)
+    if isinstance(permissions, str) and permissions.strip():
+        try:
+            parsed = json.loads(permissions)
+            if not isinstance(parsed, list):
+                raise ValueError("permissions 必须是 JSON 数组，如 [\"wechat:*\"]")
+            return permissions.strip()
+        except json.JSONDecodeError:
+            raise ValueError("permissions 必须是合法的 JSON 格式")
+    return None
+
+
 def _to_dict(skill) -> dict:
     return {
         "id": skill.id,
@@ -72,6 +91,7 @@ def _to_dict(skill) -> dict:
         "description": skill.description,
         "command": skill.command,
         "parameters": skill.parameters,
+        "permissions": skill.permissions,
         "creator": skill.creator,
         "usage_count": skill.usage_count,
         "last_used_at": skill.last_used_at.isoformat() if skill.last_used_at else None,
@@ -80,7 +100,7 @@ def _to_dict(skill) -> dict:
 
 
 def save_skill(skill_id: str, name: str, description: str, command: str,
-               parameters, creator: str = "admin") -> dict:
+               parameters, creator: str = "admin", permissions=None) -> dict:
     """验证并保存技能（upsert），返回 {"id": skill_id, "is_update": bool}。
 
     校验失败抛 ValueError，保存失败抛 RuntimeError。
@@ -97,6 +117,7 @@ def save_skill(skill_id: str, name: str, description: str, command: str,
         raise ValueError(cmd_err)
 
     params_json = normalize_parameters(parameters)
+    perms_json = normalize_permissions(permissions)
 
     with SessionLocal() as db:
         repo = DynamicSkillRepository(db)
@@ -107,6 +128,7 @@ def save_skill(skill_id: str, name: str, description: str, command: str,
             description=description,
             command=command,
             parameters=params_json,
+            permissions=perms_json,
             creator=creator,
         )
 

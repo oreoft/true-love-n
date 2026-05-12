@@ -12,7 +12,7 @@ import logging
 import re
 
 from true_love_ai.agent.skill_registry import register_skill
-from true_love_ai.agent.skills.permission import require_permission
+from true_love_ai.agent.skills.permission import check_permission
 from true_love_ai.memory import dynamic_skill_service as _ss
 
 LOG = logging.getLogger("DynamicSkillManage")
@@ -76,23 +76,32 @@ def _substitute_params(command: str, param_defs: dict, overrides: dict) -> str:
                         "如 {\"package\": {\"default\": \"wxautox4\", \"desc\": \"包名\"}}"
                     ),
                 },
+                "permissions": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": (
+                        "权限白名单（可选），格式：[\"*\"|\"platform:*\"|\"platform:sender_id\"]，"
+                        "如 [\"wechat:admin123\"] 或 [\"lark:*\", \"wechat:admin123\"]，"
+                        "不填则默认所有人可用"
+                    ),
+                },
             },
             "required": ["id", "name", "description", "command"],
         },
     },
 })
 async def skill_save(params: dict, ctx: dict) -> str:
-    require_permission("skill_save", ctx)
-
     skill_id = params.get("id", "").strip()
     name = params.get("name", "").strip()
     description = params.get("description", "").strip()
     command = params.get("command", "").strip()
     param_defs = params.get("parameters") or {}
+    permissions = params.get("permissions") or None
     creator = ctx.get("sender_id", "")
 
     try:
-        result = _ss.save_skill(skill_id, name, description, command, param_defs, creator)
+        result = _ss.save_skill(skill_id, name, description, command,
+                                param_defs, creator, permissions)
     except (ValueError, RuntimeError) as e:
         return str(e)
 
@@ -137,7 +146,12 @@ async def skill_run(params: dict, ctx: dict) -> str:
     if not skill:
         return f"未找到技能 '{skill_id}'，请检查 ID 是否正确"
 
-    # 执行前也做一次命令安全校验（防止历史数据绕过）
+    # 检查该动态 skill 自身的权限（融合规则2/3/1）
+    skill_perms: list[str] | None = json.loads(skill["permissions"]) if skill.get("permissions") else None
+    if not check_permission(skill_id, ctx, skill_perms):
+        return "诶嘿~这个技能你没有权限使用哦~"
+
+    # 执行前命令安全校验（防止历史数据绕过）
     blocked_reason = _ss.validate_command(skill["command"])
     if blocked_reason:
         LOG.warning("skill_run 拦截: id=%s reason=%s", skill_id, blocked_reason)

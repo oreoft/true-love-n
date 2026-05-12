@@ -18,6 +18,7 @@ window.useSkillPage = function(showToast, showConfirm) {
         description: '',
         command: '',
         parameters: '',
+        permissions: '',
     });
 
     // 修改弹窗状态（id 只读，是主键）
@@ -29,6 +30,7 @@ window.useSkillPage = function(showToast, showConfirm) {
         description: '',
         command: '',
         parameters: '',
+        permissions: '',
     });
 
     /**
@@ -70,11 +72,13 @@ window.useSkillPage = function(showToast, showConfirm) {
         skillAddModal.description = '';
         skillAddModal.command = '';
         skillAddModal.parameters = '';
+        skillAddModal.permissions = '';
     };
 
-    const _validateParams = (paramsStr) => {
-        if (!paramsStr.trim()) return true;
-        try { JSON.parse(paramsStr); return true; } catch (e) { return false; }
+    const _validateJson = (str, fieldName) => {
+        if (!str.trim()) return true;
+        try { JSON.parse(str); return true; }
+        catch (e) { showToast(`${fieldName}必须是合法的 JSON 格式`, 'error'); return false; }
     };
 
     const submitSkillAdd = async () => {
@@ -83,10 +87,8 @@ window.useSkillPage = function(showToast, showConfirm) {
             showToast('ID、名称、描述、命令不能为空', 'error');
             return;
         }
-        if (!_validateParams(skillAddModal.parameters)) {
-            showToast('参数必须是合法的 JSON 格式', 'error');
-            return;
-        }
+        if (!_validateJson(skillAddModal.parameters, '参数')) return;
+        if (!_validateJson(skillAddModal.permissions, '权限')) return;
         skillAddModal.loading = true;
         try {
             await api.saveSkill(
@@ -95,6 +97,7 @@ window.useSkillPage = function(showToast, showConfirm) {
                 skillAddModal.description.trim(),
                 skillAddModal.command.trim(),
                 skillAddModal.parameters.trim() || null,
+                skillAddModal.permissions.trim() || null,
             );
             showToast('技能添加成功', 'success');
             skillAddModal.show = false;
@@ -115,6 +118,7 @@ window.useSkillPage = function(showToast, showConfirm) {
         skillEditModal.description = skill.description;
         skillEditModal.command = skill.command;
         skillEditModal.parameters = skill.parameters || '';
+        skillEditModal.permissions = skill.permissions || '';
     };
 
     const submitSkillEdit = async () => {
@@ -123,10 +127,8 @@ window.useSkillPage = function(showToast, showConfirm) {
             showToast('名称、描述、命令不能为空', 'error');
             return;
         }
-        if (!_validateParams(skillEditModal.parameters)) {
-            showToast('参数必须是合法的 JSON 格式', 'error');
-            return;
-        }
+        if (!_validateJson(skillEditModal.parameters, '参数')) return;
+        if (!_validateJson(skillEditModal.permissions, '权限')) return;
         skillEditModal.loading = true;
         try {
             await api.saveSkill(
@@ -135,6 +137,7 @@ window.useSkillPage = function(showToast, showConfirm) {
                 skillEditModal.description.trim(),
                 skillEditModal.command.trim(),
                 skillEditModal.parameters.trim() || null,
+                skillEditModal.permissions.trim() || null,
             );
             showToast('技能修改成功', 'success');
             skillEditModal.show = false;
