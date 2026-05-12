@@ -19,12 +19,21 @@ class PermissionDenied(Exception):
 
 
 def _check_perm(users: list[str], platform: str, sender_id: str) -> bool:
-    """检查 (platform, sender_id) 是否在 users 白名单内。"""
-    if "*" in users:
-        return True
-    if f"{platform}:*" in users:
-        return True
-    return f"{platform}:{sender_id}" in users
+    """检查 (platform, sender_id) 是否在 users 白名单内。
+    兼容旧格式：无 ':' 的条目视为 '*:sender_id'（任意平台该用户）。
+    """
+    for entry in users:
+        if entry == "*":
+            return True
+        if ":" not in entry:
+            # 旧格式兼容：纯 sender_id → 任意平台
+            if entry == sender_id:
+                return True
+        else:
+            p, u = entry.split(":", 1)
+            if (p == "*" or p == platform) and (u == "*" or u == sender_id):
+                return True
+    return False
 
 
 def check_permission(skill_name: str, ctx: dict,
