@@ -40,7 +40,8 @@ async def list_skills() -> list[dict]:
 
 
 async def save_skill(skill_id: str, name: str, description: str,
-                     command: str, parameters: str | None) -> dict:
+                     command: str, parameters: str | None,
+                     permissions=None) -> dict:
     result = await async_post_json(
         f"{_ai_url()}/skill/save",
         {
@@ -50,6 +51,7 @@ async def save_skill(skill_id: str, name: str, description: str,
             "description": description,
             "command": command,
             "parameters": parameters,
+            "permissions": permissions,
             "creator": "admin",
         },
         timeout=10.0,

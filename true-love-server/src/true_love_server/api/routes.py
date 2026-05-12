@@ -539,12 +539,14 @@ async def admin_save_skill(request: dict):
     description = request.get("description", "").strip()
     command = request.get("command", "").strip()
     parameters = request.get("parameters") or ""
+    permissions = request.get("permissions") or None
     if not skill_id or not name or not description or not command:
         raise ValidationException("id、name、description、command 不能为空")
     try:
         data = await _skill_client.save_skill(
             skill_id, name, description, command,
             parameters.strip() if parameters.strip() else None,
+            permissions,
         )
     except RuntimeError as e:
         raise ValidationException(str(e))
