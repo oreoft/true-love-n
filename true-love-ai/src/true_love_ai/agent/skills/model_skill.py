@@ -3,7 +3,6 @@
 import logging
 
 from true_love_ai.agent.skill_registry import register_skill
-from true_love_ai.agent.skills.permission import require_permission
 
 LOG = logging.getLogger("ModelSkill")
 
@@ -17,7 +16,6 @@ LOG = logging.getLogger("ModelSkill")
     }
 })
 async def list_models(params: dict, ctx: dict) -> str:
-    require_permission("list_models", ctx)
     from true_love_ai.core.model_registry import get_model_registry
     models = get_model_registry().all()
     lines = ["当前模型配置："]
@@ -62,7 +60,6 @@ async def list_models(params: dict, ctx: dict) -> str:
     }
 })
 async def set_model(params: dict, ctx: dict) -> str:
-    require_permission("set_model", ctx)
     category = params.get("category", "").strip()
     key = params.get("key", "").strip()
     value = params.get("value", "").strip()

@@ -20,10 +20,6 @@ LOG = logging.getLogger("ConfigSkill")
 })
 async def reload_config(params: dict, ctx: dict) -> str:
     from true_love_ai.core.config import reload_config as _reload
-    from true_love_ai.agent.skills.permission import require_permission
-    if err := require_permission("reload_config", ctx):
-        return err
-
     try:
         _reload()
         LOG.info("AI 配置已重载, 操作者: %s", ctx.get("sender_id", ""))

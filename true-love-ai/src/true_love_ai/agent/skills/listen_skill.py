@@ -35,10 +35,6 @@ LOG = logging.getLogger("ListenSkill")
     }
 })
 async def listen_manage(params: dict, ctx: dict) -> str:
-    from true_love_ai.agent.skills.permission import require_permission
-    if err := require_permission("listen_manage", ctx):
-        return err
-
     action = params.get("action", "")
     target = params.get("target", "")
     if not target:
