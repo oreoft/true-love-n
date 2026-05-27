@@ -45,7 +45,7 @@ class WxAutoClient():
     def _init_client(self):
         """初始化 wxautox4 WeChat 实例"""
         try:
-            self._wx = WeChat()
+            self._wx = WeChat(version='WeChat')
             self._running = True
             LOG.info("WxAutoClient initialized successfully")
         except Exception as e:
