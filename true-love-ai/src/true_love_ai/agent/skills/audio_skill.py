@@ -46,8 +46,11 @@ async def generate_audio(params: dict, ctx: dict) -> str:
 
         if result and result.audio_id:
             from true_love_ai.agent.server_client import send_file
-            await send_file(receiver, f"{GEN_AUDIO_DIR.name}/{result.audio_id}.wav", platform=platform)
-            return "好耶~语音已生成并发送！"
+            ok = await send_file(receiver, f"{GEN_AUDIO_DIR.name}/{result.audio_id}.wav", platform=platform)
+            if ok:
+                return "好耶~语音已生成并发送！"
+            LOG.error("generate_audio: send_file 返回失败 audio_id=%s", result.audio_id)
+            return "呜呜~语音生成好了但是发送失败了捏，稍后再试试吧~"
 
         return "呜呜~语音生成失败了捏，稍后再试试吧~"
     except Exception as e:
