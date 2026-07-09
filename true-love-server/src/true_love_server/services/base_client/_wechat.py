@@ -10,16 +10,17 @@ from ._interface import BaseClient, api_response_ok, download_to_tmp, trace_head
 
 LOG = logging.getLogger("WeChatBaseClient")
 _TIMEOUT = (2, 10)
+_FILE_TIMEOUT = (2, 60)  # 文件发送涉及 WeChat UI 自动化操作（含重试），比普通请求慢
 
 
 class WeChatBaseClient(BaseClient):
 
-    async def _post(self, label: str, url: str, payload: str) -> HttpResult:
+    async def _post(self, label: str, url: str, payload: str, timeout=_TIMEOUT) -> HttpResult:
         return await async_post(
             url,
             headers=trace_headers({"Content-Type": "application/json"}),
             data=payload,
-            timeout=_TIMEOUT,
+            timeout=timeout,
         )
 
     # ==================== 通用接口实现 ====================
@@ -44,7 +45,7 @@ class WeChatBaseClient(BaseClient):
             url = f"{self.host}/send/file"
             path = ref if not ref.startswith(("http://", "https://")) else await download_to_tmp(ref)
             payload = json.dumps({"path": path, "sendReceiver": receiver}, ensure_ascii=False)
-            return api_response_ok(await self._post("send_file", url, payload))
+            return api_response_ok(await self._post("send_file", url, payload, timeout=_FILE_TIMEOUT))
         except Exception as e:
             LOG.error("WeChat send_file failed: %s", e)
             if raise_on_error:
