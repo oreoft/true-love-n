@@ -20,4 +20,11 @@ class VideoResponse(BaseModel):
     video_id: Optional[str] = Field(default=None, description="视频文件名（不含目录），路径为 gen_video/{video_id}.mp4")
 
 
-__all__ = ["APIResponse", "ApiResponse", "BizCode", "ImageResponse", "VideoResponse"]
+class AudioResponse(BaseModel):
+    """语音合成响应"""
+    text: str = Field(..., description="合成语音使用的文本")
+    audio_id: Optional[str] = Field(default=None, description="音频文件名（不含目录），路径为 gen_audio/{audio_id}.wav")
+    duration_seconds: float = Field(default=0.0, description="音频时长（秒）")
+
+
+__all__ = ["APIResponse", "ApiResponse", "BizCode", "ImageResponse", "VideoResponse", "AudioResponse"]

@@ -11,6 +11,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
+from true_love_ai.services.audio_service import GEN_AUDIO_DIR
 from true_love_ai.services.image_service import GEN_IMG_DIR
 from true_love_ai.services.video_service import GEN_VIDEO_DIR
 
@@ -22,6 +23,7 @@ router = APIRouter()
 _ALLOWED_DIRS: dict[str, Path] = {
     GEN_IMG_DIR.name: GEN_IMG_DIR,
     GEN_VIDEO_DIR.name: GEN_VIDEO_DIR,
+    GEN_AUDIO_DIR.name: GEN_AUDIO_DIR,
 }
 
 

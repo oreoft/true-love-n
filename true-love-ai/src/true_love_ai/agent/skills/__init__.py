@@ -26,6 +26,7 @@ def ensure_skills_loaded():
         analyze_group_skill,
         image_skill,
         video_skill,
+        audio_skill,
         search_skill,
         config_skill,
         wechat_qr_skill,

@@ -54,6 +54,7 @@ class BaseClient(ABC):
 
 _IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
 _VIDEO_EXTS = {".mp4", ".mov", ".avi", ".mkv"}
+_AUDIO_EXTS = {".wav", ".mp3"}
 
 
 def _download_dir_for(suffix: str) -> Path:
@@ -61,6 +62,8 @@ def _download_dir_for(suffix: str) -> Path:
         return Path("gen-img")
     if suffix in _VIDEO_EXTS:
         return Path("gen-video")
+    if suffix in _AUDIO_EXTS:
+        return Path("gen-audio")
     return Path("files-save")
 
 

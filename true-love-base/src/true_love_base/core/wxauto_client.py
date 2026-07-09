@@ -144,8 +144,25 @@ class WxAutoClient():
             LOG.error(f"Failed to send text to [{receiver}]: {e}")
             return False
 
+    _AUDIO_EXTS = (".wav", ".mp3")
+
     def send_file(self, receiver: str, file_path: str) -> bool:
-        """发送文件"""
+        """发送文件；音频文件（.wav/.mp3）走原生语音气泡 SendAudio，发送失败时降级为普通文件发送"""
+        if file_path.lower().endswith(self._AUDIO_EXTS):
+            try:
+                return self._send_audio(receiver, file_path)
+            except Exception as e:
+                LOG.warning(f"SendAudio failed, fallback to SendFiles for [{receiver}]: {e}")
+        return self._send_file_generic(receiver, file_path)
+
+    def _send_audio(self, receiver: str, file_path: str) -> bool:
+        """[Beta] 发送语音条消息，需要 4.1.9+ 客户端"""
+        LOG.debug(f"SendAudio path: {file_path}")
+        sub_window = self.wx.GetSubWindow(receiver)
+        result = sub_window.SendAudio(file_path) if sub_window else self.wx.SendAudio(file_path, who=receiver)
+        return self._check_response(result, "SendAudio", receiver)
+
+    def _send_file_generic(self, receiver: str, file_path: str) -> bool:
         try:
             LOG.debug(f"SendFiles path: {file_path}")
             sub_window = self.wx.GetSubWindow(receiver)

@@ -40,6 +40,7 @@ class ModelRegistry:
             "image":      _entry(llm.image),
             "image_edit": _entry(llm.image_edit),
             "video":      _entry(llm.video),
+            "tts":        _entry(llm.tts),
         }
 
         if OVERRIDE_FILE.exists():
@@ -55,6 +56,8 @@ class ModelRegistry:
         LOG.info("ModelRegistry 加载完成: %d 个类别", len(self._models))
 
     def get(self, category: str, key: str = "default") -> str:
+        if key == "fallback":
+            return self._models.get(category, {}).get("fallback", "")
         try:
             return self._models[category][key]
         except KeyError:
