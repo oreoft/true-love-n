@@ -18,7 +18,7 @@ class LLMConfig(BaseSettings):
     vision: FallbackModel = FallbackModel(default="openai/gpt-5.5")
     image: FallbackModel = FallbackModel(default="openai/gpt-image-2", fallback="gemini/gemini-3-pro-image")
     image_edit: FallbackModel = FallbackModel(default="openai/gpt-image-2", fallback="openai/gpt-image-1.5")
-    video: FallbackModel = FallbackModel(default="gemini/veo-3.1-generate-preview", fallback="openai/sora-2-pro")
+    video: FallbackModel = FallbackModel(default="gemini/veo-3.1-fast-generate-preview", fallback="openai/sora-2-pro")
 
     # Prompts
     system_prompt: str = "你是一个可爱的智能助手~"

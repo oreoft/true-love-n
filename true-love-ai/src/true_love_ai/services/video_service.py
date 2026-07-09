@@ -3,11 +3,13 @@
 """视频服务：文生视频 / 图生视频（通过 LiteLLM proxy HTTP API）"""
 import asyncio
 import base64
+import io
 import logging
 import uuid
 from pathlib import Path
 from typing import Optional
 
+from PIL import Image
 from true_love_common.http.client import HttpResult, async_get, async_post
 
 from true_love_ai.core.config import get_config
@@ -77,7 +79,8 @@ class VideoService:
 
         body: dict = {"model": model, "prompt": prompt, "size": "1280x720", "seconds": "8"}
         if is_img2video:
-            body["input_reference"] = img_data_list[0]
+            mime_type, b64_data = self._detect_image(img_data_list[0])
+            body["input_reference"] = {"bytesBase64Encoded": b64_data, "mimeType": mime_type}
 
         resp = await async_post(f"{self.base_url}/v1/videos", headers=self._headers(), json=body, timeout=60.0)
         self._raise_for_video_error(resp)
@@ -114,6 +117,16 @@ class VideoService:
         resp = await async_get(f"{self.base_url}/v1/videos/{video_id}/content", headers=self._headers(), timeout=120.0)
         self._raise_for_video_error(resp)
         return resp.content
+
+    @staticmethod
+    def _detect_image(raw: str) -> tuple[str, str]:
+        """从传入的图片数据中探出真实 mime type，返回 (mime_type, 纯 base64 数据)"""
+        if raw.startswith("data:") and ";base64," in raw:
+            raw = raw.split(";base64,", 1)[1]
+        image_bytes = base64.b64decode(raw)
+        fmt = Image.open(io.BytesIO(image_bytes)).format
+        mime_type = Image.MIME.get(fmt, "image/png")
+        return mime_type, base64.b64encode(image_bytes).decode()
 
     @staticmethod
     def _raise_for_video_error(resp: HttpResult) -> None:
