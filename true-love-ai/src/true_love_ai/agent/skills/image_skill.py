@@ -62,8 +62,11 @@ async def generate_image(params: dict, ctx: dict) -> str:
         if result and result.img:
             filename = f"{uuid.uuid4().hex}.jpg"
             (GEN_IMG_DIR / filename).write_bytes(base64.b64decode(result.img))
-            await send_file(receiver, f"{GEN_IMG_DIR.name}/{filename}", platform=platform)
-            return "好耶~图片已生成并发送！"
+            ok = await send_file(receiver, f"{GEN_IMG_DIR.name}/{filename}", platform=platform)
+            if ok:
+                return "好耶~图片已生成并发送！"
+            LOG.error("generate_image: send_file 返回失败 filename=%s", filename)
+            return "呜呜~图片生成好了但是发送失败了捏，稍后再试试吧~"
 
         return "呜呜~图片生成失败了捏，稍后再试试吧~"
     except Exception as e:
