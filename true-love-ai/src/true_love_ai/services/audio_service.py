@@ -7,7 +7,6 @@ import uuid
 import wave
 from pathlib import Path
 
-import lameenc
 from true_love_common.http.client import HttpResult, async_post
 
 from true_love_ai.core.config import get_config
@@ -50,30 +49,21 @@ class AudioService:
         resp = await async_post(f"{self.base_url}/v1/audio/speech", headers=self._headers(), json=body, timeout=60.0)
         self._raise_for_audio_error(resp)
 
-        mp3_bytes, duration = self._wav_to_mp3(resp.content)
-
         aid = str(uuid.uuid4())
-        audio_path = GEN_AUDIO_DIR / f"{aid}.mp3"
-        audio_path.write_bytes(mp3_bytes)
-        LOG.info("语音完成: %s (%.2fKB, %.1fs)", audio_path, len(mp3_bytes) / 1024, duration)
+        audio_path = GEN_AUDIO_DIR / f"{aid}.wav"
+        audio_path.write_bytes(resp.content)
+        duration = self._wav_duration_seconds(resp.content)
+        LOG.info("语音完成: %s (%.2fKB, %.1fs)", audio_path, len(resp.content) / 1024, duration)
         return AudioResponse(text=text, audio_id=aid, duration_seconds=duration)
 
     @staticmethod
-    def _wav_to_mp3(data: bytes) -> tuple[bytes, float]:
-        """把 TTS 返回的 wav（pcm16）编码为 mp3；纯 Python 依赖（lameenc 自带 libmp3lame），无需系统装 ffmpeg"""
-        with wave.open(io.BytesIO(data)) as wf:
-            channels = wf.getnchannels()
-            sample_rate = wf.getframerate()
-            pcm = wf.readframes(wf.getnframes())
-            duration = round(wf.getnframes() / float(sample_rate), 2)
-
-        encoder = lameenc.Encoder()
-        encoder.set_bit_rate(64)
-        encoder.set_in_sample_rate(sample_rate)
-        encoder.set_channels(channels)
-        encoder.set_quality(2)
-        mp3_bytes = encoder.encode(pcm) + encoder.flush()
-        return mp3_bytes, duration
+    def _wav_duration_seconds(data: bytes) -> float:
+        try:
+            with wave.open(io.BytesIO(data)) as wf:
+                return round(wf.getnframes() / float(wf.getframerate()), 2)
+        except Exception as e:
+            LOG.warning("解析 wav 时长失败: %s", e)
+            return 0.0
 
     @staticmethod
     def _raise_for_audio_error(resp: HttpResult) -> None:
