@@ -56,8 +56,8 @@ COPY --from=builder /true-love-common /true-love-common
 # 复制源代码
 COPY --from=builder /app/src /app/src
 
-# 创建生成视频目录
-RUN mkdir -p /app/gen_video
+# 创建生成视频/语音目录
+RUN mkdir -p /app/gen_video /app/gen_audio
 
 # 设置 PATH 使用虚拟环境
 ENV PATH="/app/.venv/bin:$PATH"
