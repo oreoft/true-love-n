@@ -74,7 +74,7 @@ async def send_file(receiver: str, path: str, platform: str = "wechat") -> bool:
     """
     result = await _async_post("/action/send-file", {
         "receiver": receiver, "path": path, "platform": platform,
-    })
+    }, timeout=60.0)
     return result.get("code") == 0
 
 
