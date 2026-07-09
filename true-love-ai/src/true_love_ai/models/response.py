@@ -23,7 +23,7 @@ class VideoResponse(BaseModel):
 class AudioResponse(BaseModel):
     """语音合成响应"""
     text: str = Field(..., description="合成语音使用的文本")
-    audio_id: Optional[str] = Field(default=None, description="音频文件名（不含目录），路径为 gen_audio/{audio_id}.wav")
+    audio_id: Optional[str] = Field(default=None, description="音频文件名（不含目录），路径为 gen_audio/{audio_id}.mp3")
     duration_seconds: float = Field(default=0.0, description="音频时长（秒）")
 
 

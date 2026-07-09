@@ -147,12 +147,13 @@ class WxAutoClient():
     _AUDIO_EXTS = (".wav", ".mp3")
 
     def send_file(self, receiver: str, file_path: str) -> bool:
-        """发送文件；音频文件（.wav/.mp3）走原生语音气泡 SendAudio，发送失败时降级为普通文件发送"""
+        """发送文件；音频文件（.wav/.mp3）走原生语音气泡 SendAudio，失败直接返回失败，不降级为普通文件"""
         if file_path.lower().endswith(self._AUDIO_EXTS):
             try:
                 return self._send_audio(receiver, file_path)
             except Exception as e:
-                LOG.warning(f"SendAudio failed, fallback to SendFiles for [{receiver}]: {e}")
+                LOG.error(f"SendAudio failed for [{receiver}]: {e}")
+                return False
         return self._send_file_generic(receiver, file_path)
 
     def _send_audio(self, receiver: str, file_path: str) -> bool:
