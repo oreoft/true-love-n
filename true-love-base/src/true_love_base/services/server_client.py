@@ -21,7 +21,7 @@ config = Config()
 LOG = logging.getLogger("ServerClient")
 
 # 服务端配置
-SERVER_HOST = "http://localhost:8088"
+SERVER_HOST = "http://host.docker.internal:8088"
 CHAT_ENDPOINT = f"{SERVER_HOST}/on-message"
 
 # ==================== HTTP Client 连接复用 ====================
