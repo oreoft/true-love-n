@@ -1,6 +1,7 @@
 name: true-love-base Deploy to m8s-win
 
 on:
+  workflow_dispatch:
   push:
     branches: [ "master" ]
     paths:
@@ -41,15 +42,26 @@ jobs:
           set -euo pipefail
           echo "SSH env ready"
           ssh -o StrictHostKeyChecking=no -p ${{ env.SERVER_PORT }} ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} << 'EOF'
-            echo "Connected to remote server"
-          
-            echo "Stopping existing TrueLove-Base task if it exists"
-            schtasks /end /tn "UIA-TL-BASE"
-          
-            echo "Starting TrueLove-Base task"
-            schtasks /run /tn "UIA-TL-BASE"
-          
-            echo "Deployment script completed"
+            $ErrorActionPreference = "Stop"
+            $taskName = "UIA-TL-BASE"
+
+            Write-Host "Connected to remote server"
+
+            Write-Host "Stopping existing TrueLove-Base task if it is running"
+            schtasks /end /tn $taskName
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "Task was not running or could not be stopped; continuing"
+            }
+
+            Write-Host "Starting TrueLove-Base task"
+            schtasks /run /tn $taskName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+            Write-Host "Checking TrueLove-Base task status"
+            schtasks /query /tn $taskName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+            Write-Host "Deployment script completed"
           EOF
 
       - name: Notify - base Success

@@ -1,6 +1,7 @@
 name: true-love-server Build & Deploy via Docker
 
 on:
+  workflow_dispatch:
   push:
     branches: [ "master" ]
     paths:
@@ -16,6 +17,7 @@ env:
   SERVER_IP: ${{ secrets.M8S_GW_HOST }}
   SERVER_PORT: 2233
   SERVER_USER: admin
+  SERVER_DEPLOY_PATH: "C:\\Users\\admin\\Desktop\\true-love-n\\true-love-server"
   SERVER_SSH_KEY: ${{ secrets.M8S_SSH_DOOR_KEY }}
   
   # 通知配置
@@ -83,7 +85,25 @@ jobs:
       - name: Deploy via SSH
         shell: bash
         run: |
-          ssh -o StrictHostKeyChecking=no -p "${{ env.SERVER_PORT }}" "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" "powershell.exe -Command \"cd C:\Users\admin\Desktop\true-love-n\true-love-server; git pull; docker compose pull; docker compose up -d; docker image prune -f\""
+          ssh -o StrictHostKeyChecking=no -p "${{ env.SERVER_PORT }}" "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" << 'EOF'
+            $ErrorActionPreference = "Stop"
+            Set-Location -Path "${{ env.SERVER_DEPLOY_PATH }}"
+
+            git pull --ff-only
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+            docker compose pull
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+            docker compose up -d
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+            docker image prune -f
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+            docker compose ps
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          EOF
 
       - name: Notify - Success
         if: success()
