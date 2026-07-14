@@ -47,10 +47,9 @@ services:
     
     # 重启策略（对应 --restart）
     restart: unless-stopped
-    
-    # host 模式：共享宿主机网络栈，解决 Docker NAT 导致的百度 HTTPS 拦截问题
-    # 端口映射在 host 模式下无效，容器直接使用宿主机端口（8088）
-    network_mode: host
+
+    ports:
+      - "8088:8088"
 
 
     # 卷挂载（对应 -v）
