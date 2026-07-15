@@ -48,8 +48,10 @@ asr:
 alapi:
   token: "your_alapi_token"
 
-# Loki configuration (直接访问 Grafana Cloud Loki)
+# Loki configuration (直接访问 Grafana Cloud Loki，同时用于日志主动上报与查询)
 loki:
+  # 是否启用日志主动推送到 Loki（true 时本服务日志会实时 push 上去）
+  enable: true
   # Grafana Cloud Loki 地址 (在 Grafana Cloud -> Loki -> Details 中查看)
   loki_url: "https://logs-prod-xxx.grafana.net"
   # Grafana Cloud User ID (在 Grafana Cloud 账号设置中查看)

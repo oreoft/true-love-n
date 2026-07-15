@@ -14,8 +14,6 @@ from .config_http import HTTPConfig, SessionConfig
 from .config_services import PlatformKeyConfig, BaseServerConfig, NexuConfig
 from true_love_common.observability.logging import LoggingConfig
 
-LoggingConfig.setup("tl-ai")
-
 LOG = logging.getLogger(__name__)
 
 
@@ -42,9 +40,21 @@ class Config(BaseSettings):
 
     @classmethod
     def from_yaml(cls, path: str = "config.yaml") -> "Config":
-        LOG.info(f"从 {path} 加载配置...")
         with open(path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
+
+        loki_config = data.get("loki", {}) or {}
+        # 日志系统需要在读到配置后才能初始化（Loki 上报参数来自配置文件）
+        LoggingConfig.setup(
+            service_name="tl-ai",
+            log_level=logging.INFO,
+            json_format=True,
+            enable_loki=loki_config.get("enable", False),
+            loki_url=loki_config.get("loki_url", ""),
+            loki_user_id=loki_config.get("user_id", ""),
+            loki_api_key=loki_config.get("api_key", ""),
+        )
+        LOG.info(f"从 {path} 加载配置...")
         return cls(**data)
 
 

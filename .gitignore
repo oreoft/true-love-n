@@ -25,3 +25,5 @@ true-love-base/uv.lock
 **/*.db
 **/dbs
 **/models_override.json
+AGENTS.md
+CLAUDE.md

@@ -8,6 +8,7 @@ dependencies = [
     # Web 框架
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
+    "python-logging-loki>=0.3.1",
     # HTTP 客户端
     "httpx>=0.28.0",
     # LLM

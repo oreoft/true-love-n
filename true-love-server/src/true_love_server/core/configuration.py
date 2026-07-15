@@ -7,9 +7,6 @@ import yaml
 
 from true_love_common.observability.logging import LoggingConfig
 
-# 初始化日志配置（在加载任何配置之前）
-LoggingConfig.setup("tl-server")
-
 LOG = logging.getLogger("Configuration")
 
 
@@ -28,16 +25,27 @@ class Config:
         import os
         app_env = os.environ.get("APP_ENV", "")
         config_path = "config.yaml" if app_env == "prod" else "config-dev.yaml"
-        LOG.info("_load_config 开始刷新配置 (APP_ENV=%s, file=%s)", app_env or "dev", config_path)
         with open(config_path, "r", encoding='utf-8') as fp:
             updated_config: dict = yaml.safe_load(fp)
-        LOG.info("_load_config 刷新配置成功: keys=%s", sorted(updated_config.keys()))
         updated_config["app_env"] = app_env
         return updated_config
 
     def reload(self) -> None:
         yconfig = self._load_config()
         if yconfig:
+            loki_config = yconfig.get("loki", {}) or {}
+            # 日志系统需要在读到配置后才能初始化（Loki 上报参数来自配置文件）
+            LoggingConfig.setup(
+                service_name="tl-server",
+                log_level=logging.INFO,
+                json_format=True,
+                enable_loki=loki_config.get("enable", False),
+                loki_url=loki_config.get("loki_url", ""),
+                loki_user_id=loki_config.get("user_id", ""),
+                loki_api_key=loki_config.get("api_key", ""),
+            )
+            LOG.info("_load_config 刷新配置成功: keys=%s", sorted(yconfig.keys()))
+
             self.AUTO_NOTICE: dict = yconfig.get("auto_notice")
             self.HTTP_TOKEN: dict = yconfig.get("http_token")
             self.HTTP = yconfig.get("http")
@@ -45,5 +53,5 @@ class Config:
             self.ASR: dict = yconfig.get("asr", {})
             self.AI_SERVICE: dict = yconfig.get("ai_service", {})
             self.ALAPI: dict = yconfig.get("alapi", {})
-            self.LOKI: dict = yconfig.get("loki", {})
+            self.LOKI: dict = loki_config
             self.APP_ENV: dict = yconfig.get("app_env", "")
