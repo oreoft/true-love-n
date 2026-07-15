@@ -927,44 +927,56 @@ export class NexuConfigStore {
     return config.bots.find((bot) => bot.id === botId) ?? null;
   }
 
-  async getOrCreateDefaultBot(): Promise<BotResponse> {
+  /**
+   * Every connected channel account gets its own dedicated bot, so each
+   * account's OpenClaw workspace (MEMORY.md, USER.md, sessions, etc.) is
+   * fully isolated from every other account — including other accounts of
+   * the same channel type (e.g. two WeChat numbers). Reconnecting the same
+   * (channelType, accountId) pair reuses its existing bot/slug so history
+   * and workspace memory carry over across reconnects.
+   */
+  async getOrCreateBotForChannel(
+    channelType: string,
+    accountId: string,
+  ): Promise<BotResponse> {
+    const slug = `${channelType}-${accountId}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .replace(/-{2,}/g, "-");
+
     const existing = await this.listBots();
-    if (existing.length > 0) {
-      const firstBot = existing[0];
-      if (firstBot) {
-        logger.info(
-          {
-            botId: firstBot.id,
-            slug: firstBot.slug,
-            workspacePath: path.join(
-              this.env.openclawStateDir,
-              "agents",
-              firstBot.id,
-            ),
-            existingBotCount: existing.length,
-            resolution: "reused_existing",
-          },
-          "default_bot_resolution",
-        );
-        return firstBot;
-      }
+    const found = existing.find((bot) => bot.slug === slug);
+    if (found) {
+      logger.info(
+        {
+          botId: found.id,
+          slug,
+          channelType,
+          accountId,
+          resolution: "reused_existing",
+        },
+        "channel_bot_resolution",
+      );
+      return found;
     }
 
     const config = await this.getConfig();
     const bot = await this.createBot({
-      name: "nexu Assistant",
-      slug: "nexu-assistant",
+      name: `${channelType} · ${accountId}`,
+      slug,
       modelId: config.runtime.defaultModelId,
     });
     logger.info(
       {
         botId: bot.id,
-        slug: bot.slug,
+        slug,
+        channelType,
+        accountId,
         workspacePath: path.join(this.env.openclawStateDir, "agents", bot.id),
-        existingBotCount: existing.length,
-        resolution: "created_implicit_default",
+        resolution: "created_isolated",
       },
-      "default_bot_resolution",
+      "channel_bot_resolution",
     );
     return bot;
   }
@@ -1125,11 +1137,11 @@ export class NexuConfigStore {
   async connectSlack(
     input: ConnectSlackInput & { botUserId?: string | null },
   ): Promise<ChannelResponse> {
-    const bot = await this.getOrCreateDefaultBot();
     const connectedAt = now();
     const teamId = input.teamId ?? crypto.randomUUID();
     const appId = input.appId ?? crypto.randomUUID();
     const accountId = `slack-${appId}-${teamId}`;
+    const bot = await this.getOrCreateBotForChannel("slack", accountId);
     const channel: ChannelResponse = {
       id: crypto.randomUUID(),
       botId: bot.id,
@@ -1168,13 +1180,14 @@ export class NexuConfigStore {
   async connectDiscord(
     input: ConnectDiscordInput & { botUserId?: string | null },
   ): Promise<ChannelResponse> {
-    const bot = await this.getOrCreateDefaultBot();
     const connectedAt = now();
+    const accountId = `discord-${input.appId}`;
+    const bot = await this.getOrCreateBotForChannel("discord", accountId);
     const channel: ChannelResponse = {
       id: crypto.randomUUID(),
       botId: bot.id,
       channelType: "discord",
-      accountId: `discord-${input.appId}`,
+      accountId,
       status: "connected",
       teamName: input.guildName ?? null,
       appId: input.appId,
@@ -1205,7 +1218,7 @@ export class NexuConfigStore {
   }
 
   async connectWechat(input: { accountId: string }): Promise<ChannelResponse> {
-    const bot = await this.getOrCreateDefaultBot();
+    const bot = await this.getOrCreateBotForChannel("wechat", input.accountId);
     const connectedAt = now();
     const channel: ChannelResponse = {
       id: crypto.randomUUID(),
@@ -1243,9 +1256,9 @@ export class NexuConfigStore {
     botUsername: string | null;
     displayName: string | null;
   }): Promise<ChannelResponse> {
-    const bot = await this.getOrCreateDefaultBot();
     const connectedAt = now();
     const accountId = `telegram-${input.telegramBotId}`;
+    const bot = await this.getOrCreateBotForChannel("telegram", accountId);
     const channel: ChannelResponse = {
       id: crypto.randomUUID(),
       botId: bot.id,
@@ -1294,7 +1307,10 @@ export class NexuConfigStore {
     accountId: string;
     authDir?: string | null;
   }): Promise<ChannelResponse> {
-    const bot = await this.getOrCreateDefaultBot();
+    const bot = await this.getOrCreateBotForChannel(
+      "whatsapp",
+      input.accountId,
+    );
     const connectedAt = now();
     const channel: ChannelResponse = {
       id: crypto.randomUUID(),
@@ -1343,7 +1359,7 @@ export class NexuConfigStore {
   }
 
   async connectFeishu(input: ConnectFeishuInput): Promise<ChannelResponse> {
-    const bot = await this.getOrCreateDefaultBot();
+    const bot = await this.getOrCreateBotForChannel("feishu", input.appId);
     const connectedAt = now();
     const channel: ChannelResponse = {
       id: crypto.randomUUID(),
@@ -1389,7 +1405,10 @@ export class NexuConfigStore {
   }
 
   async connectQqbot(input: ConnectQqbotInput): Promise<ChannelResponse> {
-    const bot = await this.getOrCreateDefaultBot();
+    const bot = await this.getOrCreateBotForChannel(
+      "qqbot",
+      DEFAULT_MANAGED_CHANNEL_ACCOUNT_ID,
+    );
     const connectedAt = now();
     const channel: ChannelResponse = {
       id: crypto.randomUUID(),
@@ -1423,7 +1442,10 @@ export class NexuConfigStore {
   }
 
   async connectDingtalk(input: ConnectDingtalkInput): Promise<ChannelResponse> {
-    const bot = await this.getOrCreateDefaultBot();
+    const bot = await this.getOrCreateBotForChannel(
+      "dingtalk",
+      DEFAULT_MANAGED_CHANNEL_ACCOUNT_ID,
+    );
     const connectedAt = now();
     const channel: ChannelResponse = {
       id: crypto.randomUUID(),
@@ -1457,7 +1479,10 @@ export class NexuConfigStore {
   }
 
   async connectWecom(input: ConnectWecomInput): Promise<ChannelResponse> {
-    const bot = await this.getOrCreateDefaultBot();
+    const bot = await this.getOrCreateBotForChannel(
+      "wecom",
+      DEFAULT_MANAGED_CHANNEL_ACCOUNT_ID,
+    );
     const connectedAt = now();
     const channel: ChannelResponse = {
       id: crypto.randomUUID(),
