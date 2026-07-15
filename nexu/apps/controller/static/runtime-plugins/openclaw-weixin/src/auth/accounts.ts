@@ -40,6 +40,17 @@ function resolveAccountIndexPath(): string {
   return path.join(resolveWeixinStateDir(), "accounts.json");
 }
 
+function normalizeStoredAccountId(accountId: string): string | null {
+  const trimmed = accountId.trim();
+  if (!trimmed) return null;
+
+  try {
+    return normalizeAccountId(trimmed);
+  } catch {
+    return null;
+  }
+}
+
 /** Returns all accountIds registered via QR login. */
 export function listIndexedWeixinAccountIds(): string[] {
   const filePath = resolveAccountIndexPath();
@@ -54,6 +65,32 @@ export function listIndexedWeixinAccountIds(): string[] {
   } catch {
     return [];
   }
+}
+
+function listStoredWeixinAccountIds(): string[] {
+  const dir = resolveAccountsDir();
+
+  try {
+    if (!fs.existsSync(dir)) return [];
+    return fs
+      .readdirSync(dir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+      .map((entry) => normalizeStoredAccountId(entry.name.slice(0, -5)))
+      .filter((id): id is string => id !== null);
+  } catch {
+    return [];
+  }
+}
+
+function listConfiguredWeixinAccountIds(cfg: OpenClawConfig): string[] {
+  const section = cfg.channels?.["openclaw-weixin"] as
+    | WeixinSectionConfig
+    | undefined;
+  const accountKeys = Object.keys(section?.accounts ?? {});
+
+  return accountKeys
+    .map((accountId) => normalizeStoredAccountId(accountId))
+    .filter((id): id is string => id !== null);
 }
 
 /** Add accountId to the persistent index (no-op if already present). */
@@ -269,8 +306,12 @@ type WeixinSectionConfig = WeixinAccountConfig & {
 };
 
 /** List accountIds from the index file (written at QR login). */
-export function listWeixinAccountIds(_cfg: OpenClawConfig): string[] {
-  return listIndexedWeixinAccountIds();
+export function listWeixinAccountIds(cfg: OpenClawConfig): string[] {
+  return [...new Set([
+    ...listIndexedWeixinAccountIds(),
+    ...listStoredWeixinAccountIds(),
+    ...listConfiguredWeixinAccountIds(cfg),
+  ])];
 }
 
 /** Resolve a weixin account by ID, merging config and stored credentials. */

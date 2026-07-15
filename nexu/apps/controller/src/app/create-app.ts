@@ -8,10 +8,12 @@ import { registerArtifactRoutes } from "../routes/artifact-routes.js";
 import { registerBotRoutes } from "../routes/bot-routes.js";
 import { registerChannelRoutes } from "../routes/channel-routes.js";
 import { registerDesktopCompatRoutes } from "../routes/desktop-compat-routes.js";
+import { registerDesktopRewardsRoutes } from "../routes/desktop-rewards-routes.js";
 import { registerDesktopRoutes } from "../routes/desktop-routes.js";
 import { registerIntegrationRoutes } from "../routes/integration-routes.js";
 import { registerMiscCompatRoutes } from "../routes/misc-compat-routes.js";
 import { registerModelRoutes } from "../routes/model-routes.js";
+import { registerProviderOAuthRoutes } from "../routes/provider-oauth-routes.js";
 import { registerRuntimeConfigRoutes } from "../routes/runtime-config-routes.js";
 import { registerSessionRoutes } from "../routes/session-routes.js";
 import { registerSkillhubRoutes } from "../routes/skillhub-routes.js";
@@ -39,9 +41,11 @@ export function createApp(container: ControllerContainer) {
   registerMiscCompatRoutes(app, container);
   registerDesktopRoutes(app, container);
   registerDesktopCompatRoutes(app, container);
+  registerDesktopRewardsRoutes(app, container);
   registerChannelRoutes(app, container);
   registerSessionRoutes(app, container);
   registerModelRoutes(app, container);
+  registerProviderOAuthRoutes(app, container);
   registerIntegrationRoutes(app, container);
   registerArtifactRoutes(app, container);
   registerSkillhubRoutes(app, container);
@@ -71,11 +75,13 @@ export function createApp(container: ControllerContainer) {
   }
 
   app.get("/health", async (c) => {
-    const runtime = await container.runtimeHealth.probe();
+    const controlPlane = await container.controlPlaneHealth.probe({
+      timeoutMs: 1500,
+    });
     return c.json(
       {
         status: container.runtimeState.status,
-        runtime,
+        controlPlane,
         sync: {
           config: container.runtimeState.configSyncStatus,
           skills: container.runtimeState.skillsSyncStatus,

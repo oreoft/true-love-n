@@ -63,14 +63,14 @@ This section covers the build/package side of the Sentry pipeline, including bot
 Local verification usually follows this path:
 
 ```bash
-pnpm restart
+pnpm dev restart desktop
 pnpm --filter @nexu/desktop build
 pnpm --filter @nexu/desktop upload:sourcemaps
 ```
 
 #### Local dev DSN injection
 
-For local dev runs, `apps/desktop/dev.sh` loads `NEXU_DESKTOP_SENTRY_DSN` from `apps/desktop/.env` and exports it into the Electron process.
+For local dev runs, desktop reads `NEXU_DESKTOP_SENTRY_DSN` from the local desktop/controller env loading path in `apps/desktop/main/bootstrap.ts`.
 
 In local dev mode, desktop runtime config does not fall back to `build-config.json` for Sentry. Effective resolution is:
 
@@ -150,7 +150,7 @@ The same workflow passes:
 
 - `SENTRY_AUTH_TOKEN`
 
-Then `pnpm --filter @nexu/desktop dist:mac` runs `apps/desktop/scripts/dist-mac.mjs`, which calls `apps/desktop/scripts/upload-sourcemaps.mjs` after the desktop build step.
+Then `pnpm --filter @nexu/desktop dist:mac` (or the arch-specific `dist:mac:arm64` / `dist:mac:x64` variants) runs `apps/desktop/scripts/dist-mac.mjs`, which calls `apps/desktop/scripts/upload-sourcemaps.mjs` after the desktop build step.
 
 The uploader maps `nightly-test` to:
 
@@ -190,7 +190,9 @@ Then writes `apps/desktop/build-config.json` with:
 - `NEXU_DESKTOP_BUILD_TIME`
 - `NEXU_DESKTOP_SENTRY_DSN`
 
-Then `dist:mac` runs the sourcemap upload step automatically.
+Then `dist:mac` / `dist:mac:arm64` / `dist:mac:x64` runs the sourcemap upload step automatically.
+
+Release/update artifacts are now published under arch-specific feed prefixes such as `stable/arm64` and `stable/x64`, so each packaged app resolves `latest-mac.yml` from its matching macOS architecture feed.
 
 Uploader target:
 
@@ -274,7 +276,7 @@ This is the path that depends most directly on uploaded sourcemaps for readable 
 
 - project: `nexu-desktop-dev`
 - environment values typically appear as development-like runtime values
-- DSN comes from local runtime env, typically `apps/desktop/.env` injected by `apps/desktop/dev.sh`
+- DSN comes from local runtime env, typically `apps/desktop/.env` loaded by desktop bootstrap in local dev
 - `build-config.json` is ignored for local runtime event delivery
 - renderer exceptions should land in the dev project
 - if sourcemaps were uploaded first, renderer stack traces should resolve beyond bundled filenames
@@ -340,7 +342,7 @@ Native crash behavior is different:
 - renderer native crashes may appear very quickly, but still come through the minidump pipeline
 - main process native crashes are typically uploaded on the next app start, when `@sentry/electron/main` scans and submits the minidump left by the prior crashed run
 
-This means a deliberate main-process crash may not create or update its Sentry issue until the next `pnpm restart` or next manual app launch.
+This means a deliberate main-process crash may not create or update its Sentry issue until the next `pnpm dev restart desktop` or next manual app launch.
 
 Because upload can happen after restart, the most important fields for correlation are:
 

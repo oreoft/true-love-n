@@ -12,28 +12,23 @@ export interface ModelPickerItem {
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
-  nexu: "Nexu Official",
+  nexu: "nexu Official",
   anthropic: "Anthropic",
   openai: "OpenAI",
-  google: "Google AI",
+  google: "Google AI Studio",
   siliconflow: "SiliconFlow",
   ppio: "PPIO",
   openrouter: "OpenRouter",
   minimax: "MiniMax",
-  kimi: "Kimi",
-  glm: "GLM",
-  moonshot: "Kimi",
-  zai: "GLM",
-  custom: "Custom",
+  kimi: "Moonshot",
+  glm: "Zhipu",
+  moonshot: "Moonshot",
+  zai: "Zhipu",
 };
 
 function getGroupKey(model: ModelPickerItem): string {
   if (model.id.startsWith("link/")) {
     return "nexu";
-  }
-
-  if (model.provider.startsWith("custom_")) {
-    return "custom";
   }
 
   return model.provider;
@@ -96,9 +91,7 @@ export function ModelPickerDropdown({
     ? getGroupKey(currentModel)
     : currentModelId.startsWith("link/")
       ? "nexu"
-      : currentModelId.startsWith("custom_")
-        ? "custom"
-        : (currentModelId.split("/")[0] ?? "");
+      : (currentModelId.split("/")[0] ?? "");
   const currentModelLabel = currentModelId
     ? (currentModel?.name ?? getModelLabel(currentModelId))
     : emptyLabel;
@@ -116,8 +109,6 @@ export function ModelPickerDropdown({
     entries.sort((a, b) => {
       if (a[0] === "nexu") return -1;
       if (b[0] === "nexu") return 1;
-      if (a[0] === "custom") return 1;
-      if (b[0] === "custom") return -1;
       return a[0].localeCompare(b[0]);
     });
 
@@ -241,7 +232,7 @@ export function ModelPickerDropdown({
         >
           {currentGroupKey ? (
             <ModelLogo
-              model={currentModelLabel}
+              model={currentModelId}
               provider={currentGroupKey}
               size={14}
             />
@@ -390,7 +381,7 @@ export function ModelPickerDropdown({
                                   ? "w-full flex items-center gap-2 pl-8 pr-3 py-1.5 text-left transition-colors hover:bg-surface-2"
                                   : "w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors",
                                 isSelected
-                                  ? "bg-accent/5"
+                                  ? "bg-brand-primary/5"
                                   : compact
                                     ? undefined
                                     : "hover:bg-surface-2",
@@ -400,7 +391,7 @@ export function ModelPickerDropdown({
                                 isSelected ? (
                                   <Check
                                     size={12}
-                                    className="text-accent shrink-0"
+                                    className="text-brand-primary shrink-0"
                                   />
                                 ) : (
                                   <span className="w-[12px] shrink-0" />
@@ -410,14 +401,14 @@ export function ModelPickerDropdown({
                                   {isSelected ? (
                                     <Check
                                       size={14}
-                                      className="text-accent shrink-0"
+                                      className="text-brand-primary shrink-0"
                                     />
                                   ) : null}
                                 </span>
                               )}
                               <span className="w-[14px] h-[14px] shrink-0 flex items-center justify-center">
                                 <ModelLogo
-                                  model={model.name}
+                                  model={model.id}
                                   provider={provider.id}
                                   size={13}
                                 />
@@ -429,7 +420,7 @@ export function ModelPickerDropdown({
                                       ? "text-[12px]"
                                       : "text-[12px] truncate",
                                     isSelected
-                                      ? "font-semibold text-accent"
+                                      ? "font-semibold text-text-primary"
                                       : "font-medium text-text-primary",
                                   )}
                                 >

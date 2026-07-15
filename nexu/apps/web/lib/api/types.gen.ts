@@ -240,6 +240,32 @@ export type PostApiV1BotsByBotIdResumeResponses = {
 
 export type PostApiV1BotsByBotIdResumeResponse = PostApiV1BotsByBotIdResumeResponses[keyof PostApiV1BotsByBotIdResumeResponses];
 
+export type PostV1ChatCompletionsData = {
+    body: {
+        model?: string;
+        messages: Array<{
+            role: 'system' | 'user' | 'assistant' | 'tool';
+            content: string | Array<unknown>;
+            name?: string;
+            tool_call_id?: string;
+        }>;
+        stream?: boolean;
+        user?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/chat/completions';
+};
+
+export type PostV1ChatCompletionsResponses = {
+    /**
+     * OpenAI-compatible streaming chat completions
+     */
+    200: string;
+};
+
+export type PostV1ChatCompletionsResponse = PostV1ChatCompletionsResponses[keyof PostV1ChatCompletionsResponses];
+
 export type PostApiV1AuthDesktopAuthorizeData = {
     body?: {
         deviceId: string;
@@ -397,12 +423,16 @@ export type GetApiInternalDesktopReadyResponses = {
      */
     200: {
         ready: boolean;
+        coreReady: boolean;
+        degraded: boolean;
+        bootPhase: 'preparing' | 'starting-managed-runtime' | 'attaching-external-runtime' | 'reconciling-runtime' | 'stabilizing-runtime' | 'ready';
         workspacePath: string;
-        runtime: {
+        controlPlane: {
             ok: boolean;
-            status: number;
+            phase: 'disconnected' | 'connecting' | 'ready' | 'degraded';
+            wsConnected: boolean;
         };
-        status: 'active' | 'degraded' | 'unhealthy';
+        status: 'active' | 'starting' | 'degraded' | 'unhealthy';
     };
 };
 
@@ -462,6 +492,7 @@ export type GetApiInternalDesktopPreferencesResponses = {
      */
     200: {
         locale: 'en' | 'zh-CN';
+        analyticsEnabled: boolean;
     };
 };
 
@@ -469,7 +500,8 @@ export type GetApiInternalDesktopPreferencesResponse = GetApiInternalDesktopPref
 
 export type PatchApiInternalDesktopPreferencesData = {
     body: {
-        locale: 'en' | 'zh-CN';
+        locale?: 'en' | 'zh-CN';
+        analyticsEnabled?: boolean;
     };
     path?: never;
     query?: never;
@@ -482,10 +514,38 @@ export type PatchApiInternalDesktopPreferencesResponses = {
      */
     200: {
         locale: 'en' | 'zh-CN';
+        analyticsEnabled: boolean;
     };
 };
 
 export type PatchApiInternalDesktopPreferencesResponse = PatchApiInternalDesktopPreferencesResponses[keyof PatchApiInternalDesktopPreferencesResponses];
+
+export type GetApiAuthGetSessionData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/auth/get-session';
+};
+
+export type GetApiAuthGetSessionResponses = {
+    /**
+     * Desktop-local auth session
+     */
+    200: {
+        session: {
+            id: string;
+            expiresAt: string;
+        };
+        user: {
+            id: string;
+            email: string;
+            name: string;
+            image: string;
+        };
+    };
+};
+
+export type GetApiAuthGetSessionResponse = GetApiAuthGetSessionResponses[keyof GetApiAuthGetSessionResponses];
 
 export type GetApiInternalDesktopCloudStatusData = {
     body?: never;
@@ -501,6 +561,7 @@ export type GetApiInternalDesktopCloudStatusResponses = {
     200: {
         connected: boolean;
         polling?: boolean;
+        userId?: string;
         userName?: string;
         userEmail?: string;
         connectedAt?: string;
@@ -518,6 +579,7 @@ export type GetApiInternalDesktopCloudStatusResponses = {
             linkUrl: string;
             connected: boolean;
             polling?: boolean;
+            userId?: string;
             userName?: string;
             userEmail?: string;
             connectedAt?: string;
@@ -529,7 +591,9 @@ export type GetApiInternalDesktopCloudStatusResponses = {
 export type GetApiInternalDesktopCloudStatusResponse = GetApiInternalDesktopCloudStatusResponses[keyof GetApiInternalDesktopCloudStatusResponses];
 
 export type PostApiInternalDesktopCloudConnectData = {
-    body?: never;
+    body?: {
+        source?: string;
+    };
     path?: never;
     query?: never;
     url: '/api/internal/desktop/cloud-connect';
@@ -550,6 +614,7 @@ export type PostApiInternalDesktopCloudConnectResponse = PostApiInternalDesktopC
 export type PostApiInternalDesktopCloudProfileConnectData = {
     body: {
         name: string;
+        source?: string;
     };
     path?: never;
     query?: never;
@@ -566,6 +631,7 @@ export type PostApiInternalDesktopCloudProfileConnectResponses = {
         status: {
             connected: boolean;
             polling?: boolean;
+            userId?: string;
             userName?: string;
             userEmail?: string;
             connectedAt?: string;
@@ -583,6 +649,7 @@ export type PostApiInternalDesktopCloudProfileConnectResponses = {
                 linkUrl: string;
                 connected: boolean;
                 polling?: boolean;
+                userId?: string;
                 userName?: string;
                 userEmail?: string;
                 connectedAt?: string;
@@ -609,6 +676,7 @@ export type PostApiInternalDesktopCloudRefreshResponses = {
     200: {
         connected: boolean;
         polling?: boolean;
+        userId?: string;
         userName?: string;
         userEmail?: string;
         connectedAt?: string;
@@ -626,6 +694,7 @@ export type PostApiInternalDesktopCloudRefreshResponses = {
             linkUrl: string;
             connected: boolean;
             polling?: boolean;
+            userId?: string;
             userName?: string;
             userEmail?: string;
             connectedAt?: string;
@@ -657,6 +726,7 @@ export type PostApiInternalDesktopCloudProfileCreateResponses = {
     200: {
         connected: boolean;
         polling?: boolean;
+        userId?: string;
         userName?: string;
         userEmail?: string;
         connectedAt?: string;
@@ -674,6 +744,7 @@ export type PostApiInternalDesktopCloudProfileCreateResponses = {
             linkUrl: string;
             connected: boolean;
             polling?: boolean;
+            userId?: string;
             userName?: string;
             userEmail?: string;
             connectedAt?: string;
@@ -707,6 +778,7 @@ export type PostApiInternalDesktopCloudProfileUpdateResponses = {
     200: {
         connected: boolean;
         polling?: boolean;
+        userId?: string;
         userName?: string;
         userEmail?: string;
         connectedAt?: string;
@@ -724,6 +796,7 @@ export type PostApiInternalDesktopCloudProfileUpdateResponses = {
             linkUrl: string;
             connected: boolean;
             polling?: boolean;
+            userId?: string;
             userName?: string;
             userEmail?: string;
             connectedAt?: string;
@@ -752,6 +825,7 @@ export type PostApiInternalDesktopCloudProfileDeleteResponses = {
     200: {
         connected: boolean;
         polling?: boolean;
+        userId?: string;
         userName?: string;
         userEmail?: string;
         connectedAt?: string;
@@ -769,6 +843,7 @@ export type PostApiInternalDesktopCloudProfileDeleteResponses = {
             linkUrl: string;
             connected: boolean;
             polling?: boolean;
+            userId?: string;
             userName?: string;
             userEmail?: string;
             connectedAt?: string;
@@ -815,6 +890,7 @@ export type PostApiInternalDesktopCloudProfileDisconnectResponses = {
     200: {
         connected: boolean;
         polling?: boolean;
+        userId?: string;
         userName?: string;
         userEmail?: string;
         connectedAt?: string;
@@ -832,6 +908,7 @@ export type PostApiInternalDesktopCloudProfileDisconnectResponses = {
             linkUrl: string;
             connected: boolean;
             polling?: boolean;
+            userId?: string;
             userName?: string;
             userEmail?: string;
             connectedAt?: string;
@@ -860,6 +937,7 @@ export type PostApiInternalDesktopCloudProfileSelectResponses = {
     200: {
         connected: boolean;
         polling?: boolean;
+        userId?: string;
         userName?: string;
         userEmail?: string;
         connectedAt?: string;
@@ -877,6 +955,7 @@ export type PostApiInternalDesktopCloudProfileSelectResponses = {
             linkUrl: string;
             connected: boolean;
             polling?: boolean;
+            userId?: string;
             userName?: string;
             userEmail?: string;
             connectedAt?: string;
@@ -909,6 +988,7 @@ export type PostApiInternalDesktopCloudProfilesImportResponses = {
     200: {
         connected: boolean;
         polling?: boolean;
+        userId?: string;
         userName?: string;
         userEmail?: string;
         connectedAt?: string;
@@ -926,6 +1006,7 @@ export type PostApiInternalDesktopCloudProfilesImportResponses = {
             linkUrl: string;
             connected: boolean;
             polling?: boolean;
+            userId?: string;
             userName?: string;
             userEmail?: string;
             connectedAt?: string;
@@ -1003,6 +1084,223 @@ export type PutApiInternalDesktopDefaultModelResponses = {
 
 export type PutApiInternalDesktopDefaultModelResponse = PutApiInternalDesktopDefaultModelResponses[keyof PutApiInternalDesktopDefaultModelResponses];
 
+export type GetApiInternalDesktopRewardsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/internal/desktop/rewards';
+};
+
+export type GetApiInternalDesktopRewardsResponses = {
+    /**
+     * Desktop rewards status
+     */
+    200: {
+        viewer: {
+            cloudConnected: boolean;
+            activeModelId: string;
+            activeModelProviderId: string;
+            usingManagedModel: boolean;
+        };
+        progress: {
+            claimedCount: number;
+            totalCount: number;
+            earnedCredits: number;
+            availableCredits?: number;
+        };
+        tasks: Array<{
+            id: 'daily_checkin' | 'github_star' | 'x_share' | 'reddit' | 'mobile_share' | 'lingying' | 'facebook' | 'whatsapp';
+            group: 'daily' | 'opensource' | 'social';
+            icon: string;
+            reward: number;
+            shareMode: 'link' | 'tweet' | 'image';
+            repeatMode: 'once' | 'daily' | 'weekly';
+            requiresScreenshot: boolean;
+            actionUrl?: string;
+            isClaimed: boolean;
+            lastClaimedAt: string;
+            claimCount: number;
+        }>;
+        cloudBalance?: {
+            totalBalance: number;
+            totalRecharged: number;
+            totalConsumed: number;
+            giftedBalance?: number;
+            planBalance?: number;
+        };
+        autoFallbackTriggered?: boolean;
+    };
+};
+
+export type GetApiInternalDesktopRewardsResponse = GetApiInternalDesktopRewardsResponses[keyof GetApiInternalDesktopRewardsResponses];
+
+export type PostApiInternalDesktopRewardsGithubStarSessionData = {
+    body?: {
+        [key: string]: unknown;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/internal/desktop/rewards/github-star-session';
+};
+
+export type PostApiInternalDesktopRewardsGithubStarSessionErrors = {
+    /**
+     * GitHub star verification is temporarily unavailable
+     */
+    400: {
+        message: string;
+    };
+};
+
+export type PostApiInternalDesktopRewardsGithubStarSessionError = PostApiInternalDesktopRewardsGithubStarSessionErrors[keyof PostApiInternalDesktopRewardsGithubStarSessionErrors];
+
+export type PostApiInternalDesktopRewardsGithubStarSessionResponses = {
+    /**
+     * Prepare a GitHub star verification session
+     */
+    200: {
+        sessionId: string;
+        baselineStars: number;
+        expiresAt: string;
+    };
+};
+
+export type PostApiInternalDesktopRewardsGithubStarSessionResponse = PostApiInternalDesktopRewardsGithubStarSessionResponses[keyof PostApiInternalDesktopRewardsGithubStarSessionResponses];
+
+export type PostApiInternalDesktopRewardsClaimData = {
+    body?: {
+        taskId: 'daily_checkin' | 'github_star' | 'x_share' | 'reddit' | 'mobile_share' | 'lingying' | 'facebook' | 'whatsapp';
+        proof?: {
+            url?: string;
+            githubSessionId?: string;
+        };
+    };
+    path?: never;
+    query?: never;
+    url: '/api/internal/desktop/rewards/claim';
+};
+
+export type PostApiInternalDesktopRewardsClaimErrors = {
+    /**
+     * Invalid claim proof
+     */
+    400: {
+        message: string;
+    };
+};
+
+export type PostApiInternalDesktopRewardsClaimError = PostApiInternalDesktopRewardsClaimErrors[keyof PostApiInternalDesktopRewardsClaimErrors];
+
+export type PostApiInternalDesktopRewardsClaimResponses = {
+    /**
+     * Claim a desktop reward
+     */
+    200: {
+        ok: boolean;
+        alreadyClaimed: boolean;
+        status: {
+            viewer: {
+                cloudConnected: boolean;
+                activeModelId: string;
+                activeModelProviderId: string;
+                usingManagedModel: boolean;
+            };
+            progress: {
+                claimedCount: number;
+                totalCount: number;
+                earnedCredits: number;
+                availableCredits?: number;
+            };
+            tasks: Array<{
+                id: 'daily_checkin' | 'github_star' | 'x_share' | 'reddit' | 'mobile_share' | 'lingying' | 'facebook' | 'whatsapp';
+                group: 'daily' | 'opensource' | 'social';
+                icon: string;
+                reward: number;
+                shareMode: 'link' | 'tweet' | 'image';
+                repeatMode: 'once' | 'daily' | 'weekly';
+                requiresScreenshot: boolean;
+                actionUrl?: string;
+                isClaimed: boolean;
+                lastClaimedAt: string;
+                claimCount: number;
+            }>;
+            cloudBalance?: {
+                totalBalance: number;
+                totalRecharged: number;
+                totalConsumed: number;
+                giftedBalance?: number;
+                planBalance?: number;
+            };
+            autoFallbackTriggered?: boolean;
+        };
+    };
+};
+
+export type PostApiInternalDesktopRewardsClaimResponse = PostApiInternalDesktopRewardsClaimResponses[keyof PostApiInternalDesktopRewardsClaimResponses];
+
+export type PostApiInternalDesktopRewardsSetBalanceData = {
+    body?: {
+        balance: number;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/internal/desktop/rewards/set-balance';
+};
+
+export type PostApiInternalDesktopRewardsSetBalanceErrors = {
+    /**
+     * Unable to update the desktop test balance
+     */
+    400: {
+        message: string;
+    };
+};
+
+export type PostApiInternalDesktopRewardsSetBalanceError = PostApiInternalDesktopRewardsSetBalanceErrors[keyof PostApiInternalDesktopRewardsSetBalanceErrors];
+
+export type PostApiInternalDesktopRewardsSetBalanceResponses = {
+    /**
+     * Update the desktop test balance
+     */
+    200: {
+        viewer: {
+            cloudConnected: boolean;
+            activeModelId: string;
+            activeModelProviderId: string;
+            usingManagedModel: boolean;
+        };
+        progress: {
+            claimedCount: number;
+            totalCount: number;
+            earnedCredits: number;
+            availableCredits?: number;
+        };
+        tasks: Array<{
+            id: 'daily_checkin' | 'github_star' | 'x_share' | 'reddit' | 'mobile_share' | 'lingying' | 'facebook' | 'whatsapp';
+            group: 'daily' | 'opensource' | 'social';
+            icon: string;
+            reward: number;
+            shareMode: 'link' | 'tweet' | 'image';
+            repeatMode: 'once' | 'daily' | 'weekly';
+            requiresScreenshot: boolean;
+            actionUrl?: string;
+            isClaimed: boolean;
+            lastClaimedAt: string;
+            claimCount: number;
+        }>;
+        cloudBalance?: {
+            totalBalance: number;
+            totalRecharged: number;
+            totalConsumed: number;
+            giftedBalance?: number;
+            planBalance?: number;
+        };
+        autoFallbackTriggered?: boolean;
+    };
+};
+
+export type PostApiInternalDesktopRewardsSetBalanceResponse = PostApiInternalDesktopRewardsSetBalanceResponses[keyof PostApiInternalDesktopRewardsSetBalanceResponses];
+
 export type GetApiV1ChannelsData = {
     body?: never;
     path?: never;
@@ -1018,7 +1316,7 @@ export type GetApiV1ChannelsResponses = {
         channels: Array<{
             id: string;
             botId: string;
-            channelType: 'slack' | 'discord' | 'feishu' | 'wechat';
+            channelType: 'slack' | 'discord' | 'feishu' | 'dingtalk' | 'wecom' | 'wechat' | 'telegram' | 'whatsapp' | 'qqbot';
             accountId: string;
             status: 'pending' | 'connected' | 'disconnected' | 'error';
             teamName: string;
@@ -1102,7 +1400,7 @@ export type PostApiV1ChannelsSlackConnectResponses = {
     200: {
         id: string;
         botId: string;
-        channelType: 'slack' | 'discord' | 'feishu' | 'wechat';
+        channelType: 'slack' | 'discord' | 'feishu' | 'dingtalk' | 'wecom' | 'wechat' | 'telegram' | 'whatsapp' | 'qqbot';
         accountId: string;
         status: 'pending' | 'connected' | 'disconnected' | 'error';
         teamName: string;
@@ -1131,8 +1429,42 @@ export type PostApiV1ChannelsDiscordConnectErrors = {
     /**
      * Invalid credentials
      */
-    409: {
+    422: {
         message: string;
+        code: 'already_connected' | 'app_id_mismatch' | 'invalid_credentials' | 'network_error' | 'proxy_error' | 'sync_failed' | 'timeout' | 'upstream_http_error';
+        requestId: string;
+        retryable: boolean;
+        phase: 'verify_credentials' | 'verify_app' | 'persist_config' | 'sync_runtime';
+    };
+    /**
+     * Upstream network or proxy failure
+     */
+    502: {
+        message: string;
+        code: 'already_connected' | 'app_id_mismatch' | 'invalid_credentials' | 'network_error' | 'proxy_error' | 'sync_failed' | 'timeout' | 'upstream_http_error';
+        requestId: string;
+        retryable: boolean;
+        phase: 'verify_credentials' | 'verify_app' | 'persist_config' | 'sync_runtime';
+    };
+    /**
+     * Local runtime sync failed
+     */
+    503: {
+        message: string;
+        code: 'already_connected' | 'app_id_mismatch' | 'invalid_credentials' | 'network_error' | 'proxy_error' | 'sync_failed' | 'timeout' | 'upstream_http_error';
+        requestId: string;
+        retryable: boolean;
+        phase: 'verify_credentials' | 'verify_app' | 'persist_config' | 'sync_runtime';
+    };
+    /**
+     * Upstream timeout
+     */
+    504: {
+        message: string;
+        code: 'already_connected' | 'app_id_mismatch' | 'invalid_credentials' | 'network_error' | 'proxy_error' | 'sync_failed' | 'timeout' | 'upstream_http_error';
+        requestId: string;
+        retryable: boolean;
+        phase: 'verify_credentials' | 'verify_app' | 'persist_config' | 'sync_runtime';
     };
 };
 
@@ -1145,7 +1477,7 @@ export type PostApiV1ChannelsDiscordConnectResponses = {
     200: {
         id: string;
         botId: string;
-        channelType: 'slack' | 'discord' | 'feishu' | 'wechat';
+        channelType: 'slack' | 'discord' | 'feishu' | 'dingtalk' | 'wecom' | 'wechat' | 'telegram' | 'whatsapp' | 'qqbot';
         accountId: string;
         status: 'pending' | 'connected' | 'disconnected' | 'error';
         teamName: string;
@@ -1188,7 +1520,7 @@ export type PostApiV1ChannelsFeishuConnectResponses = {
     200: {
         id: string;
         botId: string;
-        channelType: 'slack' | 'discord' | 'feishu' | 'wechat';
+        channelType: 'slack' | 'discord' | 'feishu' | 'dingtalk' | 'wecom' | 'wechat' | 'telegram' | 'whatsapp' | 'qqbot';
         accountId: string;
         status: 'pending' | 'connected' | 'disconnected' | 'error';
         teamName: string;
@@ -1200,6 +1532,336 @@ export type PostApiV1ChannelsFeishuConnectResponses = {
 };
 
 export type PostApiV1ChannelsFeishuConnectResponse = PostApiV1ChannelsFeishuConnectResponses[keyof PostApiV1ChannelsFeishuConnectResponses];
+
+export type PostApiV1ChannelsTelegramConnectData = {
+    body: {
+        botToken: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/channels/telegram/connect';
+};
+
+export type PostApiV1ChannelsTelegramConnectErrors = {
+    /**
+     * Invalid credentials
+     */
+    422: {
+        message: string;
+        code: 'already_connected' | 'app_id_mismatch' | 'invalid_credentials' | 'network_error' | 'proxy_error' | 'sync_failed' | 'timeout' | 'upstream_http_error';
+        requestId: string;
+        retryable: boolean;
+        phase: 'verify_credentials' | 'verify_app' | 'persist_config' | 'sync_runtime';
+    };
+    /**
+     * Upstream network or proxy failure
+     */
+    502: {
+        message: string;
+        code: 'already_connected' | 'app_id_mismatch' | 'invalid_credentials' | 'network_error' | 'proxy_error' | 'sync_failed' | 'timeout' | 'upstream_http_error';
+        requestId: string;
+        retryable: boolean;
+        phase: 'verify_credentials' | 'verify_app' | 'persist_config' | 'sync_runtime';
+    };
+    /**
+     * Local runtime sync failed
+     */
+    503: {
+        message: string;
+        code: 'already_connected' | 'app_id_mismatch' | 'invalid_credentials' | 'network_error' | 'proxy_error' | 'sync_failed' | 'timeout' | 'upstream_http_error';
+        requestId: string;
+        retryable: boolean;
+        phase: 'verify_credentials' | 'verify_app' | 'persist_config' | 'sync_runtime';
+    };
+    /**
+     * Upstream timeout
+     */
+    504: {
+        message: string;
+        code: 'already_connected' | 'app_id_mismatch' | 'invalid_credentials' | 'network_error' | 'proxy_error' | 'sync_failed' | 'timeout' | 'upstream_http_error';
+        requestId: string;
+        retryable: boolean;
+        phase: 'verify_credentials' | 'verify_app' | 'persist_config' | 'sync_runtime';
+    };
+};
+
+export type PostApiV1ChannelsTelegramConnectError = PostApiV1ChannelsTelegramConnectErrors[keyof PostApiV1ChannelsTelegramConnectErrors];
+
+export type PostApiV1ChannelsTelegramConnectResponses = {
+    /**
+     * Connected telegram channel
+     */
+    200: {
+        id: string;
+        botId: string;
+        channelType: 'slack' | 'discord' | 'feishu' | 'dingtalk' | 'wecom' | 'wechat' | 'telegram' | 'whatsapp' | 'qqbot';
+        accountId: string;
+        status: 'pending' | 'connected' | 'disconnected' | 'error';
+        teamName: string;
+        appId?: string;
+        botUserId?: string;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PostApiV1ChannelsTelegramConnectResponse = PostApiV1ChannelsTelegramConnectResponses[keyof PostApiV1ChannelsTelegramConnectResponses];
+
+export type PostApiV1ChannelsDingtalkConnectData = {
+    body?: {
+        clientId: string;
+        clientSecret: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/channels/dingtalk/connect';
+};
+
+export type PostApiV1ChannelsDingtalkConnectErrors = {
+    /**
+     * Invalid credentials
+     */
+    422: {
+        message: string;
+        code: 'already_connected' | 'app_id_mismatch' | 'invalid_credentials' | 'network_error' | 'proxy_error' | 'sync_failed' | 'timeout' | 'upstream_http_error';
+        requestId: string;
+        retryable: boolean;
+        phase: 'verify_credentials' | 'verify_app' | 'persist_config' | 'sync_runtime';
+    };
+    /**
+     * Upstream request failed
+     */
+    502: {
+        message: string;
+        code: 'already_connected' | 'app_id_mismatch' | 'invalid_credentials' | 'network_error' | 'proxy_error' | 'sync_failed' | 'timeout' | 'upstream_http_error';
+        requestId: string;
+        retryable: boolean;
+        phase: 'verify_credentials' | 'verify_app' | 'persist_config' | 'sync_runtime';
+    };
+    /**
+     * Local persistence or runtime sync failed
+     */
+    503: {
+        message: string;
+        code: 'already_connected' | 'app_id_mismatch' | 'invalid_credentials' | 'network_error' | 'proxy_error' | 'sync_failed' | 'timeout' | 'upstream_http_error';
+        requestId: string;
+        retryable: boolean;
+        phase: 'verify_credentials' | 'verify_app' | 'persist_config' | 'sync_runtime';
+    };
+    /**
+     * Upstream timeout
+     */
+    504: {
+        message: string;
+        code: 'already_connected' | 'app_id_mismatch' | 'invalid_credentials' | 'network_error' | 'proxy_error' | 'sync_failed' | 'timeout' | 'upstream_http_error';
+        requestId: string;
+        retryable: boolean;
+        phase: 'verify_credentials' | 'verify_app' | 'persist_config' | 'sync_runtime';
+    };
+};
+
+export type PostApiV1ChannelsDingtalkConnectError = PostApiV1ChannelsDingtalkConnectErrors[keyof PostApiV1ChannelsDingtalkConnectErrors];
+
+export type PostApiV1ChannelsDingtalkConnectResponses = {
+    /**
+     * Connected dingtalk channel
+     */
+    200: {
+        id: string;
+        botId: string;
+        channelType: 'slack' | 'discord' | 'feishu' | 'dingtalk' | 'wecom' | 'wechat' | 'telegram' | 'whatsapp' | 'qqbot';
+        accountId: string;
+        status: 'pending' | 'connected' | 'disconnected' | 'error';
+        teamName: string;
+        appId?: string;
+        botUserId?: string;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PostApiV1ChannelsDingtalkConnectResponse = PostApiV1ChannelsDingtalkConnectResponses[keyof PostApiV1ChannelsDingtalkConnectResponses];
+
+export type PostApiV1ChannelsDingtalkTestData = {
+    body?: {
+        clientId: string;
+        clientSecret: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/channels/dingtalk/test';
+};
+
+export type PostApiV1ChannelsDingtalkTestErrors = {
+    /**
+     * Invalid credentials
+     */
+    409: {
+        message: string;
+    };
+};
+
+export type PostApiV1ChannelsDingtalkTestError = PostApiV1ChannelsDingtalkTestErrors[keyof PostApiV1ChannelsDingtalkTestErrors];
+
+export type PostApiV1ChannelsDingtalkTestResponses = {
+    /**
+     * DingTalk connectivity test result
+     */
+    200: {
+        success: boolean;
+        message: string;
+    };
+};
+
+export type PostApiV1ChannelsDingtalkTestResponse = PostApiV1ChannelsDingtalkTestResponses[keyof PostApiV1ChannelsDingtalkTestResponses];
+
+export type PostApiV1ChannelsQqbotConnectData = {
+    body?: {
+        appId: string;
+        appSecret: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/channels/qqbot/connect';
+};
+
+export type PostApiV1ChannelsQqbotConnectErrors = {
+    /**
+     * Invalid credentials
+     */
+    409: {
+        message: string;
+    };
+};
+
+export type PostApiV1ChannelsQqbotConnectError = PostApiV1ChannelsQqbotConnectErrors[keyof PostApiV1ChannelsQqbotConnectErrors];
+
+export type PostApiV1ChannelsQqbotConnectResponses = {
+    /**
+     * Connected qqbot channel
+     */
+    200: {
+        id: string;
+        botId: string;
+        channelType: 'slack' | 'discord' | 'feishu' | 'dingtalk' | 'wecom' | 'wechat' | 'telegram' | 'whatsapp' | 'qqbot';
+        accountId: string;
+        status: 'pending' | 'connected' | 'disconnected' | 'error';
+        teamName: string;
+        appId?: string;
+        botUserId?: string;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PostApiV1ChannelsQqbotConnectResponse = PostApiV1ChannelsQqbotConnectResponses[keyof PostApiV1ChannelsQqbotConnectResponses];
+
+export type PostApiV1ChannelsQqbotTestData = {
+    body?: {
+        appId: string;
+        appSecret: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/channels/qqbot/test';
+};
+
+export type PostApiV1ChannelsQqbotTestErrors = {
+    /**
+     * Invalid credentials
+     */
+    409: {
+        message: string;
+    };
+};
+
+export type PostApiV1ChannelsQqbotTestError = PostApiV1ChannelsQqbotTestErrors[keyof PostApiV1ChannelsQqbotTestErrors];
+
+export type PostApiV1ChannelsQqbotTestResponses = {
+    /**
+     * QQ connectivity test result
+     */
+    200: {
+        success: boolean;
+        message: string;
+    };
+};
+
+export type PostApiV1ChannelsQqbotTestResponse = PostApiV1ChannelsQqbotTestResponses[keyof PostApiV1ChannelsQqbotTestResponses];
+
+export type PostApiV1ChannelsWecomConnectData = {
+    body?: {
+        botId: string;
+        secret: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/channels/wecom/connect';
+};
+
+export type PostApiV1ChannelsWecomConnectErrors = {
+    /**
+     * Invalid credentials
+     */
+    409: {
+        message: string;
+    };
+};
+
+export type PostApiV1ChannelsWecomConnectError = PostApiV1ChannelsWecomConnectErrors[keyof PostApiV1ChannelsWecomConnectErrors];
+
+export type PostApiV1ChannelsWecomConnectResponses = {
+    /**
+     * Connected wecom channel
+     */
+    200: {
+        id: string;
+        botId: string;
+        channelType: 'slack' | 'discord' | 'feishu' | 'dingtalk' | 'wecom' | 'wechat' | 'telegram' | 'whatsapp' | 'qqbot';
+        accountId: string;
+        status: 'pending' | 'connected' | 'disconnected' | 'error';
+        teamName: string;
+        appId?: string;
+        botUserId?: string;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PostApiV1ChannelsWecomConnectResponse = PostApiV1ChannelsWecomConnectResponses[keyof PostApiV1ChannelsWecomConnectResponses];
+
+export type PostApiV1ChannelsWecomTestData = {
+    body?: {
+        botId: string;
+        secret: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/channels/wecom/test';
+};
+
+export type PostApiV1ChannelsWecomTestErrors = {
+    /**
+     * Invalid credentials
+     */
+    409: {
+        message: string;
+    };
+};
+
+export type PostApiV1ChannelsWecomTestError = PostApiV1ChannelsWecomTestErrors[keyof PostApiV1ChannelsWecomTestErrors];
+
+export type PostApiV1ChannelsWecomTestResponses = {
+    /**
+     * WeCom connectivity test result
+     */
+    200: {
+        success: boolean;
+        message: string;
+    };
+};
+
+export type PostApiV1ChannelsWecomTestResponse = PostApiV1ChannelsWecomTestResponses[keyof PostApiV1ChannelsWecomTestResponses];
 
 export type GetApiV1ChannelsByChannelIdStatusData = {
     body?: never;
@@ -1228,7 +1890,7 @@ export type GetApiV1ChannelsByChannelIdStatusResponses = {
     200: {
         id: string;
         botId: string;
-        channelType: 'slack' | 'discord' | 'feishu' | 'wechat';
+        channelType: 'slack' | 'discord' | 'feishu' | 'dingtalk' | 'wecom' | 'wechat' | 'telegram' | 'whatsapp' | 'qqbot';
         accountId: string;
         status: 'pending' | 'connected' | 'disconnected' | 'error';
         teamName: string;
@@ -1255,6 +1917,9 @@ export type GetApiV1BotQuotaResponses = {
     200: {
         available: boolean;
         resetsAt: string;
+        usingByok?: boolean;
+        byokAvailable?: boolean;
+        autoFallbackTriggered?: boolean;
     };
 };
 
@@ -1279,6 +1944,111 @@ export type DeleteApiV1ChannelsByChannelIdResponses = {
 };
 
 export type DeleteApiV1ChannelsByChannelIdResponse = DeleteApiV1ChannelsByChannelIdResponses[keyof DeleteApiV1ChannelsByChannelIdResponses];
+
+export type PostApiV1ChannelsWhatsappQrStartData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/channels/whatsapp/qr-start';
+};
+
+export type PostApiV1ChannelsWhatsappQrStartErrors = {
+    /**
+     * WhatsApp login unavailable
+     */
+    502: {
+        message: string;
+    };
+};
+
+export type PostApiV1ChannelsWhatsappQrStartError = PostApiV1ChannelsWhatsappQrStartErrors[keyof PostApiV1ChannelsWhatsappQrStartErrors];
+
+export type PostApiV1ChannelsWhatsappQrStartResponses = {
+    /**
+     * QR code data for WhatsApp login
+     */
+    200: {
+        qrDataUrl?: string;
+        message: string;
+        accountId: string;
+        alreadyLinked?: boolean;
+    };
+};
+
+export type PostApiV1ChannelsWhatsappQrStartResponse = PostApiV1ChannelsWhatsappQrStartResponses[keyof PostApiV1ChannelsWhatsappQrStartResponses];
+
+export type PostApiV1ChannelsWhatsappQrWaitData = {
+    body: {
+        accountId: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/channels/whatsapp/qr-wait';
+};
+
+export type PostApiV1ChannelsWhatsappQrWaitErrors = {
+    /**
+     * WhatsApp login unavailable or timeout
+     */
+    502: {
+        message: string;
+    };
+};
+
+export type PostApiV1ChannelsWhatsappQrWaitError = PostApiV1ChannelsWhatsappQrWaitErrors[keyof PostApiV1ChannelsWhatsappQrWaitErrors];
+
+export type PostApiV1ChannelsWhatsappQrWaitResponses = {
+    /**
+     * WhatsApp QR login result
+     */
+    200: {
+        connected: boolean;
+        message: string;
+        accountId: string;
+    };
+};
+
+export type PostApiV1ChannelsWhatsappQrWaitResponse = PostApiV1ChannelsWhatsappQrWaitResponses[keyof PostApiV1ChannelsWhatsappQrWaitResponses];
+
+export type PostApiV1ChannelsWhatsappConnectData = {
+    body: {
+        accountId: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/channels/whatsapp/connect';
+};
+
+export type PostApiV1ChannelsWhatsappConnectErrors = {
+    /**
+     * Connection failed
+     */
+    409: {
+        message: string;
+    };
+};
+
+export type PostApiV1ChannelsWhatsappConnectError = PostApiV1ChannelsWhatsappConnectErrors[keyof PostApiV1ChannelsWhatsappConnectErrors];
+
+export type PostApiV1ChannelsWhatsappConnectResponses = {
+    /**
+     * Connected whatsapp channel
+     */
+    200: {
+        id: string;
+        botId: string;
+        channelType: 'slack' | 'discord' | 'feishu' | 'dingtalk' | 'wecom' | 'wechat' | 'telegram' | 'whatsapp' | 'qqbot';
+        accountId: string;
+        status: 'pending' | 'connected' | 'disconnected' | 'error';
+        teamName: string;
+        appId?: string;
+        botUserId?: string;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PostApiV1ChannelsWhatsappConnectResponse = PostApiV1ChannelsWhatsappConnectResponses[keyof PostApiV1ChannelsWhatsappConnectResponses];
 
 export type PostApiV1ChannelsWechatQrStartData = {
     body?: never;
@@ -1312,7 +2082,7 @@ export type PostApiV1ChannelsWechatQrStartResponses = {
 export type PostApiV1ChannelsWechatQrStartResponse = PostApiV1ChannelsWechatQrStartResponses[keyof PostApiV1ChannelsWechatQrStartResponses];
 
 export type PostApiV1ChannelsWechatQrWaitData = {
-    body?: {
+    body: {
         sessionKey: string;
     };
     path?: never;
@@ -1345,7 +2115,7 @@ export type PostApiV1ChannelsWechatQrWaitResponses = {
 export type PostApiV1ChannelsWechatQrWaitResponse = PostApiV1ChannelsWechatQrWaitResponses[keyof PostApiV1ChannelsWechatQrWaitResponses];
 
 export type PostApiV1ChannelsWechatConnectData = {
-    body?: {
+    body: {
         accountId: string;
     };
     path?: never;
@@ -1371,7 +2141,7 @@ export type PostApiV1ChannelsWechatConnectResponses = {
     200: {
         id: string;
         botId: string;
-        channelType: 'slack' | 'discord' | 'feishu' | 'wechat';
+        channelType: 'slack' | 'discord' | 'feishu' | 'dingtalk' | 'wecom' | 'wechat' | 'telegram' | 'whatsapp' | 'qqbot';
         accountId: string;
         status: 'pending' | 'connected' | 'disconnected' | 'error';
         teamName: string;
@@ -1763,113 +2533,390 @@ export type GetApiV1ModelsResponses = {
 
 export type GetApiV1ModelsResponse = GetApiV1ModelsResponses[keyof GetApiV1ModelsResponses];
 
-export type GetApiV1ProvidersData = {
+export type GetApiV1ModelProvidersRegistryData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/api/v1/providers';
+    url: '/api/v1/model-providers/registry';
 };
 
-export type GetApiV1ProvidersResponses = {
+export type GetApiV1ModelProvidersRegistryResponses = {
     /**
-     * Provider list
+     * Model provider registry
      */
     200: {
-        providers: Array<{
+        registry: Array<{
             id: string;
-            providerId: string;
+            canonicalOpenClawId: string;
+            aliases: Array<string>;
+            authModes: Array<'api-key' | 'aws-sdk' | 'oauth' | 'token'>;
+            apiKind: 'openai-completions' | 'openai-responses' | 'openai-codex-responses' | 'anthropic-messages' | 'google-generative-ai' | 'github-copilot' | 'bedrock-converse-stream' | 'ollama';
+            defaultBaseUrls: Array<string>;
+            controllerConfigurable?: boolean;
+            modelsPageVisible?: boolean;
+            region?: 'global' | 'china' | 'local';
+            signupUrl?: string;
+            supportsCustomBaseUrl?: boolean;
+            supportsModelDiscovery?: boolean;
+            supportsProxyMode?: boolean;
+            managedByAuthProfiles?: boolean;
+            requiresOauthRegion?: boolean;
+            authHeader?: boolean;
+            defaultHeaders?: {
+                [key: string]: string;
+            };
+            experimental?: boolean;
+            hidden?: boolean;
             displayName: string;
-            enabled: boolean;
-            baseUrl: string;
-            hasApiKey: boolean;
-            modelsJson: string;
-            createdAt?: string;
-            updatedAt?: string;
+            displayNameKey?: string;
+            descriptionKey?: string;
+            apiDocsUrl?: string;
+            apiKeyPlaceholder?: string;
+            defaultProxyUrl?: string;
+            logo?: string;
         }>;
     };
 };
 
-export type GetApiV1ProvidersResponse = GetApiV1ProvidersResponses[keyof GetApiV1ProvidersResponses];
+export type GetApiV1ModelProvidersRegistryResponse = GetApiV1ModelProvidersRegistryResponses[keyof GetApiV1ModelProvidersRegistryResponses];
 
-export type DeleteApiV1ProvidersByProviderIdData = {
+export type GetApiV1ModelProvidersConfigData = {
     body?: never;
-    path: {
-        providerId: string;
-    };
+    path?: never;
     query?: never;
-    url: '/api/v1/providers/{providerId}';
+    url: '/api/v1/model-providers/config';
 };
 
-export type DeleteApiV1ProvidersByProviderIdResponses = {
+export type GetApiV1ModelProvidersConfigResponses = {
     /**
-     * Deleted provider
+     * Model provider config document
      */
     200: {
-        ok: boolean;
+        config: {
+            mode?: 'merge' | 'replace';
+            providers?: {
+                [key: string]: {
+                    providerTemplateId?: string;
+                    instanceId?: string;
+                    enabled?: boolean;
+                    auth?: 'api-key' | 'aws-sdk' | 'oauth' | 'token';
+                    api?: 'openai-completions' | 'openai-responses' | 'openai-codex-responses' | 'anthropic-messages' | 'google-generative-ai' | 'github-copilot' | 'bedrock-converse-stream' | 'ollama';
+                    apiKey?: string | {
+                        source: 'env' | 'file' | 'exec';
+                        provider: string;
+                        id: string;
+                    };
+                    baseUrl: string;
+                    oauthRegion?: 'global' | 'cn';
+                    oauthProfileRef?: string;
+                    displayName?: string;
+                    headers?: {
+                        [key: string]: string | {
+                            source: 'env' | 'file' | 'exec';
+                            provider: string;
+                            id: string;
+                        };
+                    };
+                    models?: Array<{
+                        id: string;
+                        name: string;
+                        api?: 'openai-completions' | 'openai-responses' | 'openai-codex-responses' | 'anthropic-messages' | 'google-generative-ai' | 'github-copilot' | 'bedrock-converse-stream' | 'ollama';
+                        reasoning?: boolean;
+                        input?: Array<'text' | 'image'>;
+                        cost?: {
+                            input: number;
+                            output: number;
+                            cacheRead: number;
+                            cacheWrite: number;
+                        };
+                        contextWindow?: number;
+                        maxTokens?: number;
+                        headers?: {
+                            [key: string]: string;
+                        };
+                        compat?: {
+                            [key: string]: unknown;
+                        };
+                    }>;
+                    metadata?: {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            bedrockDiscovery?: {
+                enabled?: boolean;
+                region?: string;
+                providerFilter?: Array<string>;
+                refreshInterval?: number;
+                defaultContextWindow?: number;
+                defaultMaxTokens?: number;
+            };
+        };
     };
 };
 
-export type DeleteApiV1ProvidersByProviderIdResponse = DeleteApiV1ProvidersByProviderIdResponses[keyof DeleteApiV1ProvidersByProviderIdResponses];
+export type GetApiV1ModelProvidersConfigResponse = GetApiV1ModelProvidersConfigResponses[keyof GetApiV1ModelProvidersConfigResponses];
 
-export type PutApiV1ProvidersByProviderIdData = {
+export type PutApiV1ModelProvidersConfigData = {
+    body?: {
+        mode?: 'merge' | 'replace';
+        providers?: {
+            [key: string]: {
+                providerTemplateId?: string;
+                instanceId?: string;
+                enabled?: boolean;
+                auth?: 'api-key' | 'aws-sdk' | 'oauth' | 'token';
+                api?: 'openai-completions' | 'openai-responses' | 'openai-codex-responses' | 'anthropic-messages' | 'google-generative-ai' | 'github-copilot' | 'bedrock-converse-stream' | 'ollama';
+                apiKey?: string | {
+                    source: 'env' | 'file' | 'exec';
+                    provider: string;
+                    id: string;
+                };
+                baseUrl: string;
+                oauthRegion?: 'global' | 'cn';
+                oauthProfileRef?: string;
+                displayName?: string;
+                headers?: {
+                    [key: string]: string | {
+                        source: 'env' | 'file' | 'exec';
+                        provider: string;
+                        id: string;
+                    };
+                };
+                models?: Array<{
+                    id: string;
+                    name: string;
+                    api?: 'openai-completions' | 'openai-responses' | 'openai-codex-responses' | 'anthropic-messages' | 'google-generative-ai' | 'github-copilot' | 'bedrock-converse-stream' | 'ollama';
+                    reasoning?: boolean;
+                    input?: Array<'text' | 'image'>;
+                    cost?: {
+                        input: number;
+                        output: number;
+                        cacheRead: number;
+                        cacheWrite: number;
+                    };
+                    contextWindow?: number;
+                    maxTokens?: number;
+                    headers?: {
+                        [key: string]: string;
+                    };
+                    compat?: {
+                        [key: string]: unknown;
+                    };
+                }>;
+                metadata?: {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        bedrockDiscovery?: {
+            enabled?: boolean;
+            region?: string;
+            providerFilter?: Array<string>;
+            refreshInterval?: number;
+            defaultContextWindow?: number;
+            defaultMaxTokens?: number;
+        };
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/model-providers/config';
+};
+
+export type PutApiV1ModelProvidersConfigResponses = {
+    /**
+     * Updated model provider config document
+     */
+    200: {
+        config: {
+            mode?: 'merge' | 'replace';
+            providers?: {
+                [key: string]: {
+                    providerTemplateId?: string;
+                    instanceId?: string;
+                    enabled?: boolean;
+                    auth?: 'api-key' | 'aws-sdk' | 'oauth' | 'token';
+                    api?: 'openai-completions' | 'openai-responses' | 'openai-codex-responses' | 'anthropic-messages' | 'google-generative-ai' | 'github-copilot' | 'bedrock-converse-stream' | 'ollama';
+                    apiKey?: string | {
+                        source: 'env' | 'file' | 'exec';
+                        provider: string;
+                        id: string;
+                    };
+                    baseUrl: string;
+                    oauthRegion?: 'global' | 'cn';
+                    oauthProfileRef?: string;
+                    displayName?: string;
+                    headers?: {
+                        [key: string]: string | {
+                            source: 'env' | 'file' | 'exec';
+                            provider: string;
+                            id: string;
+                        };
+                    };
+                    models?: Array<{
+                        id: string;
+                        name: string;
+                        api?: 'openai-completions' | 'openai-responses' | 'openai-codex-responses' | 'anthropic-messages' | 'google-generative-ai' | 'github-copilot' | 'bedrock-converse-stream' | 'ollama';
+                        reasoning?: boolean;
+                        input?: Array<'text' | 'image'>;
+                        cost?: {
+                            input: number;
+                            output: number;
+                            cacheRead: number;
+                            cacheWrite: number;
+                        };
+                        contextWindow?: number;
+                        maxTokens?: number;
+                        headers?: {
+                            [key: string]: string;
+                        };
+                        compat?: {
+                            [key: string]: unknown;
+                        };
+                    }>;
+                    metadata?: {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            bedrockDiscovery?: {
+                enabled?: boolean;
+                region?: string;
+                providerFilter?: Array<string>;
+                refreshInterval?: number;
+                defaultContextWindow?: number;
+                defaultMaxTokens?: number;
+            };
+        };
+    };
+};
+
+export type PutApiV1ModelProvidersConfigResponse = PutApiV1ModelProvidersConfigResponses[keyof PutApiV1ModelProvidersConfigResponses];
+
+export type PostApiV1ModelProvidersInstancesValidateData = {
     body?: {
         apiKey?: string;
         baseUrl?: string;
-        enabled?: boolean;
-        displayName?: string;
-        modelsJson?: string;
+        instanceKey: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/model-providers/instances/validate';
+};
+
+export type PostApiV1ModelProvidersInstancesValidateResponses = {
+    /**
+     * Validate model provider instance credentials
+     */
+    200: {
+        valid: boolean;
+        models?: Array<string>;
+        error?: string;
+    };
+};
+
+export type PostApiV1ModelProvidersInstancesValidateResponse = PostApiV1ModelProvidersInstancesValidateResponses[keyof PostApiV1ModelProvidersInstancesValidateResponses];
+
+export type PostApiV1ModelProvidersByProviderIdValidateData = {
+    body?: {
+        apiKey?: string;
+        baseUrl?: string;
     };
     path: {
         providerId: string;
     };
     query?: never;
-    url: '/api/v1/providers/{providerId}';
+    url: '/api/v1/model-providers/{providerId}/validate';
 };
 
-export type PutApiV1ProvidersByProviderIdResponses = {
+export type PostApiV1ModelProvidersByProviderIdValidateResponses = {
     /**
-     * Updated provider
+     * Validate model provider credentials
      */
     200: {
-        provider: {
-            id: string;
-            providerId: string;
-            displayName: string;
-            enabled: boolean;
-            baseUrl: string;
-            hasApiKey: boolean;
-            modelsJson: string;
-            createdAt?: string;
-            updatedAt?: string;
-        };
-    };
-    /**
-     * Created provider
-     */
-    201: {
-        provider: {
-            id: string;
-            providerId: string;
-            displayName: string;
-            enabled: boolean;
-            baseUrl: string;
-            hasApiKey: boolean;
-            modelsJson: string;
-            createdAt?: string;
-            updatedAt?: string;
-        };
+        valid: boolean;
+        models?: Array<string>;
+        error?: string;
     };
 };
 
-export type PutApiV1ProvidersByProviderIdResponse = PutApiV1ProvidersByProviderIdResponses[keyof PutApiV1ProvidersByProviderIdResponses];
+export type PostApiV1ModelProvidersByProviderIdValidateResponse = PostApiV1ModelProvidersByProviderIdValidateResponses[keyof PostApiV1ModelProvidersByProviderIdValidateResponses];
+
+export type GetApiV1ModelProvidersMinimaxOauthStatusData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/model-providers/minimax/oauth/status';
+};
+
+export type GetApiV1ModelProvidersMinimaxOauthStatusResponses = {
+    /**
+     * MiniMax OAuth status
+     */
+    200: {
+        connected: boolean;
+        inProgress: boolean;
+        region?: 'global' | 'cn';
+        error?: string;
+    };
+};
+
+export type GetApiV1ModelProvidersMinimaxOauthStatusResponse = GetApiV1ModelProvidersMinimaxOauthStatusResponses[keyof GetApiV1ModelProvidersMinimaxOauthStatusResponses];
+
+export type DeleteApiV1ModelProvidersMinimaxOauthLoginData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/model-providers/minimax/oauth/login';
+};
+
+export type DeleteApiV1ModelProvidersMinimaxOauthLoginResponses = {
+    /**
+     * Cancel MiniMax OAuth login
+     */
+    200: {
+        connected: boolean;
+        inProgress: boolean;
+        region?: 'global' | 'cn';
+        error?: string;
+        cancelled: boolean;
+    };
+};
+
+export type DeleteApiV1ModelProvidersMinimaxOauthLoginResponse = DeleteApiV1ModelProvidersMinimaxOauthLoginResponses[keyof DeleteApiV1ModelProvidersMinimaxOauthLoginResponses];
+
+export type PostApiV1ModelProvidersMinimaxOauthLoginData = {
+    body?: {
+        region: 'global' | 'cn';
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/model-providers/minimax/oauth/login';
+};
+
+export type PostApiV1ModelProvidersMinimaxOauthLoginResponses = {
+    /**
+     * Start MiniMax OAuth login
+     */
+    200: {
+        connected: boolean;
+        inProgress: boolean;
+        region?: 'global' | 'cn';
+        error?: string;
+        started: boolean;
+        browserUrl?: string;
+    };
+};
+
+export type PostApiV1ModelProvidersMinimaxOauthLoginResponse = PostApiV1ModelProvidersMinimaxOauthLoginResponses[keyof PostApiV1ModelProvidersMinimaxOauthLoginResponses];
 
 export type PostApiV1ProvidersByProviderIdVerifyData = {
     body?: {
-        apiKey: string;
+        apiKey?: string;
         baseUrl?: string;
     };
     path: {
-        providerId: string;
+        providerId: 'anthropic' | 'openai' | 'google' | 'ollama' | 'siliconflow' | 'ppio' | 'nvidia' | 'stepfun' | 'amazon-bedrock' | 'deepseek' | 'openrouter' | 'mistral' | 'xai' | 'together' | 'huggingface' | 'qwen' | 'volcengine' | 'qianfan' | 'vllm' | 'byteplus' | 'venice' | 'github-copilot' | 'xiaomi' | 'chutes' | 'minimax' | 'kimi' | 'glm' | 'moonshot' | 'zai';
     };
     query?: never;
     url: '/api/v1/providers/{providerId}/verify';
@@ -1887,6 +2934,132 @@ export type PostApiV1ProvidersByProviderIdVerifyResponses = {
 };
 
 export type PostApiV1ProvidersByProviderIdVerifyResponse = PostApiV1ProvidersByProviderIdVerifyResponses[keyof PostApiV1ProvidersByProviderIdVerifyResponses];
+
+export type PostApiV1QuotaFallbackToByokData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/quota/fallback-to-byok';
+};
+
+export type PostApiV1QuotaFallbackToByokResponses = {
+    /**
+     * Trigger automatic fallback to BYOK provider
+     */
+    200: {
+        ok: boolean;
+        newModelId?: string;
+    };
+};
+
+export type PostApiV1QuotaFallbackToByokResponse = PostApiV1QuotaFallbackToByokResponses[keyof PostApiV1QuotaFallbackToByokResponses];
+
+export type PostApiV1QuotaRestoreManagedData = {
+    body?: {
+        managedModelId: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/quota/restore-managed';
+};
+
+export type PostApiV1QuotaRestoreManagedResponses = {
+    /**
+     * Restore default model to managed (cloud) model
+     */
+    200: {
+        ok: boolean;
+        newModelId?: string;
+    };
+};
+
+export type PostApiV1QuotaRestoreManagedResponse = PostApiV1QuotaRestoreManagedResponses[keyof PostApiV1QuotaRestoreManagedResponses];
+
+export type PostApiV1ModelProvidersByProviderIdOauthStartData = {
+    body?: never;
+    path: {
+        providerId: string;
+    };
+    query?: never;
+    url: '/api/v1/model-providers/{providerId}/oauth/start';
+};
+
+export type PostApiV1ModelProvidersByProviderIdOauthStartResponses = {
+    /**
+     * OAuth flow started
+     */
+    200: {
+        browserUrl?: string;
+        error?: string;
+    };
+};
+
+export type PostApiV1ModelProvidersByProviderIdOauthStartResponse = PostApiV1ModelProvidersByProviderIdOauthStartResponses[keyof PostApiV1ModelProvidersByProviderIdOauthStartResponses];
+
+export type GetApiV1ModelProvidersByProviderIdOauthStatusData = {
+    body?: never;
+    path: {
+        providerId: string;
+    };
+    query?: never;
+    url: '/api/v1/model-providers/{providerId}/oauth/status';
+};
+
+export type GetApiV1ModelProvidersByProviderIdOauthStatusResponses = {
+    /**
+     * Current OAuth flow status
+     */
+    200: {
+        status: 'idle' | 'pending' | 'completed' | 'failed';
+        error?: string;
+        models?: Array<string>;
+    };
+};
+
+export type GetApiV1ModelProvidersByProviderIdOauthStatusResponse = GetApiV1ModelProvidersByProviderIdOauthStatusResponses[keyof GetApiV1ModelProvidersByProviderIdOauthStatusResponses];
+
+export type GetApiV1ModelProvidersByProviderIdOauthProviderStatusData = {
+    body?: never;
+    path: {
+        providerId: string;
+    };
+    query?: never;
+    url: '/api/v1/model-providers/{providerId}/oauth/provider-status';
+};
+
+export type GetApiV1ModelProvidersByProviderIdOauthProviderStatusResponses = {
+    /**
+     * OAuth provider connection status
+     */
+    200: {
+        connected: boolean;
+        provider?: string;
+        expiresAt?: number;
+        remainingMs?: number;
+    };
+};
+
+export type GetApiV1ModelProvidersByProviderIdOauthProviderStatusResponse = GetApiV1ModelProvidersByProviderIdOauthProviderStatusResponses[keyof GetApiV1ModelProvidersByProviderIdOauthProviderStatusResponses];
+
+export type PostApiV1ModelProvidersByProviderIdOauthDisconnectData = {
+    body?: never;
+    path: {
+        providerId: string;
+    };
+    query?: never;
+    url: '/api/v1/model-providers/{providerId}/oauth/disconnect';
+};
+
+export type PostApiV1ModelProvidersByProviderIdOauthDisconnectResponses = {
+    /**
+     * OAuth provider disconnected
+     */
+    200: {
+        ok: boolean;
+    };
+};
+
+export type PostApiV1ModelProvidersByProviderIdOauthDisconnectResponse = PostApiV1ModelProvidersByProviderIdOauthDisconnectResponses[keyof PostApiV1ModelProvidersByProviderIdOauthDisconnectResponses];
 
 export type GetApiV1IntegrationsData = {
     body?: never;
@@ -2376,16 +3549,28 @@ export type GetApiV1SkillhubCatalogResponses = {
         installedSlugs: Array<string>;
         installedSkills: Array<{
             slug: string;
-            source: 'curated' | 'managed' | 'custom';
+            source: 'managed' | 'custom' | 'workspace' | 'user';
             name: string;
             description: string;
             installedAt: string;
+            agentId: string;
+            agentName: string;
         }>;
         meta: {
             version: string;
             updatedAt: string;
             skillCount: number;
         };
+        queue: Array<{
+            slug: string;
+            source: 'managed' | 'custom' | 'workspace' | 'user';
+            status: 'queued' | 'downloading' | 'installing-deps' | 'done' | 'failed';
+            position: number;
+            error: string;
+            errorCode: 'skill_not_found' | 'rate_limit' | 'npm_missing' | 'deps_install_failed' | 'unknown';
+            retries: number;
+            enqueuedAt: string;
+        }>;
     };
 };
 
@@ -2394,6 +3579,8 @@ export type GetApiV1SkillhubCatalogResponse = GetApiV1SkillhubCatalogResponses[k
 export type PostApiV1SkillhubInstallData = {
     body?: {
         slug: string;
+        source?: 'managed' | 'custom' | 'workspace' | 'user';
+        agentId?: string;
     };
     path?: never;
     query?: never;
@@ -2406,6 +3593,10 @@ export type PostApiV1SkillhubInstallResponses = {
      */
     200: {
         ok: boolean;
+        queued?: boolean;
+        slug?: string;
+        status?: 'queued' | 'downloading' | 'installing-deps' | 'done' | 'failed';
+        position?: number;
         error?: string;
     };
 };
@@ -2415,6 +3606,8 @@ export type PostApiV1SkillhubInstallResponse = PostApiV1SkillhubInstallResponses
 export type PostApiV1SkillhubUninstallData = {
     body?: {
         slug: string;
+        source?: 'managed' | 'custom' | 'workspace' | 'user';
+        agentId?: string;
     };
     path?: never;
     query?: never;
@@ -2432,6 +3625,27 @@ export type PostApiV1SkillhubUninstallResponses = {
 };
 
 export type PostApiV1SkillhubUninstallResponse = PostApiV1SkillhubUninstallResponses[keyof PostApiV1SkillhubUninstallResponses];
+
+export type PostApiV1SkillhubCancelData = {
+    body?: {
+        slug: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/skillhub/cancel';
+};
+
+export type PostApiV1SkillhubCancelResponses = {
+    /**
+     * Cancel or dismiss a queued / failed install
+     */
+    200: {
+        ok: boolean;
+        cancelled: boolean;
+    };
+};
+
+export type PostApiV1SkillhubCancelResponse = PostApiV1SkillhubCancelResponses[keyof PostApiV1SkillhubCancelResponses];
 
 export type PostApiV1SkillhubRefreshData = {
     body?: never;
@@ -2458,7 +3672,10 @@ export type GetApiV1SkillhubSkillsBySlugData = {
     path: {
         slug: string;
     };
-    query?: never;
+    query?: {
+        source?: 'managed' | 'custom' | 'workspace' | 'user';
+        agentId?: string;
+    };
     url: '/api/v1/skillhub/skills/{slug}';
 };
 
@@ -2487,6 +3704,9 @@ export type GetApiV1SkillhubSkillsBySlugResponses = {
         version: string;
         updatedAt: string;
         installed: boolean;
+        installedSource: 'managed' | 'custom' | 'workspace' | 'user';
+        agentId: string;
+        uninstallable: boolean;
         skillContent: string;
         files: Array<string>;
     };
@@ -2505,11 +3725,13 @@ export type PostApiV1SkillhubImportData = {
 
 export type PostApiV1SkillhubImportErrors = {
     /**
-     * Bad request
+     * Import rejected or failed
      */
     400: {
-        ok: false;
-        error: string;
+        ok: boolean;
+        slug?: string;
+        error?: string;
+        errorCode?: 'skill_not_found' | 'rate_limit' | 'npm_missing' | 'deps_install_failed' | 'unknown';
     };
 };
 
@@ -2523,6 +3745,7 @@ export type PostApiV1SkillhubImportResponses = {
         ok: boolean;
         slug?: string;
         error?: string;
+        errorCode?: 'skill_not_found' | 'rate_limit' | 'npm_missing' | 'deps_install_failed' | 'unknown';
     };
 };
 

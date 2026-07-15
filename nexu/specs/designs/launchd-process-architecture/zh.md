@@ -66,7 +66,7 @@ const SYSTEMD_SUPERVISOR_HINT_ENV_VARS = [
 │                          launchd                                 │
 │                                                                  │
 │  ┌────────────────────┐                                         │
-│  │ com.nexu.desktop   │  Electron GUI Shell                     │
+│  │ io.nexu.desktop   │  Electron GUI Shell                     │
 │  │ (LaunchAgent)      │  - 窗口管理                              │
 │  │                    │  - 用户交互                              │
 │  │                    │  - 内置 HTTP Server (Web UI)            │
@@ -75,7 +75,7 @@ const SYSTEMD_SUPERVISOR_HINT_ENV_VARS = [
 │            │ launchctl kickstart / bootout                      │
 │            │                                                     │
 │  ┌─────────▼──────────┐  ┌───────────────────┐                  │
-│  │ com.nexu.controller│  │ com.nexu.openclaw │                  │
+│  │ io.nexu.controller│  │ io.nexu.openclaw │                  │
 │  │ (LaunchAgent)      │  │ (LaunchAgent)     │                  │
 │  │                    │  │                   │                  │
 │  │ - Hono API Server  │  │ - OpenClaw Gateway│                  │
@@ -90,11 +90,11 @@ const SYSTEMD_SUPERVISOR_HINT_ENV_VARS = [
 
 | 进程 | launchd Label | 职责 | KeepAlive |
 |------|---------------|------|-----------|
-| **Desktop** | `com.nexu.desktop` | GUI Shell + 内置 Web Server | No (用户手动启动) |
-| **Controller** | `com.nexu.controller` | API Server, 配置管理, 状态存储 | Yes (崩溃自动重启) |
-| **OpenClaw** | `com.nexu.openclaw` | Bot Runtime, Channel 连接 | Yes (崩溃自动重启) |
+| **Desktop** | `io.nexu.desktop` | GUI Shell + 内置 Web Server | No (用户手动启动) |
+| **Controller** | `io.nexu.controller` | API Server, 配置管理, 状态存储 | Yes (崩溃自动重启) |
+| **OpenClaw** | `io.nexu.openclaw` | Bot Runtime, Channel 连接 | Yes (崩溃自动重启) |
 
-> **与原生 OpenClaw 隔离**: Nexu Desktop 使用 `com.nexu.*` 命名空间作为 launchd label，与 OpenClaw 原生 `openclaw install` 使用的 `io.openclaw.*` 完全独立。状态目录也分离（`~/.nexu/` vs `~/.openclaw/`）。用户可以同时运行 Nexu Desktop 和独立的 OpenClaw 实例，互不冲突。
+> **与原生 OpenClaw 隔离**: Nexu Desktop 使用 `io.nexu.*` 命名空间作为 launchd label，与 OpenClaw 原生 `openclaw install` 使用的 `io.openclaw.*` 完全独立。状态目录也分离（`~/.nexu/` vs `~/.openclaw/`）。用户可以同时运行 Nexu Desktop 和独立的 OpenClaw 实例，互不冲突。
 
 ### 2.3 关键设计决策
 
@@ -202,7 +202,7 @@ OPENCLAW_LOG_PATH=${NEXU_LOG_DIR}/openclaw.log
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.nexu.controller</string>
+    <string>io.nexu.controller</string>
 
     <key>ProgramArguments</key>
     <array>
@@ -269,7 +269,7 @@ OPENCLAW_LOG_PATH=${NEXU_LOG_DIR}/openclaw.log
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.nexu.openclaw</string>
+    <string>io.nexu.openclaw</string>
 
     <key>ProgramArguments</key>
     <array>
@@ -286,7 +286,7 @@ OPENCLAW_LOG_PATH=${NEXU_LOG_DIR}/openclaw.log
 
         <!-- OpenClaw 识别被 launchd 托管 -->
         <key>OPENCLAW_LAUNCHD_LABEL</key>
-        <string>com.nexu.openclaw</string>
+        <string>io.nexu.openclaw</string>
 
         <key>OPENCLAW_STATE_DIR</key>
         <string>${NEXU_HOME}/openclaw</string>
@@ -326,7 +326,7 @@ OPENCLAW_LOG_PATH=${NEXU_LOG_DIR}/openclaw.log
 
 | 变量 | 开发模式 | 生产模式 |
 |------|---------|---------|
-| `Label` | `com.nexu.controller.dev` | `com.nexu.controller` |
+| `Label` | `io.nexu.controller.dev` | `io.nexu.controller` |
 | `NODE_PATH` | `$(which node)` | `app.resourcesPath/runtime/node` |
 | `CONTROLLER_ENTRY` | `.tmp/sidecars/controller/dist/index.js` | `app.resourcesPath/runtime/controller/dist/index.js` |
 | `NEXU_HOME` | `.tmp/desktop/nexu-home` | `~/Library/Application Support/Nexu` |
@@ -627,8 +627,8 @@ export interface DesktopEnv {
 export async function bootstrapWithLaunchd(env: DesktopEnv): Promise<void> {
   const launchd = new LaunchdManager({ plistDir: env.plistDir });
   const labels = {
-    controller: env.isDev ? "com.nexu.controller.dev" : "com.nexu.controller",
-    openclaw: env.isDev ? "com.nexu.openclaw.dev" : "com.nexu.openclaw",
+    controller: env.isDev ? "io.nexu.controller.dev" : "io.nexu.controller",
+    openclaw: env.isDev ? "io.nexu.openclaw.dev" : "io.nexu.openclaw",
   };
 
   // 1. 确保 plist 已安装
@@ -664,8 +664,8 @@ export async function bootstrapWithLaunchd(env: DesktopEnv): Promise<void> {
 
 ```typescript
 const SERVICE_LABELS = {
-  controller: app.isPackaged ? "com.nexu.controller" : "com.nexu.controller.dev",
-  openclaw: app.isPackaged ? "com.nexu.openclaw" : "com.nexu.openclaw.dev",
+  controller: app.isPackaged ? "io.nexu.controller" : "io.nexu.controller.dev",
+  openclaw: app.isPackaged ? "io.nexu.openclaw" : "io.nexu.openclaw.dev",
 };
 
 app.on("before-quit", async (event) => {
@@ -717,8 +717,8 @@ cleanup() {
     kill "$ELECTRON_PID" 2>/dev/null || true
   fi
   # 可选：停止 launchd 服务
-  # launchctl kill SIGTERM gui/$(id -u)/com.nexu.controller.dev 2>/dev/null || true
-  # launchctl kill SIGTERM gui/$(id -u)/com.nexu.openclaw.dev 2>/dev/null || true
+  # launchctl kill SIGTERM gui/$(id -u)/io.nexu.controller.dev 2>/dev/null || true
+  # launchctl kill SIGTERM gui/$(id -u)/io.nexu.openclaw.dev 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
 
@@ -737,16 +737,16 @@ pnpm exec tsx scripts/generate-dev-plist.ts \
 UID_VAL=$(id -u)
 
 # Bootstrap (如果失败则显示错误)
-if ! launchctl bootstrap gui/$UID_VAL "$PLIST_DIR/com.nexu.controller.dev.plist" 2>&1; then
+if ! launchctl bootstrap gui/$UID_VAL "$PLIST_DIR/io.nexu.controller.dev.plist" 2>&1; then
   echo "Note: Controller service may already be bootstrapped"
 fi
-if ! launchctl bootstrap gui/$UID_VAL "$PLIST_DIR/com.nexu.openclaw.dev.plist" 2>&1; then
+if ! launchctl bootstrap gui/$UID_VAL "$PLIST_DIR/io.nexu.openclaw.dev.plist" 2>&1; then
   echo "Note: OpenClaw service may already be bootstrapped"
 fi
 
 # Kickstart
-launchctl kickstart -k gui/$UID_VAL/com.nexu.controller.dev
-launchctl kickstart -k gui/$UID_VAL/com.nexu.openclaw.dev
+launchctl kickstart -k gui/$UID_VAL/io.nexu.controller.dev
+launchctl kickstart -k gui/$UID_VAL/io.nexu.openclaw.dev
 
 # 4. 启动 Electron
 pnpm exec electron apps/desktop &
@@ -787,8 +787,8 @@ pnpm reset-state
 {repo}/
 └── .tmp/
     ├── launchd/
-    │   ├── com.nexu.controller.dev.plist
-    │   └── com.nexu.openclaw.dev.plist
+    │   ├── io.nexu.controller.dev.plist
+    │   └── io.nexu.openclaw.dev.plist
     ├── logs/
     │   ├── controller.log
     │   ├── controller.err
@@ -865,22 +865,22 @@ pnpm reset-state
 launchctl list | grep nexu
 
 # 查看服务详情
-launchctl print gui/$(id -u)/com.nexu.controller
+launchctl print gui/$(id -u)/io.nexu.controller
 
 # 启动服务
-launchctl kickstart gui/$(id -u)/com.nexu.controller
+launchctl kickstart gui/$(id -u)/io.nexu.controller
 
 # 重启服务 (-k = kill first)
-launchctl kickstart -k gui/$(id -u)/com.nexu.controller
+launchctl kickstart -k gui/$(id -u)/io.nexu.controller
 
 # 停止服务
-launchctl kill SIGTERM gui/$(id -u)/com.nexu.controller
+launchctl kill SIGTERM gui/$(id -u)/io.nexu.controller
 
 # 安装 plist
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.nexu.controller.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/io.nexu.controller.plist
 
 # 卸载服务
-launchctl bootout gui/$(id -u)/com.nexu.controller
+launchctl bootout gui/$(id -u)/io.nexu.controller
 ```
 
 ### B. 目录结构
@@ -896,8 +896,8 @@ launchctl bootout gui/$(id -u)/com.nexu.controller
 │       ├── skills/
 │       └── workspace-templates/
 ├── LaunchAgents/
-│   ├── com.nexu.controller.plist
-│   └── com.nexu.openclaw.plist
+│   ├── io.nexu.controller.plist
+│   └── io.nexu.openclaw.plist
 └── Logs/Nexu/
     ├── controller.log
     ├── controller.err
@@ -910,8 +910,8 @@ launchctl bootout gui/$(id -u)/com.nexu.controller
 {repo}/
 └── .tmp/
     ├── launchd/
-    │   ├── com.nexu.controller.dev.plist
-    │   └── com.nexu.openclaw.dev.plist
+    │   ├── io.nexu.controller.dev.plist
+    │   └── io.nexu.openclaw.dev.plist
     ├── logs/
     │   ├── controller.log
     │   ├── controller.err

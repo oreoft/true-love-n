@@ -5,12 +5,13 @@
 <h1 align="center">nexu</h1>
 
 <p align="center">
-  <strong>最简单的微信 & 飞书 OpenClaw 🦞 开源桌面客户端</strong>
+  <strong>让你的 AI Agent 直接运行在微信、飞书、Slack 等 IM 中的开源桌面客户端</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/nexu-io/nexu/releases"><img src="https://img.shields.io/badge/release-v0.1.0-blue" alt="Release" /></a>
+  <a href="https://github.com/nexu-io/nexu/releases"><img src="https://img.shields.io/github/v/release/nexu-io/nexu?color=blue" alt="Release" /></a>
   <a href="https://github.com/nexu-io/nexu/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License" /></a>
+  <a href="https://github.com/nexu-io/nexu/stargazers"><img src="https://img.shields.io/github/stars/nexu-io/nexu?style=social" alt="Stars" /></a>
 </p>
 
 <p align="center">
@@ -22,31 +23,35 @@
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> &nbsp;·&nbsp; 简体中文 &nbsp;·&nbsp; <a href="README.ja.md">日本語</a>
+  <a href="README.md">English</a> &nbsp;·&nbsp; 简体中文 &nbsp;·&nbsp; <a href="README.ja.md">日本語</a> &nbsp;·&nbsp; <a href="README.ko.md">한국어</a>
 </p>
 
 ---
 
-> 🎉 **内测福利**：内测期间，Claude、GPT、Gemini、Kimi、GLM 等顶级模型 **全部免费、无限量使用**。[立即下载体验 →](https://nexu.io)
+> 🦞 **最丝滑接入微信 OpenClaw**：扫码即连，开箱即用。
+>
+> 🖥 **已支持平台**：macOS（Apple Silicon）· macOS（Intel）· Windows — [立即下载](https://nexu.io)
 
 ---
 
-## 📋 概述
+## 📋 nexu（奈苏）是什么？
 
 **nexu**（奈苏，next to you）是一个开源桌面客户端，让你的 **OpenClaw 🦞** Agent 直接运行在微信、飞书、Slack、Discord 等 IM 中。
 
 **已支持微信接入 OpenClaw** —— 适配微信 8.0.7 OpenClaw 插件，点击连接、微信扫码，即可在微信中与 AI Agent 对话。
 
-下载即用，图形化配置，内置飞书 Skills，支持 Claude / GPT / Gemini 等多模型与自带 API Key。
+下载即用，图形化配置，内置飞书 Skills，支持 Gemini 等多模型与自带 API Key。
 
 连接 IM 后，Agent 7×24 小时在线——手机上随时对话，不受桌面限制。
 
 所有数据保存在本机，隐私安全，完全可控。
 
+<h3 align="center">🎬 产品实操演示</h3>
+
 <p align="center">
-  <img src="site/media/readme-screenshot.png" width="49%" alt="nexu 截图" />
-  &nbsp;
-  <img src="site/media/readme-wechat-demo.png" width="49%" alt="nexu 微信扫码连接" />
+  <video src="https://github.com/user-attachments/assets/220170ce-b394-44de-8bb2-d71512b0eee1" width="100%" autoplay loop muted playsinline>
+    您的浏览器不支持视频播放，请 <a href="https://github.com/user-attachments/assets/220170ce-b394-44de-8bb2-d71512b0eee1">点击下载</a> 观看。
+  </video>
 </p>
 
 ---
@@ -55,7 +60,7 @@
 
 | | OpenClaw 官方 | 典型托管飞书龙虾方案 | **nexu** ✅ |
 |---|---|---|---|
-| **🧠 模型** | 自选，但需手动配置 ⚠️ | 平台指定，不可更换 ❌ | **自选 Claude / GPT / Gemini 等，GUI 一键切换** ✅ |
+| **🧠 模型** | 自选，但需手动配置 ⚠️ | 平台指定，不可更换 ❌ | **自选 Gemini 等，GUI 一键切换；MiniMax / Codex / GLM 支持 OAuth** ✅ |
 | **📡 数据路径** | 本地 | 经第三方服务器，数据不可控 ❌ | **本机为主，不托管你的业务数据** ✅ |
 | **💰 费用** | 免费，但需自行部署 ⚠️ | 订阅 / 按席收费 ❌ | **客户端免费，按自备 API Key 计费** ✅ |
 | **📜 源码** | 开源 | 闭源，无法审计 ❌ | **MIT 开源，可 fork、可审计** ✅ |
@@ -76,7 +81,11 @@
 
 ### 🧠 顶级模型，开箱即用
 
-通过 nexu 账号直接使用 Claude 4.6、ChatGPT 5.4、Minimax 2.5、GLM 5.0、Kimi 2.5 等模型，无需额外配置。也可随时切换为自带 API Key。
+通过 nexu 账号直接使用 Gemini 等模型，无需额外配置。也可随时切换为自带 API Key。
+
+### 🔐 OAuth 一键登录，免填 Key
+
+支持 MiniMax、OpenAI Codex、GLM（Z.AI Coding Plan）OAuth 登录——点击授权即可使用，无需手动复制粘贴 API Key。
 
 ### 🔑 支持自带 API Key，无需登录
 
@@ -138,18 +147,17 @@ nexu 面向 **One Person Company** 与小团队，让一个人就能拥有一支
 
 ### 系统要求
 
-- 🍎 **系统**：macOS 12+（Apple Silicon）
+- 🍎 **macOS**：macOS 12+（Apple Silicon & Intel）
+- 🪟 **Windows**：Windows 10+
 - 💾 **磁盘**：约 500 MB
 
 ### 安装
 
-**推荐：直接下载 Mac 客户端**
-
-1. 打开 [官网](https://nexu.io) 或 [Releases](https://github.com/nexu-io/nexu/releases) 📥
-2. 下载 Mac 安装包
-3. 启动 nexu 🎉
-
-> ⏳ **Windows 与 macOS Intel**：开发中。如需进展可邮件 [support@nexu.ai](mailto:support@nexu.ai)。
+| 平台 | 下载 |
+|------|------|
+| 🍎 macOS（Apple Silicon） | [nexu.io](https://nexu.io) · [Releases](https://github.com/nexu-io/nexu/releases) |
+| 🍎 macOS（Intel） | [nexu.io](https://nexu.io) · [Releases](https://github.com/nexu-io/nexu/releases) |
+| 🪟 Windows | [nexu.io](https://nexu.io) · [Releases](https://github.com/nexu-io/nexu/releases) |
 
 ### 首次启动
 
@@ -169,7 +177,6 @@ nexu 面向 **One Person Company** 与小团队，让一个人就能拥有一支
 ```
 nexu/
 ├── apps/
-│   ├── api/              # 后端 API
 │   ├── web/              # Web 前端
 │   ├── desktop/          # 桌面客户端（Electron）
 │   └── controller/       # 控制器
@@ -182,10 +189,10 @@ nexu/
 ### 常用命令
 
 ```bash
-pnpm run dev             # 开发环境（热重载）
-pnpm run dev:desktop     # 桌面客户端
-pnpm run build           # 生产构建
-pnpm run lint
+pnpm dev start           # 启动完整本地开发栈（热重载）
+pnpm dev stop            # 停止本地开发栈
+pnpm build               # 生产构建
+pnpm lint
 pnpm test
 ```
 
@@ -193,7 +200,7 @@ pnpm test
 
 ## 🤝 贡献
 
-欢迎贡献！**英文权威指南**在仓库根目录 [CONTRIBUTING.md](CONTRIBUTING.md)（GitHub 发起 PR 时会重点展示）。文档站会同步嵌入该文件：[docs.nexu.io — Contributing](https://docs.nexu.io/guide/contributing)。**中文指南：** [docs.nexu.io 参与贡献](https://docs.nexu.io/zh/guide/contributing) · [docs/zh/guide/contributing.md](docs/zh/guide/contributing.md)。
+欢迎贡献！详细指南在仓库根目录 [CONTRIBUTING.md](CONTRIBUTING.md)，也可访问 [docs.nexu.io — 参与贡献](https://docs.nexu.io/zh/guide/contributing)。
 
 1. 🍴 Fork 本仓库
 2. 🌿 创建功能分支（`git checkout -b feature/amazing-feature`）
@@ -210,6 +217,28 @@ pnpm test
 
 ---
 
+## ❓ FAQ
+
+**Q: nexu 免费吗？**
+A: 客户端完全免费且开源（MIT）。内置多款顶级模型，也可以选择自带 API Key。
+
+**Q: 支持哪些操作系统？**
+A: 支持 macOS 12+（Apple Silicon & Intel）和 Windows 10+。
+
+**Q: 支持哪些 IM 平台？**
+A: 内置支持微信、飞书、Slack、Discord，开箱即用。
+
+**Q: 我的数据安全吗？**
+A: 所有数据保存在本机，nexu 不托管你的业务数据。源码开源可审计。
+
+**Q: 可以使用自己的 API Key 吗？**
+A: 可以。填入你的 API Key 即可使用，无需注册账号或登录。
+
+**Q: 微信接入需要什么条件？**
+A: 适配微信 8.0.7 OpenClaw 插件，点击连接、微信扫码即可，无需额外配置。
+
+---
+
 ## 💬 社区
 
 我们以 GitHub 作为社区交流的主要阵地。发帖前请先搜索，避免重复。
@@ -221,11 +250,51 @@ pnpm test
 | 📋 [**Roadmap & RFCs**](https://github.com/nexu-io/nexu/discussions/categories/rfc-roadmap) | 关注产品规划，参与重大设计方案的讨论。 |
 | 📧 [**support@nexu.ai**](mailto:support@nexu.ai) | 私密咨询、商务合作，或不适合公开讨论的事项。 |
 
+### 加入我们的社群
+
+<table>
+  <tr>
+    <td align="center" width="220">
+      <strong>💬 微信群</strong><br/><br/>
+      <img src="site/media/wechat-qr.png" width="200" height="200" alt="微信社群二维码" /><br/>
+      <sub>扫码加入微信社群</sub>
+    </td>
+    <td align="center" width="220">
+      <strong><a href="https://applink.feishu.cn/client/chat/chatter/add_by_link?link_token=8b7k7b5b-ac27-4748-9165-78606dc16913">🪁 飞书群</a></strong><br/><br/>
+      <img src="site/media/feishu-qr.png" width="200" height="200" alt="飞书社群二维码" /><br/>
+      <sub>扫码或点击加入飞书社群</sub>
+    </td>
+    <td align="center" width="220">
+      <strong><a href="https://discord.gg/Q6AxCUuMNU">🎮 Discord</a></strong><br/><br/>
+      <img src="site/media/discord-qr.png" width="200" height="200" alt="Discord 社群二维码" /><br/>
+      <sub>扫码或点击加入 Discord 服务器</sub>
+    </td>
+  </tr>
+</table>
+
+### Nexu 开源共创招募
+
+Nexu 开源共创招募中，欢迎一起来写代码、拿积分、上榜单。想低门槛开始，可以先看 [Good First Issue 贡献者指南](https://docs.nexu.io/zh/guide/first-pr)。
+
+我们长期维护 [Good First Issue 列表](https://github.com/nexu-io/nexu/labels/good-first-issue)，题目边界清晰、方向聚焦，还配有 AI Prompt 模板，方便你更快上手。首次贡献者和 `good-first-issue` 认领者，我们也会尽量提供引导与反馈。更多说明见 [贡献奖励与支持](https://docs.nexu.io/zh/guide/contributor-rewards)。
+
 ### Contributors
+
+感谢每一位为 nexu 添砖加瓦的贡献者。无论是代码、文档、反馈还是创意建议，都会让这个项目变得更好。
+
+特别感谢 [NickHood1984](https://github.com/NickHood1984) 已经向 nexu 提交并成功合入了 PR。这样的每一次真实贡献，都会被我们认真看到，也欢迎更多朋友一起加入。
 
 <a href="https://github.com/nexu-io/nexu/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=nexu-io/nexu" />
 </a>
+
+---
+
+## 📊 GitHub Stats
+
+<picture>
+  <img alt="GitHub Stats" src="docs/github-metrics.svg" />
+</picture>
 
 ---
 
@@ -243,9 +312,17 @@ pnpm test
 
 ## 📄 许可证
 
-nexu 基于 [MIT License](LICENSE) 开源——你可以自由使用、修改、分发。
+nexu 基于 [MIT License](LICENSE) 开源——你可以自由使用、修改、分发，包括商业用途。
 
 我们相信开源是 AI 基础设施的未来。欢迎 fork、贡献、或基于 nexu 构建你自己的产品。
+
+---
+
+<p align="center">
+  <a href="https://github.com/nexu-io/nexu/stargazers">
+    <img src="https://github.com/user-attachments/assets/a44df6d4-7056-4cd0-b778-32248a7fd26b" width="600" alt="Star nexu on GitHub" />
+  </a>
+</p>
 
 ---
 

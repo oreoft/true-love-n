@@ -1,19 +1,46 @@
-import type { SkillhubCatalogData } from "@/types/desktop";
+import type { SkillSource, SkillhubCatalogData } from "@/types/desktop";
 import "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import {
   getApiV1SkillhubCatalog,
+  postApiV1SkillhubCancel,
   postApiV1SkillhubImport,
   postApiV1SkillhubInstall,
   postApiV1SkillhubRefresh,
   postApiV1SkillhubUninstall,
 } from "../../lib/api/sdk.gen";
 
+export type SkillUninstallInput = {
+  slug: string;
+  source?: Exclude<SkillSource, "curated">;
+  agentId?: string | null;
+};
+
 const CATALOG_QUERY_KEY = ["skillhub", "catalog"] as const;
 const DETAIL_QUERY_KEY = ["skillhub", "detail"] as const;
 
+/**
+ * Queue statuses that should keep the catalog polling. Includes `failed` so
+ * the UI eventually drops stale failure cards once the backend cleanup window
+ * (cleanupDelayMs) evicts them — without this, a failed card can stay on
+ * screen indefinitely until the user triggers another action.
+ */
+const POLLING_QUEUE_STATUSES = new Set([
+  "queued",
+  "downloading",
+  "installing-deps",
+  "failed",
+]);
+
+function hasPollingQueueItems(data: SkillhubCatalogData | undefined): boolean {
+  if (!data?.queue?.length) return false;
+  return data.queue.some((item) => POLLING_QUEUE_STATUSES.has(item.status));
+}
+
 export function useCommunitySkills(opts?: { refetchInterval?: number }) {
-  return useQuery({
+  const query = useQuery({
     queryKey: CATALOG_QUERY_KEY,
     queryFn: async (): Promise<SkillhubCatalogData> => {
       const { data, error } = await getApiV1SkillhubCatalog();
@@ -21,12 +48,20 @@ export function useCommunitySkills(opts?: { refetchInterval?: number }) {
       return data as unknown as SkillhubCatalogData;
     },
     staleTime: 5 * 60 * 1000,
-    refetchInterval: opts?.refetchInterval,
+    refetchInterval:
+      opts?.refetchInterval ??
+      ((q) => {
+        const data = q.state.data as SkillhubCatalogData | undefined;
+        return hasPollingQueueItems(data) ? 3_000 : false;
+      }),
   });
+
+  return query;
 }
 
 export function useInstallSkill() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: async (slug: string) => {
@@ -34,10 +69,39 @@ export function useInstallSkill() {
         body: { slug },
       });
       if (error) throw new Error("Install request failed");
-      const result = data as { ok: boolean; error?: string };
+      const result = data as {
+        ok: boolean;
+        queued?: boolean;
+        slug?: string;
+        status?: string;
+        position?: number;
+        error?: string;
+      };
       if (!result.ok) {
         throw new Error(result.error ?? "Install failed");
       }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: CATALOG_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: DETAIL_QUERY_KEY }),
+      ]);
+      if (result.queued) {
+        toast.info(t("skills.installQueued"));
+      }
+      return result;
+    },
+  });
+}
+
+export function useCancelInstall() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (slug: string) => {
+      const { data, error } = await postApiV1SkillhubCancel({
+        body: { slug },
+      });
+      if (error) throw new Error("Cancel request failed");
+      const result = data as { ok: boolean; cancelled: boolean };
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: CATALOG_QUERY_KEY }),
         queryClient.invalidateQueries({ queryKey: DETAIL_QUERY_KEY }),
@@ -51,9 +115,13 @@ export function useUninstallSkill() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (slug: string) => {
+    mutationFn: async ({ slug, source, agentId }: SkillUninstallInput) => {
       const { data, error } = await postApiV1SkillhubUninstall({
-        body: { slug },
+        body: {
+          slug,
+          ...(source ? { source } : {}),
+          ...(agentId ? { agentId } : {}),
+        },
       });
       if (error) throw new Error("Uninstall request failed");
       const result = data as { ok: boolean; error?: string };

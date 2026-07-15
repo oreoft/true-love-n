@@ -3,15 +3,23 @@ import path from "node:path";
 import type { SessionResponse } from "@nexu/shared";
 import type { ControllerEnv } from "../app/env.js";
 import { logger } from "../lib/logger.js";
+import { proxyFetch } from "../lib/proxy-fetch.js";
 import type { SessionsRuntime } from "../runtime/sessions-runtime.js";
 import type { NexuConfigStore } from "../store/nexu-config-store.js";
 
-type AnalyticsChannel = "wechat" | "feishu" | "slack" | "discord";
-type AnalyticsSkillSource = "builtin" | "explore" | "custom";
+type AnalyticsChannel =
+  | "wechat"
+  | "feishu"
+  | "slack"
+  | "discord"
+  | "telegram"
+  | "whatsapp";
+type AnalyticsSkillSource = "builtin" | "explore" | "custom" | "chat";
 type InternalSkillSource = "curated" | "managed" | "custom";
 
 type AnalyticsState = {
   sessionStartSent: boolean;
+  firstConversationDistinctId: string | null;
   sentUserMessageIds: string[];
   sentSkillUseIds: string[];
 };
@@ -32,12 +40,15 @@ type TranscriptEntry = {
   };
 };
 
+type AnalyticsMessageState = "Success" | "false";
+
 type UserMessageCandidate = {
   id: string;
   timestampMs: number;
   createdAt: string | null;
   providerName: string | null;
   channel: AnalyticsChannel;
+  state: AnalyticsMessageState;
 };
 
 type SkillUseCandidate = {
@@ -55,8 +66,16 @@ type ResolvedSkillInfo = {
   source: string | null;
 };
 
+type AnalyticsDistinctIdResolution =
+  | { status: "ready"; distinctId: string }
+  | { status: "missing" }
+  | { status: "error" };
+
+const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
+
 const EMPTY_ANALYTICS_STATE: AnalyticsState = {
   sessionStartSent: false,
+  firstConversationDistinctId: null,
   sentUserMessageIds: [],
   sentSkillUseIds: [],
 };
@@ -70,7 +89,9 @@ function toAnalyticsChannel(
   if (
     channelType === "feishu" ||
     channelType === "slack" ||
-    channelType === "discord"
+    channelType === "discord" ||
+    channelType === "telegram" ||
+    channelType === "whatsapp"
   ) {
     return channelType;
   }
@@ -151,15 +172,49 @@ export class AnalyticsService {
   ) {}
 
   async poll(): Promise<void> {
-    if (!this.env.amplitudeApiKey) {
+    if (!this.env.posthogApiKey) {
       return;
     }
 
+    if (!(await this.configStore.getDesktopAnalyticsEnabled())) {
+      return;
+    }
+
+    const analyticsDistinctId = await this.resolveAnalyticsDistinctId();
+    if (analyticsDistinctId.status === "error") {
+      return;
+    }
+
+    const shouldSendAnalytics = analyticsDistinctId.status === "ready";
+    const currentDistinctId =
+      analyticsDistinctId.status === "ready"
+        ? analyticsDistinctId.distinctId
+        : null;
+    let stateChanged = false;
+
     await this.ensureStateLoaded();
-    const profile = await this.configStore.getLocalProfile();
+    if (
+      currentDistinctId &&
+      this.state.sessionStartSent &&
+      this.state.firstConversationDistinctId === null
+    ) {
+      this.state.sessionStartSent = false;
+      stateChanged = true;
+    }
+
+    if (
+      currentDistinctId &&
+      this.state.sessionStartSent &&
+      this.state.firstConversationDistinctId &&
+      this.state.firstConversationDistinctId !== currentDistinctId
+    ) {
+      this.state.sessionStartSent = false;
+      this.state.firstConversationDistinctId = null;
+      stateChanged = true;
+    }
+
     const sessions = await this.sessionsRuntime.listSessions();
     const skillLedger = await this.readSkillLedgerSources();
-    let stateChanged = false;
     let firstSessionCandidate: UserMessageCandidate | null = null;
 
     for (const session of sessions) {
@@ -200,15 +255,18 @@ export class AnalyticsService {
           continue;
         }
 
-        await this.sendEvent(
-          profile.id,
-          "user_message_sent",
-          {
-            channel: userMessage.channel,
-            model_provider: userMessage.providerName,
-          },
-          userMessage.timestampMs,
-        );
+        if (shouldSendAnalytics) {
+          await this.sendAnalyticsEvent(
+            analyticsDistinctId.distinctId,
+            "user_message_sent",
+            {
+              channel: userMessage.channel,
+              model_provider: userMessage.providerName,
+              state: userMessage.state,
+            },
+            userMessage.timestampMs,
+          );
+        }
         this.sentUserMessageIds.add(userMessage.id);
         stateChanged = true;
       }
@@ -221,34 +279,39 @@ export class AnalyticsService {
           continue;
         }
 
-        await this.sendEvent(
-          profile.id,
-          "skill_use",
-          {
-            skill_name: skillUse.skillName,
-            skill_source: skillUse.skillSource,
-            channel: skillUse.channel,
-            model_provider: skillUse.providerName,
-          },
-          skillUse.timestampMs,
-        );
+        if (shouldSendAnalytics) {
+          await this.sendAnalyticsEvent(
+            analyticsDistinctId.distinctId,
+            "skill_use",
+            {
+              skill_name: skillUse.skillName,
+              skill_source: skillUse.skillSource,
+              channel: skillUse.channel,
+              model_provider: skillUse.providerName,
+            },
+            skillUse.timestampMs,
+          );
+        }
         this.sentSkillUseIds.add(skillUse.id);
         stateChanged = true;
       }
     }
 
     if (!this.state.sessionStartSent && firstSessionCandidate?.providerName) {
-      await this.sendEvent(
-        profile.id,
-        "session_start",
-        {
-          channel: firstSessionCandidate.channel,
-          model_provider: firstSessionCandidate.providerName,
-        },
-        firstSessionCandidate.timestampMs,
-      );
-      this.state.sessionStartSent = true;
-      stateChanged = true;
+      if (shouldSendAnalytics) {
+        await this.sendAnalyticsEvent(
+          analyticsDistinctId.distinctId,
+          "nexu_first_conversation_start",
+          {
+            channel: firstSessionCandidate.channel,
+            model_provider: firstSessionCandidate.providerName,
+          },
+          firstSessionCandidate.timestampMs,
+        );
+        this.state.firstConversationDistinctId = analyticsDistinctId.distinctId;
+        this.state.sessionStartSent = true;
+        stateChanged = true;
+      }
     }
 
     if (stateChanged) {
@@ -266,6 +329,10 @@ export class AnalyticsService {
       const parsed = JSON.parse(raw) as Partial<AnalyticsState>;
       this.state = {
         sessionStartSent: parsed.sessionStartSent === true,
+        firstConversationDistinctId:
+          typeof parsed.firstConversationDistinctId === "string"
+            ? parsed.firstConversationDistinctId
+            : null,
         sentUserMessageIds: Array.isArray(parsed.sentUserMessageIds)
           ? parsed.sentUserMessageIds.filter(
               (value): value is string => typeof value === "string",
@@ -436,6 +503,38 @@ export class AnalyticsService {
         continue;
       }
 
+      // Resolve any pending user messages as failed when openclaw reports a
+      // prompt error. Each error entry's parentId points back to the user
+      // message that triggered it; the cheapest correct interpretation is
+      // "any user message that hasn't yet been answered when this error
+      // arrives is a failure".
+      if (
+        entry.type === "custom" &&
+        entry.customType === "openclaw:prompt-error"
+      ) {
+        const errorProvider =
+          typeof entry.data?.provider === "string" ? entry.data.provider : null;
+        if (errorProvider) {
+          currentProvider = errorProvider;
+        }
+        for (const index of pendingUserIndexes) {
+          const message = userMessages[index];
+          if (!message) {
+            continue;
+          }
+          userMessages[index] = {
+            id: message.id,
+            timestampMs: message.timestampMs,
+            createdAt: message.createdAt,
+            providerName: errorProvider ?? message.providerName,
+            channel: message.channel,
+            state: "false",
+          };
+        }
+        pendingUserIndexes.length = 0;
+        continue;
+      }
+
       if (entry.type !== "message" || !entry.message) {
         continue;
       }
@@ -454,6 +553,7 @@ export class AnalyticsService {
           createdAt: entry.timestamp ?? null,
           providerName: currentProvider,
           channel: params.channel,
+          state: "Success",
         });
         pendingUserIndexes.push(userMessages.length - 1);
         continue;
@@ -480,6 +580,7 @@ export class AnalyticsService {
             createdAt: message.createdAt,
             providerName,
             channel: message.channel,
+            state: message.state,
           };
         }
       }
@@ -543,28 +644,66 @@ export class AnalyticsService {
     return "builtin";
   }
 
-  private async sendEvent(
-    userId: string,
+  private getPosthogCaptureUrl(): string | null {
+    const host = this.env.posthogHost?.trim() || DEFAULT_POSTHOG_HOST;
+    if (!host) {
+      return null;
+    }
+    return `${host.replace(/\/+$/, "")}/i/v0/e/`;
+  }
+
+  private async resolveAnalyticsDistinctId(): Promise<AnalyticsDistinctIdResolution> {
+    try {
+      const cloudStatus = await this.configStore.getDesktopCloudStatus();
+      const userId =
+        typeof cloudStatus?.userId === "string"
+          ? cloudStatus.userId.trim()
+          : "";
+      if (!userId || userId === "desktop-local-user") {
+        return { status: "missing" };
+      }
+
+      return { status: "ready", distinctId: userId };
+    } catch (error) {
+      logger.warn(
+        {
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "failed_to_resolve_analytics_distinct_id",
+      );
+      return { status: "error" };
+    }
+  }
+
+  private async sendAnalyticsEvent(
+    distinctId: string,
     eventType: string,
     eventProperties: Record<string, unknown>,
-    time: number,
+    timestampMs: number,
   ): Promise<void> {
+    const captureUrl = this.getPosthogCaptureUrl();
+    if (!captureUrl || !this.env.posthogApiKey) {
+      return;
+    }
+
+    if (!(await this.configStore.getDesktopAnalyticsEnabled())) {
+      return;
+    }
+
     try {
-      const response = await fetch("https://api2.amplitude.com/2/httpapi", {
+      const response = await proxyFetch(captureUrl, {
         method: "POST",
         headers: {
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          api_key: this.env.amplitudeApiKey,
-          events: [
-            {
-              user_id: userId,
-              event_type: eventType,
-              event_properties: eventProperties,
-              time,
-            },
-          ],
+          api_key: this.env.posthogApiKey,
+          distinct_id: distinctId,
+          event: eventType,
+          properties: {
+            ...eventProperties,
+          },
+          timestamp: new Date(timestampMs).toISOString(),
         }),
       });
 

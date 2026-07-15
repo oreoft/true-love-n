@@ -66,7 +66,7 @@ When supervisor is detected, OpenClaw will:
 │                          launchd                                 │
 │                                                                  │
 │  ┌────────────────────┐                                         │
-│  │ com.nexu.desktop   │  Electron GUI Shell                     │
+│  │ io.nexu.desktop   │  Electron GUI Shell                     │
 │  │ (LaunchAgent)      │  - Window management                    │
 │  │                    │  - User interaction                     │
 │  │                    │  - Embedded HTTP Server (Web UI)        │
@@ -75,7 +75,7 @@ When supervisor is detected, OpenClaw will:
 │            │ launchctl kickstart / bootout                      │
 │            │                                                     │
 │  ┌─────────▼──────────┐  ┌───────────────────┐                  │
-│  │ com.nexu.controller│  │ com.nexu.openclaw │                  │
+│  │ io.nexu.controller│  │ io.nexu.openclaw │                  │
 │  │ (LaunchAgent)      │  │ (LaunchAgent)     │                  │
 │  │                    │  │                   │                  │
 │  │ - Hono API Server  │  │ - OpenClaw Gateway│                  │
@@ -90,11 +90,11 @@ When supervisor is detected, OpenClaw will:
 
 | Process | launchd Label | Responsibilities | KeepAlive |
 |---------|---------------|------------------|-----------|
-| **Desktop** | `com.nexu.desktop` | GUI Shell + Embedded Web Server | No (user-launched) |
-| **Controller** | `com.nexu.controller` | API Server, config management, state storage | Yes (auto-restart on crash) |
-| **OpenClaw** | `com.nexu.openclaw` | Bot Runtime, channel connections | Yes (auto-restart on crash) |
+| **Desktop** | `io.nexu.desktop` | GUI Shell + Embedded Web Server | No (user-launched) |
+| **Controller** | `io.nexu.controller` | API Server, config management, state storage | Yes (auto-restart on crash) |
+| **OpenClaw** | `io.nexu.openclaw` | Bot Runtime, channel connections | Yes (auto-restart on crash) |
 
-> **Isolation from Native OpenClaw**: Nexu Desktop uses the `com.nexu.*` namespace for launchd labels, completely independent from OpenClaw's native `openclaw install` which uses `io.openclaw.*`. State directories are also separate (`~/.nexu/` vs `~/.openclaw/`). Users can run Nexu Desktop and a standalone OpenClaw instance simultaneously without conflicts.
+> **Isolation from Native OpenClaw**: Nexu Desktop uses the `io.nexu.*` namespace for launchd labels, completely independent from OpenClaw's native `openclaw install` which uses `io.openclaw.*`. State directories are also separate (`~/.nexu/` vs `~/.openclaw/`). Users can run Nexu Desktop and a standalone OpenClaw instance simultaneously without conflicts.
 
 ### 2.3 Key Design Decisions
 
@@ -202,7 +202,7 @@ OPENCLAW_LOG_PATH=${NEXU_LOG_DIR}/openclaw.log
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.nexu.controller</string>
+    <string>io.nexu.controller</string>
 
     <key>ProgramArguments</key>
     <array>
@@ -269,7 +269,7 @@ OPENCLAW_LOG_PATH=${NEXU_LOG_DIR}/openclaw.log
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.nexu.openclaw</string>
+    <string>io.nexu.openclaw</string>
 
     <key>ProgramArguments</key>
     <array>
@@ -286,7 +286,7 @@ OPENCLAW_LOG_PATH=${NEXU_LOG_DIR}/openclaw.log
 
         <!-- OpenClaw detects launchd management -->
         <key>OPENCLAW_LAUNCHD_LABEL</key>
-        <string>com.nexu.openclaw</string>
+        <string>io.nexu.openclaw</string>
 
         <key>OPENCLAW_STATE_DIR</key>
         <string>${NEXU_HOME}/openclaw</string>
@@ -326,7 +326,7 @@ OPENCLAW_LOG_PATH=${NEXU_LOG_DIR}/openclaw.log
 
 | Variable | Development | Production |
 |----------|-------------|------------|
-| `Label` | `com.nexu.controller.dev` | `com.nexu.controller` |
+| `Label` | `io.nexu.controller.dev` | `io.nexu.controller` |
 | `NODE_PATH` | `$(which node)` | `app.resourcesPath/runtime/node` |
 | `CONTROLLER_ENTRY` | `.tmp/sidecars/controller/dist/index.js` | `app.resourcesPath/runtime/controller/dist/index.js` |
 | `NEXU_HOME` | `.tmp/desktop/nexu-home` | `~/Library/Application Support/Nexu` |
@@ -627,8 +627,8 @@ export interface DesktopEnv {
 export async function bootstrapWithLaunchd(env: DesktopEnv): Promise<void> {
   const launchd = new LaunchdManager({ plistDir: env.plistDir });
   const labels = {
-    controller: env.isDev ? "com.nexu.controller.dev" : "com.nexu.controller",
-    openclaw: env.isDev ? "com.nexu.openclaw.dev" : "com.nexu.openclaw",
+    controller: env.isDev ? "io.nexu.controller.dev" : "io.nexu.controller",
+    openclaw: env.isDev ? "io.nexu.openclaw.dev" : "io.nexu.openclaw",
   };
 
   // 1. Ensure plist installed
@@ -664,8 +664,8 @@ export async function bootstrapWithLaunchd(env: DesktopEnv): Promise<void> {
 
 ```typescript
 const SERVICE_LABELS = {
-  controller: app.isPackaged ? "com.nexu.controller" : "com.nexu.controller.dev",
-  openclaw: app.isPackaged ? "com.nexu.openclaw" : "com.nexu.openclaw.dev",
+  controller: app.isPackaged ? "io.nexu.controller" : "io.nexu.controller.dev",
+  openclaw: app.isPackaged ? "io.nexu.openclaw" : "io.nexu.openclaw.dev",
 };
 
 app.on("before-quit", async (event) => {
@@ -717,8 +717,8 @@ cleanup() {
     kill "$ELECTRON_PID" 2>/dev/null || true
   fi
   # Optional: stop launchd services
-  # launchctl kill SIGTERM gui/$(id -u)/com.nexu.controller.dev 2>/dev/null || true
-  # launchctl kill SIGTERM gui/$(id -u)/com.nexu.openclaw.dev 2>/dev/null || true
+  # launchctl kill SIGTERM gui/$(id -u)/io.nexu.controller.dev 2>/dev/null || true
+  # launchctl kill SIGTERM gui/$(id -u)/io.nexu.openclaw.dev 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
 
@@ -737,16 +737,16 @@ pnpm exec tsx scripts/generate-dev-plist.ts \
 UID_VAL=$(id -u)
 
 # Bootstrap (show error if fails)
-if ! launchctl bootstrap gui/$UID_VAL "$PLIST_DIR/com.nexu.controller.dev.plist" 2>&1; then
+if ! launchctl bootstrap gui/$UID_VAL "$PLIST_DIR/io.nexu.controller.dev.plist" 2>&1; then
   echo "Note: Controller service may already be bootstrapped"
 fi
-if ! launchctl bootstrap gui/$UID_VAL "$PLIST_DIR/com.nexu.openclaw.dev.plist" 2>&1; then
+if ! launchctl bootstrap gui/$UID_VAL "$PLIST_DIR/io.nexu.openclaw.dev.plist" 2>&1; then
   echo "Note: OpenClaw service may already be bootstrapped"
 fi
 
 # Kickstart
-launchctl kickstart -k gui/$UID_VAL/com.nexu.controller.dev
-launchctl kickstart -k gui/$UID_VAL/com.nexu.openclaw.dev
+launchctl kickstart -k gui/$UID_VAL/io.nexu.controller.dev
+launchctl kickstart -k gui/$UID_VAL/io.nexu.openclaw.dev
 
 # 4. Start Electron
 pnpm exec electron apps/desktop &
@@ -787,8 +787,8 @@ Development mode plist stored within repo, isolated from production:
 {repo}/
 └── .tmp/
     ├── launchd/
-    │   ├── com.nexu.controller.dev.plist
-    │   └── com.nexu.openclaw.dev.plist
+    │   ├── io.nexu.controller.dev.plist
+    │   └── io.nexu.openclaw.dev.plist
     ├── logs/
     │   ├── controller.log
     │   ├── controller.err
@@ -865,22 +865,22 @@ Development mode plist stored within repo, isolated from production:
 launchctl list | grep nexu
 
 # View service details
-launchctl print gui/$(id -u)/com.nexu.controller
+launchctl print gui/$(id -u)/io.nexu.controller
 
 # Start service
-launchctl kickstart gui/$(id -u)/com.nexu.controller
+launchctl kickstart gui/$(id -u)/io.nexu.controller
 
 # Restart service (-k = kill first)
-launchctl kickstart -k gui/$(id -u)/com.nexu.controller
+launchctl kickstart -k gui/$(id -u)/io.nexu.controller
 
 # Stop service
-launchctl kill SIGTERM gui/$(id -u)/com.nexu.controller
+launchctl kill SIGTERM gui/$(id -u)/io.nexu.controller
 
 # Install plist
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.nexu.controller.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/io.nexu.controller.plist
 
 # Uninstall service
-launchctl bootout gui/$(id -u)/com.nexu.controller
+launchctl bootout gui/$(id -u)/io.nexu.controller
 ```
 
 ### B. Directory Structure
@@ -896,8 +896,8 @@ launchctl bootout gui/$(id -u)/com.nexu.controller
 │       ├── skills/
 │       └── workspace-templates/
 ├── LaunchAgents/
-│   ├── com.nexu.controller.plist
-│   └── com.nexu.openclaw.plist
+│   ├── io.nexu.controller.plist
+│   └── io.nexu.openclaw.plist
 └── Logs/Nexu/
     ├── controller.log
     ├── controller.err
@@ -910,8 +910,8 @@ launchctl bootout gui/$(id -u)/com.nexu.controller
 {repo}/
 └── .tmp/
     ├── launchd/
-    │   ├── com.nexu.controller.dev.plist
-    │   └── com.nexu.openclaw.dev.plist
+    │   ├── io.nexu.controller.dev.plist
+    │   └── io.nexu.openclaw.dev.plist
     ├── logs/
     │   ├── controller.log
     │   ├── controller.err

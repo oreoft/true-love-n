@@ -2,8 +2,9 @@ import type { ControllerEnv } from "../app/env.js";
 import { logger } from "../lib/logger.js";
 import type { AnalyticsService } from "../services/analytics-service.js";
 import type { OpenClawSyncService } from "../services/openclaw-sync-service.js";
+import type { ControlPlaneHealthService } from "./control-plane-health.js";
 import type { OpenClawProcessManager } from "./openclaw-process.js";
-import type { RuntimeHealth } from "./runtime-health.js";
+import type { OpenClawWsClient } from "./openclaw-ws-client.js";
 import {
   type ControllerRuntimeState,
   recomputeRuntimeStatus,
@@ -54,27 +55,36 @@ export function startSyncLoop(params: {
 export function startHealthLoop(params: {
   env: ControllerEnv;
   state: ControllerRuntimeState;
-  runtimeHealth: RuntimeHealth;
+  controlPlaneHealth: ControlPlaneHealthService;
   processManager?: OpenClawProcessManager;
+  wsClient?: OpenClawWsClient;
 }): () => void {
   let stopped = false;
 
   const run = async () => {
     while (!stopped) {
-      const checkedAt = new Date().toISOString();
-      const result = await params.runtimeHealth.probe();
-      params.state.lastGatewayProbeAt = checkedAt;
-      if (result.ok) {
+      const prevGateway = params.state.gatewayStatus;
+      const result = await params.controlPlaneHealth.probe();
+      params.state.lastGatewayProbeAt = result.checkedAt;
+      if (result.phase === "ready") {
         params.state.gatewayStatus = "active";
         params.state.lastGatewayError = null;
-      } else {
-        params.state.gatewayStatus =
-          result.status === null ? "unhealthy" : "degraded";
+        if (prevGateway !== "active") {
+          params.wsClient?.retryNow();
+        }
+      } else if (result.phase === "degraded") {
+        params.state.gatewayStatus = "degraded";
         params.state.lastGatewayError =
-          result.status === null
-            ? "gateway_unreachable"
-            : `http_${result.status}`;
-        if (result.status === null) {
+          result.lastError ?? "control_plane_degraded";
+      } else {
+        if (result.phase === "connecting") {
+          params.state.gatewayStatus = "starting";
+          params.state.lastGatewayError =
+            result.lastError ?? "control_plane_connecting";
+        } else {
+          params.state.gatewayStatus = "unhealthy";
+          params.state.lastGatewayError =
+            result.lastError ?? "control_plane_disconnected";
           params.processManager?.restartForHealth();
         }
       }
