@@ -9,19 +9,23 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, resolve, sep } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { promisify } from "node:util";
+import { proxyFetch } from "../../lib/proxy-fetch.js";
 import {
   CURATED_SKILL_SLUGS,
   type CuratedInstallResult,
   copyStaticSkills,
   resolveCuratedSkillsToInstall,
 } from "./curated-skills.js";
-import type { SkillDb } from "./skill-db.js";
+import { classifyError } from "./install-queue.js";
+import { ensureNpmAvailable, runNpmInstall } from "./npm-runner.js";
+import type { SkillDb, SkillRecord } from "./skill-db.js";
 import type {
   CatalogMeta,
   InstalledSkill,
   MinimalSkill,
+  QueueErrorCode,
   SkillSource,
   SkillhubCatalogData,
 } from "./types.js";
@@ -49,6 +53,12 @@ const DEFAULT_DOWNLOAD_COUNT = 1000;
 const SLUG_CORRECTIONS: Record<string, string> = {
   "find-skills": "find-skill",
 };
+
+/**
+ * Skills listed in the ClawHub catalog but no longer available for install.
+ * Filtered out from the catalog response to avoid confusing users.
+ */
+const CATALOG_BLOCKLIST = new Set(["self-improving-agent"]);
 
 const SLUG_REGEX = /^[a-z0-9][a-z0-9-]{0,127}$/;
 
@@ -82,6 +92,12 @@ const CATALOG_DOWNLOAD_URL =
 
 const DAILY_MS = 24 * 60 * 60 * 1000;
 
+export type SkillUninstallRequest = {
+  slug: string;
+  source?: SkillSource;
+  agentId?: string | null;
+};
+
 /**
  * All skills (curated, managed, custom) live in a single `skillsDir`.
  * The lowdb ledger (`SkillDb`) is the single source of truth for source categorization.
@@ -97,11 +113,13 @@ export class CatalogManager {
   private readonly log: SkillhubLogFn;
   private intervalId: ReturnType<typeof setInterval> | null = null;
 
+  private readonly userSkillsDir: string;
+
   constructor(
     cacheDir: string,
     opts: {
       skillsDir?: string;
-      curatedSkillsDir?: string; // accepted for backward compat, unused
+      userSkillsDir?: string;
       staticSkillsDir?: string;
       skillDb: SkillDb;
       log?: SkillhubLogFn;
@@ -109,6 +127,7 @@ export class CatalogManager {
   ) {
     this.cacheDir = cacheDir;
     this.skillsDir = opts.skillsDir ?? "";
+    this.userSkillsDir = opts.userSkillsDir ?? "";
     this.db = opts.skillDb;
     this.staticSkillsDir = opts.staticSkillsDir ?? "";
     this.metaPath = resolve(this.cacheDir, "meta.json");
@@ -145,7 +164,7 @@ export class CatalogManager {
     const extractDir = resolve(this.cacheDir, ".extract-staging");
 
     try {
-      const response = await fetch(CATALOG_DOWNLOAD_URL);
+      const response = await proxyFetch(CATALOG_DOWNLOAD_URL);
 
       if (!response.ok || !response.body) {
         throw new Error(`Catalog download failed: ${response.status}`);
@@ -164,7 +183,35 @@ export class CatalogManager {
 
       rmSync(extractDir, { recursive: true, force: true });
       mkdirSync(extractDir, { recursive: true });
-      await execFileAsync("tar", ["-xzf", archivePath, "-C", extractDir]);
+      // tar on Windows quirks (only GNU tar — Git Bash's tar.exe — which
+      // commonly precedes the system bsdtar in PATH):
+      //  1. Parses a leading `C:` as a remote rsh `host:path` spec and
+      //     dies with "Cannot connect to C: resolve failed". `--force-local`
+      //     disables that. bsdtar (macOS / Windows System32) does not
+      //     accept `--force-local`, so the flag is Windows-only.
+      //  2. GNU tar also chokes on backslashes inside paths (treats `\n`
+      //     etc. as escape sequences). Forward-slash paths work for both
+      //     GNU tar and bsdtar everywhere, so normalizing is harmless and
+      //     applied unconditionally.
+      const toPosixPath = (p: string): string => p.replace(/\\/g, "/");
+      const baseTarArgs = [
+        "-xzf",
+        toPosixPath(archivePath),
+        "-C",
+        toPosixPath(extractDir),
+      ];
+      if (process.platform === "win32") {
+        // Try with --force-local first (GNU tar needs it for `C:` paths).
+        // Fall back without it for bsdtar (System32\tar.exe) which rejects
+        // the flag.
+        try {
+          await execFileAsync("tar", ["--force-local", ...baseTarArgs]);
+        } catch {
+          await execFileAsync("tar", baseTarArgs);
+        }
+      } else {
+        await execFileAsync("tar", baseTarArgs);
+      }
 
       const skills = this.buildMinimalCatalog(extractDir);
       writeFileSync(this.tempCatalogPath, JSON.stringify(skills), "utf8");
@@ -195,14 +242,17 @@ export class CatalogManager {
 
     const installedSkills: InstalledSkill[] = dbRecords
       .map((r) => {
-        const skillMdPath = resolve(this.skillsDir, r.slug, "SKILL.md");
-        const { name, description } = this.parseFrontmatter(skillMdPath);
+        const skillMdDir = this.resolveSkillMdDir(r);
+        const skillMdPath = resolve(skillMdDir, "SKILL.md");
+        const { name, catalogName, description } =
+          this.parseFrontmatter(skillMdPath);
         return {
           slug: r.slug,
           source: r.source,
-          name: name || r.slug,
+          name: catalogName || name || r.slug,
           description: description || "",
           installedAt: r.installedAt,
+          agentId: r.agentId ?? null,
         };
       })
       .sort((a, b) => {
@@ -271,31 +321,108 @@ export class CatalogManager {
   }
 
   /**
+   * Execute a single clawhub install + npm deps. Does NOT record in DB.
+   * Used by InstallQueue as the executor function.
+   */
+  async executeInstall(rawSlug: string): Promise<void> {
+    const slug = SLUG_CORRECTIONS[rawSlug] ?? rawSlug;
+    if (!isValidSlug(slug)) {
+      throw new Error(`Invalid skill slug: ${slug}`);
+    }
+
+    this.log("info", `installing: ${slug} -> ${this.skillsDir}`);
+    const clawHubBin = resolveClawHubBin();
+    this.log("info", `install resolved clawhub=${clawHubBin}`);
+
+    const { stdout, stderr } = await execFileAsync(
+      process.execPath,
+      [
+        clawHubBin,
+        "--workdir",
+        this.skillsDir,
+        "--dir",
+        ".",
+        "install",
+        slug,
+        "--force",
+      ],
+      { env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" } },
+    );
+    if (stdout) this.log("info", `install stdout ${slug}: ${stdout.trim()}`);
+    if (stderr) this.log("warn", `install stderr ${slug}: ${stderr.trim()}`);
+
+    await this.installSkillDeps(resolve(this.skillsDir, slug), slug);
+  }
+
+  /**
+   * Returns curated slugs that have no record in the ledger.
+   * Used by SkillhubService to enqueue on startup.
+   */
+  canonicalizeSlug(rawSlug: string): string {
+    return SLUG_CORRECTIONS[rawSlug] ?? rawSlug;
+  }
+
+  getCuratedSlugsToEnqueue(): string[] {
+    const knownSlugs = this.db.getAllKnownSlugs();
+    return CURATED_SKILL_SLUGS.filter((slug) => !knownSlugs.has(slug));
+  }
+
+  /**
    * Uninstall a skill.
    * Step A: Look up source from DB record
    * Step B: Delete skill folder from skillsDir
    * Step C: Record uninstall in DB with correct source
    */
   async uninstallSkill(
-    rawSlug: string,
+    request: string | SkillUninstallRequest,
   ): Promise<{ ok: boolean; error?: string }> {
-    const slug = SLUG_CORRECTIONS[rawSlug] ?? rawSlug;
+    const payload =
+      typeof request === "string" ? { slug: request } : { ...request };
+    const slug = SLUG_CORRECTIONS[payload.slug] ?? payload.slug;
     if (!isValidSlug(slug)) {
       this.log("warn", `uninstall rejected slug=${slug} — invalid slug`);
       return { ok: false, error: "Invalid skill slug" };
     }
 
+    if (payload.source === "workspace" && !payload.agentId) {
+      this.log(
+        "warn",
+        `uninstall rejected slug=${slug} — workspace uninstall missing agentId`,
+      );
+      return { ok: false, error: "Workspace uninstall requires agentId" };
+    }
+
     this.log("info", `uninstalling skill slug=${slug}`);
     try {
-      const skillPath = resolveSkillPath(this.skillsDir, slug);
-      if (skillPath && existsSync(skillPath)) {
-        const dbRecords = this.db.getAllInstalled();
-        const record = dbRecords.find((r) => r.slug === slug);
-        const source: SkillSource = record?.source ?? "managed";
+      const dbRecords = this.db.getInstalledRecordsBySlug(slug);
+      const record = this.resolveInstalledRecord(dbRecords, payload);
+      if (!record && payload.source === "workspace") {
+        return {
+          ok: false,
+          error: "Workspace skill not installed for the selected agent",
+        };
+      }
+      if (
+        !record &&
+        !payload.source &&
+        dbRecords.some((item) => item.source === "workspace")
+      ) {
+        return { ok: false, error: "Workspace uninstall requires agentId" };
+      }
 
+      const skillPath = record
+        ? this.resolveSkillMdDir(record)
+        : resolveSkillPath(this.skillsDir, slug);
+      if (skillPath && existsSync(skillPath)) {
         rmSync(skillPath, { recursive: true, force: true });
+        const source: SkillSource =
+          record?.source ?? payload.source ?? "managed";
         this.log("info", `uninstall ok (${source}) slug=${slug}`);
-        this.db.recordUninstall(slug, source);
+        this.db.recordUninstall(
+          slug,
+          source,
+          record?.agentId ?? payload.agentId,
+        );
       } else {
         this.log("warn", `uninstall skip slug=${slug} — dir not found`);
       }
@@ -308,6 +435,11 @@ export class CatalogManager {
     }
   }
 
+  /**
+   * @deprecated Replaced by the InstallQueue-based flow in SkillhubService.start().
+   * Curated slugs are now resolved via {@link getCuratedSlugsToEnqueue} (ledger-only)
+   * and enqueued into the InstallQueue. This method is retained for backward compatibility.
+   */
   async installCuratedSkills(): Promise<CuratedInstallResult> {
     // Step 1: Copy static skills (not on ClawHub) from app bundle into skillsDir
     if (this.staticSkillsDir) {
@@ -317,7 +449,7 @@ export class CatalogManager {
         skillDb: this.db,
       });
       if (copied.length > 0) {
-        this.db.recordBulkInstall(copied, "curated");
+        this.db.recordBulkInstall(copied, "managed");
         this.log("info", `curated static skills copied: ${copied.join(", ")}`);
       }
     }
@@ -332,7 +464,7 @@ export class CatalogManager {
           if (
             entry.isDirectory() &&
             existsSync(resolve(this.skillsDir, entry.name, "SKILL.md")) &&
-            !this.db.isInstalled(entry.name, "curated") &&
+            !this.db.isInstalled(entry.name, "managed") &&
             !this.db.isInstalled(entry.name, "managed") &&
             !this.db.isInstalled(entry.name, "custom")
           ) {
@@ -343,7 +475,7 @@ export class CatalogManager {
         // Directory not readable — skip
       }
       if (untracked.length > 0) {
-        this.db.recordBulkInstall(untracked, "curated");
+        this.db.recordBulkInstall(untracked, "managed");
         this.log(
           "info",
           `curated on-disk skills recorded: ${untracked.join(", ")}`,
@@ -426,28 +558,56 @@ export class CatalogManager {
     }
 
     if (installed.length > 0) {
-      this.db.recordBulkInstall(installed, "curated");
+      this.db.recordBulkInstall(installed, "managed");
     }
 
     return { installed, skipped: toSkip, failed };
   }
 
-  async importSkillZip(
-    zipBuffer: Buffer,
-  ): Promise<{ ok: boolean; slug?: string; error?: string }> {
+  async importSkillZip(zipBuffer: Buffer): Promise<{
+    ok: boolean;
+    slug?: string;
+    error?: string;
+    errorCode?: QueueErrorCode;
+  }> {
     this.log("info", "importing custom skill from zip");
     const result = extractZip(zipBuffer, this.skillsDir);
-    if (result.ok && result.slug) {
-      this.db.recordInstall(result.slug, "custom");
-      this.log("info", `custom skill imported: ${result.slug}`);
-      await this.installSkillDeps(
-        resolve(this.skillsDir, result.slug),
-        result.slug,
-      );
-    } else {
+    if (!result.ok || !result.slug) {
       this.log("error", `custom skill import failed: ${result.error}`);
+      return result;
     }
-    return result;
+
+    // Install dependencies BEFORE recording in DB. If deps fail, roll back
+    // the extracted files and return a typed errorCode without writing a
+    // ledger entry — keeping disk, DB, and runtime consistently in the
+    // "not installed" state so a Retry starts from a clean slate.
+    const slug = result.slug;
+    const skillDir = resolve(this.skillsDir, slug);
+    try {
+      await this.installSkillDeps(skillDir, slug);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const errorCode = classifyError(message);
+      try {
+        rmSync(skillDir, { recursive: true, force: true });
+      } catch (cleanupErr) {
+        const cleanupMsg =
+          cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr);
+        this.log(
+          "warn",
+          `custom skill cleanup failed slug=${slug}: ${cleanupMsg}`,
+        );
+      }
+      this.log(
+        "error",
+        `custom skill deps failed slug=${slug} code=${errorCode}: ${message}`,
+      );
+      return { ok: false, error: message, errorCode };
+    }
+
+    this.db.recordInstall(slug, "custom");
+    this.log("info", `custom skill imported: ${slug}`);
+    return { ok: true, slug };
   }
 
   /**
@@ -472,57 +632,34 @@ export class CatalogManager {
     const dbRecords = this.db.getAllInstalled();
 
     // DB → disk: handle "installed" records whose SKILL.md is missing from disk
-    const curatedMissing: Array<{ slug: string; source: SkillSource }> = [];
-    const otherMissing: Array<{ slug: string; source: SkillSource }> = [];
+    const missingBySource = new Map<string, string[]>();
     for (const record of dbRecords) {
-      const skillMd = resolve(this.skillsDir, record.slug, "SKILL.md");
+      const skillMd = resolve(this.resolveSkillMdDir(record), "SKILL.md");
       if (!existsSync(skillMd)) {
-        if (record.source === "curated") {
-          curatedMissing.push({ slug: record.slug, source: record.source });
-        } else {
-          otherMissing.push({ slug: record.slug, source: record.source });
-        }
+        const key =
+          record.source === "workspace"
+            ? `${record.source}:${record.agentId ?? ""}`
+            : record.source;
+        const list = missingBySource.get(key) ?? [];
+        list.push(record.slug);
+        missingBySource.set(key, list);
       }
     }
 
-    // Clean up curated "installed" records missing from disk — remove the
-    // record so installCuratedSkills can re-install them on this startup.
-    if (curatedMissing.length > 0) {
-      this.db.removeRecords(curatedMissing);
-      this.log(
-        "info",
-        `reconcile: ${curatedMissing.length} curated installed records removed (missing from disk, eligible for re-install)`,
+    let totalMissing = 0;
+    for (const [key, slugs] of missingBySource) {
+      const [source, agentId] = key.split(":");
+      this.db.markUninstalledBySlugs(
+        slugs,
+        source as SkillSource,
+        source === "workspace" ? agentId || null : undefined,
       );
+      totalMissing += slugs.length;
     }
-
-    // Clean up stale "uninstalled" curated records for slugs that have been
-    // retired from CURATED_SKILL_SLUGS. These records block re-installation
-    // via isRemovedByUser() and are no longer needed.
-    // NOTE: We intentionally keep uninstalled records for slugs still in the
-    // curated list — those represent the user's explicit choice to remove them.
-    const activeCuratedSlugs = new Set(CURATED_SKILL_SLUGS);
-    const retiredCurated: Array<{ slug: string; source: SkillSource }> = [];
-    for (const record of this.db.getUninstalledCurated()) {
-      if (!activeCuratedSlugs.has(record.slug)) {
-        retiredCurated.push({ slug: record.slug, source: record.source });
-      }
-    }
-    if (retiredCurated.length > 0) {
-      this.db.removeRecords(retiredCurated);
+    if (totalMissing > 0) {
       this.log(
         "info",
-        `reconcile: ${retiredCurated.length} retired curated records purged`,
-      );
-    }
-
-    // Non-curated (managed/custom) skills: mark uninstalled as before
-    for (const { slug, source } of otherMissing) {
-      this.db.markUninstalledBySlugs([slug], source);
-    }
-    if (otherMissing.length > 0) {
-      this.log(
-        "info",
-        `reconcile: ${otherMissing.length} managed/custom records marked uninstalled (missing from disk)`,
+        `reconcile: ${totalMissing} installed records marked uninstalled (missing from disk)`,
       );
     }
 
@@ -553,12 +690,7 @@ export class CatalogManager {
       );
     }
 
-    if (
-      curatedMissing.length === 0 &&
-      retiredCurated.length === 0 &&
-      otherMissing.length === 0 &&
-      diskOnly.length === 0
-    ) {
+    if (totalMissing === 0 && diskOnly.length === 0) {
       this.log("info", "reconcile: DB and disk are in sync");
     }
   }
@@ -577,27 +709,78 @@ export class CatalogManager {
   ): Promise<void> {
     if (!existsSync(resolve(skillDir, "package.json"))) return;
 
+    await ensureNpmAvailable();
+
     this.log("info", `installing npm deps: ${slug}`);
     try {
-      const npmArgs = ["install", "--production", "--no-audit", "--no-fund"];
-      await execFileAsync("npm", npmArgs, { cwd: skillDir });
+      await runNpmInstall(skillDir);
       this.log("info", `npm deps installed: ${slug}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.log("warn", `npm deps failed for ${slug}: ${message}`);
+      this.log("error", `npm deps failed for ${slug}: ${message}`);
+      throw new Error(`DEPS_INSTALL_FAILED: ${slug}: ${message}`);
     }
+  }
+
+  /**
+   * Resolves the directory containing SKILL.md for a given skill record.
+   * Workspace skills live under `agents/<agentId>/skills/<slug>`,
+   * while shared skills live under the common `skillsDir/<slug>`.
+   */
+  private resolveSkillMdDir(record: SkillRecord): string {
+    if (record.source === "workspace" && record.agentId) {
+      const stateDir = dirname(this.skillsDir);
+      return join(stateDir, "agents", record.agentId, "skills", record.slug);
+    }
+    if (record.source === "user" && this.userSkillsDir) {
+      return join(this.userSkillsDir, record.slug);
+    }
+    return resolve(this.skillsDir, record.slug);
+  }
+
+  private resolveInstalledRecord(
+    records: readonly SkillRecord[],
+    request: SkillUninstallRequest,
+  ): SkillRecord | undefined {
+    if (request.source === "workspace") {
+      return records.find(
+        (record) =>
+          record.source === "workspace" && record.agentId === request.agentId,
+      );
+    }
+
+    if (request.source) {
+      return records.find((record) => record.source === request.source);
+    }
+
+    const sharedRecord = records.find(
+      (record) => record.source !== "workspace",
+    );
+    if (sharedRecord) {
+      return sharedRecord;
+    }
+
+    if (records.length === 1) {
+      return records[0];
+    }
+
+    return undefined;
   }
 
   private parseFrontmatter(filePath: string): {
     name: string;
+    catalogName: string;
     description: string;
   } {
     try {
-      const content = readFileSync(filePath, "utf8");
+      const content = readFileSync(filePath, "utf8").replace(/\r\n/g, "\n");
       const match = content.match(/^---\n([\s\S]*?)\n---/);
-      if (!match?.[1]) return { name: "", description: "" };
+      if (!match?.[1]) return { name: "", catalogName: "", description: "" };
       const frontmatter = match[1];
       const nameMatch = frontmatter.match(/^name:\s*['"]?(.+?)['"]?\s*$/m);
+      const catalogNameMatch = frontmatter.match(
+        /^catalog-name:\s*['"]?(.+?)['"]?\s*$/m,
+      );
 
       // Match description: single line, or multiline block after | or >
       let description = "";
@@ -623,15 +806,16 @@ export class CatalogManager {
 
       return {
         name: nameMatch?.[1]?.trim() ?? "",
+        catalogName: catalogNameMatch?.[1]?.trim() ?? "",
         description,
       };
     } catch {
-      return { name: "", description: "" };
+      return { name: "", catalogName: "", description: "" };
     }
   }
 
   private async fetchRemoteVersion(): Promise<string> {
-    const response = await fetch(VERSION_CHECK_URL);
+    const response = await proxyFetch(VERSION_CHECK_URL);
 
     if (!response.ok) {
       throw new Error(`Version check failed: ${response.status}`);
@@ -731,10 +915,12 @@ export class CatalogManager {
       const skills = JSON.parse(
         readFileSync(this.catalogPath, "utf8"),
       ) as MinimalSkill[];
-      return skills.map((s) => {
-        const corrected = SLUG_CORRECTIONS[s.slug];
-        return corrected ? { ...s, slug: corrected } : s;
-      });
+      return skills
+        .filter((s) => !CATALOG_BLOCKLIST.has(s.slug))
+        .map((s) => {
+          const corrected = SLUG_CORRECTIONS[s.slug];
+          return corrected ? { ...s, slug: corrected } : s;
+        });
     } catch {
       return [];
     }

@@ -4,10 +4,20 @@ import {
   useUninstallSkill,
 } from "@/hooks/use-community-catalog";
 import { getTagLabel } from "@/lib/skill-translations";
-import type { MinimalSkill } from "@/types/desktop";
+import type {
+  InstalledSkill,
+  MinimalSkill,
+  QueueItemStatus,
+} from "@/types/desktop";
 import { Download, Star } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+
+function toUninstallSource(
+  source: InstalledSkill["source"] | null | undefined,
+): Exclude<InstalledSkill["source"], "curated"> | undefined {
+  return source && source !== "curated" ? source : undefined;
+}
 
 function formatDownloads(count: number): string {
   if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
@@ -18,11 +28,15 @@ function formatDownloads(count: number): string {
 export function CommunitySkillCard({
   skill,
   isInstalled,
+  queueStatus,
   locale = "en",
+  installation,
 }: {
   skill: MinimalSkill;
   isInstalled: boolean;
+  queueStatus?: QueueItemStatus | null;
   locale?: string;
+  installation?: Pick<InstalledSkill, "source" | "agentId"> | null;
 }) {
   const installMutation = useInstallSkill();
   const uninstallMutation = useUninstallSkill();
@@ -30,7 +44,11 @@ export function CommunitySkillCard({
     "install" | "uninstall" | null
   >(null);
 
-  const isBusy = pendingAction !== null;
+  const isQueueActive =
+    queueStatus === "queued" ||
+    queueStatus === "downloading" ||
+    queueStatus === "installing-deps";
+  const isMutating = pendingAction !== null;
 
   async function handleToggle(checked: boolean) {
     if (checked) {
@@ -45,7 +63,13 @@ export function CommunitySkillCard({
       // Turning OFF = Uninstall
       setPendingAction("uninstall");
       try {
-        await uninstallMutation.mutateAsync(skill.slug);
+        await uninstallMutation.mutateAsync({
+          slug: skill.slug,
+          ...(toUninstallSource(installation?.source)
+            ? { source: toUninstallSource(installation?.source) }
+            : {}),
+          ...(installation?.agentId ? { agentId: installation.agentId } : {}),
+        });
       } finally {
         setPendingAction(null);
       }
@@ -80,9 +104,9 @@ export function CommunitySkillCard({
         >
           <Switch
             size="xs"
-            checked={isInstalled}
-            disabled={isBusy}
-            loading={isBusy}
+            checked={isInstalled || isQueueActive}
+            disabled={isMutating}
+            loading={isMutating || isQueueActive}
             onCheckedChange={handleToggle}
           />
         </div>

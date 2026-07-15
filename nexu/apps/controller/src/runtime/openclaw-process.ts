@@ -1,12 +1,21 @@
-import { type ChildProcess, execSync, spawn } from "node:child_process";
+import {
+  type ChildProcess,
+  execFile,
+  execSync,
+  spawn,
+} from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { readdir, rm } from "node:fs/promises";
 import net from "node:net";
-import { tmpdir } from "node:os";
+import os, { tmpdir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
+import { promisify } from "node:util";
 import type { ControllerEnv } from "../app/env.js";
 import { logger } from "../lib/logger.js";
+import { getOpenClawCommandSpec } from "./slimclaw-runtime-resolution.js";
+
+const execFileAsync = promisify(execFile);
 
 const MAX_CONSECUTIVE_RESTARTS = 10;
 const BASE_RESTART_DELAY_MS = 3000;
@@ -39,6 +48,10 @@ export class OpenClawProcessManager {
 
   constructor(private readonly env: ControllerEnv) {}
 
+  managesProcess(): boolean {
+    return this.env.manageOpenclawProcess;
+  }
+
   async prepare(): Promise<void> {
     if (!this.env.manageOpenclawProcess) {
       return;
@@ -69,6 +82,17 @@ export class OpenClawProcessManager {
       this.eventListeners.delete(listener);
     };
   }
+  /**
+   * Check whether the managed OpenClaw process is currently alive.
+   * Returns true if a child process exists and its pid responds to signal 0.
+   */
+  isAlive(): boolean {
+    if (!this.child || this.child.killed || !this.child.pid) {
+      return false;
+    }
+    return this.isProcessAlive(this.child.pid);
+  }
+
   start(): void {
     if (!this.env.manageOpenclawProcess || this.child !== null) {
       return;
@@ -83,40 +107,25 @@ export class OpenClawProcessManager {
 
     this.killOrphanedOpenClawProcesses();
 
-    // Prefer Electron's Node (v22+) over system node to satisfy OpenClaw's
-    // minimum version requirement. The shell launcher tries system `node`
-    // first, which may be too old.
-    const electronExec = process.env.OPENCLAW_ELECTRON_EXECUTABLE;
-    let cmd: string;
-    let args: string[];
-    let extraEnv: Record<string, string> = {};
-
-    if (electronExec) {
-      // Resolve the openclaw entry point relative to the bin script
-      const binDir = path.dirname(path.resolve(this.env.openclawBin));
-      const entry = path.resolve(
-        binDir,
-        "..",
-        "node_modules/openclaw/openclaw.mjs",
-      );
-      cmd = electronExec;
-      args = [entry, "gateway", "run"];
-      extraEnv = { ELECTRON_RUN_AS_NODE: "1" };
-    } else {
-      cmd = this.env.openclawBin;
-      args = ["gateway", "run"];
-    }
+    const spec = getOpenClawCommandSpec(this.env);
+    const cmd = spec.command;
+    const args = [...spec.argsPrefix, "gateway", "run"];
 
     const child = spawn(cmd, args, {
       cwd: path.resolve(this.env.openclawStateDir),
       env: {
         ...process.env,
-        ...extraEnv,
+        ...spec.extraEnv,
         OPENCLAW_LOG_LEVEL: "info",
         // Explicitly pass config and state paths so OpenClaw and its plugins
         // use the same persistent directory managed by the controller.
         OPENCLAW_CONFIG_PATH: this.env.openclawConfigPath,
         OPENCLAW_STATE_DIR: this.env.openclawStateDir,
+        // Prefer sips (macOS system tool) over sharp for image processing on macOS.
+        // sharp requires native binaries that may not be available in the packaged app.
+        ...(process.platform === "darwin"
+          ? { OPENCLAW_IMAGE_BACKEND: "sips" }
+          : {}),
       },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -203,6 +212,47 @@ export class OpenClawProcessManager {
       "restarting unhealthy openclaw process",
     );
     this.child.kill("SIGKILL");
+  }
+
+  /**
+   * Restart the gateway regardless of whether the controller manages the
+   * process directly (dev / local-dev) or an external supervisor owns it
+   * (packaged desktop via launchd). Returns once the restart has been
+   * initiated — callers that need readiness should probe separately.
+   */
+  async restart(reason: string): Promise<void> {
+    logger.info({ reason }, "openclaw_restart_requested");
+
+    if (this.env.manageOpenclawProcess) {
+      await this.stop();
+      this.enableAutoRestart();
+      this.start();
+      return;
+    }
+
+    if (this.env.openclawLaunchdLabel) {
+      const domain = `gui/${os.userInfo().uid}/${this.env.openclawLaunchdLabel}`;
+      try {
+        await execFileAsync("launchctl", ["kickstart", "-k", domain]);
+        logger.info({ reason, domain }, "openclaw_restart_launchd_kickstarted");
+      } catch (err) {
+        logger.error(
+          { reason, domain, err },
+          "openclaw_restart_launchd_failed",
+        );
+        throw err;
+      }
+      return;
+    }
+
+    logger.warn(
+      {
+        reason,
+        manageOpenclawProcess: this.env.manageOpenclawProcess,
+        hasLaunchdLabel: false,
+      },
+      "openclaw_restart_skipped_no_supervisor",
+    );
   }
 
   async stop(): Promise<void> {

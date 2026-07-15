@@ -31,7 +31,11 @@ describe("SkillDb", () => {
   });
 
   afterEach(() => {
-    db?.close();
+    try {
+      db?.close();
+    } catch {
+      // best effort for migration tests that exercise legacy bootstrap paths
+    }
     rmSync(tempDir, { recursive: true, force: true });
   });
 
@@ -64,9 +68,9 @@ describe("SkillDb", () => {
 
   it("recordInstall upserts — re-installing sets status back to installed", async () => {
     db = await SkillDb.create(dbPath);
-    db.recordInstall("github", "curated");
-    db.recordUninstall("github", "curated");
-    db.recordInstall("github", "curated");
+    db.recordInstall("github", "managed");
+    db.recordUninstall("github", "managed");
+    db.recordInstall("github", "managed");
     const all = db.getAllInstalled();
     expect(all).toHaveLength(1);
     expect(all[0].status).toBe("installed");
@@ -74,28 +78,14 @@ describe("SkillDb", () => {
 
   it("recordUninstall marks as uninstalled", async () => {
     db = await SkillDb.create(dbPath);
-    db.recordInstall("github", "curated");
-    db.recordUninstall("github", "curated");
+    db.recordInstall("github", "managed");
+    db.recordUninstall("github", "managed");
     expect(db.getAllInstalled()).toHaveLength(0);
-    expect(db.isRemovedByUser("github")).toBe(true);
-  });
-
-  it("isRemovedByUser returns false for unknown slugs", async () => {
-    db = await SkillDb.create(dbPath);
-    expect(db.isRemovedByUser("nonexistent")).toBe(false);
-  });
-
-  it("isRemovedByUser only checks curated source", async () => {
-    db = await SkillDb.create(dbPath);
-    db.recordInstall("weather", "managed");
-    db.recordUninstall("weather", "managed");
-    // managed uninstall does NOT count as "removed by user" for curated re-install prevention
-    expect(db.isRemovedByUser("weather")).toBe(false);
   });
 
   it("recordBulkInstall inserts multiple records", async () => {
     db = await SkillDb.create(dbPath);
-    db.recordBulkInstall(["github", "weather", "calendar"], "curated");
+    db.recordBulkInstall(["github", "weather", "calendar"], "managed");
     expect(db.getAllInstalled()).toHaveLength(3);
   });
 
@@ -103,14 +93,25 @@ describe("SkillDb", () => {
     db = await SkillDb.create(dbPath);
     db.recordInstall("weather", "managed");
     expect(db.isInstalled("weather", "managed")).toBe(true);
-    expect(db.isInstalled("weather", "curated")).toBe(false);
+    expect(db.isInstalled("weather", "custom")).toBe(false);
     expect(db.isInstalled("unknown", "managed")).toBe(false);
+  });
+
+  it("getAllKnownSlugs returns both installed and uninstalled slugs", async () => {
+    db = await SkillDb.create(dbPath);
+    db.recordInstall("weather", "managed");
+    db.recordInstall("github", "managed");
+    db.recordUninstall("github", "managed");
+    const known = db.getAllKnownSlugs();
+    expect(known.has("weather")).toBe(true);
+    expect(known.has("github")).toBe(true);
+    expect(known.has("unknown")).toBe(false);
   });
 
   it("markUninstalledBySlugs marks multiple installed records as uninstalled", async () => {
     db = await SkillDb.create(dbPath);
-    db.recordBulkInstall(["a", "b", "c"], "curated");
-    db.markUninstalledBySlugs(["a", "c"], "curated");
+    db.recordBulkInstall(["a", "b", "c"], "managed");
+    db.markUninstalledBySlugs(["a", "c"], "managed");
     const installed = db.getAllInstalled();
     expect(installed).toHaveLength(1);
     expect(installed[0].slug).toBe("b");
@@ -119,7 +120,7 @@ describe("SkillDb", () => {
   it("persists data across close and reopen", async () => {
     db = await SkillDb.create(dbPath);
     db.recordInstall("weather", "managed");
-    db.recordInstall("github", "curated");
+    db.recordInstall("github", "managed");
     db.close();
 
     db = await SkillDb.create(dbPath);
@@ -127,6 +128,95 @@ describe("SkillDb", () => {
     expect(all).toHaveLength(2);
     const slugs = all.map((r) => r.slug).sort();
     expect(slugs).toEqual(["github", "weather"]);
+  });
+
+  describe("workspace skills with agentId", () => {
+    it("records workspace install with agentId", async () => {
+      db = await SkillDb.create(dbPath);
+      db.recordInstall("my-tool", "workspace", undefined, "bot-abc");
+      const installed = db.getAllInstalled();
+      expect(installed).toHaveLength(1);
+      expect(installed[0].slug).toBe("my-tool");
+      expect(installed[0].source).toBe("workspace");
+      expect(installed[0].agentId).toBe("bot-abc");
+    });
+
+    it("returns workspace skills filtered by agentId", async () => {
+      db = await SkillDb.create(dbPath);
+      db.recordInstall("tool-a", "workspace", undefined, "bot-1");
+      db.recordInstall("tool-b", "workspace", undefined, "bot-2");
+      db.recordInstall("shared-skill", "managed");
+      const bot1Skills = db.getInstalledByAgent("bot-1");
+      expect(bot1Skills).toHaveLength(1);
+      expect(bot1Skills[0].slug).toBe("tool-a");
+      const bot2Skills = db.getInstalledByAgent("bot-2");
+      expect(bot2Skills).toHaveLength(1);
+      expect(bot2Skills[0].slug).toBe("tool-b");
+    });
+
+    it("getAllInstalled includes workspace skills", async () => {
+      db = await SkillDb.create(dbPath);
+      db.recordInstall("shared", "managed");
+      db.recordInstall("ws-tool", "workspace", undefined, "bot-1");
+      const all = db.getAllInstalled();
+      expect(all).toHaveLength(2);
+    });
+
+    it("persists agentId across close/reopen", async () => {
+      db = await SkillDb.create(dbPath);
+      db.recordInstall("tool", "workspace", undefined, "bot-x");
+      db.close();
+      const db2 = await SkillDb.create(dbPath);
+      const installed = db2.getAllInstalled();
+      expect(installed[0].agentId).toBe("bot-x");
+      db2.close();
+    });
+
+    it("legacy ledger without agentId field loads with null default", async () => {
+      const { writeFileSync } = await import("node:fs");
+      const legacyData = JSON.stringify({
+        skills: [
+          {
+            slug: "old-skill",
+            source: "managed",
+            status: "installed",
+            version: null,
+            installedAt: "2026-01-01T00:00:00.000Z",
+            uninstalledAt: null,
+          },
+        ],
+      });
+      writeFileSync(dbPath, legacyData);
+      db = await SkillDb.create(dbPath);
+      const installed = db.getAllInstalled();
+      expect(installed[0].agentId).toBeNull();
+    });
+
+    it("recordUninstall scopes workspace records by agentId", async () => {
+      db = await SkillDb.create(dbPath);
+      db.recordInstall("shared-tool", "workspace", undefined, "bot-1");
+      db.recordInstall("shared-tool", "workspace", undefined, "bot-2");
+
+      db.recordUninstall("shared-tool", "workspace", "bot-1");
+
+      expect(db.getInstalledByAgent("bot-1")).toHaveLength(0);
+      const bot2Skills = db.getInstalledByAgent("bot-2");
+      expect(bot2Skills).toHaveLength(1);
+      expect(bot2Skills[0].slug).toBe("shared-tool");
+    });
+
+    it("markUninstalledBySlugs scopes workspace records by agentId when provided", async () => {
+      db = await SkillDb.create(dbPath);
+      db.recordInstall("shared-tool", "workspace", undefined, "bot-1");
+      db.recordInstall("shared-tool", "workspace", undefined, "bot-2");
+
+      db.markUninstalledBySlugs(["shared-tool"], "workspace", "bot-1");
+
+      expect(db.getInstalledByAgent("bot-1")).toHaveLength(0);
+      const bot2Skills = db.getInstalledByAgent("bot-2");
+      expect(bot2Skills).toHaveLength(1);
+      expect(bot2Skills[0].slug).toBe("shared-tool");
+    });
   });
 
   it("supports custom source type", async () => {
@@ -158,7 +248,7 @@ describe("SkillDb", () => {
         PRIMARY KEY (slug, source)
       );
       INSERT INTO skills VALUES ('weather', 'managed', 'installed', '1.2.3', '2026-03-20T10:00:00.000Z', NULL);
-      INSERT INTO skills VALUES ('github', 'curated', 'uninstalled', NULL, NULL, '2026-03-20T11:00:00.000Z');
+      INSERT INTO skills VALUES ('github', 'managed', 'uninstalled', NULL, NULL, '2026-03-20T11:00:00.000Z');
       `,
     ]);
 
@@ -173,8 +263,9 @@ describe("SkillDb", () => {
         version: "1.2.3",
         installedAt: "2026-03-20T10:00:00.000Z",
         uninstalledAt: null,
+        agentId: null,
       },
     ]);
-    expect(db.isRemovedByUser("github")).toBe(true);
+    // isRemovedByUser is deprecated (always returns false)
   });
 });

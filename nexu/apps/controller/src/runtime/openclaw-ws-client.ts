@@ -13,6 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { ControllerEnv } from "../app/env.js";
 import { logger } from "../lib/logger.js";
+import { resolveOpenclawGatewayWsUrl } from "./openclaw-gateway-url.js";
 
 // ---------------------------------------------------------------------------
 // Device identity helpers (Ed25519, matching openclaw protocol v3)
@@ -61,6 +62,154 @@ function signDevicePayload(privateKeyPem: string, payload: string): string {
   return base64UrlEncode(
     crypto.sign(null, Buffer.from(payload, "utf8"), key) as unknown as Buffer,
   );
+}
+
+type DeviceAuthStore = {
+  version: 1;
+  deviceId: string;
+  tokens: Record<
+    string,
+    {
+      token: string;
+      role: string;
+      scopes: string[];
+      updatedAtMs: number;
+    }
+  >;
+};
+
+function resolveDeviceAuthPath(stateDir: string): string {
+  return path.join(stateDir, "identity", "device-auth.json");
+}
+
+function readDeviceAuthStore(filePath: string): DeviceAuthStore | null {
+  try {
+    if (!fs.existsSync(filePath)) {
+      return null;
+    }
+    const raw = fs.readFileSync(filePath, "utf8");
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (parsed.version !== 1 || typeof parsed.deviceId !== "string") {
+      return null;
+    }
+    if (!parsed.tokens || typeof parsed.tokens !== "object") {
+      return null;
+    }
+    const tokens = Object.fromEntries(
+      Object.entries(parsed.tokens as Record<string, unknown>).flatMap(
+        ([role, value]) => {
+          if (!value || typeof value !== "object") {
+            return [];
+          }
+          const tokenEntry = value as Record<string, unknown>;
+          if (typeof tokenEntry.token !== "string") {
+            return [];
+          }
+          return [
+            [
+              role,
+              {
+                token: tokenEntry.token,
+                role:
+                  typeof tokenEntry.role === "string" ? tokenEntry.role : role,
+                scopes: Array.isArray(tokenEntry.scopes)
+                  ? tokenEntry.scopes.filter(
+                      (scope): scope is string => typeof scope === "string",
+                    )
+                  : [],
+                updatedAtMs:
+                  typeof tokenEntry.updatedAtMs === "number"
+                    ? tokenEntry.updatedAtMs
+                    : Date.now(),
+              },
+            ],
+          ];
+        },
+      ),
+    );
+    return {
+      version: 1,
+      deviceId: parsed.deviceId,
+      tokens,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeDeviceAuthStore(filePath: string, store: DeviceAuthStore): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, `${JSON.stringify(store, null, 2)}\n`, {
+    mode: 0o600,
+  });
+  try {
+    fs.chmodSync(filePath, 0o600);
+  } catch {
+    // ignore chmod failure on platforms that do not support it
+  }
+}
+
+function loadStoredDeviceToken(params: {
+  stateDir: string;
+  deviceId: string;
+  role: string;
+}): string | null {
+  const store = readDeviceAuthStore(resolveDeviceAuthPath(params.stateDir));
+  if (!store || store.deviceId !== params.deviceId) {
+    return null;
+  }
+  const entry = store.tokens[params.role];
+  return entry?.token?.trim() || null;
+}
+
+function storeDeviceToken(params: {
+  stateDir: string;
+  deviceId: string;
+  role: string;
+  token: string;
+  scopes: string[];
+}): void {
+  const filePath = resolveDeviceAuthPath(params.stateDir);
+  const existing = readDeviceAuthStore(filePath);
+  const next: DeviceAuthStore = {
+    version: 1,
+    deviceId: params.deviceId,
+    tokens:
+      existing && existing.deviceId === params.deviceId
+        ? { ...existing.tokens }
+        : {},
+  };
+  next.tokens[params.role] = {
+    token: params.token,
+    role: params.role,
+    scopes: [
+      ...new Set(params.scopes.map((scope) => scope.trim()).filter(Boolean)),
+    ].sort(),
+    updatedAtMs: Date.now(),
+  };
+  writeDeviceAuthStore(filePath, next);
+}
+
+function clearStoredDeviceToken(params: {
+  stateDir: string;
+  deviceId: string;
+  role: string;
+}): void {
+  const filePath = resolveDeviceAuthPath(params.stateDir);
+  const existing = readDeviceAuthStore(filePath);
+  if (!existing || existing.deviceId !== params.deviceId) {
+    return;
+  }
+  if (!existing.tokens[params.role]) {
+    return;
+  }
+  const next: DeviceAuthStore = {
+    version: 1,
+    deviceId: existing.deviceId,
+    tokens: { ...existing.tokens },
+  };
+  delete next.tokens[params.role];
+  writeDeviceAuthStore(filePath, next);
 }
 
 function loadOrCreateDeviceIdentity(filePath: string): DeviceIdentity {
@@ -173,7 +322,7 @@ type Frame = RequestFrame | ResponseFrame | EventFrame;
 // ---------------------------------------------------------------------------
 
 const PROTOCOL_VERSION = 3;
-const MAX_BACKOFF_MS = 30_000;
+const MAX_BACKOFF_MS = 4_000;
 const REQUEST_TIMEOUT_MS = 15_000;
 
 interface Pending {
@@ -187,7 +336,7 @@ export class OpenClawWsClient {
   private pending = new Map<string, Pending>();
   private _connected = false;
   private closed = false;
-  private backoffMs = 1000;
+  private backoffMs = 500;
   private lastTick: number | null = null;
   private tickIntervalMs = 30_000;
   private tickTimer: NodeJS.Timeout | null = null;
@@ -201,11 +350,13 @@ export class OpenClawWsClient {
     | null = null;
   private readonly url: string;
   private readonly token: string;
+  private readonly stateDir: string;
   private readonly deviceIdentity: DeviceIdentity;
 
   constructor(env: ControllerEnv) {
-    this.url = `ws://127.0.0.1:${env.openclawGatewayPort}`;
+    this.url = resolveOpenclawGatewayWsUrl(env);
     this.token = env.openclawGatewayToken ?? "";
+    this.stateDir = env.openclawStateDir;
     this.deviceIdentity = loadOrCreateDeviceIdentity(
       path.join(env.openclawStateDir, "identity", "device.json"),
     );
@@ -255,6 +406,18 @@ export class OpenClawWsClient {
     };
 
     ws.onclose = (event) => {
+      const reasonText = event.reason.trim().toLowerCase();
+      if (
+        event.code === 1008 &&
+        (reasonText.includes("device token mismatch") ||
+          reasonText.includes("device signature invalid"))
+      ) {
+        clearStoredDeviceToken({
+          stateDir: this.stateDir,
+          deviceId: this.deviceIdentity.deviceId,
+          role: "operator",
+        });
+      }
       logger.info(
         { code: event.code, reason: event.reason },
         "openclaw_ws_closed",
@@ -293,10 +456,33 @@ export class OpenClawWsClient {
     const id = randomUUID();
     const frame: RequestFrame = { type: "req", id, method, params };
     const timeoutMs = opts?.timeoutMs ?? REQUEST_TIMEOUT_MS;
+    const startedAt = Date.now();
+
+    logger.info(
+      {
+        id,
+        method,
+        timeoutMs,
+        params:
+          params && typeof params === "object"
+            ? Object.keys(params as Record<string, unknown>)
+            : typeof params,
+      },
+      "openclaw_ws_request_start",
+    );
 
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
+        logger.warn(
+          {
+            id,
+            method,
+            timeoutMs,
+            durationMs: Date.now() - startedAt,
+          },
+          "openclaw_ws_request_timeout",
+        );
         reject(
           new Error(
             `openclaw request "${method}" timed out after ${timeoutMs}ms`,
@@ -305,8 +491,29 @@ export class OpenClawWsClient {
       }, timeoutMs);
 
       this.pending.set(id, {
-        resolve: (value) => resolve(value as T),
-        reject,
+        resolve: (value) => {
+          logger.info(
+            {
+              id,
+              method,
+              durationMs: Date.now() - startedAt,
+            },
+            "openclaw_ws_request_success",
+          );
+          resolve(value as T);
+        },
+        reject: (error) => {
+          logger.warn(
+            {
+              id,
+              method,
+              durationMs: Date.now() - startedAt,
+              error: error.message,
+            },
+            "openclaw_ws_request_failure",
+          );
+          reject(error);
+        },
         timer,
       });
 
@@ -342,9 +549,13 @@ export class OpenClawWsClient {
       const nonce = payload?.nonce;
       if (!nonce) {
         logger.error({}, "openclaw_ws_missing_nonce");
-        this.ws?.close(1008, "missing nonce");
+        this.ws?.close(4008, "missing nonce");
         return;
       }
+      logger.info(
+        { nonceLength: nonce.length, deviceId: this.deviceIdentity.deviceId },
+        "openclaw_ws_connect_challenge",
+      );
       this.sendConnectRequest(nonce);
       return;
     }
@@ -396,6 +607,14 @@ export class OpenClawWsClient {
     if (res.ok) {
       pending.resolve(res.payload);
     } else {
+      logger.error(
+        {
+          requestId: res.id,
+          error: res.error?.message ?? "openclaw request failed",
+          code: res.error?.code ?? null,
+        },
+        "openclaw_ws_request_error",
+      );
       pending.reject(
         new Error(res.error?.message ?? "openclaw request failed"),
       );
@@ -410,6 +629,16 @@ export class OpenClawWsClient {
     const clientId = "gateway-client";
     const clientMode = "backend";
     const platform = process.platform;
+    const explicitGatewayToken = this.token.trim() || undefined;
+    const storedDeviceToken = loadStoredDeviceToken({
+      stateDir: this.stateDir,
+      deviceId: this.deviceIdentity.deviceId,
+      role,
+    });
+    const resolvedDeviceToken = explicitGatewayToken
+      ? undefined
+      : (storedDeviceToken ?? undefined);
+    const authToken = explicitGatewayToken ?? resolvedDeviceToken;
 
     // Build v3 auth payload and sign with device identity
     const payloadStr = buildDeviceAuthPayloadV3({
@@ -419,13 +648,31 @@ export class OpenClawWsClient {
       role,
       scopes,
       signedAtMs,
-      token: this.token,
+      token: authToken ?? "",
       nonce,
       platform,
     });
     const signature = signDevicePayload(
       this.deviceIdentity.privateKeyPem,
       payloadStr,
+    );
+
+    logger.info(
+      {
+        requestId: id,
+        deviceId: this.deviceIdentity.deviceId,
+        clientId,
+        clientMode,
+        role,
+        scopes,
+        platform,
+        hasGatewayToken: Boolean(explicitGatewayToken),
+        hasStoredDeviceToken: Boolean(storedDeviceToken),
+        hasResolvedDeviceToken: Boolean(resolvedDeviceToken),
+        nonceLength: nonce.length,
+        signedAtMs,
+      },
+      "openclaw_ws_connect_request",
     );
 
     const frame: RequestFrame = {
@@ -450,7 +697,13 @@ export class OpenClawWsClient {
           signedAt: signedAtMs,
           nonce,
         },
-        auth: { token: this.token },
+        auth:
+          authToken || resolvedDeviceToken
+            ? {
+                token: authToken,
+                deviceToken: resolvedDeviceToken,
+              }
+            : undefined,
         role,
         scopes,
       },
@@ -459,13 +712,33 @@ export class OpenClawWsClient {
     const timer = setTimeout(() => {
       this.pending.delete(id);
       logger.error({}, "openclaw_ws_connect_timeout");
-      this.ws?.close(1008, "connect timeout");
+      this.ws?.close(4008, "connect timeout");
     }, 10_000);
 
     this.pending.set(id, {
       resolve: (helloOk) => {
         this._connected = true;
-        this.backoffMs = 1000;
+        this.backoffMs = 500;
+
+        const authInfo =
+          helloOk && typeof helloOk === "object"
+            ? ((helloOk as Record<string, unknown>).auth as
+                | Record<string, unknown>
+                | undefined)
+            : undefined;
+        if (typeof authInfo?.deviceToken === "string") {
+          storeDeviceToken({
+            stateDir: this.stateDir,
+            deviceId: this.deviceIdentity.deviceId,
+            role: typeof authInfo.role === "string" ? authInfo.role : role,
+            token: authInfo.deviceToken,
+            scopes: Array.isArray(authInfo.scopes)
+              ? authInfo.scopes.filter(
+                  (scope): scope is string => typeof scope === "string",
+                )
+              : scopes,
+          });
+        }
 
         const policy = (helloOk as Record<string, unknown>)?.policy as
           | { tickIntervalMs?: number }
@@ -490,7 +763,7 @@ export class OpenClawWsClient {
       },
       reject: (err) => {
         logger.error({ error: err.message }, "openclaw_ws_connect_failed");
-        this.ws?.close(1008, "connect failed");
+        this.ws?.close(4008, "connect failed");
       },
       timer,
     });
@@ -533,6 +806,21 @@ export class OpenClawWsClient {
       p.reject(new Error("openclaw gateway disconnected"));
     }
     this.pending.clear();
+  }
+
+  /**
+   * Cancel any pending reconnect timer and connect immediately.
+   * Called by the health loop when it detects the gateway is reachable.
+   */
+  retryNow(): void {
+    if (this.closed || this.ws) return;
+    if (this.connectTimer) {
+      clearTimeout(this.connectTimer);
+      this.connectTimer = null;
+    }
+    this.backoffMs = 500;
+    logger.info({}, "openclaw_ws_retry_now");
+    this.connect();
   }
 
   private scheduleReconnect(): void {

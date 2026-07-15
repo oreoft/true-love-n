@@ -1,14 +1,50 @@
 import { ActivityFeed } from "@/components/activity-feed";
+import { BudgetWarningBanner } from "@/components/budget-warning-banner";
 import { ChannelConnectModal } from "@/components/channel-connect-modal";
+import { DingtalkSetupView } from "@/components/channel-setup/dingtalk-setup-view";
+import { QqbotSetupView } from "@/components/channel-setup/qqbot-setup-view";
+import { TelegramSetupView } from "@/components/channel-setup/telegram-setup-view";
 import { WechatSetupView } from "@/components/channel-setup/wechat-setup-view";
+import { WecomSetupView } from "@/components/channel-setup/wecom-setup-view";
+import { WhatsappSetupView } from "@/components/channel-setup/whatsapp-setup-view";
 import { GitHubStarCta } from "@/components/github-star-cta";
 import { InlineModelSelector } from "@/components/inline-model-selector";
+import {
+  DingtalkIcon,
+  QqbotIcon,
+  TelegramIcon,
+  WechatIcon,
+  WecomIcon,
+  WhatsAppIcon,
+} from "@/components/platform-icons";
+import {
+  SEEDANCE_PROMO_DISMISS_KEY,
+  SeedancePromoBanner,
+  SeedancePromoModal,
+} from "@/components/seedance-promo";
+import {
+  getBudgetBannerRouteVariant,
+  useDesktopBudgetGuard,
+} from "@/hooks/use-desktop-budget-guard";
+import { useDesktopRewardsStatus } from "@/hooks/use-desktop-rewards";
 import { useGitHubStars } from "@/hooks/use-github-stars";
 import { getChannelChatUrl } from "@/lib/channel-links";
+import {
+  type ChannelLiveStatus,
+  getChannelStatusLabel,
+} from "@/lib/channel-live-status";
 import { normalizeChannel, track } from "@/lib/tracking";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRight, Cable, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import "@/lib/api";
@@ -19,13 +55,6 @@ import {
   getApiV1ChannelsLiveStatus,
   getApiV1Sessions,
 } from "../../lib/api/sdk.gen";
-
-type ChannelLiveStatus =
-  | "connected"
-  | "connecting"
-  | "disconnected"
-  | "error"
-  | "restarting";
 
 type ChannelLiveStatusEntry = {
   channelType: string;
@@ -48,6 +77,12 @@ type LiveStatusResponse = {
     alive: boolean;
   };
 };
+
+type BudgetBannerStatus = "healthy" | "warning" | "depleted";
+type BudgetBannerDebugMode = "actual" | Exclude<BudgetBannerStatus, "healthy">;
+
+const budgetBannerDebugStorageKey = "nexu_budget_banner_debug_mode";
+const showBudgetBannerDebugPanel = import.meta.env.DEV;
 
 function formatRelativeTime(
   date: string | null | undefined,
@@ -102,26 +137,60 @@ const FEISHU_ICON = (
     style={{ objectFit: "contain" }}
   />
 );
-const WECHAT_ICON = (
-  <svg width="16" height="16" viewBox="0 0 1024 1024" role="img">
-    <title>WeChat</title>
-    <path
-      d="M704 397.92c-15.04-140.96-151.04-251.36-316.48-251.36-176 0-317.92 124.16-317.92 277.28a267.36 267.36 0 0 0 129.12 224c8.8 5.6-29.12 85.28-19.68 90.08s28.48-11.2 48.8-26.56 39.52-29.76 48-26.88a362.56 362.56 0 0 0 112 17.44 376.16 376.16 0 0 0 57.44-4.48c36.96 84.8 133.44 145.44 246.56 145.44a305.12 305.12 0 0 0 88.16-12.96c4.48-1.28 21.76 11.36 39.2 24.16s35.36 25.76 39.68 24c13.76-5.76-25.44-69.92-12.96-77.44 65.76-40.48 108.48-105.92 108.48-180-0.16-120-111.04-217.12-250.4-222.72z m-109.12 167.2a28 28 0 1 1 27.68-28 27.84 27.84 0 0 1-27.68 28z m-165.76 54.72a204.64 204.64 0 0 0 1.44 24.32 314.72 314.72 0 0 1-42.88 2.88 302.08 302.08 0 0 1-103.36-17.76c-3.2-1.12-14.4-4.64-20.48 0a265.28 265.28 0 0 0-32 32 142.4 142.4 0 0 0 8.96-38.4c1.12-10.24-14.56-17.6-17.76-19.68a220 220 0 0 1-98.08-178.4c0-122.88 117.6-222.4 262.72-222.4 135.36 0 246.88 86.72 260.96 198.24-124.48 17.44-219.52 108.96-219.52 219.2z m331.68-54.72a28 28 0 1 1 27.68-28 27.68 27.68 0 0 1-27.68 28z"
-      fill="#8DC81B"
-    />
-    <path
-      d="M498.24 286.08a41.92 41.92 0 1 0 41.44 41.92 41.76 41.76 0 0 0-41.44-41.92zM276.96 286.08a41.92 41.92 0 1 0 41.6 41.92 41.6 41.6 0 0 0-41.6-41.92z"
-      fill="#8DC81B"
-    />
-  </svg>
-);
+
+const DINGTALK_ICON = <DingtalkIcon size={16} />;
+const QQBOT_ICON = <QqbotIcon size={16} />;
+const TELEGRAM_ICON = <TelegramIcon size={16} />;
+const WECOM_ICON = <WecomIcon size={16} />;
+const WHATSAPP_ICON = <WhatsAppIcon size={16} />;
+/** WeChat mark uses a wide viewBox; bump px so it matches visual weight of 16px square logos. */
+type HomeChannelIconBox = "standard" | "compact";
+
+function homeChannelIcon(
+  ch: { id: string; icon?: ReactNode },
+  box: HomeChannelIconBox = "standard",
+) {
+  if (ch.id === "wechat") {
+    return <WechatIcon size={box === "compact" ? 18 : 22} />;
+  }
+  return ch.icon ?? null;
+}
 
 const ONBOARDING_CHANNELS = [
   {
     id: "wechat",
     name: "WeChat",
-    icon: WECHAT_ICON,
     recommended: true,
+  },
+  {
+    id: "whatsapp",
+    name: "WhatsApp",
+    icon: WHATSAPP_ICON,
+    recommended: false,
+  },
+  {
+    id: "telegram",
+    name: "Telegram",
+    icon: TELEGRAM_ICON,
+    recommended: false,
+  },
+  {
+    id: "dingtalk",
+    name: "DingTalk",
+    icon: DINGTALK_ICON,
+    recommended: false,
+  },
+  {
+    id: "qqbot",
+    name: "QQ",
+    icon: QQBOT_ICON,
+    recommended: false,
+  },
+  {
+    id: "wecom",
+    name: "WeCom",
+    icon: WECOM_ICON,
+    recommended: false,
   },
   {
     id: "feishu",
@@ -148,8 +217,37 @@ function getChannelOptions(t: (key: string) => string) {
     {
       id: "wechat",
       name: t("home.channel.wechat"),
-      icon: WECHAT_ICON,
       recommended: true,
+    },
+    {
+      id: "whatsapp",
+      name: t("home.channel.whatsapp"),
+      icon: WHATSAPP_ICON,
+      recommended: false,
+    },
+    {
+      id: "telegram",
+      name: t("home.channel.telegram"),
+      icon: TELEGRAM_ICON,
+      recommended: false,
+    },
+    {
+      id: "dingtalk",
+      name: t("home.channel.dingtalk"),
+      icon: DINGTALK_ICON,
+      recommended: false,
+    },
+    {
+      id: "qqbot",
+      name: t("home.channel.qqbot"),
+      icon: QQBOT_ICON,
+      recommended: false,
+    },
+    {
+      id: "wecom",
+      name: t("home.channel.wecom"),
+      icon: WECOM_ICON,
+      recommended: false,
     },
     {
       id: "feishu",
@@ -193,19 +291,37 @@ function getChannelStatusMeta(
       return {
         colorClass: "bg-[var(--color-warning)]",
         pulse: true,
-        label: t("home.channel.restarting"),
+        label: getChannelStatusLabel(status, {
+          connected: t("home.connected"),
+          connecting: t("home.channelConnecting"),
+          disconnected: t("home.channel.disconnected"),
+          error: t("home.channel.error"),
+          restarting: t("home.channel.restarting"),
+        }),
       };
     case "error":
       return {
         colorClass: "bg-[var(--color-danger)]",
         pulse: false,
-        label: t("home.channel.error"),
+        label: getChannelStatusLabel(status, {
+          connected: t("home.connected"),
+          connecting: t("home.channelConnecting"),
+          disconnected: t("home.channel.disconnected"),
+          error: t("home.channel.error"),
+          restarting: t("home.channel.restarting"),
+        }),
       };
     default:
       return {
         colorClass: "bg-text-muted/40",
         pulse: false,
-        label: t("home.channel.disconnected"),
+        label: getChannelStatusLabel(status, {
+          connected: t("home.connected"),
+          connecting: t("home.channelConnecting"),
+          disconnected: t("home.channel.disconnected"),
+          error: t("home.channel.error"),
+          restarting: t("home.channel.restarting"),
+        }),
       };
   }
 }
@@ -222,7 +338,49 @@ export function HomePage() {
   const [modalChannel, setModalChannel] = useState<
     "feishu" | "slack" | "discord" | null
   >(null);
+  const [budgetBannerDebugMode, setBudgetBannerDebugMode] =
+    useState<BudgetBannerDebugMode>(() => {
+      if (!showBudgetBannerDebugPanel) return "actual";
+      try {
+        const stored = localStorage.getItem(budgetBannerDebugStorageKey);
+        if (stored === "warning" || stored === "depleted") {
+          return stored;
+        }
+      } catch {
+        // ignore storage errors
+      }
+      return "actual";
+    });
+
+  const handleBudgetBannerDebugModeChange = useCallback(
+    (mode: BudgetBannerDebugMode) => {
+      setBudgetBannerDebugMode(mode);
+      try {
+        if (mode === "actual") {
+          localStorage.removeItem(budgetBannerDebugStorageKey);
+          return;
+        }
+        localStorage.setItem(budgetBannerDebugStorageKey, mode);
+      } catch {
+        // ignore storage errors
+      }
+    },
+    [],
+  );
   const [wechatQrOpen, setWechatQrOpen] = useState(false);
+  const [telegramOpen, setTelegramOpen] = useState(false);
+  const [whatsappOpen, setWhatsappOpen] = useState(false);
+  const [dingtalkOpen, setDingtalkOpen] = useState(false);
+  const [qqbotOpen, setQqbotOpen] = useState(false);
+  const [wecomOpen, setWecomOpen] = useState(false);
+  const [seedancePromoOpen, setSeedancePromoOpen] = useState(false);
+  const [showSeedancePromo, setShowSeedancePromo] = useState(() => {
+    try {
+      return sessionStorage.getItem(SEEDANCE_PROMO_DISMISS_KEY) !== "1";
+    } catch {
+      return true;
+    }
+  });
   const queryClient = useQueryClient();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoHover, setVideoHover] = useState(false);
@@ -248,7 +406,6 @@ export function HomePage() {
 
   const runtimeDisplay = useMemo(() => {
     if (!runtimeData) {
-      // Still loading — show starting
       return {
         label: t("home.status.starting"),
         color: "var(--color-warning)",
@@ -261,6 +418,12 @@ export function HomePage() {
           label: t("home.running"),
           color: "var(--color-success)",
           pulse: false,
+        } as const;
+      case "starting":
+        return {
+          label: t("home.status.starting"),
+          color: "var(--color-warning)",
+          pulse: true,
         } as const;
       case "degraded":
         return {
@@ -300,6 +463,13 @@ export function HomePage() {
           subtitle: t("home.status.subtitle.idle"),
           color: "var(--color-success)",
           pulse: false,
+        } as const;
+      case "starting":
+        return {
+          label: t("home.status.starting"),
+          subtitle: t("home.status.subtitle.starting"),
+          color: "var(--color-warning)",
+          pulse: true,
         } as const;
       case "degraded":
         return {
@@ -348,15 +518,7 @@ export function HomePage() {
     },
   });
 
-  const { data: channelsData, isLoading: channelsLoading } = useQuery({
-    queryKey: ["channels"],
-    queryFn: async () => {
-      const { data } = await getApiV1Channels();
-      return data;
-    },
-  });
-
-  const { data: sessionsData } = useQuery({
+  const { data: sessionsData, isLoading: sessionsLoading } = useQuery({
     queryKey: ["sessions"],
     queryFn: async () => {
       const { data } = await getApiV1Sessions();
@@ -365,6 +527,17 @@ export function HomePage() {
   });
 
   const sessions = sessionsData?.sessions ?? [];
+  const hasSessionHistory = sessions.length > 0;
+
+  const { data: channelsData, isLoading: channelsLoading } = useQuery({
+    queryKey: ["channels"],
+    queryFn: async () => {
+      const { data } = await getApiV1Channels();
+      return data;
+    },
+    refetchInterval: hasSessionHistory ? 3000 : false,
+  });
+
   const { messagesToday, lastActiveAt } = useMemo(() => {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
@@ -384,26 +557,51 @@ export function HomePage() {
   const activeChannels = channels.filter(
     (channel) => channel.status === "connected",
   );
-  const connectedCount = activeChannels.length;
+  const configuredConnectedTypes = useMemo(() => {
+    return new Set(activeChannels.map((channel) => channel.channelType));
+  }, [activeChannels]);
+  const connectedCount = configuredConnectedTypes.size;
   const hasChannel = connectedCount > 0;
-  const connectedTypes = new Set<string>(
-    activeChannels.map((c) => c.channelType),
-  );
+  const shouldPollLiveStatus =
+    hasChannel || pendingChannelId !== null || hasSessionHistory;
 
   const { data: liveStatus } = useQuery({
     queryKey: ["channels-live-status"],
     queryFn: async () => {
       const { data } = await getApiV1ChannelsLiveStatus();
+      console.log(
+        "[home:live-status]",
+        data?.gatewayConnected,
+        data?.channels?.map(
+          (c: { channelType: string; status: string }) =>
+            `${c.channelType}=${c.status}`,
+        ),
+      );
       return data as LiveStatusResponse | undefined;
     },
-    refetchInterval: hasChannel ? 3000 : false,
-    enabled: hasChannel,
+    refetchInterval: shouldPollLiveStatus ? 3000 : false,
+    enabled: shouldPollLiveStatus,
   });
 
   const liveStatusByChannelType = useMemo(() => {
     const entries = liveStatus?.channels ?? [];
     return new Map(entries.map((entry) => [entry.channelType, entry]));
   }, [liveStatus]);
+
+  const liveConnectedTypes = useMemo(() => {
+    return new Set(
+      (liveStatus?.channels ?? [])
+        .filter((entry) => entry.status === "connected")
+        .map((entry) => entry.channelType),
+    );
+  }, [liveStatus]);
+
+  const effectiveConnectedTypes = useMemo(() => {
+    return new Set([...configuredConnectedTypes, ...liveConnectedTypes]);
+  }, [configuredConnectedTypes, liveConnectedTypes]);
+
+  const hasOperationalContext =
+    effectiveConnectedTypes.size > 0 || hasSessionHistory;
 
   const liveStatusByChannelId = useMemo(() => {
     const entries = liveStatus?.channels ?? [];
@@ -414,7 +612,7 @@ export function HomePage() {
   const hasConnectedWechat = activeChannels.some((c) => c.channelType === "wechat");
 
   const agentIndicator = useMemo(() => {
-    if (!hasChannel || !liveStatus?.agent) {
+    if (!hasOperationalContext || !liveStatus?.agent) {
       return null;
     }
     return liveStatus.agent.alive
@@ -428,7 +626,31 @@ export function HomePage() {
           pulse: true,
           label: t("home.agent.starting"),
         };
-  }, [hasChannel, liveStatus, t]);
+  }, [hasOperationalContext, liveStatus, t]);
+  const budgetBannerDebugPanel = showBudgetBannerDebugPanel ? (
+    <BudgetBannerDebugPanel
+      actualStatus="healthy"
+      mode={budgetBannerDebugMode}
+      onModeChange={handleBudgetBannerDebugModeChange}
+    />
+  ) : null;
+  const { status: rewardsStatus } = useDesktopRewardsStatus();
+  const { bannerDismissible, budgetStatus, dismissBanner, shouldShowPrompt } =
+    useDesktopBudgetGuard({
+      pathname: "/workspace/home",
+      cloudConnected: rewardsStatus.viewer.cloudConnected,
+    });
+  const budgetBannerRouteVariant =
+    getBudgetBannerRouteVariant("/workspace/home");
+
+  const dismissSeedancePromo = useCallback(() => {
+    setShowSeedancePromo(false);
+    try {
+      sessionStorage.setItem(SEEDANCE_PROMO_DISMISS_KEY, "1");
+    } catch {
+      // noop
+    }
+  }, []);
 
   const handleChannelCreated = useCallback(
     (channelId: string) => {
@@ -458,7 +680,7 @@ export function HomePage() {
       return;
     }
     if (pending.status === "error") {
-      toast.error(pending.lastError ?? t("home.channel.error"), {
+      toast.error(t("home.channel.error"), {
         id: toastId,
       });
       connectingToastIdRef.current = null;
@@ -519,7 +741,7 @@ export function HomePage() {
   /* ══════════════════════════════════════════════════════════════════════
      Scene A: First-run — No channels connected (Idle state)
      ══════════════════════════════════════════════════════════════════════ */
-  if (!hasChannel && !channelsLoading) {
+  if (!hasOperationalContext && !channelsLoading && !sessionsLoading) {
     return (
       <div className="h-full overflow-y-auto">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
@@ -574,6 +796,16 @@ export function HomePage() {
             </div>
           </div>
 
+          {budgetBannerRouteVariant === "inline" &&
+          shouldShowPrompt &&
+          budgetStatus !== "healthy" ? (
+            <BudgetWarningBanner
+              status={budgetStatus}
+              dismissible={bannerDismissible}
+              onDismiss={dismissBanner}
+            />
+          ) : null}
+
           {/* ═══ MIDDLE: Channels — default open, Feishu highlighted ═══ */}
           <div className="card card-static overflow-visible">
             <div className="px-5 pt-4 pb-3">
@@ -590,6 +822,16 @@ export function HomePage() {
                     onClick={() => {
                       if (ch.id === "wechat") {
                         setWechatQrOpen(true);
+                      } else if (ch.id === "telegram") {
+                        setTelegramOpen(true);
+                      } else if (ch.id === "whatsapp") {
+                        setWhatsappOpen(true);
+                      } else if (ch.id === "dingtalk") {
+                        setDingtalkOpen(true);
+                      } else if (ch.id === "qqbot") {
+                        setQqbotOpen(true);
+                      } else if (ch.id === "wecom") {
+                        setWecomOpen(true);
                       } else {
                         setModalChannel(
                           ch.id as "feishu" | "slack" | "discord",
@@ -602,7 +844,7 @@ export function HomePage() {
                   >
                     <div className="flex items-start gap-2.5">
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center border border-border bg-white shrink-0">
-                        {ch.icon}
+                        {homeChannelIcon(ch)}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="text-[13px] font-medium text-text-primary">
@@ -622,8 +864,15 @@ export function HomePage() {
               </div>
             </div>
           </div>
-        </div>
 
+          {showSeedancePromo ? (
+            <SeedancePromoBanner
+              isDismissed={false}
+              onOpen={() => setSeedancePromoOpen(true)}
+              onDismiss={dismissSeedancePromo}
+            />
+          ) : null}
+        </div>
         {modalChannel && (
           <ChannelConnectModal
             channelType={modalChannel}
@@ -643,6 +892,63 @@ export function HomePage() {
             gatewayReady={runtimeData?.status === "active"}
           />
         )}
+
+        {telegramOpen && (
+          <TelegramModal
+            onClose={() => setTelegramOpen(false)}
+            onConnected={() => {
+              setTelegramOpen(false);
+              void handleConnected();
+            }}
+          />
+        )}
+
+        {whatsappOpen && (
+          <WhatsappModal
+            onClose={() => setWhatsappOpen(false)}
+            onConnected={() => {
+              setWhatsappOpen(false);
+              void handleConnected();
+            }}
+          />
+        )}
+        {budgetBannerDebugPanel}
+
+        {qqbotOpen && (
+          <QqbotModal
+            onClose={() => setQqbotOpen(false)}
+            onConnected={() => {
+              setQqbotOpen(false);
+              void handleConnected();
+            }}
+          />
+        )}
+
+        {dingtalkOpen && (
+          <DingtalkModal
+            onClose={() => setDingtalkOpen(false)}
+            onConnected={() => {
+              setDingtalkOpen(false);
+              void handleConnected();
+            }}
+          />
+        )}
+
+        {wecomOpen && (
+          <WecomModal
+            onClose={() => setWecomOpen(false)}
+            onConnected={() => {
+              setWecomOpen(false);
+              void handleConnected();
+            }}
+          />
+        )}
+
+        <SeedancePromoModal
+          open={seedancePromoOpen}
+          onClose={() => setSeedancePromoOpen(false)}
+          shouldAutoAdvanceAfterStar={false}
+        />
       </div>
     );
   }
@@ -734,6 +1040,24 @@ export function HomePage() {
           </div>
         </div>
 
+        {budgetBannerRouteVariant === "inline" &&
+        shouldShowPrompt &&
+        budgetStatus !== "healthy" ? (
+          <BudgetWarningBanner
+            status={budgetStatus}
+            dismissible={bannerDismissible}
+            onDismiss={dismissBanner}
+          />
+        ) : null}
+
+        {showSeedancePromo ? (
+          <SeedancePromoBanner
+            isDismissed={false}
+            onOpen={() => setSeedancePromoOpen(true)}
+            onDismiss={dismissSeedancePromo}
+          />
+        ) : null}
+
         {/* ═══ MIDDLE: Channels panel ═══ */}
         <div className="card card-static">
           <div className="px-5 pt-4 pb-3">
@@ -742,95 +1066,203 @@ export function HomePage() {
             </h2>
           </div>
           <div className="px-5 pb-5 space-y-3">
-            {/* Connected channels — one row per channel (WeChat supports multiple) */}
-            {activeChannels.length > 0 && (
+            {/* Connected channels — one row per channel account (WeChat supports multiple); phantom rows for live-only pending connections */}
+            {(activeChannels.length > 0 ||
+              CHANNEL_OPTIONS.some(
+                (ch) =>
+                  effectiveConnectedTypes.has(ch.id) &&
+                  !activeChannels.some((c) => c.channelType === ch.id),
+              )) && (
               <div className="space-y-1.5">
                 {activeChannels.map((connectedChannel) => {
-                    const ch = CHANNEL_OPTIONS.find(
-                      (o) => o.id === connectedChannel.channelType,
-                    );
-                    if (!ch) return null;
-                    const statusEntry = liveStatusByChannelId.get(connectedChannel.id);
-                    const statusMeta = getChannelStatusMeta(statusEntry?.status, t);
-                    const channelChatUrl = getChannelChatUrl(
-                      ch.id,
-                      connectedChannel.appId,
-                      connectedChannel.botUserId,
-                      connectedChannel.accountId,
-                    );
-                    const handleOpenChannel = () => {
-                      const channel = normalizeChannel(ch.id);
-                      if (!channelChatUrl || !channel) return;
-                      track("workspace_chat_in_im_click", { channel, where: "home" });
-                      window.open(channelChatUrl, "_blank", "noopener,noreferrer");
-                    };
-                    // Label WeChat rows with accountId when there are multiple accounts
-                    const wechatAccounts = activeChannels.filter((c) => c.channelType === "wechat");
-                    const label =
-                      ch.id === "wechat" && wechatAccounts.length > 1 && connectedChannel.accountId
-                        ? `${ch.name} · ${connectedChannel.accountId}`
-                        : ch.name;
+                  const ch = CHANNEL_OPTIONS.find(
+                    (o) => o.id === connectedChannel.channelType,
+                  );
+                  if (!ch) return null;
+                  const statusEntry = liveStatusByChannelId.get(
+                    connectedChannel.id,
+                  );
+                  const isPendingChannel =
+                    connectedChannel.id === pendingChannelId;
+                  const effectiveStatus: ChannelLiveStatus | undefined =
+                    isPendingChannel &&
+                    (!statusEntry || statusEntry.status === "disconnected")
+                      ? "connecting"
+                      : statusEntry?.status;
+                  const statusMeta = getChannelStatusMeta(effectiveStatus, t);
+                  const isConnectedLive = effectiveStatus === "connected";
+                  const channelChatUrl = getChannelChatUrl(
+                    ch.id,
+                    connectedChannel.appId,
+                    connectedChannel.botUserId,
+                    connectedChannel.accountId,
+                  );
+                  const handleOpenChannel = () => {
+                    const channel = normalizeChannel(ch.id);
+                    if (!channelChatUrl || !channel) return;
+                    track("workspace_chat_in_im_click", { channel, where: "home" });
+                    window.open(channelChatUrl, "_blank", "noopener,noreferrer");
+                  };
+                  // Label WeChat rows with accountId when there are multiple accounts
+                  const wechatAccounts = activeChannels.filter(
+                    (c) => c.channelType === "wechat",
+                  );
+                  const label =
+                    ch.id === "wechat" &&
+                    wechatAccounts.length > 1 &&
+                    connectedChannel.accountId
+                      ? `${ch.name} · ${connectedChannel.accountId}`
+                      : ch.name;
 
-                    return (
-                      <div
-                        key={connectedChannel.id}
-                        role={channelChatUrl ? "button" : undefined}
-                        tabIndex={channelChatUrl ? 0 : undefined}
-                        className="flex w-full items-center gap-3 rounded-xl border border-border bg-white px-4 py-3 text-left transition-all hover:bg-surface-1"
-                        onClick={handleOpenChannel}
-                        onKeyDown={(event) => {
-                          if (!channelChatUrl) return;
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            handleOpenChannel();
+                  return (
+                    <div
+                      key={connectedChannel.id}
+                      role={channelChatUrl ? "button" : undefined}
+                      tabIndex={channelChatUrl ? 0 : undefined}
+                      className="flex w-full items-center gap-3 rounded-xl border border-border bg-white px-4 py-3 text-left transition-all hover:bg-surface-1"
+                      onClick={handleOpenChannel}
+                      onKeyDown={(event) => {
+                        if (!channelChatUrl) return;
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          handleOpenChannel();
+                        }
+                      }}
+                    >
+                      <div className="w-8 h-8 rounded-[10px] flex items-center justify-center border border-border bg-white shrink-0">
+                        {homeChannelIcon(ch)}
+                      </div>
+                      <div className="flex-1 min-w-0 flex items-center gap-2">
+                        <span className="text-[13px] font-semibold text-text-primary truncate">
+                          {label}
+                        </span>
+                        <span
+                          title={statusEntry?.lastError ?? statusMeta.label}
+                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusMeta.colorClass} ${statusMeta.pulse ? "animate-pulse" : ""}`}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        aria-label={
+                          isConnectedLive ? t("home.disconnect") : statusMeta.label
+                        }
+                        title={
+                          statusEntry?.lastError ??
+                          (isConnectedLive ? t("home.disconnect") : statusMeta.label)
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const channel = normalizeChannel(ch.id);
+                          track("workspace_channel_disconnect_click", { channel: channel ?? ch.id });
+                          disconnectChannel.mutate(connectedChannel.id);
+                        }}
+                        disabled={disconnectChannel.isPending}
+                        className="group rounded-[8px] px-[14px] py-[5px] text-[12px] font-medium bg-surface-2 text-text-secondary hover:text-[var(--color-danger)] hover:bg-surface-3 transition-colors shrink-0 disabled:opacity-50"
+                      >
+                        {isConnectedLive ? (
+                          <>
+                            <span className="group-hover:hidden" aria-hidden="true">
+                              {statusMeta.label}
+                            </span>
+                            <span className="hidden group-hover:inline" aria-hidden="true">
+                              {t("home.disconnect")}
+                            </span>
+                          </>
+                        ) : (
+                          statusMeta.label
+                        )}
+                      </button>
+                      {ch.id !== "wechat" && channelChatUrl && (
+                        <a
+                          href={channelChatUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          onClickCapture={() => {
+                            const channel = normalizeChannel(ch.id);
+                            if (!channel) return;
+                            track("workspace_chat_in_im_click", { channel, where: "home" });
+                          }}
+                          className="inline-flex items-center gap-1 text-[12px] font-medium text-text-secondary hover:text-text-primary transition-colors ml-3 shrink-0 leading-none"
+                        >
+                          {t("home.chat")}
+                          <ArrowUpRight size={12} className="-mt-px" />
+                        </a>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Phantom rows: types with live-only status not yet reflected in activeChannels (e.g. mid-connect) */}
+                {CHANNEL_OPTIONS.filter(
+                  (ch) =>
+                    effectiveConnectedTypes.has(ch.id) &&
+                    !activeChannels.some((c) => c.channelType === ch.id),
+                ).map((ch) => {
+                  const statusEntry = liveStatusByChannelType.get(ch.id);
+                  const actionableChannelId = statusEntry?.channelId;
+                  const isPendingChannel =
+                    actionableChannelId === pendingChannelId;
+                  const effectiveStatus: ChannelLiveStatus | undefined =
+                    isPendingChannel &&
+                    (!statusEntry || statusEntry.status === "disconnected")
+                      ? "connecting"
+                      : statusEntry?.status;
+                  const statusMeta = getChannelStatusMeta(effectiveStatus, t);
+                  const isConnectedLive = effectiveStatus === "connected";
+
+                  return (
+                    <div
+                      key={ch.id}
+                      className="flex w-full items-center gap-3 rounded-xl border border-border bg-white px-4 py-3 text-left transition-all"
+                    >
+                      <div className="w-8 h-8 rounded-[10px] flex items-center justify-center border border-border bg-white shrink-0">
+                        {homeChannelIcon(ch)}
+                      </div>
+                      <div className="flex-1 min-w-0 flex items-center gap-2">
+                        <span className="text-[13px] font-semibold text-text-primary truncate">
+                          {ch.name}
+                        </span>
+                        <span
+                          title={statusMeta.label}
+                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusMeta.colorClass} ${statusMeta.pulse ? "animate-pulse" : ""}`}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        aria-label={statusMeta.label}
+                        title={statusMeta.label}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (actionableChannelId) {
+                            const channel = normalizeChannel(ch.id);
+                            track("workspace_channel_disconnect_click", {
+                              channel: channel ?? ch.id,
+                            });
+                            disconnectChannel.mutate(actionableChannelId);
                           }
                         }}
+                        disabled={
+                          disconnectChannel.isPending || !actionableChannelId
+                        }
+                        className="group rounded-[8px] px-[14px] py-[5px] text-[12px] font-medium bg-surface-2 text-text-secondary hover:text-[var(--color-danger)] hover:bg-surface-3 transition-colors shrink-0 disabled:opacity-50"
                       >
-                        <div className="w-8 h-8 rounded-[10px] flex items-center justify-center border border-border bg-white shrink-0">
-                          {ch.icon}
-                        </div>
-                        <div className="flex-1 min-w-0 flex items-center gap-2">
-                          <span className="text-[13px] font-semibold text-text-primary truncate">
-                            {label}
-                          </span>
-                          <span
-                            title={statusEntry?.lastError ?? statusMeta.label}
-                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusMeta.colorClass} ${statusMeta.pulse ? "animate-pulse" : ""}`}
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const channel = normalizeChannel(ch.id);
-                            track("workspace_channel_disconnect_click", { channel: channel ?? ch.id });
-                            disconnectChannel.mutate(connectedChannel.id);
-                          }}
-                          disabled={disconnectChannel.isPending}
-                          className="rounded-[8px] px-[14px] py-[5px] text-[12px] font-medium bg-surface-2 text-text-secondary hover:text-[var(--color-danger)] hover:bg-surface-3 transition-colors shrink-0 disabled:opacity-50"
-                        >
-                          {statusMeta.label}
-                        </button>
-                        {ch.id !== "wechat" && channelChatUrl && (
-                          <a
-                            href={channelChatUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            onClickCapture={() => {
-                              const channel = normalizeChannel(ch.id);
-                              if (!channel) return;
-                              track("workspace_chat_in_im_click", { channel, where: "home" });
-                            }}
-                            className="inline-flex items-center gap-1 text-[12px] font-medium text-text-secondary hover:text-text-primary transition-colors ml-3 shrink-0 leading-none"
-                          >
-                            Chat
-                            <ArrowUpRight size={12} className="-mt-px" />
-                          </a>
+                        {isConnectedLive ? (
+                          <>
+                            <span className="group-hover:hidden" aria-hidden="true">
+                              {statusMeta.label}
+                            </span>
+                            <span className="hidden group-hover:inline" aria-hidden="true">
+                              {t("home.disconnect")}
+                            </span>
+                          </>
+                        ) : (
+                          statusMeta.label
                         )}
-                      </div>
-                    );
-                  })}
+                      </button>
+                    </div>
+                  );
+                })}
 
                 {/* WeChat: allow adding more accounts inline */}
                 {hasConnectedWechat && (
@@ -840,7 +1272,7 @@ export function HomePage() {
                     className="group flex w-full items-center gap-2.5 rounded-xl border border-dashed border-border bg-surface-0 px-4 py-2.5 text-left hover:border-solid hover:border-border-hover hover:bg-surface-1 transition-all"
                   >
                     <div className="w-8 h-8 rounded-[10px] flex items-center justify-center border border-dashed border-border bg-surface-1 shrink-0">
-                      {WECHAT_ICON}
+                      <WechatIcon size={22} />
                     </div>
                     <span className="text-[12px] font-medium text-text-muted group-hover:text-text-secondary flex-1">
                       {t("home.channel.addAnotherWechat") || "Add another WeChat account"}
@@ -851,43 +1283,53 @@ export function HomePage() {
               </div>
             )}
 
-            {/* Not-yet-connected channels — dashed border grid (WeChat always shown if not ALL channels of that type are connected — for other types hide once any is connected) */}
-            {CHANNEL_OPTIONS.filter((ch) => ch.id === "wechat" ? false : !connectedTypes.has(ch.id)).length >
-              0 && (
+            {/* Not-yet-connected channels — dashed border grid */}
+            {CHANNEL_OPTIONS.filter((ch) => !effectiveConnectedTypes.has(ch.id))
+              .length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {CHANNEL_OPTIONS.filter((ch) => ch.id === "wechat" ? false : !connectedTypes.has(ch.id)).map(
-                  (ch) => (
-                    <button
-                      key={ch.id}
-                      type="button"
-                      onClick={() => {
-                        const channel = normalizeChannel(ch.id);
-                        if (channel) {
-                          track("workspace_channel_connect_click", { channel });
-                        }
-                        if (ch.id === "wechat") {
-                          setWechatQrOpen(true);
-                        } else {
-                          setModalChannel(
-                            ch.id as "feishu" | "slack" | "discord",
-                          );
-                        }
-                      }}
-                      className="group flex items-center gap-2.5 rounded-lg border border-dashed border-border bg-surface-0 px-3 py-2 text-left hover:border-solid hover:border-border-hover hover:bg-surface-1 transition-all"
-                    >
-                      <div className="w-6 h-6 rounded-md flex items-center justify-center bg-surface-1 shrink-0">
-                        {ch.icon}
-                      </div>
-                      <span className="text-[12px] font-medium text-text-muted group-hover:text-text-secondary flex-1 truncate">
-                        {ch.name}
-                      </span>
-                      <Cable
-                        size={12}
-                        className="text-text-muted group-hover:text-text-primary transition-colors shrink-0"
-                      />
-                    </button>
-                  ),
-                )}
+                {CHANNEL_OPTIONS.filter(
+                  (ch) => !effectiveConnectedTypes.has(ch.id),
+                ).map((ch) => (
+                  <button
+                    key={ch.id}
+                    type="button"
+                    onClick={() => {
+                      const channel = normalizeChannel(ch.id);
+                      if (channel) {
+                        track("workspace_channel_connect_click", { channel });
+                      }
+                      if (ch.id === "wechat") {
+                        setWechatQrOpen(true);
+                      } else if (ch.id === "telegram") {
+                        setTelegramOpen(true);
+                      } else if (ch.id === "whatsapp") {
+                        setWhatsappOpen(true);
+                      } else if (ch.id === "dingtalk") {
+                        setDingtalkOpen(true);
+                      } else if (ch.id === "qqbot") {
+                        setQqbotOpen(true);
+                      } else if (ch.id === "wecom") {
+                        setWecomOpen(true);
+                      } else {
+                        setModalChannel(
+                          ch.id as "feishu" | "slack" | "discord",
+                        );
+                      }
+                    }}
+                    className="group flex items-center gap-2.5 rounded-lg border border-dashed border-border bg-surface-0 px-3 py-2 text-left hover:border-solid hover:border-border-hover hover:bg-surface-1 transition-all"
+                  >
+                    <div className="w-6 h-6 rounded-md flex items-center justify-center bg-surface-1 shrink-0">
+                      {homeChannelIcon(ch, "compact")}
+                    </div>
+                    <span className="text-[12px] font-medium text-text-muted group-hover:text-text-secondary flex-1 truncate">
+                      {ch.name}
+                    </span>
+                    <Cable
+                      size={12}
+                      className="text-text-muted group-hover:text-text-primary transition-colors shrink-0"
+                    />
+                  </button>
+                ))}
               </div>
             )}
           </div>
@@ -907,7 +1349,6 @@ export function HomePage() {
           }
         />
       </div>
-
       {modalChannel && (
         <ChannelConnectModal
           channelType={modalChannel}
@@ -926,6 +1367,114 @@ export function HomePage() {
           }}
         />
       )}
+
+      {telegramOpen && (
+        <TelegramModal
+          onClose={() => setTelegramOpen(false)}
+          onConnected={() => {
+            setTelegramOpen(false);
+            void handleConnected();
+          }}
+        />
+      )}
+
+      {whatsappOpen && (
+        <WhatsappModal
+          onClose={() => setWhatsappOpen(false)}
+          onConnected={() => {
+            setWhatsappOpen(false);
+            void handleConnected();
+          }}
+        />
+      )}
+      {budgetBannerDebugPanel}
+
+      {qqbotOpen && (
+        <QqbotModal
+          onClose={() => setQqbotOpen(false)}
+          onConnected={() => {
+            setQqbotOpen(false);
+            void handleConnected();
+          }}
+        />
+      )}
+
+      {dingtalkOpen && (
+        <DingtalkModal
+          onClose={() => setDingtalkOpen(false)}
+          onConnected={() => {
+            setDingtalkOpen(false);
+            void handleConnected();
+          }}
+        />
+      )}
+
+      {wecomOpen && (
+        <WecomModal
+          onClose={() => setWecomOpen(false)}
+          onConnected={() => {
+            setWecomOpen(false);
+            void handleConnected();
+          }}
+        />
+      )}
+
+      <SeedancePromoModal
+        open={seedancePromoOpen}
+        onClose={() => setSeedancePromoOpen(false)}
+        shouldAutoAdvanceAfterStar={!hasChannel}
+      />
+    </div>
+  );
+}
+
+function BudgetBannerDebugPanel({
+  actualStatus,
+  mode,
+  onModeChange,
+}: {
+  actualStatus: BudgetBannerStatus;
+  mode: BudgetBannerDebugMode;
+  onModeChange: (mode: BudgetBannerDebugMode) => void;
+}) {
+  const options: Array<{
+    label: string;
+    value: BudgetBannerDebugMode;
+  }> = [
+    { label: "真实状态", value: "actual" },
+    { label: "预警", value: "warning" },
+    { label: "耗尽", value: "depleted" },
+  ];
+
+  return (
+    <div className="pointer-events-none fixed bottom-6 right-6 z-40">
+      <div className="pointer-events-auto w-[220px] rounded-2xl border border-border bg-white/95 p-3 shadow-[0_20px_60px_rgba(15,23,42,0.16)] backdrop-blur">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">
+          Budget Debug
+        </div>
+        <div className="mt-1 text-[12px] text-text-secondary">
+          当前真实状态：{actualStatus}
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-1.5">
+          {options.map((option) => {
+            const active = mode === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => onModeChange(option.value)}
+                className={
+                  active
+                    ? "rounded-lg bg-[#111317] px-2 py-2 text-[12px] font-medium text-white transition"
+                    : "rounded-lg border border-border bg-surface-1 px-2 py-2 text-[12px] font-medium text-text-secondary transition hover:border-border-hover hover:bg-surface-2"
+                }
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -965,17 +1514,17 @@ function WechatQrModal({
         className="relative w-full max-w-md mx-4 rounded-2xl border border-border bg-surface-0 shadow-2xl overflow-hidden"
       >
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center border border-border bg-surface-1">
-              {WECHAT_ICON}
+          <div className="flex min-w-0 flex-1 items-center gap-3 pr-2">
+            <div className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center border border-border bg-surface-1">
+              <WechatIcon size={24} />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="text-[14px] font-semibold text-text-primary">
                 {t("wechatSetup.title")}
               </div>
-              <div className="text-[11px] text-text-muted">
+              <p className="mt-0.5 text-[11px] leading-snug text-text-muted line-clamp-1">
                 {t("wechatSetup.desc")}
-              </div>
+              </p>
             </div>
           </div>
           <button
@@ -987,7 +1536,7 @@ function WechatQrModal({
             <X size={16} />
           </button>
         </div>
-        <div className="px-4 py-2">
+        <div className="px-4 pt-1 pb-5">
           <WechatSetupView
             onConnected={onConnected}
             gatewayReady={gatewayReady}
@@ -995,6 +1544,346 @@ function WechatQrModal({
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+function useModalDialog(onClose: () => void) {
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
+
+  useEffect(() => {
+    const previousActiveElement =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+
+    const getFocusableElements = () => {
+      const dialog = dialogRef.current;
+      if (!dialog) {
+        return [] as HTMLElement[];
+      }
+      return Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => !element.hasAttribute("disabled"));
+    };
+
+    const getFocusBoundary = () => {
+      const focusableElements = getFocusableElements();
+      if (focusableElements.length === 0) {
+        return null;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      if (!firstElement || !lastElement) {
+        return null;
+      }
+
+      return { firstElement, lastElement };
+    };
+
+    const focusableElements = getFocusableElements();
+    const initialFocusTarget = focusableElements[0] ?? dialogRef.current;
+    initialFocusTarget?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const focusBoundary = getFocusBoundary();
+      if (!focusBoundary) {
+        event.preventDefault();
+        dialogRef.current?.focus();
+        return;
+      }
+
+      const { firstElement, lastElement } = focusBoundary;
+      const activeElement =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
+
+      if (event.shiftKey) {
+        if (
+          activeElement === firstElement ||
+          activeElement === dialogRef.current
+        ) {
+          event.preventDefault();
+          lastElement.focus();
+        }
+        return;
+      }
+
+      if (activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      previousActiveElement?.focus();
+    };
+  }, [onClose]);
+
+  return dialogRef;
+}
+
+function TelegramModal({
+  onClose,
+  onConnected,
+}: {
+  onClose: () => void;
+  onConnected: () => void;
+}) {
+  const { t } = useTranslation();
+  const titleId = useId();
+  const dialogRef = useModalDialog(onClose);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: backdrop dismiss is supplementary to Escape key */}
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <dialog
+        open
+        ref={dialogRef}
+        tabIndex={-1}
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="relative w-full max-w-[560px] rounded-2xl border border-border bg-surface-1 shadow-xl overflow-hidden"
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div
+            id={titleId}
+            className="text-[14px] font-semibold text-text-primary"
+          >
+            {t("telegramSetup.title")}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("common.closeDialog")}
+            className="text-text-muted hover:text-text-primary transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="p-5">
+          <TelegramSetupView onConnected={onConnected} />
+        </div>
+      </dialog>
+    </div>
+  );
+}
+
+function WhatsappModal({
+  onClose,
+  onConnected,
+}: {
+  onClose: () => void;
+  onConnected: () => void;
+}) {
+  const { t } = useTranslation();
+  const titleId = useId();
+  const dialogRef = useModalDialog(onClose);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: backdrop dismiss is supplementary to Escape key */}
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <dialog
+        open
+        ref={dialogRef}
+        tabIndex={-1}
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="relative w-full max-w-[560px] rounded-2xl border border-border bg-surface-1 shadow-xl overflow-hidden"
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div
+            id={titleId}
+            className="text-[14px] font-semibold text-text-primary"
+          >
+            {t("whatsappSetup.title")}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("common.closeDialog")}
+            className="text-text-muted hover:text-text-primary transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="p-5">
+          <WhatsappSetupView onConnected={onConnected} />
+        </div>
+      </dialog>
+    </div>
+  );
+}
+
+function QqbotModal({
+  onClose,
+  onConnected,
+}: {
+  onClose: () => void;
+  onConnected: () => void;
+}) {
+  const { t } = useTranslation();
+  const titleId = useId();
+  const dialogRef = useModalDialog(onClose);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: backdrop dismiss is supplementary to Escape key */}
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <dialog
+        open
+        ref={dialogRef}
+        tabIndex={-1}
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="relative w-full max-w-[560px] rounded-2xl border border-border bg-surface-1 shadow-xl overflow-hidden"
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div
+            id={titleId}
+            className="text-[14px] font-semibold text-text-primary"
+          >
+            {t("qqbotSetup.title")}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("common.closeDialog")}
+            className="text-text-muted hover:text-text-primary transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="p-5">
+          <QqbotSetupView onConnected={onConnected} />
+        </div>
+      </dialog>
+    </div>
+  );
+}
+
+function DingtalkModal({
+  onClose,
+  onConnected,
+}: {
+  onClose: () => void;
+  onConnected: () => void;
+}) {
+  const { t } = useTranslation();
+  const titleId = useId();
+  const dialogRef = useModalDialog(onClose);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: backdrop dismiss is supplementary to Escape key */}
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <dialog
+        open
+        ref={dialogRef}
+        tabIndex={-1}
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="relative w-full max-w-[560px] rounded-2xl border border-border bg-surface-1 shadow-xl overflow-hidden"
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div
+            id={titleId}
+            className="text-[14px] font-semibold text-text-primary"
+          >
+            {t("dingtalkSetup.title")}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("common.closeDialog")}
+            className="text-text-muted hover:text-text-primary transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="p-5">
+          <DingtalkSetupView onConnected={onConnected} />
+        </div>
+      </dialog>
+    </div>
+  );
+}
+
+function WecomModal({
+  onClose,
+  onConnected,
+}: {
+  onClose: () => void;
+  onConnected: () => void;
+}) {
+  const { t } = useTranslation();
+  const titleId = useId();
+  const dialogRef = useModalDialog(onClose);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: backdrop dismiss is supplementary to Escape key */}
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <dialog
+        open
+        ref={dialogRef}
+        tabIndex={-1}
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="relative w-full max-w-[560px] rounded-2xl border border-border bg-surface-1 shadow-xl overflow-hidden"
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div
+            id={titleId}
+            className="text-[14px] font-semibold text-text-primary"
+          >
+            {t("wecomSetup.title")}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("common.closeDialog")}
+            className="text-text-muted hover:text-text-primary transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="p-5">
+          <WecomSetupView onConnected={onConnected} />
+        </div>
+      </dialog>
     </div>
   );
 }

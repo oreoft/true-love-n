@@ -2,13 +2,20 @@ import { z } from "zod";
 
 // ── Provider CRUD ────────────────────────────────────────────────
 
+export const providerAuthModeSchema = z.enum(["apiKey", "oauth"]);
+export const minimaxOauthRegionSchema = z.enum(["global", "cn"]);
+
 export const providerResponseSchema = z.object({
   id: z.string(),
   providerId: z.string(),
   displayName: z.string().nullable(),
   enabled: z.boolean(),
   baseUrl: z.string().nullable(),
+  authMode: providerAuthModeSchema.optional(),
   hasApiKey: z.boolean(),
+  hasOauthCredential: z.boolean().optional(),
+  oauthRegion: minimaxOauthRegionSchema.nullable().optional(),
+  oauthEmail: z.string().nullable().optional(),
   modelsJson: z.string().nullable(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
@@ -19,17 +26,23 @@ export const providerListResponseSchema = z.object({
 });
 
 export const upsertProviderBodySchema = z.object({
-  apiKey: z.string().optional(),
+  apiKey: z.string().nullable().optional(),
   baseUrl: z.string().nullable().optional(),
   enabled: z.boolean().optional(),
   displayName: z.string().optional(),
+  authMode: providerAuthModeSchema.optional(),
   modelsJson: z.string().optional(),
 });
 
 export const verifyProviderBodySchema = z.object({
-  apiKey: z.string(),
+  apiKey: z.string().optional(),
   baseUrl: z.string().optional(),
 });
+
+export const validateProviderInstanceBodySchema =
+  verifyProviderBodySchema.extend({
+    instanceKey: z.string().min(1),
+  });
 
 export const refreshModelsResponseSchema = z.object({
   models: z.array(z.string()),
@@ -42,6 +55,47 @@ export const verifyProviderResponseSchema = z.object({
   error: z.string().optional(),
 });
 
+// ── Provider OAuth ──────────────────────────────────────────────
+
+export const oauthStartResponseSchema = z.object({
+  browserUrl: z.string().optional(),
+  error: z.string().optional(),
+});
+
+export const oauthStatusResponseSchema = z.object({
+  status: z.enum(["idle", "pending", "completed", "failed"]),
+  error: z.string().optional(),
+  models: z.array(z.string()).optional(),
+});
+
+export const oauthProviderStatusResponseSchema = z.object({
+  connected: z.boolean(),
+  provider: z.string().optional(),
+  expiresAt: z.number().optional(),
+  remainingMs: z.number().optional(),
+});
+
+export const minimaxOauthStartBodySchema = z.object({
+  region: minimaxOauthRegionSchema,
+});
+
+export const minimaxOauthStatusResponseSchema = z.object({
+  connected: z.boolean(),
+  inProgress: z.boolean(),
+  region: minimaxOauthRegionSchema.nullable().optional(),
+  error: z.string().nullable().optional(),
+});
+
+export const minimaxOauthStartResponseSchema =
+  minimaxOauthStatusResponseSchema.extend({
+    started: z.boolean(),
+    browserUrl: z.string().optional(),
+  });
+
+export const minimaxOauthCancelResponseSchema =
+  minimaxOauthStatusResponseSchema.extend({
+    cancelled: z.boolean(),
+  });
 // ── Desktop Cloud ────────────────────────────────────────────────
 
 export const cloudModelSchema = z.object({
@@ -59,6 +113,7 @@ export const cloudProfileSchema = z.object({
 export const cloudProfileStatusSchema = cloudProfileSchema.extend({
   connected: z.boolean(),
   polling: z.boolean().optional(),
+  userId: z.string().nullable().optional(),
   userName: z.string().nullable().optional(),
   userEmail: z.string().nullable().optional(),
   connectedAt: z.string().nullable().optional(),
@@ -68,6 +123,7 @@ export const cloudProfileStatusSchema = cloudProfileSchema.extend({
 export const cloudStatusResponseSchema = z.object({
   connected: z.boolean(),
   polling: z.boolean().optional(),
+  userId: z.string().nullable().optional(),
   userName: z.string().nullable().optional(),
   userEmail: z.string().nullable().optional(),
   connectedAt: z.string().nullable().optional(),
@@ -112,8 +168,15 @@ export const cloudProfileDeleteBodySchema = z.object({
   name: z.string().min(1),
 });
 
+export const cloudConnectBodySchema = z
+  .object({
+    source: z.string().min(1).optional(),
+  })
+  .optional();
+
 export const cloudProfileConnectBodySchema = z.object({
   name: z.string().min(1),
+  source: z.string().min(1).optional(),
 });
 
 export const cloudProfileDisconnectBodySchema = z.object({

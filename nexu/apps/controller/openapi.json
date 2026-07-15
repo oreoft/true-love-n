@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Nexu Controller API",
+    "title": "nexu Controller API",
     "version": "1.0.0"
   },
   "components": {
@@ -617,6 +617,89 @@
         }
       }
     },
+    "/v1/chat/completions": {
+      "post": {
+        "tags": [
+          "Compat"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "model": {
+                    "type": "string"
+                  },
+                  "messages": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "system",
+                            "user",
+                            "assistant",
+                            "tool"
+                          ]
+                        },
+                        "content": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "nullable": true
+                              }
+                            }
+                          ]
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "tool_call_id": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "content"
+                      ]
+                    }
+                  },
+                  "stream": {
+                    "type": "boolean"
+                  },
+                  "user": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "messages"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenAI-compatible streaming chat completions",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/desktop-authorize": {
       "post": {
         "tags": [
@@ -955,29 +1038,56 @@
                     "ready": {
                       "type": "boolean"
                     },
+                    "coreReady": {
+                      "type": "boolean"
+                    },
+                    "degraded": {
+                      "type": "boolean"
+                    },
+                    "bootPhase": {
+                      "type": "string",
+                      "enum": [
+                        "preparing",
+                        "starting-managed-runtime",
+                        "attaching-external-runtime",
+                        "reconciling-runtime",
+                        "stabilizing-runtime",
+                        "ready"
+                      ]
+                    },
                     "workspacePath": {
                       "type": "string"
                     },
-                    "runtime": {
+                    "controlPlane": {
                       "type": "object",
                       "properties": {
                         "ok": {
                           "type": "boolean"
                         },
-                        "status": {
-                          "type": "number",
-                          "nullable": true
+                        "phase": {
+                          "type": "string",
+                          "enum": [
+                            "disconnected",
+                            "connecting",
+                            "ready",
+                            "degraded"
+                          ]
+                        },
+                        "wsConnected": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
                         "ok",
-                        "status"
+                        "phase",
+                        "wsConnected"
                       ]
                     },
                     "status": {
                       "type": "string",
                       "enum": [
                         "active",
+                        "starting",
                         "degraded",
                         "unhealthy"
                       ]
@@ -985,8 +1095,11 @@
                   },
                   "required": [
                     "ready",
+                    "coreReady",
+                    "degraded",
+                    "bootPhase",
                     "workspacePath",
-                    "runtime",
+                    "controlPlane",
                     "status"
                   ]
                 }
@@ -1148,10 +1261,14 @@
                         "en",
                         "zh-CN"
                       ]
+                    },
+                    "analyticsEnabled": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
-                    "locale"
+                    "locale",
+                    "analyticsEnabled"
                   ]
                 }
               }
@@ -1176,11 +1293,11 @@
                       "en",
                       "zh-CN"
                     ]
+                  },
+                  "analyticsEnabled": {
+                    "type": "boolean"
                   }
-                },
-                "required": [
-                  "locale"
-                ]
+                }
               }
             }
           }
@@ -1200,10 +1317,78 @@
                         "en",
                         "zh-CN"
                       ]
+                    },
+                    "analyticsEnabled": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
-                    "locale"
+                    "locale",
+                    "analyticsEnabled"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/get-session": {
+      "get": {
+        "tags": [
+          "Desktop"
+        ],
+        "responses": {
+          "200": {
+            "description": "Desktop-local auth session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "session": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "expiresAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "expiresAt"
+                      ]
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "image": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "email",
+                        "name",
+                        "image"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "session",
+                    "user"
                   ]
                 }
               }
@@ -1230,6 +1415,10 @@
                     },
                     "polling": {
                       "type": "boolean"
+                    },
+                    "userId": {
+                      "type": "string",
+                      "nullable": true
                     },
                     "userName": {
                       "type": "string",
@@ -1297,6 +1486,10 @@
                           "polling": {
                             "type": "boolean"
                           },
+                          "userId": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "userName": {
                             "type": "string",
                             "nullable": true
@@ -1343,6 +1536,22 @@
         "tags": [
           "Desktop"
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Cloud connect",
@@ -1380,6 +1589,10 @@
                   "name": {
                     "type": "string",
                     "minLength": 1
+                  },
+                  "source": {
+                    "type": "string",
+                    "minLength": 1
                   }
                 },
                 "required": [
@@ -1411,6 +1624,10 @@
                         },
                         "polling": {
                           "type": "boolean"
+                        },
+                        "userId": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "userName": {
                           "type": "string",
@@ -1477,6 +1694,10 @@
                               },
                               "polling": {
                                 "type": "boolean"
+                              },
+                              "userId": {
+                                "type": "string",
+                                "nullable": true
                               },
                               "userName": {
                                 "type": "string",
@@ -1547,6 +1768,10 @@
                     "polling": {
                       "type": "boolean"
                     },
+                    "userId": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "userName": {
                       "type": "string",
                       "nullable": true
@@ -1612,6 +1837,10 @@
                           },
                           "polling": {
                             "type": "boolean"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "nullable": true
                           },
                           "userName": {
                             "type": "string",
@@ -1714,6 +1943,10 @@
                     "polling": {
                       "type": "boolean"
                     },
+                    "userId": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "userName": {
                       "type": "string",
                       "nullable": true
@@ -1779,6 +2012,10 @@
                           },
                           "polling": {
                             "type": "boolean"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "nullable": true
                           },
                           "userName": {
                             "type": "string",
@@ -1890,6 +2127,10 @@
                     "polling": {
                       "type": "boolean"
                     },
+                    "userId": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "userName": {
                       "type": "string",
                       "nullable": true
@@ -1955,6 +2196,10 @@
                           },
                           "polling": {
                             "type": "boolean"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "nullable": true
                           },
                           "userName": {
                             "type": "string",
@@ -2043,6 +2288,10 @@
                     "polling": {
                       "type": "boolean"
                     },
+                    "userId": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "userName": {
                       "type": "string",
                       "nullable": true
@@ -2108,6 +2357,10 @@
                           },
                           "polling": {
                             "type": "boolean"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "nullable": true
                           },
                           "userName": {
                             "type": "string",
@@ -2223,6 +2476,10 @@
                     "polling": {
                       "type": "boolean"
                     },
+                    "userId": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "userName": {
                       "type": "string",
                       "nullable": true
@@ -2288,6 +2545,10 @@
                           },
                           "polling": {
                             "type": "boolean"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "nullable": true
                           },
                           "userName": {
                             "type": "string",
@@ -2376,6 +2637,10 @@
                     "polling": {
                       "type": "boolean"
                     },
+                    "userId": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "userName": {
                       "type": "string",
                       "nullable": true
@@ -2441,6 +2706,10 @@
                           },
                           "polling": {
                             "type": "boolean"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "nullable": true
                           },
                           "userName": {
                             "type": "string",
@@ -2550,6 +2819,10 @@
                     "polling": {
                       "type": "boolean"
                     },
+                    "userId": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "userName": {
                       "type": "string",
                       "nullable": true
@@ -2615,6 +2888,10 @@
                           },
                           "polling": {
                             "type": "boolean"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "nullable": true
                           },
                           "userName": {
                             "type": "string",
@@ -2811,6 +3088,775 @@
         }
       }
     },
+    "/api/internal/desktop/rewards": {
+      "get": {
+        "tags": [
+          "Desktop"
+        ],
+        "responses": {
+          "200": {
+            "description": "Desktop rewards status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "viewer": {
+                      "type": "object",
+                      "properties": {
+                        "cloudConnected": {
+                          "type": "boolean"
+                        },
+                        "activeModelId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "activeModelProviderId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "usingManagedModel": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "cloudConnected",
+                        "activeModelId",
+                        "activeModelProviderId",
+                        "usingManagedModel"
+                      ]
+                    },
+                    "progress": {
+                      "type": "object",
+                      "properties": {
+                        "claimedCount": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "totalCount": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "earnedCredits": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "availableCredits": {
+                          "type": "number",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "claimedCount",
+                        "totalCount",
+                        "earnedCredits"
+                      ]
+                    },
+                    "tasks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "enum": [
+                              "daily_checkin",
+                              "github_star",
+                              "x_share",
+                              "reddit",
+                              "mobile_share",
+                              "lingying",
+                              "facebook",
+                              "whatsapp"
+                            ]
+                          },
+                          "group": {
+                            "type": "string",
+                            "enum": [
+                              "daily",
+                              "opensource",
+                              "social"
+                            ]
+                          },
+                          "icon": {
+                            "type": "string"
+                          },
+                          "reward": {
+                            "type": "number",
+                            "minimum": 0,
+                            "exclusiveMinimum": true
+                          },
+                          "shareMode": {
+                            "type": "string",
+                            "enum": [
+                              "link",
+                              "tweet",
+                              "image"
+                            ]
+                          },
+                          "repeatMode": {
+                            "type": "string",
+                            "enum": [
+                              "once",
+                              "daily",
+                              "weekly"
+                            ]
+                          },
+                          "requiresScreenshot": {
+                            "type": "boolean"
+                          },
+                          "actionUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri",
+                            "default": null
+                          },
+                          "isClaimed": {
+                            "type": "boolean"
+                          },
+                          "lastClaimedAt": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "claimCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "group",
+                          "icon",
+                          "reward",
+                          "shareMode",
+                          "repeatMode",
+                          "requiresScreenshot",
+                          "isClaimed",
+                          "lastClaimedAt",
+                          "claimCount"
+                        ]
+                      }
+                    },
+                    "cloudBalance": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "totalBalance": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "totalRecharged": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "totalConsumed": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "giftedBalance": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "planBalance": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "default": null,
+                      "required": [
+                        "totalBalance",
+                        "totalRecharged",
+                        "totalConsumed"
+                      ]
+                    },
+                    "autoFallbackTriggered": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "viewer",
+                    "progress",
+                    "tasks"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/desktop/rewards/github-star-session": {
+      "post": {
+        "tags": [
+          "Desktop"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Prepare a GitHub star verification session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sessionId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "baselineStars": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "expiresAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "sessionId",
+                    "baselineStars",
+                    "expiresAt"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "GitHub star verification is temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/desktop/rewards/claim": {
+      "post": {
+        "tags": [
+          "Desktop"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "taskId": {
+                    "type": "string",
+                    "enum": [
+                      "daily_checkin",
+                      "github_star",
+                      "x_share",
+                      "reddit",
+                      "mobile_share",
+                      "lingying",
+                      "facebook",
+                      "whatsapp"
+                    ]
+                  },
+                  "proof": {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "format": "uri"
+                      },
+                      "githubSessionId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "taskId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Claim a desktop reward",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "alreadyClaimed": {
+                      "type": "boolean"
+                    },
+                    "status": {
+                      "type": "object",
+                      "properties": {
+                        "viewer": {
+                          "type": "object",
+                          "properties": {
+                            "cloudConnected": {
+                              "type": "boolean"
+                            },
+                            "activeModelId": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "activeModelProviderId": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "usingManagedModel": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "cloudConnected",
+                            "activeModelId",
+                            "activeModelProviderId",
+                            "usingManagedModel"
+                          ]
+                        },
+                        "progress": {
+                          "type": "object",
+                          "properties": {
+                            "claimedCount": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "totalCount": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "earnedCredits": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "availableCredits": {
+                              "type": "number",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "claimedCount",
+                            "totalCount",
+                            "earnedCredits"
+                          ]
+                        },
+                        "tasks": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "enum": [
+                                  "daily_checkin",
+                                  "github_star",
+                                  "x_share",
+                                  "reddit",
+                                  "mobile_share",
+                                  "lingying",
+                                  "facebook",
+                                  "whatsapp"
+                                ]
+                              },
+                              "group": {
+                                "type": "string",
+                                "enum": [
+                                  "daily",
+                                  "opensource",
+                                  "social"
+                                ]
+                              },
+                              "icon": {
+                                "type": "string"
+                              },
+                              "reward": {
+                                "type": "number",
+                                "minimum": 0,
+                                "exclusiveMinimum": true
+                              },
+                              "shareMode": {
+                                "type": "string",
+                                "enum": [
+                                  "link",
+                                  "tweet",
+                                  "image"
+                                ]
+                              },
+                              "repeatMode": {
+                                "type": "string",
+                                "enum": [
+                                  "once",
+                                  "daily",
+                                  "weekly"
+                                ]
+                              },
+                              "requiresScreenshot": {
+                                "type": "boolean"
+                              },
+                              "actionUrl": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "uri",
+                                "default": null
+                              },
+                              "isClaimed": {
+                                "type": "boolean"
+                              },
+                              "lastClaimedAt": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "claimCount": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "group",
+                              "icon",
+                              "reward",
+                              "shareMode",
+                              "repeatMode",
+                              "requiresScreenshot",
+                              "isClaimed",
+                              "lastClaimedAt",
+                              "claimCount"
+                            ]
+                          }
+                        },
+                        "cloudBalance": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "totalBalance": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "totalRecharged": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "totalConsumed": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "giftedBalance": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "planBalance": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "default": null,
+                          "required": [
+                            "totalBalance",
+                            "totalRecharged",
+                            "totalConsumed"
+                          ]
+                        },
+                        "autoFallbackTriggered": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "viewer",
+                        "progress",
+                        "tasks"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "alreadyClaimed",
+                    "status"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid claim proof",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/desktop/rewards/set-balance": {
+      "post": {
+        "tags": [
+          "Desktop"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "balance": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "balance"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Update the desktop test balance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "viewer": {
+                      "type": "object",
+                      "properties": {
+                        "cloudConnected": {
+                          "type": "boolean"
+                        },
+                        "activeModelId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "activeModelProviderId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "usingManagedModel": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "cloudConnected",
+                        "activeModelId",
+                        "activeModelProviderId",
+                        "usingManagedModel"
+                      ]
+                    },
+                    "progress": {
+                      "type": "object",
+                      "properties": {
+                        "claimedCount": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "totalCount": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "earnedCredits": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "availableCredits": {
+                          "type": "number",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "claimedCount",
+                        "totalCount",
+                        "earnedCredits"
+                      ]
+                    },
+                    "tasks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "enum": [
+                              "daily_checkin",
+                              "github_star",
+                              "x_share",
+                              "reddit",
+                              "mobile_share",
+                              "lingying",
+                              "facebook",
+                              "whatsapp"
+                            ]
+                          },
+                          "group": {
+                            "type": "string",
+                            "enum": [
+                              "daily",
+                              "opensource",
+                              "social"
+                            ]
+                          },
+                          "icon": {
+                            "type": "string"
+                          },
+                          "reward": {
+                            "type": "number",
+                            "minimum": 0,
+                            "exclusiveMinimum": true
+                          },
+                          "shareMode": {
+                            "type": "string",
+                            "enum": [
+                              "link",
+                              "tweet",
+                              "image"
+                            ]
+                          },
+                          "repeatMode": {
+                            "type": "string",
+                            "enum": [
+                              "once",
+                              "daily",
+                              "weekly"
+                            ]
+                          },
+                          "requiresScreenshot": {
+                            "type": "boolean"
+                          },
+                          "actionUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri",
+                            "default": null
+                          },
+                          "isClaimed": {
+                            "type": "boolean"
+                          },
+                          "lastClaimedAt": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "claimCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "group",
+                          "icon",
+                          "reward",
+                          "shareMode",
+                          "repeatMode",
+                          "requiresScreenshot",
+                          "isClaimed",
+                          "lastClaimedAt",
+                          "claimCount"
+                        ]
+                      }
+                    },
+                    "cloudBalance": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "totalBalance": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "totalRecharged": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "totalConsumed": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "giftedBalance": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "planBalance": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "default": null,
+                      "required": [
+                        "totalBalance",
+                        "totalRecharged",
+                        "totalConsumed"
+                      ]
+                    },
+                    "autoFallbackTriggered": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "viewer",
+                    "progress",
+                    "tasks"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unable to update the desktop test balance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/channels": {
       "get": {
         "tags": [
@@ -2841,7 +3887,12 @@
                               "slack",
                               "discord",
                               "feishu",
-                              "wechat"
+                              "dingtalk",
+                              "wecom",
+                              "wechat",
+                              "telegram",
+                              "whatsapp",
+                              "qqbot"
                             ]
                           },
                           "accountId": {
@@ -3023,7 +4074,12 @@
                         "slack",
                         "discord",
                         "feishu",
-                        "wechat"
+                        "dingtalk",
+                        "wecom",
+                        "wechat",
+                        "telegram",
+                        "whatsapp",
+                        "qqbot"
                       ]
                     },
                     "accountId": {
@@ -3146,7 +4202,12 @@
                         "slack",
                         "discord",
                         "feishu",
-                        "wechat"
+                        "dingtalk",
+                        "wecom",
+                        "wechat",
+                        "telegram",
+                        "whatsapp",
+                        "qqbot"
                       ]
                     },
                     "accountId": {
@@ -3194,7 +4255,7 @@
               }
             }
           },
-          "409": {
+          "422": {
             "description": "Invalid credentials",
             "content": {
               "application/json": {
@@ -3203,10 +4264,192 @@
                   "properties": {
                     "message": {
                       "type": "string"
+                    },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "already_connected",
+                        "app_id_mismatch",
+                        "invalid_credentials",
+                        "network_error",
+                        "proxy_error",
+                        "sync_failed",
+                        "timeout",
+                        "upstream_http_error"
+                      ]
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "retryable": {
+                      "type": "boolean"
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "verify_credentials",
+                        "verify_app",
+                        "persist_config",
+                        "sync_runtime"
+                      ]
                     }
                   },
                   "required": [
-                    "message"
+                    "message",
+                    "code",
+                    "requestId",
+                    "retryable",
+                    "phase"
+                  ]
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream network or proxy failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "already_connected",
+                        "app_id_mismatch",
+                        "invalid_credentials",
+                        "network_error",
+                        "proxy_error",
+                        "sync_failed",
+                        "timeout",
+                        "upstream_http_error"
+                      ]
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "retryable": {
+                      "type": "boolean"
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "verify_credentials",
+                        "verify_app",
+                        "persist_config",
+                        "sync_runtime"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "code",
+                    "requestId",
+                    "retryable",
+                    "phase"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Local runtime sync failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "already_connected",
+                        "app_id_mismatch",
+                        "invalid_credentials",
+                        "network_error",
+                        "proxy_error",
+                        "sync_failed",
+                        "timeout",
+                        "upstream_http_error"
+                      ]
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "retryable": {
+                      "type": "boolean"
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "verify_credentials",
+                        "verify_app",
+                        "persist_config",
+                        "sync_runtime"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "code",
+                    "requestId",
+                    "retryable",
+                    "phase"
+                  ]
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Upstream timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "already_connected",
+                        "app_id_mismatch",
+                        "invalid_credentials",
+                        "network_error",
+                        "proxy_error",
+                        "sync_failed",
+                        "timeout",
+                        "upstream_http_error"
+                      ]
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "retryable": {
+                      "type": "boolean"
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "verify_credentials",
+                        "verify_app",
+                        "persist_config",
+                        "sync_runtime"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "code",
+                    "requestId",
+                    "retryable",
+                    "phase"
                   ]
                 }
               }
@@ -3273,7 +4516,12 @@
                         "slack",
                         "discord",
                         "feishu",
-                        "wechat"
+                        "dingtalk",
+                        "wecom",
+                        "wechat",
+                        "telegram",
+                        "whatsapp",
+                        "qqbot"
                       ]
                     },
                     "accountId": {
@@ -3342,6 +4590,1070 @@
         }
       }
     },
+    "/api/v1/channels/telegram/connect": {
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "botToken": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "botToken"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Connected telegram channel",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "botId": {
+                      "type": "string"
+                    },
+                    "channelType": {
+                      "type": "string",
+                      "enum": [
+                        "slack",
+                        "discord",
+                        "feishu",
+                        "dingtalk",
+                        "wecom",
+                        "wechat",
+                        "telegram",
+                        "whatsapp",
+                        "qqbot"
+                      ]
+                    },
+                    "accountId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "connected",
+                        "disconnected",
+                        "error"
+                      ]
+                    },
+                    "teamName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "appId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "botUserId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "botId",
+                    "channelType",
+                    "accountId",
+                    "status",
+                    "teamName",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "already_connected",
+                        "app_id_mismatch",
+                        "invalid_credentials",
+                        "network_error",
+                        "proxy_error",
+                        "sync_failed",
+                        "timeout",
+                        "upstream_http_error"
+                      ]
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "retryable": {
+                      "type": "boolean"
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "verify_credentials",
+                        "verify_app",
+                        "persist_config",
+                        "sync_runtime"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "code",
+                    "requestId",
+                    "retryable",
+                    "phase"
+                  ]
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream network or proxy failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "already_connected",
+                        "app_id_mismatch",
+                        "invalid_credentials",
+                        "network_error",
+                        "proxy_error",
+                        "sync_failed",
+                        "timeout",
+                        "upstream_http_error"
+                      ]
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "retryable": {
+                      "type": "boolean"
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "verify_credentials",
+                        "verify_app",
+                        "persist_config",
+                        "sync_runtime"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "code",
+                    "requestId",
+                    "retryable",
+                    "phase"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Local runtime sync failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "already_connected",
+                        "app_id_mismatch",
+                        "invalid_credentials",
+                        "network_error",
+                        "proxy_error",
+                        "sync_failed",
+                        "timeout",
+                        "upstream_http_error"
+                      ]
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "retryable": {
+                      "type": "boolean"
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "verify_credentials",
+                        "verify_app",
+                        "persist_config",
+                        "sync_runtime"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "code",
+                    "requestId",
+                    "retryable",
+                    "phase"
+                  ]
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Upstream timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "already_connected",
+                        "app_id_mismatch",
+                        "invalid_credentials",
+                        "network_error",
+                        "proxy_error",
+                        "sync_failed",
+                        "timeout",
+                        "upstream_http_error"
+                      ]
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "retryable": {
+                      "type": "boolean"
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "verify_credentials",
+                        "verify_app",
+                        "persist_config",
+                        "sync_runtime"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "code",
+                    "requestId",
+                    "retryable",
+                    "phase"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/channels/dingtalk/connect": {
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "clientSecret": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "clientId",
+                  "clientSecret"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Connected dingtalk channel",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "botId": {
+                      "type": "string"
+                    },
+                    "channelType": {
+                      "type": "string",
+                      "enum": [
+                        "slack",
+                        "discord",
+                        "feishu",
+                        "dingtalk",
+                        "wecom",
+                        "wechat",
+                        "telegram",
+                        "whatsapp",
+                        "qqbot"
+                      ]
+                    },
+                    "accountId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "connected",
+                        "disconnected",
+                        "error"
+                      ]
+                    },
+                    "teamName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "appId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "botUserId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "botId",
+                    "channelType",
+                    "accountId",
+                    "status",
+                    "teamName",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "already_connected",
+                        "app_id_mismatch",
+                        "invalid_credentials",
+                        "network_error",
+                        "proxy_error",
+                        "sync_failed",
+                        "timeout",
+                        "upstream_http_error"
+                      ]
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "retryable": {
+                      "type": "boolean"
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "verify_credentials",
+                        "verify_app",
+                        "persist_config",
+                        "sync_runtime"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "code",
+                    "requestId",
+                    "retryable",
+                    "phase"
+                  ]
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream request failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "already_connected",
+                        "app_id_mismatch",
+                        "invalid_credentials",
+                        "network_error",
+                        "proxy_error",
+                        "sync_failed",
+                        "timeout",
+                        "upstream_http_error"
+                      ]
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "retryable": {
+                      "type": "boolean"
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "verify_credentials",
+                        "verify_app",
+                        "persist_config",
+                        "sync_runtime"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "code",
+                    "requestId",
+                    "retryable",
+                    "phase"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Local persistence or runtime sync failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "already_connected",
+                        "app_id_mismatch",
+                        "invalid_credentials",
+                        "network_error",
+                        "proxy_error",
+                        "sync_failed",
+                        "timeout",
+                        "upstream_http_error"
+                      ]
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "retryable": {
+                      "type": "boolean"
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "verify_credentials",
+                        "verify_app",
+                        "persist_config",
+                        "sync_runtime"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "code",
+                    "requestId",
+                    "retryable",
+                    "phase"
+                  ]
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Upstream timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "already_connected",
+                        "app_id_mismatch",
+                        "invalid_credentials",
+                        "network_error",
+                        "proxy_error",
+                        "sync_failed",
+                        "timeout",
+                        "upstream_http_error"
+                      ]
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "retryable": {
+                      "type": "boolean"
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "verify_credentials",
+                        "verify_app",
+                        "persist_config",
+                        "sync_runtime"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "code",
+                    "requestId",
+                    "retryable",
+                    "phase"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/channels/dingtalk/test": {
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "clientSecret": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "clientId",
+                  "clientSecret"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "DingTalk connectivity test result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/channels/qqbot/connect": {
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "appSecret": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "appId",
+                  "appSecret"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Connected qqbot channel",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "botId": {
+                      "type": "string"
+                    },
+                    "channelType": {
+                      "type": "string",
+                      "enum": [
+                        "slack",
+                        "discord",
+                        "feishu",
+                        "dingtalk",
+                        "wecom",
+                        "wechat",
+                        "telegram",
+                        "whatsapp",
+                        "qqbot"
+                      ]
+                    },
+                    "accountId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "connected",
+                        "disconnected",
+                        "error"
+                      ]
+                    },
+                    "teamName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "appId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "botUserId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "botId",
+                    "channelType",
+                    "accountId",
+                    "status",
+                    "teamName",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/channels/qqbot/test": {
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "appSecret": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "appId",
+                  "appSecret"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "QQ connectivity test result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/channels/wecom/connect": {
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "botId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "secret": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "botId",
+                  "secret"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Connected wecom channel",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "botId": {
+                      "type": "string"
+                    },
+                    "channelType": {
+                      "type": "string",
+                      "enum": [
+                        "slack",
+                        "discord",
+                        "feishu",
+                        "dingtalk",
+                        "wecom",
+                        "wechat",
+                        "telegram",
+                        "whatsapp",
+                        "qqbot"
+                      ]
+                    },
+                    "accountId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "connected",
+                        "disconnected",
+                        "error"
+                      ]
+                    },
+                    "teamName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "appId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "botUserId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "botId",
+                    "channelType",
+                    "accountId",
+                    "status",
+                    "teamName",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/channels/wecom/test": {
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "botId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "secret": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "botId",
+                  "secret"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "WeCom connectivity test result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/channels/{channelId}/status": {
       "get": {
         "tags": [
@@ -3377,7 +5689,12 @@
                         "slack",
                         "discord",
                         "feishu",
-                        "wechat"
+                        "dingtalk",
+                        "wecom",
+                        "wechat",
+                        "telegram",
+                        "whatsapp",
+                        "qqbot"
                       ]
                     },
                     "accountId": {
@@ -3464,6 +5781,15 @@
                     },
                     "resetsAt": {
                       "type": "string"
+                    },
+                    "usingByok": {
+                      "type": "boolean"
+                    },
+                    "byokAvailable": {
+                      "type": "boolean"
+                    },
+                    "autoFallbackTriggered": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -3506,6 +5832,252 @@
                   },
                   "required": [
                     "success"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/channels/whatsapp/qr-start": {
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "responses": {
+          "200": {
+            "description": "QR code data for WhatsApp login",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "qrDataUrl": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "accountId": {
+                      "type": "string"
+                    },
+                    "alreadyLinked": {
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "accountId"
+                  ]
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "WhatsApp login unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/channels/whatsapp/qr-wait": {
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "accountId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "accountId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "WhatsApp QR login result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "connected": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "accountId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "connected",
+                    "message",
+                    "accountId"
+                  ]
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "WhatsApp login unavailable or timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/channels/whatsapp/connect": {
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "accountId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "accountId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Connected whatsapp channel",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "botId": {
+                      "type": "string"
+                    },
+                    "channelType": {
+                      "type": "string",
+                      "enum": [
+                        "slack",
+                        "discord",
+                        "feishu",
+                        "dingtalk",
+                        "wecom",
+                        "wechat",
+                        "telegram",
+                        "whatsapp",
+                        "qqbot"
+                      ]
+                    },
+                    "accountId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "connected",
+                        "disconnected",
+                        "error"
+                      ]
+                    },
+                    "teamName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "appId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "botUserId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "botId",
+                    "channelType",
+                    "accountId",
+                    "status",
+                    "teamName",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Connection failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
                   ]
                 }
               }
@@ -3571,6 +6143,7 @@
           "Channels"
         ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -3641,6 +6214,7 @@
           "Channels"
         ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -3678,7 +6252,12 @@
                         "slack",
                         "discord",
                         "feishu",
-                        "wechat"
+                        "dingtalk",
+                        "wecom",
+                        "wechat",
+                        "telegram",
+                        "whatsapp",
+                        "qqbot"
                       ]
                     },
                     "accountId": {
@@ -4752,69 +7331,153 @@
         }
       }
     },
-    "/api/v1/providers": {
+    "/api/v1/model-providers/registry": {
       "get": {
         "tags": [
-          "Providers"
+          "Model Providers"
         ],
         "responses": {
           "200": {
-            "description": "Provider list",
+            "description": "Model provider registry",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "providers": {
+                    "registry": {
                       "type": "array",
                       "items": {
                         "type": "object",
                         "properties": {
                           "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "canonicalOpenClawId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "aliases": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "authModes": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "api-key",
+                                "aws-sdk",
+                                "oauth",
+                                "token"
+                              ]
+                            }
+                          },
+                          "apiKind": {
+                            "type": "string",
+                            "enum": [
+                              "openai-completions",
+                              "openai-responses",
+                              "openai-codex-responses",
+                              "anthropic-messages",
+                              "google-generative-ai",
+                              "github-copilot",
+                              "bedrock-converse-stream",
+                              "ollama"
+                            ]
+                          },
+                          "defaultBaseUrls": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "controllerConfigurable": {
+                            "type": "boolean"
+                          },
+                          "modelsPageVisible": {
+                            "type": "boolean"
+                          },
+                          "region": {
+                            "type": "string",
+                            "enum": [
+                              "global",
+                              "china",
+                              "local"
+                            ]
+                          },
+                          "signupUrl": {
                             "type": "string"
                           },
-                          "providerId": {
-                            "type": "string"
+                          "supportsCustomBaseUrl": {
+                            "type": "boolean"
+                          },
+                          "supportsModelDiscovery": {
+                            "type": "boolean"
+                          },
+                          "supportsProxyMode": {
+                            "type": "boolean"
+                          },
+                          "managedByAuthProfiles": {
+                            "type": "boolean"
+                          },
+                          "requiresOauthRegion": {
+                            "type": "boolean"
+                          },
+                          "authHeader": {
+                            "type": "boolean"
+                          },
+                          "defaultHeaders": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "string"
+                            }
+                          },
+                          "experimental": {
+                            "type": "boolean"
+                          },
+                          "hidden": {
+                            "type": "boolean"
                           },
                           "displayName": {
                             "type": "string",
-                            "nullable": true
+                            "minLength": 1
                           },
-                          "enabled": {
-                            "type": "boolean"
-                          },
-                          "baseUrl": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "hasApiKey": {
-                            "type": "boolean"
-                          },
-                          "modelsJson": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "createdAt": {
+                          "displayNameKey": {
                             "type": "string"
                           },
-                          "updatedAt": {
+                          "descriptionKey": {
+                            "type": "string"
+                          },
+                          "apiDocsUrl": {
+                            "type": "string"
+                          },
+                          "apiKeyPlaceholder": {
+                            "type": "string"
+                          },
+                          "defaultProxyUrl": {
+                            "type": "string"
+                          },
+                          "logo": {
                             "type": "string"
                           }
                         },
                         "required": [
                           "id",
-                          "providerId",
-                          "displayName",
-                          "enabled",
-                          "baseUrl",
-                          "hasApiKey",
-                          "modelsJson"
+                          "canonicalOpenClawId",
+                          "aliases",
+                          "authModes",
+                          "apiKind",
+                          "defaultBaseUrls",
+                          "displayName"
                         ]
                       }
                     }
                   },
                   "required": [
-                    "providers"
+                    "registry"
                   ]
                 }
               }
@@ -4823,10 +7486,965 @@
         }
       }
     },
-    "/api/v1/providers/{providerId}": {
+    "/api/v1/model-providers/config": {
+      "get": {
+        "tags": [
+          "Model Providers"
+        ],
+        "responses": {
+          "200": {
+            "description": "Model provider config document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "config": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "merge",
+                            "replace"
+                          ],
+                          "default": "merge"
+                        },
+                        "providers": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                              "providerTemplateId": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "instanceId": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "enabled": {
+                                "type": "boolean",
+                                "default": true
+                              },
+                              "auth": {
+                                "type": "string",
+                                "enum": [
+                                  "api-key",
+                                  "aws-sdk",
+                                  "oauth",
+                                  "token"
+                                ]
+                              },
+                              "api": {
+                                "type": "string",
+                                "enum": [
+                                  "openai-completions",
+                                  "openai-responses",
+                                  "openai-codex-responses",
+                                  "anthropic-messages",
+                                  "google-generative-ai",
+                                  "github-copilot",
+                                  "bedrock-converse-stream",
+                                  "ollama"
+                                ]
+                              },
+                              "apiKey": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "source": {
+                                        "type": "string",
+                                        "enum": [
+                                          "env",
+                                          "file",
+                                          "exec"
+                                        ]
+                                      },
+                                      "provider": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "id": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      }
+                                    },
+                                    "required": [
+                                      "source",
+                                      "provider",
+                                      "id"
+                                    ]
+                                  }
+                                ]
+                              },
+                              "baseUrl": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "oauthRegion": {
+                                "type": "string",
+                                "nullable": true,
+                                "enum": [
+                                  "global",
+                                  "cn"
+                                ]
+                              },
+                              "oauthProfileRef": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "displayName": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "headers": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "enum": [
+                                            "env",
+                                            "file",
+                                            "exec"
+                                          ]
+                                        },
+                                        "provider": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "id": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "provider",
+                                        "id"
+                                      ]
+                                    }
+                                  ]
+                                }
+                              },
+                              "models": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "api": {
+                                      "type": "string",
+                                      "enum": [
+                                        "openai-completions",
+                                        "openai-responses",
+                                        "openai-codex-responses",
+                                        "anthropic-messages",
+                                        "google-generative-ai",
+                                        "github-copilot",
+                                        "bedrock-converse-stream",
+                                        "ollama"
+                                      ]
+                                    },
+                                    "reasoning": {
+                                      "type": "boolean",
+                                      "default": false
+                                    },
+                                    "input": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "enum": [
+                                          "text",
+                                          "image"
+                                        ]
+                                      },
+                                      "default": [
+                                        "text"
+                                      ]
+                                    },
+                                    "cost": {
+                                      "type": "object",
+                                      "properties": {
+                                        "input": {
+                                          "type": "number"
+                                        },
+                                        "output": {
+                                          "type": "number"
+                                        },
+                                        "cacheRead": {
+                                          "type": "number"
+                                        },
+                                        "cacheWrite": {
+                                          "type": "number"
+                                        }
+                                      },
+                                      "default": {
+                                        "input": 0,
+                                        "output": 0,
+                                        "cacheRead": 0,
+                                        "cacheWrite": 0
+                                      },
+                                      "required": [
+                                        "input",
+                                        "output",
+                                        "cacheRead",
+                                        "cacheWrite"
+                                      ]
+                                    },
+                                    "contextWindow": {
+                                      "type": "number",
+                                      "default": 0
+                                    },
+                                    "maxTokens": {
+                                      "type": "number",
+                                      "default": 0
+                                    },
+                                    "headers": {
+                                      "type": "object",
+                                      "additionalProperties": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "compat": {
+                                      "type": "object",
+                                      "additionalProperties": {
+                                        "nullable": true
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name"
+                                  ]
+                                },
+                                "default": []
+                              },
+                              "metadata": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "nullable": true
+                                }
+                              }
+                            },
+                            "required": [
+                              "baseUrl"
+                            ]
+                          },
+                          "default": {}
+                        },
+                        "bedrockDiscovery": {
+                          "type": "object",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            },
+                            "region": {
+                              "type": "string"
+                            },
+                            "providerFilter": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "refreshInterval": {
+                              "type": "number"
+                            },
+                            "defaultContextWindow": {
+                              "type": "number"
+                            },
+                            "defaultMaxTokens": {
+                              "type": "number"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "config"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
       "put": {
         "tags": [
-          "Providers"
+          "Model Providers"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "merge",
+                      "replace"
+                    ],
+                    "default": "merge"
+                  },
+                  "providers": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "object",
+                      "properties": {
+                        "providerTemplateId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "instanceId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "enabled": {
+                          "type": "boolean",
+                          "default": true
+                        },
+                        "auth": {
+                          "type": "string",
+                          "enum": [
+                            "api-key",
+                            "aws-sdk",
+                            "oauth",
+                            "token"
+                          ]
+                        },
+                        "api": {
+                          "type": "string",
+                          "enum": [
+                            "openai-completions",
+                            "openai-responses",
+                            "openai-codex-responses",
+                            "anthropic-messages",
+                            "google-generative-ai",
+                            "github-copilot",
+                            "bedrock-converse-stream",
+                            "ollama"
+                          ]
+                        },
+                        "apiKey": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "source": {
+                                  "type": "string",
+                                  "enum": [
+                                    "env",
+                                    "file",
+                                    "exec"
+                                  ]
+                                },
+                                "provider": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": [
+                                "source",
+                                "provider",
+                                "id"
+                              ]
+                            }
+                          ]
+                        },
+                        "baseUrl": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "oauthRegion": {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            "global",
+                            "cn"
+                          ]
+                        },
+                        "oauthProfileRef": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "displayName": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "headers": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "source": {
+                                    "type": "string",
+                                    "enum": [
+                                      "env",
+                                      "file",
+                                      "exec"
+                                    ]
+                                  },
+                                  "provider": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "required": [
+                                  "source",
+                                  "provider",
+                                  "id"
+                                ]
+                              }
+                            ]
+                          }
+                        },
+                        "models": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "name": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "api": {
+                                "type": "string",
+                                "enum": [
+                                  "openai-completions",
+                                  "openai-responses",
+                                  "openai-codex-responses",
+                                  "anthropic-messages",
+                                  "google-generative-ai",
+                                  "github-copilot",
+                                  "bedrock-converse-stream",
+                                  "ollama"
+                                ]
+                              },
+                              "reasoning": {
+                                "type": "boolean",
+                                "default": false
+                              },
+                              "input": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "text",
+                                    "image"
+                                  ]
+                                },
+                                "default": [
+                                  "text"
+                                ]
+                              },
+                              "cost": {
+                                "type": "object",
+                                "properties": {
+                                  "input": {
+                                    "type": "number"
+                                  },
+                                  "output": {
+                                    "type": "number"
+                                  },
+                                  "cacheRead": {
+                                    "type": "number"
+                                  },
+                                  "cacheWrite": {
+                                    "type": "number"
+                                  }
+                                },
+                                "default": {
+                                  "input": 0,
+                                  "output": 0,
+                                  "cacheRead": 0,
+                                  "cacheWrite": 0
+                                },
+                                "required": [
+                                  "input",
+                                  "output",
+                                  "cacheRead",
+                                  "cacheWrite"
+                                ]
+                              },
+                              "contextWindow": {
+                                "type": "number",
+                                "default": 0
+                              },
+                              "maxTokens": {
+                                "type": "number",
+                                "default": 0
+                              },
+                              "headers": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "string"
+                                }
+                              },
+                              "compat": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "nullable": true
+                                }
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ]
+                          },
+                          "default": []
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "nullable": true
+                          }
+                        }
+                      },
+                      "required": [
+                        "baseUrl"
+                      ]
+                    },
+                    "default": {}
+                  },
+                  "bedrockDiscovery": {
+                    "type": "object",
+                    "properties": {
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "region": {
+                        "type": "string"
+                      },
+                      "providerFilter": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "refreshInterval": {
+                        "type": "number"
+                      },
+                      "defaultContextWindow": {
+                        "type": "number"
+                      },
+                      "defaultMaxTokens": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated model provider config document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "config": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "merge",
+                            "replace"
+                          ],
+                          "default": "merge"
+                        },
+                        "providers": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                              "providerTemplateId": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "instanceId": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "enabled": {
+                                "type": "boolean",
+                                "default": true
+                              },
+                              "auth": {
+                                "type": "string",
+                                "enum": [
+                                  "api-key",
+                                  "aws-sdk",
+                                  "oauth",
+                                  "token"
+                                ]
+                              },
+                              "api": {
+                                "type": "string",
+                                "enum": [
+                                  "openai-completions",
+                                  "openai-responses",
+                                  "openai-codex-responses",
+                                  "anthropic-messages",
+                                  "google-generative-ai",
+                                  "github-copilot",
+                                  "bedrock-converse-stream",
+                                  "ollama"
+                                ]
+                              },
+                              "apiKey": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "source": {
+                                        "type": "string",
+                                        "enum": [
+                                          "env",
+                                          "file",
+                                          "exec"
+                                        ]
+                                      },
+                                      "provider": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "id": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      }
+                                    },
+                                    "required": [
+                                      "source",
+                                      "provider",
+                                      "id"
+                                    ]
+                                  }
+                                ]
+                              },
+                              "baseUrl": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "oauthRegion": {
+                                "type": "string",
+                                "nullable": true,
+                                "enum": [
+                                  "global",
+                                  "cn"
+                                ]
+                              },
+                              "oauthProfileRef": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "displayName": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "headers": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "enum": [
+                                            "env",
+                                            "file",
+                                            "exec"
+                                          ]
+                                        },
+                                        "provider": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "id": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "provider",
+                                        "id"
+                                      ]
+                                    }
+                                  ]
+                                }
+                              },
+                              "models": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "api": {
+                                      "type": "string",
+                                      "enum": [
+                                        "openai-completions",
+                                        "openai-responses",
+                                        "openai-codex-responses",
+                                        "anthropic-messages",
+                                        "google-generative-ai",
+                                        "github-copilot",
+                                        "bedrock-converse-stream",
+                                        "ollama"
+                                      ]
+                                    },
+                                    "reasoning": {
+                                      "type": "boolean",
+                                      "default": false
+                                    },
+                                    "input": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "enum": [
+                                          "text",
+                                          "image"
+                                        ]
+                                      },
+                                      "default": [
+                                        "text"
+                                      ]
+                                    },
+                                    "cost": {
+                                      "type": "object",
+                                      "properties": {
+                                        "input": {
+                                          "type": "number"
+                                        },
+                                        "output": {
+                                          "type": "number"
+                                        },
+                                        "cacheRead": {
+                                          "type": "number"
+                                        },
+                                        "cacheWrite": {
+                                          "type": "number"
+                                        }
+                                      },
+                                      "default": {
+                                        "input": 0,
+                                        "output": 0,
+                                        "cacheRead": 0,
+                                        "cacheWrite": 0
+                                      },
+                                      "required": [
+                                        "input",
+                                        "output",
+                                        "cacheRead",
+                                        "cacheWrite"
+                                      ]
+                                    },
+                                    "contextWindow": {
+                                      "type": "number",
+                                      "default": 0
+                                    },
+                                    "maxTokens": {
+                                      "type": "number",
+                                      "default": 0
+                                    },
+                                    "headers": {
+                                      "type": "object",
+                                      "additionalProperties": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "compat": {
+                                      "type": "object",
+                                      "additionalProperties": {
+                                        "nullable": true
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name"
+                                  ]
+                                },
+                                "default": []
+                              },
+                              "metadata": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "nullable": true
+                                }
+                              }
+                            },
+                            "required": [
+                              "baseUrl"
+                            ]
+                          },
+                          "default": {}
+                        },
+                        "bedrockDiscovery": {
+                          "type": "object",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            },
+                            "region": {
+                              "type": "string"
+                            },
+                            "providerFilter": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "refreshInterval": {
+                              "type": "number"
+                            },
+                            "defaultContextWindow": {
+                              "type": "number"
+                            },
+                            "defaultMaxTokens": {
+                              "type": "number"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "config"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/model-providers/instances/validate": {
+      "post": {
+        "tags": [
+          "Model Providers"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "apiKey": {
+                    "type": "string"
+                  },
+                  "baseUrl": {
+                    "type": "string"
+                  },
+                  "instanceKey": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "instanceKey"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validate model provider instance credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "valid": {
+                      "type": "boolean"
+                    },
+                    "models": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "valid"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/model-providers/{providerId}/validate": {
+      "post": {
+        "tags": [
+          "Model Providers"
         ],
         "parameters": [
           {
@@ -4848,16 +8466,6 @@
                     "type": "string"
                   },
                   "baseUrl": {
-                    "type": "string",
-                    "nullable": true
-                  },
-                  "enabled": {
-                    "type": "boolean"
-                  },
-                  "displayName": {
-                    "type": "string"
-                  },
-                  "modelsJson": {
                     "type": "string"
                   }
                 }
@@ -4867,118 +8475,141 @@
         },
         "responses": {
           "200": {
-            "description": "Updated provider",
+            "description": "Validate model provider credentials",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "provider": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "providerId": {
-                          "type": "string"
-                        },
-                        "displayName": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "enabled": {
-                          "type": "boolean"
-                        },
-                        "baseUrl": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "hasApiKey": {
-                          "type": "boolean"
-                        },
-                        "modelsJson": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "createdAt": {
-                          "type": "string"
-                        },
-                        "updatedAt": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "providerId",
-                        "displayName",
-                        "enabled",
-                        "baseUrl",
-                        "hasApiKey",
-                        "modelsJson"
-                      ]
+                    "valid": {
+                      "type": "boolean"
+                    },
+                    "models": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "error": {
+                      "type": "string"
                     }
                   },
                   "required": [
-                    "provider"
+                    "valid"
                   ]
                 }
               }
             }
-          },
-          "201": {
-            "description": "Created provider",
+          }
+        }
+      }
+    },
+    "/api/v1/model-providers/minimax/oauth/status": {
+      "get": {
+        "tags": [
+          "Model Providers"
+        ],
+        "responses": {
+          "200": {
+            "description": "MiniMax OAuth status",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "provider": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "providerId": {
-                          "type": "string"
-                        },
-                        "displayName": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "enabled": {
-                          "type": "boolean"
-                        },
-                        "baseUrl": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "hasApiKey": {
-                          "type": "boolean"
-                        },
-                        "modelsJson": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "createdAt": {
-                          "type": "string"
-                        },
-                        "updatedAt": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "providerId",
-                        "displayName",
-                        "enabled",
-                        "baseUrl",
-                        "hasApiKey",
-                        "modelsJson"
+                    "connected": {
+                      "type": "boolean"
+                    },
+                    "inProgress": {
+                      "type": "boolean"
+                    },
+                    "region": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        "global",
+                        "cn"
                       ]
+                    },
+                    "error": {
+                      "type": "string",
+                      "nullable": true
                     }
                   },
                   "required": [
-                    "provider"
+                    "connected",
+                    "inProgress"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/model-providers/minimax/oauth/login": {
+      "post": {
+        "tags": [
+          "Model Providers"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "region": {
+                    "type": "string",
+                    "enum": [
+                      "global",
+                      "cn"
+                    ]
+                  }
+                },
+                "required": [
+                  "region"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Start MiniMax OAuth login",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "connected": {
+                      "type": "boolean"
+                    },
+                    "inProgress": {
+                      "type": "boolean"
+                    },
+                    "region": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        "global",
+                        "cn"
+                      ]
+                    },
+                    "error": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "started": {
+                      "type": "boolean"
+                    },
+                    "browserUrl": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "connected",
+                    "inProgress",
+                    "started"
                   ]
                 }
               }
@@ -4988,32 +8619,42 @@
       },
       "delete": {
         "tags": [
-          "Providers"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": true,
-            "name": "providerId",
-            "in": "path"
-          }
+          "Model Providers"
         ],
         "responses": {
           "200": {
-            "description": "Deleted provider",
+            "description": "Cancel MiniMax OAuth login",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "ok": {
+                    "connected": {
+                      "type": "boolean"
+                    },
+                    "inProgress": {
+                      "type": "boolean"
+                    },
+                    "region": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        "global",
+                        "cn"
+                      ]
+                    },
+                    "error": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "cancelled": {
                       "type": "boolean"
                     }
                   },
                   "required": [
-                    "ok"
+                    "connected",
+                    "inProgress",
+                    "cancelled"
                   ]
                 }
               }
@@ -5030,7 +8671,38 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "anthropic",
+                "openai",
+                "google",
+                "ollama",
+                "siliconflow",
+                "ppio",
+                "nvidia",
+                "stepfun",
+                "amazon-bedrock",
+                "deepseek",
+                "openrouter",
+                "mistral",
+                "xai",
+                "together",
+                "huggingface",
+                "qwen",
+                "volcengine",
+                "qianfan",
+                "vllm",
+                "byteplus",
+                "venice",
+                "github-copilot",
+                "xiaomi",
+                "chutes",
+                "minimax",
+                "kimi",
+                "glm",
+                "moonshot",
+                "zai"
+              ]
             },
             "required": true,
             "name": "providerId",
@@ -5049,10 +8721,7 @@
                   "baseUrl": {
                     "type": "string"
                   }
-                },
-                "required": [
-                  "apiKey"
-                ]
+                }
               }
             }
           }
@@ -5080,6 +8749,256 @@
                   },
                   "required": [
                     "valid"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quota/fallback-to-byok": {
+      "post": {
+        "tags": [
+          "Quota"
+        ],
+        "responses": {
+          "200": {
+            "description": "Trigger automatic fallback to BYOK provider",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "newModelId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quota/restore-managed": {
+      "post": {
+        "tags": [
+          "Quota"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "managedModelId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "managedModelId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Restore default model to managed (cloud) model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "newModelId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/model-providers/{providerId}/oauth/start": {
+      "post": {
+        "tags": [
+          "Model Providers"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "providerId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OAuth flow started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "browserUrl": {
+                      "type": "string"
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/model-providers/{providerId}/oauth/status": {
+      "get": {
+        "tags": [
+          "Model Providers"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "providerId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current OAuth flow status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "idle",
+                        "pending",
+                        "completed",
+                        "failed"
+                      ]
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "models": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/model-providers/{providerId}/oauth/provider-status": {
+      "get": {
+        "tags": [
+          "Model Providers"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "providerId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OAuth provider connection status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "connected": {
+                      "type": "boolean"
+                    },
+                    "provider": {
+                      "type": "string"
+                    },
+                    "expiresAt": {
+                      "type": "number"
+                    },
+                    "remainingMs": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "connected"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/model-providers/{providerId}/oauth/disconnect": {
+      "post": {
+        "tags": [
+          "Model Providers"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "providerId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OAuth provider disconnected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
                   ]
                 }
               }
@@ -6585,9 +10504,10 @@
                           "source": {
                             "type": "string",
                             "enum": [
-                              "curated",
                               "managed",
-                              "custom"
+                              "custom",
+                              "workspace",
+                              "user"
                             ]
                           },
                           "name": {
@@ -6599,6 +10519,14 @@
                           "installedAt": {
                             "type": "string",
                             "nullable": true
+                          },
+                          "agentId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "agentName": {
+                            "type": "string",
+                            "nullable": true
                           }
                         },
                         "required": [
@@ -6606,7 +10534,9 @@
                           "source",
                           "name",
                           "description",
-                          "installedAt"
+                          "installedAt",
+                          "agentId",
+                          "agentName"
                         ]
                       }
                     },
@@ -6629,13 +10559,78 @@
                         "updatedAt",
                         "skillCount"
                       ]
+                    },
+                    "queue": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": {
+                            "type": "string"
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "managed",
+                              "custom",
+                              "workspace",
+                              "user"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "queued",
+                              "downloading",
+                              "installing-deps",
+                              "done",
+                              "failed"
+                            ]
+                          },
+                          "position": {
+                            "type": "number"
+                          },
+                          "error": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "errorCode": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                              "skill_not_found",
+                              "rate_limit",
+                              "npm_missing",
+                              "deps_install_failed",
+                              "unknown"
+                            ]
+                          },
+                          "retries": {
+                            "type": "number"
+                          },
+                          "enqueuedAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "slug",
+                          "source",
+                          "status",
+                          "position",
+                          "error",
+                          "errorCode",
+                          "retries",
+                          "enqueuedAt"
+                        ]
+                      }
                     }
                   },
                   "required": [
                     "skills",
                     "installedSlugs",
                     "installedSkills",
-                    "meta"
+                    "meta",
+                    "queue"
                   ]
                 }
               }
@@ -6657,7 +10652,20 @@
                 "properties": {
                   "slug": {
                     "type": "string",
-                    "minLength": 1
+                    "pattern": "^[a-z0-9][a-z0-9-]{0,127}$"
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "managed",
+                      "custom",
+                      "workspace",
+                      "user"
+                    ]
+                  },
+                  "agentId": {
+                    "type": "string",
+                    "nullable": true
                   }
                 },
                 "required": [
@@ -6677,6 +10685,25 @@
                   "properties": {
                     "ok": {
                       "type": "boolean"
+                    },
+                    "queued": {
+                      "type": "boolean"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued",
+                        "downloading",
+                        "installing-deps",
+                        "done",
+                        "failed"
+                      ]
+                    },
+                    "position": {
+                      "type": "number"
                     },
                     "error": {
                       "type": "string"
@@ -6705,7 +10732,20 @@
                 "properties": {
                   "slug": {
                     "type": "string",
-                    "minLength": 1
+                    "pattern": "^[a-z0-9][a-z0-9-]{0,127}$"
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "managed",
+                      "custom",
+                      "workspace",
+                      "user"
+                    ]
+                  },
+                  "agentId": {
+                    "type": "string",
+                    "nullable": true
                   }
                 },
                 "required": [
@@ -6732,6 +10772,55 @@
                   },
                   "required": [
                     "ok"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/skillhub/cancel": {
+      "post": {
+        "tags": [
+          "SkillHub"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9][a-z0-9-]{0,127}$"
+                  }
+                },
+                "required": [
+                  "slug"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cancel or dismiss a queued / failed install",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "cancelled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "cancelled"
                   ]
                 }
               }
@@ -6783,11 +10872,33 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "pattern": "^[a-z0-9][a-z0-9-]{0,127}$"
             },
             "required": true,
             "name": "slug",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "managed",
+                "custom",
+                "workspace",
+                "user"
+              ]
+            },
+            "required": false,
+            "name": "source",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "agentId",
+            "in": "query"
           }
         ],
         "responses": {
@@ -6828,6 +10939,23 @@
                     "installed": {
                       "type": "boolean"
                     },
+                    "installedSource": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        "managed",
+                        "custom",
+                        "workspace",
+                        "user"
+                      ]
+                    },
+                    "agentId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "uninstallable": {
+                      "type": "boolean"
+                    },
                     "skillContent": {
                       "type": "string",
                       "nullable": true
@@ -6849,6 +10977,9 @@
                     "version",
                     "updatedAt",
                     "installed",
+                    "installedSource",
+                    "agentId",
+                    "uninstallable",
                     "skillContent",
                     "files"
                   ]
@@ -6913,6 +11044,16 @@
                     },
                     "error": {
                       "type": "string"
+                    },
+                    "errorCode": {
+                      "type": "string",
+                      "enum": [
+                        "skill_not_found",
+                        "rate_limit",
+                        "npm_missing",
+                        "deps_install_failed",
+                        "unknown"
+                      ]
                     }
                   },
                   "required": [
@@ -6923,25 +11064,34 @@
             }
           },
           "400": {
-            "description": "Bad request",
+            "description": "Import rejected or failed",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "ok": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
+                      "type": "boolean"
+                    },
+                    "slug": {
+                      "type": "string"
                     },
                     "error": {
                       "type": "string"
+                    },
+                    "errorCode": {
+                      "type": "string",
+                      "enum": [
+                        "skill_not_found",
+                        "rate_limit",
+                        "npm_missing",
+                        "deps_install_failed",
+                        "unknown"
+                      ]
                     }
                   },
                   "required": [
-                    "ok",
-                    "error"
+                    "ok"
                   ]
                 }
               }
@@ -7206,7 +11356,7 @@
                         },
                         "defaultModelId": {
                           "type": "string",
-                          "default": "anthropic/claude-sonnet-4"
+                          "default": "link/gemini-3-flash-preview"
                         }
                       }
                     }
@@ -7265,7 +11415,7 @@
                   },
                   "defaultModelId": {
                     "type": "string",
-                    "default": "anthropic/claude-sonnet-4"
+                    "default": "link/gemini-3-flash-preview"
                   }
                 }
               }
@@ -7318,7 +11468,7 @@
                         },
                         "defaultModelId": {
                           "type": "string",
-                          "default": "anthropic/claude-sonnet-4"
+                          "default": "link/gemini-3-flash-preview"
                         }
                       }
                     }

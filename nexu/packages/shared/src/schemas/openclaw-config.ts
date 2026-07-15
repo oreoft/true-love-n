@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+const providerSecretRefSchema = z.object({
+  source: z.enum(["env", "file", "exec"]),
+  provider: z.string().min(1),
+  id: z.string().min(1),
+});
+
 const gatewayAuthSchema = z.object({
   mode: z.enum(["none", "token"]),
   token: z.string().optional(),
@@ -51,6 +57,7 @@ const agentSchema = z
     default: z.boolean().optional(),
     workspace: z.string().optional(),
     model: agentModelSchema.optional(),
+    skills: z.array(z.string()).optional(),
   })
   .passthrough();
 
@@ -247,6 +254,8 @@ const discordAccountSchema = z.object({
   enabled: z.boolean().default(true),
   token: z.string(),
   groupPolicy: z.enum(["open", "allowlist", "disabled"]).default("open"),
+  dmPolicy: z.enum(["pairing", "allowlist", "open"]).optional(),
+  allowFrom: z.array(z.string()).optional(),
 });
 
 const discordChannelSchema = z.object({
@@ -284,11 +293,111 @@ const feishuChannelSchema = z
   })
   .passthrough();
 
+const telegramGroupSchema = z
+  .object({
+    requireMention: z.boolean().optional(),
+  })
+  .passthrough();
+
+const telegramAccountSchema = z
+  .object({
+    enabled: z.boolean().default(true),
+    botToken: z.string(),
+  })
+  .passthrough();
+
+const telegramChannelSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    dmPolicy: z.enum(["pairing", "allowlist", "open"]).optional(),
+    groupPolicy: z.enum(["open", "allowlist", "disabled"]).optional(),
+    accounts: z.record(z.string(), telegramAccountSchema),
+    groups: z.record(z.string(), telegramGroupSchema).optional(),
+  })
+  .passthrough();
+
+const whatsappGroupSchema = z
+  .object({
+    requireMention: z.boolean().optional(),
+  })
+  .passthrough();
+
+const whatsappAccountSchema = z
+  .object({
+    enabled: z.boolean().default(true),
+    authDir: z.string().optional(),
+    selfChatMode: z.boolean().optional(),
+    dmPolicy: z.enum(["pairing", "allowlist", "open", "disabled"]).optional(),
+    groupPolicy: z.enum(["open", "allowlist", "disabled"]).optional(),
+    allowFrom: z.array(z.string()).optional(),
+    groupAllowFrom: z.array(z.string()).optional(),
+    groups: z.record(z.string(), whatsappGroupSchema).optional(),
+  })
+  .passthrough();
+
+const whatsappChannelSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    dmPolicy: z.enum(["pairing", "allowlist", "open", "disabled"]).optional(),
+    groupPolicy: z.enum(["open", "allowlist", "disabled"]).optional(),
+    selfChatMode: z.boolean().optional(),
+    allowFrom: z.array(z.string()).optional(),
+    groupAllowFrom: z.array(z.string()).optional(),
+    groups: z.record(z.string(), whatsappGroupSchema).optional(),
+    accounts: z.record(z.string(), whatsappAccountSchema).optional(),
+  })
+  .passthrough();
+
+const qqbotChannelSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    appId: z.string(),
+    clientSecret: z.string(),
+    dmPolicy: z.enum(["pairing", "allowlist", "open"]).optional(),
+    allowFrom: z.array(z.string()).optional(),
+    groupPolicy: z.enum(["open", "allowlist", "disabled"]).optional(),
+    groupAllowFrom: z.array(z.string()).optional(),
+    historyLimit: z.number().optional(),
+    markdownSupport: z.boolean().optional(),
+  })
+  .passthrough();
+
+const dingtalkChannelSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    clientId: z.string(),
+    clientSecret: z.string(),
+    gatewayToken: z.string().optional(),
+    gatewayBaseUrl: z.string().optional(),
+    dmPolicy: z.enum(["pairing", "allowlist", "open"]).optional(),
+    allowFrom: z.array(z.string()).optional(),
+    groupPolicy: z.enum(["open", "allowlist", "disabled"]).optional(),
+  })
+  .passthrough();
+
+const wecomChannelSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    botId: z.string(),
+    secret: z.string(),
+    dmPolicy: z.enum(["pairing", "allowlist", "open"]).optional(),
+    allowFrom: z.array(z.string()).optional(),
+    groupPolicy: z.enum(["open", "allowlist", "disabled"]).optional(),
+    groupAllowFrom: z.array(z.string()).optional(),
+    sendThinkingMessage: z.boolean().optional(),
+  })
+  .passthrough();
+
 const channelsConfigSchema = z
   .object({
     slack: slackChannelSchema.optional(),
     discord: discordChannelSchema.optional(),
     feishu: feishuChannelSchema.optional(),
+    "dingtalk-connector": dingtalkChannelSchema.optional(),
+    wecom: wecomChannelSchema.optional(),
+    telegram: telegramChannelSchema.optional(),
+    whatsapp: whatsappChannelSchema.optional(),
+    qqbot: qqbotChannelSchema.optional(),
   })
   .passthrough();
 
@@ -330,7 +439,7 @@ const modelEntrySchema = z.object({
 const modelProviderSchema = z
   .object({
     baseUrl: z.string(),
-    apiKey: z.string(),
+    apiKey: z.union([z.string(), providerSecretRefSchema]).optional(),
     api: z.string(),
     models: z.array(modelEntrySchema),
   })
@@ -501,4 +610,6 @@ export type AgentConfig = z.infer<typeof agentSchema>;
 export type SlackAccountConfig = z.infer<typeof slackAccountSchema>;
 export type DiscordAccountConfig = z.infer<typeof discordAccountSchema>;
 export type FeishuAccountConfig = z.infer<typeof feishuAccountSchema>;
+export type TelegramAccountConfig = z.infer<typeof telegramAccountSchema>;
+export type WhatsappAccountConfig = z.infer<typeof whatsappAccountSchema>;
 export type BindingConfig = z.infer<typeof bindingSchema>;

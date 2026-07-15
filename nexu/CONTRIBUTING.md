@@ -4,6 +4,8 @@ This file is the **canonical English** contributing guide. The docs site embeds 
 
 Thank you for helping improve nexu. The sections below cover **code**, **documentation**, and **how we review changes**.
 
+If you want a lower-friction entry point, we are actively looking for **Good First Issue** contributors. Start with the [good-first-issue label](https://github.com/nexu-io/nexu/labels/good-first-issue) or the [Chinese first-PR guide](https://docs.nexu.io/zh/guide/first-pr).
+
 ## Community standards
 
 - **Code of conduct:** follow [`CODE_OF_CONDUCT.md`](https://github.com/nexu-io/nexu/blob/main/CODE_OF_CONDUCT.md) in all Issues, Discussions, and PRs.
@@ -27,8 +29,9 @@ Thank you for helping improve nexu. The sections below cover **code**, **documen
 ### Prerequisites
 
 - **Git**
-- **Node.js** 22+ (LTS recommended; minimum in `package.json` is 20+)
-- **pnpm** 10+ (repo pins `pnpm@10.26.0` via `packageManager`)
+- **Node.js** 24+ (LTS recommended; enforced via `package.json` `engines`)
+- **pnpm** 10.26+ (repo pins `pnpm@10.26.0` via `packageManager`)
+- **npm** 11+ (required for repo-local OpenClaw runtime maintenance flows)
 
 ### Clone and install
 
@@ -47,14 +50,15 @@ pnpm install
 ```text
 nexu/
 ├── apps/
-│   ├── api/
-│   ├── web/
-│   ├── desktop/      # Electron desktop client
-│   └── controller/
-├── packages/shared/
-├── docs/             # VitePress documentation site
-├── tests/
-└── specs/
+│   ├── web/              # React + Ant Design dashboard
+│   ├── desktop/          # Electron desktop shell
+│   └── controller/       # Hono backend + OpenClaw orchestration
+├── packages/shared/      # Shared Zod schemas
+├── packages/slimclaw/    # Repo-local OpenClaw runtime contract + prepared runtime ownership
+├── scripts/              # Dev/CI scripts (launchd, probes, e2e)
+├── tests/                # Vitest test suites
+├── docs/                 # VitePress documentation site
+└── specs/                # Design docs, product specs
 ```
 
 ## Common commands
@@ -64,17 +68,22 @@ Run from the repo root unless noted.
 | Command | Purpose |
 | --- | --- |
 | `pnpm dev` | Dev stack (controller + web) with hot reload |
-| `pnpm dev:desktop` | Desktop client dev |
+| `pnpm start` | Full desktop runtime (Electron + launchd services, macOS only) |
+| `pnpm stop` | Stop desktop runtime (graceful SIGTERM → SIGKILL fallback) |
+| `pnpm status` | Show desktop runtime status |
 | `pnpm dev:controller` | Controller only |
 | `pnpm build` | Production build (all packages) |
 | `pnpm typecheck` | TypeScript checks across the workspace |
-| `pnpm lint` | Biome check + `typecheck` (matches CI intent) |
-| `pnpm lint:fix` | Auto-fix where safe + typecheck |
+| `pnpm lint` | Biome check only |
+| `pnpm lint:fix` | Auto-fix where safe with Biome only |
 | `pnpm format` | Format/write with Biome |
 | `pnpm test` | Root Vitest suite (`vitest run`) |
 | `pnpm check:esm-imports` | ESM specifier verification (also run in CI) |
+| `pnpm dist:mac:unsigned` | Build unsigned macOS desktop app for local testing |
 
 Some packages define their own scripts (for example `pnpm --filter @nexu/web test:e2e` for Playwright). Prefer the closest `package.json` to the code you change.
+
+> **Note for desktop contributors:** `pnpm start` requires macOS (uses launchd for process management). The test suite includes real launchd integration tests that only run on macOS — they're automatically skipped on other platforms. If you're contributing to desktop code, test on macOS before submitting a PR.
 
 ## Code style and formatting
 
@@ -86,6 +95,7 @@ Run before pushing:
 
 ```bash
 pnpm lint
+pnpm typecheck
 pnpm test
 ```
 

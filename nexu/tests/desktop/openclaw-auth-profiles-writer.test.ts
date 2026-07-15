@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { ControllerEnv } from "#controller/app/env";
+import { OpenClawAuthProfilesStore } from "#controller/runtime/openclaw-auth-profiles-store";
 import { OpenClawAuthProfilesWriter } from "#controller/runtime/openclaw-auth-profiles-writer";
 
 function makeTempDir(): string {
@@ -32,7 +33,6 @@ function createEnv(homeDir: string): ControllerEnv {
       "/Users/elian/Documents/refly/nexu",
       "apps/controller/static/runtime-plugins",
     ),
-    openclawCuratedSkillsDir: resolve(openclawStateDir, "bundled-skills"),
     openclawRuntimeModelStatePath: resolve(
       openclawStateDir,
       "nexu-runtime-model.json",
@@ -55,6 +55,8 @@ function createEnv(homeDir: string): ControllerEnv {
     runtimeSyncIntervalMs: 2000,
     runtimeHealthIntervalMs: 5000,
     defaultModelId: "anthropic/claude-sonnet-4",
+    posthogApiKey: undefined,
+    posthogHost: undefined,
   };
 }
 
@@ -71,7 +73,9 @@ describe("OpenClawAuthProfilesWriter", () => {
 
   it("writes provider api keys into each agent auth-profiles store", async () => {
     const env = createEnv(tempDir);
-    const writer = new OpenClawAuthProfilesWriter(env);
+    const writer = new OpenClawAuthProfilesWriter(
+      new OpenClawAuthProfilesStore(env),
+    );
 
     await writer.writeForAgents({
       agents: {
@@ -124,6 +128,253 @@ describe("OpenClawAuthProfilesWriter", () => {
       type: "api_key",
       provider: "anthropic",
       key: "anthropic-key",
+    });
+  });
+
+  it("writes canonical model-provider credentials into auth-profiles", async () => {
+    const env = createEnv(tempDir);
+    const writer = new OpenClawAuthProfilesWriter(
+      new OpenClawAuthProfilesStore(env),
+    );
+
+    await writer.writeForAgents(
+      {
+        agents: {
+          list: [
+            {
+              id: "bot_1",
+              name: "Bot One",
+              workspace: resolve(env.openclawStateDir, "agents", "bot_1"),
+            },
+          ],
+        },
+      } as never,
+      {
+        "custom-openai/team-gateway": {
+          providerTemplateId: "custom-openai",
+          instanceId: "team-gateway",
+          enabled: true,
+          auth: "api-key",
+          api: "openai-completions",
+          apiKey: "canonical-custom-key",
+          baseUrl: "https://gateway.example.com/v1",
+          models: [
+            {
+              id: "gpt-4.1",
+              name: "GPT-4.1",
+              reasoning: false,
+              input: ["text"],
+              cost: {
+                input: 0,
+                output: 0,
+                cacheRead: 0,
+                cacheWrite: 0,
+              },
+              contextWindow: 0,
+              maxTokens: 0,
+            },
+          ],
+        },
+      },
+    );
+
+    const authProfilesPath = resolve(
+      env.openclawStateDir,
+      "agents",
+      "bot_1",
+      "agent",
+      "auth-profiles.json",
+    );
+    const parsed = JSON.parse(readFileSync(authProfilesPath, "utf8")) as {
+      version: number;
+      profiles: Record<string, { type: string; provider: string; key: string }>;
+    };
+
+    expect(parsed.profiles["custom-openai/team-gateway:default"]).toEqual({
+      type: "api_key",
+      provider: "custom-openai/team-gateway",
+      key: "canonical-custom-key",
+    });
+  });
+
+  it("copies existing OAuth profiles into new canonical-provider workspaces", async () => {
+    const env = createEnv(tempDir);
+    const store = new OpenClawAuthProfilesStore(env);
+    const writer = new OpenClawAuthProfilesWriter(store);
+    const existingWorkspace = resolve(env.openclawStateDir, "agents", "bot_1");
+    const newWorkspace = resolve(env.openclawStateDir, "agents", "bot_2");
+
+    await store.updateAuthProfiles(
+      resolve(existingWorkspace, "agent", "auth-profiles.json"),
+      async () => ({
+        version: 1,
+        profiles: {
+          "openai-codex:default": {
+            type: "oauth",
+            provider: "openai-codex",
+            access: "oauth-access-token",
+            refresh: "oauth-refresh-token",
+            expires: 1_900_000_000_000,
+          },
+        },
+      }),
+    );
+
+    await writer.writeForAgents(
+      {
+        agents: {
+          list: [
+            {
+              id: "bot_1",
+              name: "Bot One",
+              workspace: existingWorkspace,
+            },
+            {
+              id: "bot_2",
+              name: "Bot Two",
+              workspace: newWorkspace,
+            },
+          ],
+        },
+      } as never,
+      {
+        openai: {
+          enabled: true,
+          auth: "oauth",
+          oauthProfileRef: "openai-codex",
+          api: "openai-codex-responses",
+          baseUrl: "https://api.openai.com/v1",
+          models: [
+            {
+              id: "gpt-5.4",
+              name: "gpt-5.4",
+              reasoning: false,
+              input: ["text"],
+              cost: {
+                input: 0,
+                output: 0,
+                cacheRead: 0,
+                cacheWrite: 0,
+              },
+              contextWindow: 0,
+              maxTokens: 0,
+            },
+          ],
+        },
+      },
+    );
+
+    const newAuthProfilesPath = resolve(
+      newWorkspace,
+      "agent",
+      "auth-profiles.json",
+    );
+    const parsed = JSON.parse(readFileSync(newAuthProfilesPath, "utf8")) as {
+      version: number;
+      profiles: Record<
+        string,
+        {
+          type: string;
+          provider: string;
+          access: string;
+          refresh?: string;
+          expires?: number;
+        }
+      >;
+    };
+
+    expect(parsed.profiles["openai-codex:default"]).toEqual({
+      type: "oauth",
+      provider: "openai-codex",
+      access: "oauth-access-token",
+      refresh: "oauth-refresh-token",
+      expires: 1_900_000_000_000,
+    });
+  });
+
+  it("merges compiled link credentials even when provider-source entries already exist", async () => {
+    const env = createEnv(tempDir);
+    const writer = new OpenClawAuthProfilesWriter(
+      new OpenClawAuthProfilesStore(env),
+    );
+
+    await writer.writeForAgents(
+      {
+        agents: {
+          list: [
+            {
+              id: "bot_1",
+              name: "Bot One",
+              workspace: resolve(env.openclawStateDir, "agents", "bot_1"),
+            },
+          ],
+        },
+        models: {
+          mode: "merge",
+          providers: {
+            openai: {
+              baseUrl: "https://api.openai.com/v1",
+              apiKey: "openai-key",
+              api: "openai-responses",
+              models: [{ id: "gpt-5.4", name: "gpt-5.4" }],
+            },
+            link: {
+              baseUrl: "https://link.nexu.io/v1",
+              apiKey: "link-key",
+              api: "openai-completions",
+              models: [{ id: "gemini-2.5-flash", name: "gemini-2.5-flash" }],
+            },
+          },
+        },
+      } as never,
+      {
+        openai: {
+          enabled: true,
+          auth: "api-key",
+          api: "openai-responses",
+          apiKey: "openai-key",
+          baseUrl: "https://api.openai.com/v1",
+          models: [
+            {
+              id: "gpt-5.4",
+              name: "gpt-5.4",
+              reasoning: false,
+              input: ["text"],
+              cost: {
+                input: 0,
+                output: 0,
+                cacheRead: 0,
+                cacheWrite: 0,
+              },
+              contextWindow: 0,
+              maxTokens: 0,
+            },
+          ],
+        },
+      },
+    );
+
+    const authProfilesPath = resolve(
+      env.openclawStateDir,
+      "agents",
+      "bot_1",
+      "agent",
+      "auth-profiles.json",
+    );
+    const parsed = JSON.parse(readFileSync(authProfilesPath, "utf8")) as {
+      version: number;
+      profiles: Record<string, { type: string; provider: string; key: string }>;
+    };
+
+    expect(parsed.profiles["openai:default"]).toEqual({
+      type: "api_key",
+      provider: "openai",
+      key: "openai-key",
+    });
+    expect(parsed.profiles["link:default"]).toEqual({
+      type: "api_key",
+      provider: "link",
+      key: "link-key",
     });
   });
 });

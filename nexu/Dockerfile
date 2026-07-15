@@ -13,8 +13,10 @@ RUN npm install -g pnpm@10
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/controller/package.json ./apps/controller/
 COPY apps/web/package.json ./apps/web/
+COPY apps/desktop/package.json ./apps/desktop/
 COPY packages/shared/package.json ./packages/shared/
-COPY openclaw-runtime/package.json openclaw-runtime/package-lock.json ./openclaw-runtime/
+COPY packages/slimclaw/package.json ./packages/slimclaw/
+COPY tools/dev/package.json ./tools/dev/
 
 # Install all dependencies (excluding scripts for now, as we only have package.json files)
 RUN pnpm install --frozen-lockfile --ignore-scripts
@@ -23,6 +25,8 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY . .
 
 # Now that we have all scripts, run pnpm install again to trigger postinstall scripts
+# (this also runs `@nexu/slimclaw prepare-runtime`, which installs the OpenClaw
+# runtime into packages/slimclaw/.dist-runtime/openclaw)
 RUN pnpm install --frozen-lockfile
 
 # Build in dependency order
@@ -43,8 +47,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
 # Copy package files
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/controller/package.json ./apps/controller/
+COPY apps/desktop/package.json ./apps/desktop/
 COPY packages/shared/package.json ./packages/shared/
-COPY openclaw-runtime/package.json openclaw-runtime/package-lock.json ./openclaw-runtime/
+COPY packages/slimclaw/package.json ./packages/slimclaw/
+COPY tools/dev/package.json ./tools/dev/
 
 # Install production deps only (no devDependencies)
 # Skip scripts because root postinstall depends on files we haven't copied yet
@@ -55,13 +61,13 @@ RUN CI=true pnpm install --frozen-lockfile --prod --ignore-scripts
 COPY --from=builder /app/apps/controller/dist ./apps/controller/dist
 COPY --from=builder /app/apps/controller/static ./static
 COPY --from=builder /app/apps/web/dist ./apps/web/dist
-COPY --from=builder /app/openclaw-runtime ./openclaw-runtime
+COPY --from=builder /app/packages/slimclaw/.dist-runtime ./packages/slimclaw/.dist-runtime
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 
 # Patch openclaw tools to support Vertex AI (Gemini) which requires explicit object parameters
-RUN sed -i "s/id: \"agents_list\",/id: \"agents_list\", parameters: { type: 'object', properties: {} },/g" /app/openclaw-runtime/node_modules/openclaw/dist/channels/plugins/actions/telegram.js && \
-    sed -i "s/id: \"nodes\",/id: \"nodes\", parameters: { type: 'object', properties: {} },/g" /app/openclaw-runtime/node_modules/openclaw/dist/channels/plugins/actions/telegram.js && \
-    sed -i "s/id: \"gateway\",/id: \"gateway\", parameters: { type: 'object', properties: {} },/g" /app/openclaw-runtime/node_modules/openclaw/dist/channels/plugins/actions/telegram.js
+RUN sed -i "s/id: \"agents_list\",/id: \"agents_list\", parameters: { type: 'object', properties: {} },/g" /app/packages/slimclaw/.dist-runtime/openclaw/node_modules/openclaw/dist/channels/plugins/actions/telegram.js && \
+    sed -i "s/id: \"nodes\",/id: \"nodes\", parameters: { type: 'object', properties: {} },/g" /app/packages/slimclaw/.dist-runtime/openclaw/node_modules/openclaw/dist/channels/plugins/actions/telegram.js && \
+    sed -i "s/id: \"gateway\",/id: \"gateway\", parameters: { type: 'object', properties: {} },/g" /app/packages/slimclaw/.dist-runtime/openclaw/node_modules/openclaw/dist/channels/plugins/actions/telegram.js
 
 # Data directory (config, OpenClaw state) lives here — mount as a volume to persist
 VOLUME /root/.nexu
@@ -70,6 +76,8 @@ EXPOSE 3010
 
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
-ENV PATH="/app/openclaw-runtime/node_modules/.bin:$PATH"
+ENV OPENCLAW_BIN="/app/packages/slimclaw/.dist-runtime/openclaw/bin/openclaw"
+ENV OPENCLAW_EXTENSIONS_DIR="/app/packages/slimclaw/.dist-runtime/openclaw/node_modules/openclaw/extensions"
+ENV PATH="/app/packages/slimclaw/.dist-runtime/openclaw/node_modules/.bin:$PATH"
 
 CMD ["node", "apps/controller/dist/index.js"]

@@ -6,15 +6,18 @@ This repo currently uses two desktop local environments with different startup f
 
 Use this when iterating quickly in development.
 
-- Restart/start command (from repo root):
+- Start commands (from repo root):
 
 ```bash
-pnpm restart
+pnpm dev start openclaw
+pnpm dev start controller
+pnpm dev start web
+pnpm dev start desktop
 ```
 
 - Characteristics:
-  - Uses tmux session `nexu-desktop`.
-  - Rebuilds runtime artifacts and launches the desktop dev stack.
+  - Uses explicit per-service local development commands.
+  - Services are started and stopped independently.
   - Intended for active coding/debugging.
 
 ## 2) local-dist (packaged app verification runtime)
@@ -24,16 +27,21 @@ Use this when verifying behavior in a packaged desktop app.
 - Build unsigned local package (from repo root):
 
 ```bash
-pnpm dist:mac:unsigned
+pnpm dist:mac:unsigned:arm64
+# or
+pnpm dist:mac:unsigned:x64
 ```
 
 - Launch packaged app after build:
 
 ```bash
 open "apps/desktop/release/mac-arm64/Nexu.app"
+# or
+open "apps/desktop/release/mac/Nexu.app"
 ```
 
 - Characteristics:
   - Generates artifacts under `apps/desktop/release` by default (`.app`, `.dmg`, `.zip`).
-  - Does not use `dev.sh`/tmux lifecycle.
+  - Use the `:arm64` scripts on Apple Silicon builders and the `:x64` scripts on Intel builders.
+  - Does not use the old desktop dev launcher lifecycle.
   - Intended for local packaged-app checks (closer to release behavior).
