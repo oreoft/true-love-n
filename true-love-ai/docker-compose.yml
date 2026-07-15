@@ -84,3 +84,11 @@ services:
       options:
         max-size: "10m"  # 单个日志文件最大 10MB
         max-file: "3"    # 最多保留 3 个日志文件
+
+    # 加入与 nexu 共享的网络，使容器间可通过服务名（http://nexu:3010）互通
+    networks:
+      - tl-net
+
+networks:
+  tl-net:
+    external: true
