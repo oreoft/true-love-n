@@ -495,7 +495,12 @@ export function compileOpenClawConfig(
         : {}),
     },
     session: {
-      dmScope: "per-peer",
+      // Scope direct-message sessions by channel + account + peer so
+      // different connected accounts (e.g. two WeChat numbers bound to the
+      // same agent) never share conversation history. accountId is stable
+      // across reconnects of the same underlying account, so this still
+      // preserves continuity when a channel session drops and reconnects.
+      dmScope: "per-account-channel-peer",
       // Disable automatic session reset. OpenClaw defaults to daily reset at
       // 4 AM which silently drops conversation history — unexpected for a
       // desktop chat app where users expect persistent sessions.
