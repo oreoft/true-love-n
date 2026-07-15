@@ -59,7 +59,7 @@ RUN CI=true pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # Copy built artifacts from builder stage
 COPY --from=builder /app/apps/controller/dist ./apps/controller/dist
-COPY --from=builder /app/apps/controller/static ./static
+COPY --from=builder /app/apps/controller/static ./apps/controller/static
 COPY --from=builder /app/apps/web/dist ./apps/web/dist
 COPY --from=builder /app/packages/slimclaw/.dist-runtime ./packages/slimclaw/.dist-runtime
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
