@@ -13,9 +13,9 @@ class FallbackModel(BaseModel):
 class LLMConfig(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
 
-    chat: FallbackModel = FallbackModel(default="2api/openai/gpt-5.5", fallback="gemini/gemini-3-pro")
+    chat: FallbackModel = FallbackModel(default="2api/openai/gpt-5.6-sol", fallback="gemini/gemini-3-pro")
     compress: FallbackModel = FallbackModel(default="openai/gpt-5.4-nano")
-    vision: FallbackModel = FallbackModel(default="openai/gpt-5.5")
+    vision: FallbackModel = FallbackModel(default="openai/gpt-5.6-sol")
     image: FallbackModel = FallbackModel(default="openai/gpt-image-2", fallback="gemini/gemini-3-pro-image")
     image_edit: FallbackModel = FallbackModel(default="openai/gpt-image-2", fallback="openai/gpt-image-1.5")
     video: FallbackModel = FallbackModel(default="gemini/veo-3.1-fast-generate-preview", fallback="openai/sora-2-pro")
