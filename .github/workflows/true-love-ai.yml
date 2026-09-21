@@ -17,7 +17,6 @@ env:
   SERVER_IP: ${{ secrets.SER_GW_HOST }}
   SERVER_PORT: 2233
   SERVER_USER: server
-  SERVER_DEPLOY_PATH: "C:\\Users\\server\\Desktop\\true-love-n\\true-love-ai"
   SERVER_SSH_KEY: ${{ secrets.SER_SSH_DOOR_KEY }}
   
   # ========== 通知配置 ==========
@@ -90,15 +89,22 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -p "${{ env.SERVER_PORT }}" "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" << 'EOF'
             $ErrorActionPreference = "Stop"
-            Set-Location -Path "${{ env.SERVER_DEPLOY_PATH }}"
+            # Repos live on the SSH user's Desktop; ask Windows for it so the user name and OneDrive redirection don't matter
+            $desktop = [Environment]::GetFolderPath('Desktop')
+            Set-Location -Path (Join-Path $desktop 'true-love-n\true-love-ai')
 
             git pull --ff-only
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+            # Configs come from the private config-center repo cloned next to true-love-n
+            git -C (Join-Path $desktop 'config-center') pull --ff-only
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
             docker compose pull
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-            docker compose up -d
+            # Recreate even when the image is unchanged so config-only deploys take effect
+            docker compose up -d --force-recreate
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
             docker image prune -f

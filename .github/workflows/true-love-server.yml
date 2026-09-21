@@ -86,17 +86,22 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -p "${{ env.SERVER_PORT }}" "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" << 'EOF'
             $ErrorActionPreference = "Stop"
-            # Repo lives on the SSH user's Desktop; ask Windows for it so the user name and OneDrive redirection don't matter
-            $deployPath = Join-Path ([Environment]::GetFolderPath('Desktop')) 'true-love-n\true-love-server'
-            Set-Location -Path $deployPath
+            # Repos live on the SSH user's Desktop; ask Windows for it so the user name and OneDrive redirection don't matter
+            $desktop = [Environment]::GetFolderPath('Desktop')
+            Set-Location -Path (Join-Path $desktop 'true-love-n\true-love-server')
 
             git pull --ff-only
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+            # Configs come from the private config-center repo cloned next to true-love-n
+            git -C (Join-Path $desktop 'config-center') pull --ff-only
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
             docker compose pull
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-            docker compose up -d
+            # Recreate even when the image is unchanged so config-only deploys take effect
+            docker compose up -d --force-recreate
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
             # One-time cleanup of the old SMB mount, now replaced by a bind mount (no-op once gone)

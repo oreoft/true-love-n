@@ -1,28 +1,8 @@
 #Requires -RunAsAdministrator
 
 $TaskName = "UIA-TL-BASE"
-# 本脚本位于 <仓库>\.github\systemd\，由此推导 base 目录，不依赖用户名和仓库位置
-$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
-$WorkDir = Join-Path $RepoRoot "true-love-base"
-$ScriptDir = Join-Path $env:USERPROFILE "uia-scripts"
-$RunnerScript = Join-Path $ScriptDir "run-true-love-base.ps1"
-
-# 确保脚本目录存在
-if (!(Test-Path $ScriptDir))
-{
-    New-Item -ItemType Directory -Path $ScriptDir -Force | Out-Null
-}
-
-# 创建运行脚本
-$ScriptLines = @(
-    "`$Host.UI.RawUI.WindowTitle = `"UIA-TL-BASE`""
-    "Set-Location `"$WorkDir`""
-    "Write-Host `"Starting true-love-base at `$(Get-Date)`" -ForegroundColor Cyan"
-    "Write-Host `"WorkDir: $WorkDir`" -ForegroundColor Gray"
-    "Write-Host `"========================================`" -ForegroundColor Gray"
-    "git pull; uv sync; uv run -m true_love_base"
-)
-$ScriptLines | Out-File -FilePath $RunnerScript -Encoding UTF8 -Force
+# The runner lives next to this script and is updated by git pull, so the task runs it in place
+$RunnerScript = Join-Path $PSScriptRoot "run-true-love-base.ps1"
 
 Write-Host "=== Creating Scheduled Task: $TaskName ===" -ForegroundColor Cyan
 

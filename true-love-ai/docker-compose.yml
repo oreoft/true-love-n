@@ -55,8 +55,13 @@ services:
     # 卷挂载（对应 -v）
     # 格式：宿主机路径:容器路径[:ro]
     volumes:
-      # 配置文件（只读挂载）
-      - ./config.yaml:/app/config.yaml:ro
+      # 配置文件（只读，来自与 true-love-n 同级 clone 的 config-center；不存在时直接报错，不自动建空目录）
+      - type: bind
+        source: ../../config-center/true-love-n/true-love-ai/config.yaml
+        target: /app/config.yaml
+        read_only: true
+        bind:
+          create_host_path: false
       # 模型动态覆盖文件（可读写，支持运行时通过 set_model 持久化）
       - ./models_override.json:/app/models_override.json
       # 生成的视频目录

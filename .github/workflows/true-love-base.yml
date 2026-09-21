@@ -6,6 +6,7 @@ on:
     branches: [ "master" ]
     paths:
       - "true-love-base/**"
+      - ".github/systemd/**"
       - ".github/workflows/true-love-base.yml"
 
 env:
@@ -44,21 +45,26 @@ jobs:
           ssh -o StrictHostKeyChecking=no -p ${{ env.SERVER_PORT }} ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} << 'EOF'
             $ErrorActionPreference = "Stop"
             $taskName = "UIA-TL-BASE"
+            $repoRoot = Join-Path ([Environment]::GetFolderPath('Desktop')) 'true-love-n'
 
             Write-Host "Connected to remote server"
-
-            # Register the task from the repo script on a fresh machine
-            if (-not (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue)) {
-              $createScript = Join-Path ([Environment]::GetFolderPath('Desktop')) 'true-love-n\.github\systemd\create-uia-base.ps1'
-              Write-Host "Task $taskName not found; registering it with $createScript"
-              powershell.exe -NoProfile -ExecutionPolicy Bypass -File $createScript
-              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            }
 
             Write-Host "Stopping existing TrueLove-Base task if it is running"
             schtasks /end /tn $taskName
             if ($LASTEXITCODE -ne 0) {
               Write-Host "Task was not running or could not be stopped; continuing"
+            }
+
+            # Pull first so the task is (re)registered from the latest scripts
+            git -C $repoRoot pull --ff-only
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+            # Re-register when the task is missing (fresh machine) or still runs the old generated runner
+            $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+            if (-not $task -or "$($task.Actions.Arguments)" -notlike '*\.github\systemd\run-true-love-base.ps1*') {
+              Write-Host "Registering $taskName from the repo scripts"
+              powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repoRoot '.github\systemd\create-uia-base.ps1')
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             }
 
             Write-Host "Starting TrueLove-Base task"

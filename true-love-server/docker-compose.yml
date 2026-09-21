@@ -4,6 +4,7 @@
 #
 # 仓库根目录（本文件的上一级 true-love-n）以 bind mount 挂进容器，
 # 路径由本文件位置推导，不依赖 Windows 用户名，也不需要 SMB 共享。
+# 配置文件来自与 true-love-n 同级 clone 的私有仓库 config-center。
 #
 # 使用方式（在本文件所在目录执行）：
 #   docker compose pull      # 拉取最新镜像
@@ -35,8 +36,15 @@ services:
 
     # 卷挂载
     volumes:
-      # 仓库根目录 - 配置文件、监听列表和与 base 共享的媒体目录
+      # 仓库根目录 - 监听列表和与 base 共享的媒体目录
       - ..:/mnt/true-love-n
+      # 配置仓库（与 true-love-n 同级 clone 的 config-center），只读；不存在时直接报错，不自动建空目录
+      - type: bind
+        source: ../../config-center/true-love-n
+        target: /mnt/config-center
+        read_only: true
+        bind:
+          create_host_path: false
       # 本地卷 - SQLite 数据库（不放在 Windows 挂载目录上）
       - tl-server-dbs:/app/dbs
 
@@ -45,7 +53,7 @@ services:
     command: >
       /bin/sh -c "
       R=/mnt/true-love-n &&
-      ln -sfn $$R/true-love-server/config.yaml /app/config.yaml &&
+      ln -sfn /mnt/config-center/true-love-server/config.yaml /app/config.yaml &&
       ln -sfn $$R/true-love-base/listen_chats.json /app/listen_chats.json &&
       for d in wx_imgs moyu-jpg zaobao-jpg gen-img gen-video gen-audio files-save; do
       mkdir -p $$R/true-love-base/$$d && ln -sfn $$R/true-love-base/$$d /app/$$d || exit 1;
