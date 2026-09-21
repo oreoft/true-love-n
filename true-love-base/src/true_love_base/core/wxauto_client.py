@@ -49,8 +49,8 @@ class WxAutoClient():
             self._running = True
             LOG.info("WxAutoClient initialized successfully")
         except Exception as e:
-            LOG.error(f"Failed to initialize WxAutoClient: {e}")
-            raise RuntimeError(f"Failed to initialize wxautox4: {e}")
+            LOG.exception("Failed to initialize WxAutoClient")
+            raise RuntimeError(f"Failed to initialize wxautox4: {e}") from e
 
     @property
     def wx(self):
