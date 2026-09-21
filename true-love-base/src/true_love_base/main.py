@@ -9,8 +9,7 @@ True Love Base - Main Entry Point
 import logging
 import signal
 import sys
-from threading import Thread, Event
-from typing import Callable
+from threading import Event
 
 from true_love_base.api import server
 from true_love_base.configuration import Config
@@ -68,80 +67,76 @@ def main():
 
     # 设置信号处理
     def signal_handler(sig, frame):
-        LOG.info("Received shutdown signal, shutting down...")
+        LOG.info("Received shutdown signal %s, shutting down...", sig)
         shutdown_event.set()  # 通知主线程退出
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    # 启动 HTTP 服务
-    server.enable_http(robot)
-    LOG.info("HTTP server enabled")
-
-    LOG.info("True Love Base is ready!")
-    LOG.info("Use HTTP API to add chat listeners:")
-    LOG.info("  POST /listen/add  {\"chat_name\": \"好友昵称或群名\"}")
-
-    # 定义监听线程的入口函数
-    # 重要：AddListenChat 和 KeepRunning 必须在同一个线程中调用
-
-    # 在后台线程启动消息监听
-    listen_thread = Thread(
-        target=init_listening(robot),
-        name="MessageListener",
-        daemon=True,
-    )
-    listen_thread.start()
-
-    # 主线程等待关闭信号（带超时循环，确保能响应 Ctrl+C）
-    while not shutdown_event.wait(timeout=0.2):
-        pass
-
-    # 收到关闭信号后，执行清理
-    LOG.info("Cleaning up...")
     try:
-        robot.send_text_msg("True Love Base shutting down...", config.master_wix)
-    except Exception:
-        pass
-    robot.cleanup()
-    client.cleanup()
-    LOG.info("Cleanup completed, bye!")
+        # Callbacks can trigger replies while the saved listeners are still loading.
+        server.enable_http(robot)
+        LOG.info("HTTP server enabled")
+        # AddListenChat starts SDK listening; this main loop keeps the process alive.
+        init_listening(robot, shutdown_event)
+        if shutdown_event.is_set():
+            return
 
+        LOG.info("True Love Base is ready!")
+        LOG.info("Use HTTP API to add chat listeners:")
+        LOG.info("  POST /listen/add  {\"chat_name\": \"好友昵称或群名\"}")
 
-def init_listening(robot: Robot) -> Callable[[], None]:
-    def listener_thread_entry():
-        # 在监听线程中加载监听列表
-        load_result = robot.load_listen_chats()
-        success_chats = load_result["success"]
-        failed_chats = load_result["failed"]
+        while not shutdown_event.wait(timeout=0.2):
+            pass
 
-        if len(success_chats) > 0:
-            LOG.info(f"Loaded {len(success_chats)} listen chats from file")
-        else:
-            LOG.warning("No listen_chats found! Use API to add listeners")
-
-        if len(failed_chats) > 0:
-            LOG.warning(f"Failed to load {len(failed_chats)} listen chats: {failed_chats}")
-
-        # 发送启动通知，包含监听成功和失败的列表
         try:
-            success_list_str = "\n".join(
-                [f"  {i + 1}. {name}" for i, name in enumerate(success_chats)]) if success_chats else "  (无)"
-            failed_list_str = "\n".join(
-                [f"  {i + 1}. {name}" for i, name in enumerate(failed_chats)]) if failed_chats else "  (无)"
+            if not robot.send_text_msg("True Love Base shutting down...", config.master_wix):
+                LOG.warning("Shutdown notification was not delivered to [%s]", config.master_wix)
+        except Exception:
+            LOG.warning("Failed to send shutdown notification to [%s]", config.master_wix, exc_info=True)
+    except Exception:
+        LOG.exception("Base runtime failed; shutting down")
+        raise
+    finally:
+        LOG.info("Cleaning up...")
+        try:
+            client.cleanup()
+        finally:
+            robot.cleanup()
+        LOG.info("Cleanup completed, bye!")
 
-            startup_msg = f"True Love Base started successfully!\n\n当前监听列表 ({len(success_chats)}个):\n{success_list_str}"
-            if failed_chats:
-                startup_msg += f"\n\n监听失败 ({len(failed_chats)}个):\n{failed_list_str}"
 
-            robot.send_text_msg(startup_msg, config.master_wix)
-        except Exception as e:
-            LOG.warning(f"Failed to send startup notification: {e}")
+def init_listening(robot: Robot, stop_event: Event) -> None:
+    """Register saved listeners once; the SDK owns its listener threads."""
+    load_result = robot.load_listen_chats(stop_event=stop_event)
+    if stop_event.is_set():
+        return
+    success_chats = load_result["success"]
+    failed_chats = load_result["failed"]
 
-        # 开始监听（阻塞）
-        robot.start_listening()
+    if len(success_chats) > 0:
+        LOG.info(f"Loaded {len(success_chats)} listen chats from file")
+    else:
+        LOG.warning("No listen_chats found! Use API to add listeners")
 
-    return listener_thread_entry
+    if len(failed_chats) > 0:
+        LOG.warning(f"Failed to load {len(failed_chats)} listen chats: {failed_chats}")
+
+    # 发送启动通知，包含监听成功和失败的列表
+    try:
+        success_list_str = "\n".join(
+            [f"  {i + 1}. {name}" for i, name in enumerate(success_chats)]) if success_chats else "  (无)"
+        failed_list_str = "\n".join(
+            [f"  {i + 1}. {name}" for i, name in enumerate(failed_chats)]) if failed_chats else "  (无)"
+
+        startup_msg = f"True Love Base started successfully!\n\n当前监听列表 ({len(success_chats)}个):\n{success_list_str}"
+        if failed_chats:
+            startup_msg += f"\n\n监听失败 ({len(failed_chats)}个):\n{failed_list_str}"
+
+        if not robot.send_text_msg(startup_msg, config.master_wix):
+            LOG.warning("Startup notification was not delivered to [%s]", config.master_wix)
+    except Exception:
+        LOG.warning("Failed to send startup notification to [%s]", config.master_wix, exc_info=True)
 
 
 def init_wx() -> tuple[WxAutoClient, Robot]:

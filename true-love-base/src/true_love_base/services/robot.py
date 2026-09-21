@@ -52,6 +52,8 @@ class Robot:
             max_workers=self.MAX_WORKERS,
             thread_name_prefix="MsgHandler"
         )
+        self._submission_lock = threading.Lock()
+        self._accepting_messages = True
 
         # 每个 chat_id 一个锁，保证同一聊天内消息顺序
         self._chat_locks: dict[str, threading.Lock] = defaultdict(threading.Lock)
@@ -79,9 +81,15 @@ class Robot:
             chat_name: 聊天对象名称
         """
         try:
-            self.LOG.info(f"Received message from [{chat_name}], submitting to thread pool")
-            # 提交到线程池异步处理
-            self._executor.submit(self._process_message, msg, chat_name)
+            with self._submission_lock:
+                if not self._accepting_messages:
+                    self.LOG.debug(
+                        "Discarding message during shutdown: chat=%s msg_id=%s",
+                        chat_name, getattr(msg, "msg_hash", "") or getattr(msg, "msg_id", ""),
+                    )
+                    return
+                self.LOG.info(f"Received message from [{chat_name}], submitting to thread pool")
+                self._executor.submit(self._process_message, msg, chat_name)
         except Exception as e:
             self.LOG.error(f"Error submitting message to thread pool: {e}")
 
@@ -115,7 +123,9 @@ class Robot:
     LISTEN_ADD_RETRY_COUNT = 3
     LISTEN_ADD_RETRY_DELAY = 1.0  # 秒
 
-    def add_listen_chat(self, chat_name: str, retry: bool = True) -> bool:
+    def add_listen_chat(
+        self, chat_name: str, retry: bool = True, *, stop_event: Optional[threading.Event] = None
+    ) -> bool:
         """
         添加监听的聊天对象（仅操作 SDK，不写入文件）
         
@@ -124,6 +134,7 @@ class Robot:
         Args:
             chat_name: 聊天对象名称（好友昵称或群名）
             retry: 是否在失败时重试（默认 True）
+            stop_event: 启动取消信号，停止后续尝试和重试等待
             
         Returns:
             是否添加成功
@@ -134,6 +145,12 @@ class Robot:
         last_error = None
 
         for attempt in range(1, max_attempts + 1):
+            if stop_event is not None and stop_event.is_set():
+                self.LOG.debug(
+                    "Listener registration cancelled by shutdown before attempt: chat=%s attempt=%s/%s",
+                    chat_name, attempt, max_attempts,
+                )
+                return False
             try:
                 success = self.client.add_message_listener(chat_name, self.on_message)
                 if success:
@@ -143,17 +160,29 @@ class Robot:
                     self.LOG.warning(f"Failed to add listener for [{chat_name}] (attempt {attempt}/{max_attempts})")
             except Exception as e:
                 last_error = e
-                self.LOG.warning(f"Exception adding listener for [{chat_name}] (attempt {attempt}/{max_attempts}): {e}")
+                self.LOG.warning(
+                    "Exception adding listener for [%s] (attempt %s/%s)",
+                    chat_name, attempt, max_attempts, exc_info=True,
+                )
 
             # 如果不是最后一次尝试，等待后重试
             if attempt < max_attempts:
-                time.sleep(self.LISTEN_ADD_RETRY_DELAY)
+                if stop_event is None:
+                    time.sleep(self.LISTEN_ADD_RETRY_DELAY)
+                elif stop_event.wait(self.LISTEN_ADD_RETRY_DELAY):
+                    self.LOG.debug(
+                        "Listener retry cancelled by shutdown while waiting: chat=%s completed_attempts=%s/%s",
+                        chat_name, attempt, max_attempts,
+                    )
+                    return False
 
         self.LOG.error(
             f"Failed to add listener for [{chat_name}] after {max_attempts} attempts. Last error: {last_error}")
         return False
 
-    def load_listen_chats(self) -> dict[str, list[str]]:
+    def load_listen_chats(
+        self, *, stop_event: Optional[threading.Event] = None
+    ) -> dict[str, list[str]]:
         """
         从持久化文件加载监听列表并开始监听
         
@@ -171,21 +200,24 @@ class Robot:
         failed = []
 
         for chat_name in chats:
-            if self.add_listen_chat(chat_name):
+            if stop_event is not None and stop_event.is_set():
+                self.LOG.info(
+                    "Listener loading cancelled before [%s]: success=%s failed=%s remaining=%s",
+                    chat_name, len(success), len(failed), len(chats) - len(success) - len(failed),
+                )
+                break
+            if self.add_listen_chat(chat_name, stop_event=stop_event):
                 success.append(chat_name)
+            elif stop_event is not None and stop_event.is_set():
+                self.LOG.info(
+                    "Listener loading cancelled while registering [%s]: success=%s failed=%s remaining=%s",
+                    chat_name, len(success), len(failed), len(chats) - len(success) - len(failed),
+                )
+                break
             else:
                 failed.append(chat_name)
 
         return {"success": success, "failed": failed}
-
-    def start_listening(self) -> None:
-        """
-        开始消息监听（阻塞）
-        
-        注意：这个方法会阻塞当前线程
-        """
-        self.LOG.info("Robot starting to listen...")
-        self.client.start_listening()
 
     def cleanup(self) -> None:
         """
@@ -193,6 +225,9 @@ class Robot:
         
         关闭线程池，等待所有任务完成。
         """
+        # SDK callbacks already in flight may arrive after StopListening returns.
+        with self._submission_lock:
+            self._accepting_messages = False
         self.LOG.info("Robot cleanup: shutting down thread pool...")
         self._executor.shutdown(wait=True, cancel_futures=False)
         self.LOG.info("Robot cleanup: thread pool shutdown complete")

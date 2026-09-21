@@ -7,6 +7,7 @@ WxAuto WxAutoClient - wxautox4 SDK 封装客户端
 
 import json
 import logging
+from threading import Lock
 from typing import Callable, Optional
 
 # This is a special import, please do not modify
@@ -39,6 +40,8 @@ class WxAutoClient():
         self._wx = None
         self._running = False
         self._self_name: Optional[str] = None
+        # Coordinate listener registration with shutdown, independently of SDK UI locks.
+        self._lifecycle_lock = Lock()
 
         self._init_client()
 
@@ -132,13 +135,13 @@ class WxAutoClient():
     def send_text(self, receiver: str, content: str, at_list: Optional[list[str]] = None) -> bool:
         """发送文本消息"""
         try:
-            # 构建@内容
-            if at_list:
-                at_str = " ".join([f"@{name}" for name in at_list])
-                content = f"{at_str}\n{content}"
             LOG.debug(f"SendMsg content: {content[:50]}...")
             sub_window = self.wx.GetSubWindow(receiver)
-            result = sub_window.SendMsg(content) if sub_window else self.wx.SendMsg(content, receiver)
+            result = (
+                sub_window.SendMsg(content, at=at_list)
+                if sub_window
+                else self.wx.SendMsg(content, receiver, at=at_list)
+            )
             return self._check_response(result, "SendMsg", receiver)
         except Exception as e:
             LOG.error(f"Failed to send text to [{receiver}]: {e}")
@@ -230,6 +233,9 @@ class WxAutoClient():
         """
 
         def internal_callback(raw_msg, chat):
+            if not self._running:
+                LOG.debug("Discarding SDK callback during shutdown: chat=%s", chat_name)
+                return
             try:
                 LOG.info('--------------Start------------------')
                 attr = getattr(raw_msg, 'attr', '')
@@ -247,37 +253,32 @@ class WxAutoClient():
 
                 # 所有消息无脑转发给 server，由 server 负责存储和路由
                 callback(message, chat_name)
-            except Exception as e:
-                LOG.error(f"Error in message callback for [{chat_name}]: {e}")
+            except Exception:
+                LOG.exception("Error in message callback for [%s]", chat_name)
                 # 发送错误提示，避免用户感觉假死
                 try:
-                    self.wx.SendMsg("啊咧？消息好像坏掉了，麻烦再发一次吧~", chat_name)
-                except Exception as send_err:
-                    LOG.error(f"Failed to send error msg to [{chat_name}]: {send_err}")
+                    result = self.wx.SendMsg("啊咧？消息好像坏掉了，麻烦再发一次吧~", chat_name)
+                    self._check_response(result, "SendCallbackErrorNotification", chat_name)
+                except Exception:
+                    LOG.exception("Failed to send callback error notification to [%s]", chat_name)
 
         return internal_callback
 
     def add_message_listener(self, chat_name: str, callback: MessageCallback) -> bool:
         """添加消息监听器"""
-        try:
-            LOG.info(f"Registering listener for [{chat_name}]")
+        with self._lifecycle_lock:
+            if not self._running:
+                LOG.info("Skipping listener registration during shutdown: %s", chat_name)
+                return False
+            try:
+                LOG.info(f"Registering listener for [{chat_name}]")
 
-            internal_callback = self._create_internal_callback(chat_name, callback)
-            result = self.wx.AddListenChat(chat_name, internal_callback)
-            return self._check_response(result, "AddListenChat", chat_name)
-        except Exception as e:
-            LOG.error(f"Failed to add listener for [{chat_name}]: {e}")
-            return False
-
-    def start_listening(self) -> None:
-        """开始消息监听（阻塞）"""
-        try:
-            LOG.info("Starting message listening...")
-            self.wx.KeepRunning()
-        except KeyboardInterrupt:
-            LOG.info("Listening stopped by user")
-        except Exception as e:
-            LOG.error(f"Error in message listening: {e}")
+                internal_callback = self._create_internal_callback(chat_name, callback)
+                result = self.wx.AddListenChat(chat_name, internal_callback)
+                return self._check_response(result, "AddListenChat", chat_name)
+            except Exception:
+                LOG.exception("Failed to add listener for [%s]", chat_name)
+                return False
 
     # ==================== 生命周期 ====================
 
@@ -286,9 +287,16 @@ class WxAutoClient():
         return self._running and self._wx is not None
 
     def cleanup(self) -> None:
-        """清理资源"""
-        try:
+        """停止 SDK 监听，保留微信窗口供已接收的任务收尾。"""
+        with self._lifecycle_lock:
+            if not self._running:
+                LOG.debug("Skipping cleanup: client is already stopping or stopped")
+                return
             self._running = False
-            LOG.info("WxAutoClient cleaned up")
-        except Exception as e:
-            LOG.error(f"Error during cleanup: {e}")
+        # Do not hold the lifecycle lock while the SDK stops its listener threads.
+        try:
+            self.wx.StopListening(remove=False)
+        except Exception:
+            LOG.exception("Failed to stop wxautox4 listening")
+            raise
+        LOG.info("WxAutoClient cleaned up")
