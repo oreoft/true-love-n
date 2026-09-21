@@ -83,18 +83,21 @@ class ListenStore:
         """
         写入监听列表到文件
         
-        使用临时文件 + rename 方式保证原子性
+        在真实目标目录内写临时文件并原子替换，保留容器中的软链接。
         """
+        # Docker links /app/listen_chats.json to the Base file on the shared volume.
+        # Replacing the link itself would leave that shared file unchanged.
+        target_path = os.path.realpath(self._file_path)
+        temp_path = target_path + ".tmp"
         try:
-            temp_path = self._file_path + ".tmp"
             with open(temp_path, 'w', encoding='utf-8') as f:
                 json.dump(chats, f, ensure_ascii=False, indent=2)
             
-            # 原子性替换
-            os.replace(temp_path, self._file_path)
+            # Keep both paths on the shared filesystem so rename stays atomic.
+            os.replace(temp_path, target_path)
             return True
         except Exception as e:
-            LOG.error(f"Failed to write listen file: {e}")
+            LOG.error("Failed to write listen file %s: %s", target_path, e)
             # 清理临时文件
             if os.path.exists(temp_path):
                 try:
@@ -217,4 +220,3 @@ class ListenStore:
 def get_listen_store() -> ListenStore:
     """获取 ListenStore 单例"""
     return ListenStore()
-

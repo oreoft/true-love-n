@@ -200,15 +200,23 @@ class ListenManager:
         # 调用 Base 的 RemoveListenChat
         result = await base_client.get_wechat_client().execute_wx("RemoveListenChat", {"nickname": chat_name})
 
+        if not result.get("success"):
+            LOG.warning(f"SDK remove failed for [{chat_name}]: {result.get('message')}")
+
+        if not skip_store:
+            removed = self._store.remove(chat_name)
+            # remove also returns False when already absent; that is idempotent success.
+            if not removed and self._store.exists(chat_name):
+                LOG.error(f"Failed to persist listener removal for [{chat_name}]")
+                return {
+                    "success": False,
+                    "message": f"Failed to persist removal for [{chat_name}]; listener is still saved locally",
+                }
+
         if result.get("success"):
             LOG.info(f"Removed listener for [{chat_name}]")
-            if not skip_store:
-                self._store.remove(chat_name)
             return {"success": True, "message": f"Removed listener for [{chat_name}]"}
         else:
-            LOG.warning(f"SDK remove failed for [{chat_name}]: {result.get('message')}")
-            if not skip_store:
-                self._store.remove(chat_name)
             return {"success": True, "message": f"Removed from local (SDK: {result.get('message', 'failed')})"}
 
     # ==================== 刷新/重置接口 ====================
