@@ -9,7 +9,7 @@ dependencies = [
     "python-logging-loki>=0.3.1",
     "pyyaml>=6.0.3",
     "uvicorn>=0.30.0",
-    "wxautox4>=40.1.15",
+    "wxautox4==40.1.15",
 ]
 
 [project.optional-dependencies]
@@ -31,5 +31,7 @@ packages = ["src/true_love_base"]
 
 [tool.uv.sources]
 true-love-common = { path = "../true-love-common", editable = true }
+# 40.x 已从 PyPI 删除，whl 放在仓库里固定使用
+wxautox4 = { path = "vendor/wxautox4-40.1.15-cp312-cp312-win_amd64.whl" }
 
 # $env:UV_PROJECT_ENVIRONMENT="C:\Users\admin\.venvs\true-love-base"; $env:UV_VENV_PATH=$env:UV_PROJECT_ENVIRONMENT
