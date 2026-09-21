@@ -68,7 +68,7 @@ class Robot:
             msg: 消息对象
             
         Returns:
-            服务端返回的回复内容
+            server 接收成功返回空串；失败时返回给用户的提示
         """
         return server_client.get_chat(msg)
 
@@ -114,7 +114,11 @@ class Robot:
                 self.LOG.info(f"Processing message from [{chat_name}]: {msg}")
 
                 # 所有消息转发给 server，由 server 负责路由（存储 + 决定是否触发 AI）
-                self.forward_msg(msg)
+                error_reply = self.forward_msg(msg)
+
+                # server 没接住就不会有 AI 回复，需要回复的消息由 base 直接提示用户
+                if error_reply and (msg.is_at_me or not msg.is_group):
+                    self.send_text_msg(error_reply, chat_name, msg.sender_id if msg.is_group else None)
 
             except Exception as e:
                 self.LOG.error(f"Error processing message from [{chat_name}]: {e}")

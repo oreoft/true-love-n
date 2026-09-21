@@ -13,6 +13,9 @@ LOG = logging.getLogger(__name__)
 
 _openai_client: Optional[AsyncOpenAI] = None
 
+# 只约束 agent 对话；共用 client 的生图请求可能更慢，不能套这个值
+AGENT_LLM_TIMEOUT_SECONDS = 120
+
 
 def get_openai_client() -> AsyncOpenAI:
     global _openai_client
@@ -60,7 +63,8 @@ class LLMRouter:
     ) -> tuple[str, list | None]:
         resolved = model or self._model("chat")
         LOG.info("agent: model=%s tools=%d msgs=%d", resolved, len(tools), len(messages))
-        client = get_openai_client()
+        # SDK 默认 600s 超时 + 2 次重试，LLM 卡住时用户要等半小时才收到兜底回复
+        client = get_openai_client().with_options(timeout=AGENT_LLM_TIMEOUT_SECONDS, max_retries=1)
         response = await client.chat.completions.create(
             model=resolved,
             messages=messages,

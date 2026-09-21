@@ -118,13 +118,13 @@ _circuit_breaker = CircuitBreaker(threshold=3, reset_timeout=60)
 
 def get_chat(msg: ChatMsg) -> str:
     """
-    发送消息到服务端获取回复
-    
+    转发消息到服务端，AI 回复由服务端异步回调发送
+
     Args:
         msg: 消息对象
-        
+
     Returns:
-        服务端返回的回复内容
+        服务端接收成功返回空串；失败时返回给用户的提示
     """
     # 检查熔断器
     if _circuit_breaker.is_open():
@@ -155,7 +155,7 @@ def get_chat(msg: ChatMsg) -> str:
 
         if chat_response.is_success:
             _circuit_breaker.record_success()
-            return chat_response.data or ""
+            return ""
         else:
             LOG.error("Server /on-message returned business error: %s", resp_data)
             return _get_error_message()
@@ -169,5 +169,5 @@ def get_chat(msg: ChatMsg) -> str:
 def _get_error_message() -> str:
     """获取错误提示消息"""
     if _circuit_breaker.fail_count < 3:
-        return "啊哦~，可能内容太长搬运超时，再试试捏"
+        return "啊哦~消息没送到服务端，稍后再试试捏~"
     return "啊哦~, 服务正在重新调整，请稍后重试再试"

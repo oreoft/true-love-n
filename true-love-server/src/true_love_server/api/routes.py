@@ -5,6 +5,7 @@ Routes - 路由定义
 定义所有 HTTP 接口路由。
 """
 
+import asyncio
 import logging
 import time
 from pathlib import Path
@@ -30,6 +31,8 @@ router = APIRouter()
 listen_manager = get_listen_manager()
 
 _MEDIA_ROOT = Path("wx_imgs")
+
+AI_UNAVAILABLE_REPLY = "啊哦~AI酱 暂时连不上，稍后再试试捏~"
 
 
 @router.get("/media/{file_path:path}")
@@ -111,29 +114,34 @@ async def on_message(
     return ApiResponse(data="")
 
 
-def _handle_incoming_message(msg: ChatMsg) -> None:
+async def _handle_incoming_message(msg: ChatMsg) -> None:
     """存储消息（best-effort）并按需触发 AI，两个逻辑互相独立"""
-    is_new = True
-    try:
-        from ..core.db_engine import SessionLocal
-        with SessionLocal() as db:
-            is_new = GroupMessageRepository(db).save(msg)
-    except Exception as e:
-        LOG.error(f"消息存储失败: {e}", exc_info=True)
-
+    is_new = await asyncio.to_thread(_save_message, msg)
     if not is_new:
         LOG.warning("重复消息已过滤，跳过 AI 触发: msg_hash=%s sender_id=%s", msg.msg_hash, msg.sender_id)
         return
 
     if msg.is_at_me or not msg.is_group:
         try:
-            _trigger_ai(msg)
+            await asyncio.to_thread(_trigger_ai, msg)
         except Exception as e:
             LOG.error(f"触发 AI 失败: {e}", exc_info=True)
+            await _send_ai_unavailable(msg)
+
+
+def _save_message(msg: ChatMsg) -> bool:
+    """返回是否为新消息；存储失败按新消息处理，不影响触发 AI"""
+    try:
+        from ..core.db_engine import SessionLocal
+        with SessionLocal() as db:
+            return GroupMessageRepository(db).save(msg)
+    except Exception as e:
+        LOG.error(f"消息存储失败: {e}", exc_info=True)
+        return True
 
 
 def _trigger_ai(msg: ChatMsg) -> None:
-    """Fire-and-forget POST 到 AI 的 /trigger 接口"""
+    """Fire-and-forget POST 到 AI 的 /trigger 接口，AI 没接收时抛异常"""
     ai_host = (Config().AI_SERVICE or {}).get("host", "").rstrip("/")
     if not ai_host:
         LOG.warning("AI_SERVICE.host 未配置，跳过 AI 触发")
@@ -144,20 +152,25 @@ def _trigger_ai(msg: ChatMsg) -> None:
         "token": token,
         "msg": msg.to_dict(),
     }
-    try:
-        resp = post_json(
-            f"{ai_host}/trigger",
-            payload,
-            timeout=(5,10),
-        )
-        resp.raise_for_status()
-        data = resp.data if isinstance(resp.data, dict) else {}
-        if isinstance(data, dict) and str(data.get("code", 0)) != "0":
-            LOG.error("AI trigger 返回业务失败: sender_id=%s res=%s", msg.sender_id, data)
-            return
-        LOG.info("AI trigger 成功: sender_id=%s", msg.sender_id)
-    except Exception as e:
-        LOG.error("AI trigger 失败: sender_id=%s, err=%s", msg.sender_id, e)
+    resp = post_json(
+        f"{ai_host}/trigger",
+        payload,
+        timeout=(5,10),
+    )
+    resp.raise_for_status()
+    data = resp.data if isinstance(resp.data, dict) else {}
+    if str(data.get("code", 0)) != "0":
+        raise RuntimeError(f"AI trigger 返回业务失败: {data}")
+    LOG.info("AI trigger 成功: sender_id=%s", msg.sender_id)
+
+
+async def _send_ai_unavailable(msg: ChatMsg) -> None:
+    """AI 没接住消息时由 server 直接回复，避免用户以为机器人假死"""
+    receiver = msg.chat_id if msg.is_group else msg.sender_id
+    at_user = msg.sender_id if msg.is_group else ""
+    ok, err = await base_client.send_text(receiver, at_user, AI_UNAVAILABLE_REPLY, platform=msg.platform)
+    if not ok:
+        LOG.error("AI 不可用提示发送失败: receiver=%s err=%s", receiver, err)
 
 
 # ==================== 查询接口（供 AI 回调使用）====================
