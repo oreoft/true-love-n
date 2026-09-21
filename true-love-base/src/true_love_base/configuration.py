@@ -16,6 +16,8 @@ import yaml
 from true_love_common.observability.logging import LoggingConfig
 from .utils.path_resolver import get_listen_chats_file
 
+DEFAULT_SERVER_HOST = "http://host.docker.internal:8088"
+
 
 class Config:
     """
@@ -43,7 +45,10 @@ class Config:
         
         self.master_wix = self.config["master_wix"]
         self.http_token = self.config["http_token"]
-        
+
+        # Server 服务地址（默认与 base 同机，server 跑在 Docker Desktop 里）
+        self.server_host = (self.config.get("server") or {}).get("host") or DEFAULT_SERVER_HOST
+
         # 监听列表文件路径（与 config.yaml 同级目录）
         self.listen_chats_file = get_listen_chats_file()
         
@@ -52,6 +57,7 @@ class Config:
         # 日志确认配置加载
         LOG = logging.getLogger("Config")
         LOG.info(f"Config loaded: master_wix={self.master_wix}")
+        LOG.info(f"Config loaded: server_host={self.server_host}")
         LOG.info(f"Config loaded: listen_chats_file={self.listen_chats_file}")
     
     def _setup_logging(self) -> None:

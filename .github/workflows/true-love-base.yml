@@ -47,6 +47,14 @@ jobs:
 
             Write-Host "Connected to remote server"
 
+            # Register the task from the repo script on a fresh machine
+            if (-not (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue)) {
+              $createScript = Join-Path ([Environment]::GetFolderPath('Desktop')) 'true-love-n\.github\systemd\create-uia-base.ps1'
+              Write-Host "Task $taskName not found; registering it with $createScript"
+              powershell.exe -NoProfile -ExecutionPolicy Bypass -File $createScript
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+
             Write-Host "Stopping existing TrueLove-Base task if it is running"
             schtasks /end /tn $taskName
             if ($LASTEXITCODE -ne 0) {
@@ -77,8 +85,8 @@ jobs:
           }' || echo "通知发送失败，但部署成功"
 
 
-## 创建任务
-## .\create-uia-base.ps1
+## 创建任务（任务不存在时部署会自动执行；需要管理员权限）
+## .\.github\systemd\create-uia-base.ps1
 #
 ## 启动任务
 ## schtasks /run /tn "UIA-TL-BASE"

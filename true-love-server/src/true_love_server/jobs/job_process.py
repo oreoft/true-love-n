@@ -22,6 +22,7 @@ from true_love_common.http.client import get, post
 
 from ..services import base_client
 from ..core import Config
+from ..core.fs import ensure_dir
 
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
 _config = Config()
@@ -185,8 +186,7 @@ def notice_card_schedule():
 def download_moyu_file():
     # 使用当前工作目录
     download_directory = 'moyu-jpg/'
-    if not os.path.exists(download_directory):
-        os.makedirs(download_directory)
+    ensure_dir(download_directory)
     local_filename = f'{get_current_date()}.jpg'
     full_file_path = os.path.join(download_directory, local_filename)
     retry_count = 3
@@ -215,8 +215,7 @@ def download_moyu_file():
 def download_zao_bao_file():
     # 使用当前工作目录
     download_directory = 'zaobao-jpg/'
-    if not os.path.exists(download_directory):
-        os.makedirs(download_directory)
+    ensure_dir(download_directory)
     local_filename = f'{get_current_date()}.jpg'
     full_file_path = os.path.join(download_directory, local_filename)
 

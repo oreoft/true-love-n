@@ -8,6 +8,8 @@ from urllib.parse import unquote, urlparse
 
 from true_love_common.http.client import HttpResult, async_get, get, trace_headers
 
+from ...core.fs import ensure_dir
+
 LOG = logging.getLogger("BaseClient")
 
 
@@ -73,7 +75,7 @@ async def download_to_tmp(url: str) -> str:
     filename = Path(url_path).name or "download.bin"
     suffix = Path(filename).suffix.lower() or ".bin"
     save_dir = _download_dir_for(suffix)
-    save_dir.mkdir(parents=True, exist_ok=True)
+    ensure_dir(save_dir)
 
     file_path = save_dir / filename
     LOG.info("→ 下载资源: %s", url)

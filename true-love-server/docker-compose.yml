@@ -1,20 +1,11 @@
 # ============================================
-# True Love Server - Docker Compose (Win11 + SMB)
+# True Love Server - Docker Compose (Windows + Docker Desktop)
 # ============================================
 #
-# 部署在 Win11 Docker Desktop (WSL2)，通过 SMB 共享挂载文件
+# 仓库根目录（本文件的上一级 true-love-n）以 bind mount 挂进容器，
+# 路径由本文件位置推导，不依赖 Windows 用户名，也不需要 SMB 共享。
 #
-# 前置准备：
-#   1. 在 Win11 上启用文件共享：
-#      - 右键 C:\Users\admin\Desktop\true-love-n 文件夹
-#      - 选择"属性" -> "共享" -> "高级共享"
-#      - 勾选"共享此文件夹"，共享名设置为 "true-love-n"
-#      - 点击"权限"，确保用户 admin 有完全控制权限
-#   
-#   2. 确保 Windows 防火墙允许文件共享（SMB 端口 445）
-#
-# 使用方式：
-#   cd C:\Users\admin\Desktop\true-love-n\true-love-server
+# 使用方式（在本文件所在目录执行）：
 #   docker compose pull      # 拉取最新镜像
 #   docker compose up -d     # 启动/更新容器
 #   docker compose logs -f   # 查看日志
@@ -44,28 +35,21 @@ services:
 
     # 卷挂载
     volumes:
-      # SMB 卷 - 配置文件和图片
-      - type: volume
-        source: true-love-smb
-        target: /mnt/true-love-n
-        volume:
-          nocopy: true
-      # 本地卷 - SQLite 数据库（不能放在 SMB 上）
+      # 仓库根目录 - 配置文件、监听列表和与 base 共享的媒体目录
+      - ..:/mnt/true-love-n
+      # 本地卷 - SQLite 数据库（不放在 Windows 挂载目录上）
       - tl-server-dbs:/app/dbs
 
-    # 启动前创建软链接，将 SMB 挂载点的文件链接到 /app 目录
+    # 启动前把挂载目录里的文件软链到 /app（服务按工作目录的相对路径读写）
+    # 共享目录不存在就先建出来；ln -n 保证容器原地重启时替换旧链接，而不是钻进目录里再建一层
     command: >
       /bin/sh -c "
-      sleep 2 &&
-      ln -sf /mnt/true-love-n/true-love-server/config.yaml /app/config.yaml &&
-      ln -sf /mnt/true-love-n/true-love-base/listen_chats.json /app/listen_chats.json &&
-      ln -sf /mnt/true-love-n/true-love-base/wx_imgs /app/wx_imgs &&
-      ln -sf /mnt/true-love-n/true-love-base/moyu-jpg /app/moyu-jpg &&
-      ln -sf /mnt/true-love-n/true-love-base/zaobao-jpg /app/zaobao-jpg &&
-      ln -sf /mnt/true-love-n/true-love-base/gen-img /app/gen-img &&
-      ln -sf /mnt/true-love-n/true-love-base/gen-video /app/gen-video &&
-      ln -sf /mnt/true-love-n/true-love-base/gen-audio /app/gen-audio &&
-      ln -sf /mnt/true-love-n/true-love-base/files-save /app/files-save &&
+      R=/mnt/true-love-n &&
+      ln -sfn $$R/true-love-server/config.yaml /app/config.yaml &&
+      ln -sfn $$R/true-love-base/listen_chats.json /app/listen_chats.json &&
+      for d in wx_imgs moyu-jpg zaobao-jpg gen-img gen-video gen-audio files-save; do
+      mkdir -p $$R/true-love-base/$$d && ln -sfn $$R/true-love-base/$$d /app/$$d || exit 1;
+      done &&
       exec python -m true_love_server
       "
 
@@ -84,10 +68,5 @@ services:
 
 # 卷定义
 volumes:
-  # SMB 卷（使用预先创建的外部卷）
-  # 创建命令：docker volume create --driver local --opt type=cifs --opt device="//host.docker.internal/true-love-n" --opt "o=username=admin,password=YOUR_PASSWORD,uid=0,gid=0,file_mode=0777,dir_mode=0777,vers=3.0" true-love-server_true-love-smb
-  true-love-smb:
-    external: true
-    name: true-love-server_true-love-smb
-  # 本地卷 - SQLite 数据库存储（Docker 管理，不受 SMB 限制）
+  # 本地卷 - SQLite 数据库存储（Docker 管理）
   tl-server-dbs:

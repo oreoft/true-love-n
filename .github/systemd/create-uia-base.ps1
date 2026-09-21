@@ -1,8 +1,10 @@
 #Requires -RunAsAdministrator
 
 $TaskName = "UIA-TL-BASE"
-$WorkDir = "C:\Users\admin\Desktop\true-love-n\true-love-base"
-$ScriptDir = "C:\Users\admin\uia-scripts"
+# 本脚本位于 <仓库>\.github\systemd\，由此推导 base 目录，不依赖用户名和仓库位置
+$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+$WorkDir = Join-Path $RepoRoot "true-love-base"
+$ScriptDir = Join-Path $env:USERPROFILE "uia-scripts"
 $RunnerScript = Join-Path $ScriptDir "run-true-love-base.ps1"
 
 # 确保脚本目录存在

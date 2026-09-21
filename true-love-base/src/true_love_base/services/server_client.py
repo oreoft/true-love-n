@@ -20,8 +20,8 @@ from true_love_base.models.api import ChatRequest, ChatResponse
 config = Config()
 LOG = logging.getLogger("ServerClient")
 
-# 服务端配置
-SERVER_HOST = "http://host.docker.internal:8088"
+# 服务端配置（config.yaml 的 server.host）
+SERVER_HOST = config.server_host.rstrip("/")
 CHAT_ENDPOINT = f"{SERVER_HOST}/on-message"
 
 # ==================== HTTP Client 连接复用 ====================

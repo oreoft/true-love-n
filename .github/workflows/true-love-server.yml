@@ -17,7 +17,6 @@ env:
   SERVER_IP: ${{ secrets.M8S_GW_HOST }}
   SERVER_PORT: 2233
   SERVER_USER: admin
-  SERVER_DEPLOY_PATH: "C:\\Users\\admin\\Desktop\\true-love-n\\true-love-server"
   SERVER_SSH_KEY: ${{ secrets.M8S_SSH_DOOR_KEY }}
   
   # 通知配置
@@ -87,7 +86,9 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -p "${{ env.SERVER_PORT }}" "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" << 'EOF'
             $ErrorActionPreference = "Stop"
-            Set-Location -Path "${{ env.SERVER_DEPLOY_PATH }}"
+            # Repo lives on the SSH user's Desktop; ask Windows for it so the user name and OneDrive redirection don't matter
+            $deployPath = Join-Path ([Environment]::GetFolderPath('Desktop')) 'true-love-n\true-love-server'
+            Set-Location -Path $deployPath
 
             git pull --ff-only
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

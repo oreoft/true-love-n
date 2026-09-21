@@ -7,6 +7,10 @@ master_wix: "your_friend_nickname"
 # HTTP token for authentication with backend server
 http_token: "your_secret_token"
 
+# Server address (optional). Defaults to the server container on this machine via Docker Desktop.
+server:
+  host: "http://host.docker.internal:8088"
+
 # Chat listeners are stored in listen_chats.json (auto-created)
 # Manage via HTTP API:
 #   GET  /listen/list   - List all listeners
