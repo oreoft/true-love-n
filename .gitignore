@@ -6,6 +6,10 @@
 **/credentials.json
 **/moyu-jpg/
 **/zaobao-jpg/
+**/gen-img/
+**/gen-video/
+**/gen-audio/
+**/files-save/
 **/sd-jpg/
 **/.wcf.lock
 **/.idea/modules.xml
