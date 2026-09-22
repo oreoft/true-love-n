@@ -85,7 +85,7 @@ jobs:
               Write-Host "Task was not running or could not be stopped; continuing"
             }
 
-            # Re-register when the task is missing (fresh machine) or still runs the old generated runner
+            # Re-register when the task is missing (fresh machine) or does not run the runner in this repo
             $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
             if (-not $task -or "$($task.Actions.Arguments)" -notlike '*\.github\systemd\run-true-love-base.ps1*') {
               Write-Host "Registering $taskName from the repo scripts"

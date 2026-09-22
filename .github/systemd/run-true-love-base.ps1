@@ -24,12 +24,7 @@ if (-not (Test-Path $ConfigFile)) {
     exit 1
 }
 
-# Keep a pre-existing regular config.yaml as config.bak.yaml (still gitignored) the first time we switch to the link
-$existing = Get-Item $ConfigLink -Force -ErrorAction SilentlyContinue
-if ($existing -and -not $existing.LinkType) {
-    Move-Item $ConfigLink (Join-Path $WorkDir "config.bak.yaml") -Force
-}
-# Removes an old link, even a dangling one; does nothing when there is none
+# config-center is the only source of truth: replace whatever is there (old link, even a dangling one, or a stray file)
 [System.IO.File]::Delete($ConfigLink)
 # The task runs with highest privileges, which creating a symlink on Windows requires
 New-Item -ItemType SymbolicLink -Path $ConfigLink -Target $ConfigFile | Out-Null

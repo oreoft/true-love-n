@@ -126,16 +126,6 @@ jobs:
             docker compose up -d --force-recreate
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-            # One-time cleanup of the old SMB mount, now replaced by a bind mount (no-op once gone)
-            # Read only stdout here: redirecting native stderr under "Stop" throws in Windows PowerShell
-            if ((docker volume ls -q) -contains 'true-love-server_true-love-smb') {
-              docker volume rm true-love-server_true-love-smb
-              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            }
-            if (Get-SmbShare -Name 'true-love-n' -ErrorAction SilentlyContinue) {
-              try { Remove-SmbShare -Name 'true-love-n' -Force } catch { Write-Host "Could not remove SMB share true-love-n: $_" }
-            }
-
             docker image prune -f
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
