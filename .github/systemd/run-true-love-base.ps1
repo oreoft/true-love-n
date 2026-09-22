@@ -16,8 +16,8 @@ Write-Host "WorkDir: $WorkDir" -ForegroundColor Gray
 Write-Host "Config : $ConfigFile" -ForegroundColor Gray
 Write-Host "========================================" -ForegroundColor Gray
 
-# A failed pull (e.g. network down) should not keep base from starting with what is on disk
-git pull
+# --ff-only: a diverged checkout errors out instead of being merged silently; base still starts with what is on disk
+git pull --ff-only
 
 if (-not (Test-Path $ConfigFile)) {
     Write-Host "Config not found: $ConfigFile (run the true-love-base deploy workflow to upload it)" -ForegroundColor Red

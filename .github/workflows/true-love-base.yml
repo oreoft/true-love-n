@@ -75,15 +75,15 @@ jobs:
             New-Item -ItemType Directory -Force -Path $configDir | Out-Null
             Move-Item -Force -Path (Join-Path $HOME '.tl-config-true-love-base.yaml') -Destination (Join-Path $configDir 'config.yaml')
 
+            # Pull before stopping anything: if it fails, base keeps running; the task is also (re)registered from these scripts
+            git -C $repoRoot pull --ff-only
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
             Write-Host "Stopping existing TrueLove-Base task if it is running"
             schtasks /end /tn $taskName
             if ($LASTEXITCODE -ne 0) {
               Write-Host "Task was not running or could not be stopped; continuing"
             }
-
-            # Pull first so the task is (re)registered from the latest scripts
-            git -C $repoRoot pull --ff-only
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
             # Re-register when the task is missing (fresh machine) or still runs the old generated runner
             $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
