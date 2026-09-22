@@ -29,6 +29,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Fetch config from config-center
+        uses: actions/checkout@v4
+        with:
+          repository: oreoft/config-center
+          token: ${{ secrets.CONFIG_CENTER_TOKEN }}
+          path: config-center
+          persist-credentials: false
+
       - name: Delay
         run: sleep 30
 
@@ -36,6 +44,19 @@ jobs:
         uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ env.SERVER_SSH_KEY }}
+
+      # Ship the config to the host; the runner links true-love-base\config.yaml to it on start
+      - name: Upload config
+        shell: bash
+        run: |
+          for i in 1 2 3; do
+            scp -q -o StrictHostKeyChecking=no -P "${{ env.SERVER_PORT }}" \
+              config-center/true-love-n/true-love-base/config.yaml \
+              "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}:.tl-config-true-love-base.yaml" && exit 0
+            echo "scp attempt $i failed; retrying"
+            sleep 10
+          done
+          exit 1
 
       - name: Execute base Commands Over SSH (Windows)
         shell: bash
@@ -48,6 +69,11 @@ jobs:
             $repoRoot = Join-Path ([Environment]::GetFolderPath('Desktop')) 'true-love-n'
 
             Write-Host "Connected to remote server"
+
+            # Install the uploaded config before stopping anything, so a failure here leaves base running
+            $configDir = Join-Path ([Environment]::GetFolderPath('Desktop')) 'config-center\true-love-n\true-love-base'
+            New-Item -ItemType Directory -Force -Path $configDir | Out-Null
+            Move-Item -Force -Path (Join-Path $HOME '.tl-config-true-love-base.yaml') -Destination (Join-Path $configDir 'config.yaml')
 
             Write-Host "Stopping existing TrueLove-Base task if it is running"
             schtasks /end /tn $taskName

@@ -55,7 +55,7 @@ services:
     # 卷挂载（对应 -v）
     # 格式：宿主机路径:容器路径[:ro]
     volumes:
-      # 配置文件（只读，来自与 true-love-n 同级 clone 的 config-center；不存在时直接报错，不自动建空目录）
+      # 配置文件（只读，CI 部署时从私有仓库 config-center 取出并放到与 true-love-n 同级的 config-center 目录；不存在时直接报错，不自动建空目录）
       - type: bind
         source: ../../config-center/true-love-n/true-love-ai/config.yaml
         target: /app/config.yaml

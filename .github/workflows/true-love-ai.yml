@@ -79,10 +79,31 @@ jobs:
     environment: production
 
     steps:
+      - name: Fetch config from config-center
+        uses: actions/checkout@v4
+        with:
+          repository: oreoft/config-center
+          token: ${{ secrets.CONFIG_CENTER_TOKEN }}
+          path: config-center
+          persist-credentials: false
+
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ env.SERVER_SSH_KEY }}
+
+      # The image is public, so the config never goes into it: ship it to the host before the service restarts
+      - name: Upload config
+        shell: bash
+        run: |
+          for i in 1 2 3; do
+            scp -q -o StrictHostKeyChecking=no -P "${{ env.SERVER_PORT }}" \
+              config-center/true-love-n/true-love-ai/config.yaml \
+              "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}:.tl-config-true-love-ai.yaml" && exit 0
+            echo "scp attempt $i failed; retrying"
+            sleep 10
+          done
+          exit 1
 
       - name: Deploy via SSH
         shell: bash
@@ -96,9 +117,10 @@ jobs:
             git pull --ff-only
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-            # Configs come from the private config-center repo cloned next to true-love-n
-            git -C (Join-Path $desktop 'config-center') pull --ff-only
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            # Move the uploaded config to where compose mounts it; failing here leaves the running container untouched
+            $configDir = Join-Path $desktop 'config-center\true-love-n\true-love-ai'
+            New-Item -ItemType Directory -Force -Path $configDir | Out-Null
+            Move-Item -Force -Path (Join-Path $HOME '.tl-config-true-love-ai.yaml') -Destination (Join-Path $configDir 'config.yaml')
 
             docker compose pull
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

@@ -1,5 +1,5 @@
 # Entry point of the UIA-TL-BASE scheduled task (registered by create-uia-base.ps1).
-# Pulls the latest code and configs, links config.yaml from config-center, then starts base.
+# Pulls the latest code, links config.yaml to the copy CI deploys into config-center, then starts base.
 # All paths derive from this file: <parent>\true-love-n\.github\systemd\ sits next to <parent>\config-center\.
 
 $Host.UI.RawUI.WindowTitle = "UIA-TL-BASE"
@@ -18,10 +18,9 @@ Write-Host "========================================" -ForegroundColor Gray
 
 # A failed pull (e.g. network down) should not keep base from starting with what is on disk
 git pull
-git -C $ConfigRepo pull
 
 if (-not (Test-Path $ConfigFile)) {
-    Write-Host "Config not found: $ConfigFile (clone config-center next to true-love-n first)" -ForegroundColor Red
+    Write-Host "Config not found: $ConfigFile (run the true-love-base deploy workflow to upload it)" -ForegroundColor Red
     exit 1
 }
 
