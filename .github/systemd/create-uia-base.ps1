@@ -32,6 +32,14 @@ $Task = New-ScheduledTask -Action $Action -Principal $Principal -Settings $Setti
 
 Register-ScheduledTask -TaskName $TaskName -InputObject $Task | Out-Null
 
+# The runner used to be generated into %USERPROFILE%\uia-scripts; drop that orphaned copy (and the folder once empty)
+$LegacyRunner = Join-Path $env:USERPROFILE "uia-scripts\run-true-love-base.ps1"
+if (Test-Path $LegacyRunner) {
+    Remove-Item $LegacyRunner -Force
+    $LegacyDir = Split-Path $LegacyRunner -Parent
+    if (-not (Get-ChildItem $LegacyDir -Force)) { Remove-Item $LegacyDir -Force }
+}
+
 Write-Host ""
 Write-Host "=== Task Created Successfully ===" -ForegroundColor Green
 Write-Host "Task Name : $TaskName"
