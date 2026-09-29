@@ -9,6 +9,7 @@ Configuration - 配置管理模块
 """
 
 import logging
+import socket
 from typing import Optional
 
 import yaml
@@ -43,11 +44,10 @@ class Config:
         # 先初始化日志系统（使用配置文件中的 loki 配置）
         self._setup_logging()
         
-        self.master_wix = self.config["master_wix"]
+        # 这台机器的名字：所有机器共用一份配置，按机器名区分各自的条目；也是消息里的 bot_id
+        self.machine_name = socket.gethostname().lower()
+        self.master_wix = self._find_master(self.config.get("master_wix"), self.machine_name)
         self.http_token = self.config["http_token"]
-
-        # 群里除了账号昵称还能用来叫机器人的别名（昵称从微信读，别名读不到才放配置）
-        self.mention_aliases = self._load_aliases(self.config.get("mention_aliases"))
 
         # Server 服务地址（默认与 base 同机，server 跑在 Docker Desktop 里）
         self.server_host = (self.config.get("server") or {}).get("host") or DEFAULT_SERVER_HOST
@@ -59,7 +59,7 @@ class Config:
         
         # 日志确认配置加载
         LOG = logging.getLogger("Config")
-        LOG.info(f"Config loaded: master_wix={self.master_wix}")
+        LOG.info(f"Config loaded: machine_name={self.machine_name}, master_wix={self.master_wix}")
         LOG.info(f"Config loaded: server_host={self.server_host}")
         LOG.info(f"Config loaded: listen_chats_file={self.listen_chats_file}")
     
@@ -78,11 +78,22 @@ class Config:
         )
 
     @staticmethod
-    def _load_aliases(value) -> list[str]:
-        """别名列表；只写了一个字符串时当作一个别名，空白别名会匹配所有消息所以丢弃"""
-        if isinstance(value, str):
-            value = [value]
-        return [str(alias).strip() for alias in value or [] if str(alias).strip()]
+    def _find_master(value, machine_name: str) -> str:
+        """
+        这台机器的管理员昵称，没配置时为空串
+
+        Args:
+            value: 配置里的 master_wix，{机器名: 昵称}；旧写法是单个昵称，对所有机器生效
+            machine_name: 这台机器的名字
+        """
+        if isinstance(value, dict):
+            masters = {str(name).lower(): master for name, master in value.items()}
+            value = masters.get(machine_name)
+        master = str(value or "").strip()
+        if not master:
+            logging.getLogger("Config").warning(
+                f"No master configured for machine [{machine_name}], notifications to the master are off")
+        return master
 
     @staticmethod
     def _load_config() -> dict:

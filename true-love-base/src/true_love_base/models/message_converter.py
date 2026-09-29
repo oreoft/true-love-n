@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
-from typing import Any, Optional, Sequence
+from typing import Any, Optional
 
 from true_love_common.chat_msg import ChatMsg, ImageMsg, VoiceMsg, VideoMsg, FileMsg, LinkMsg, ResourceRef
 from true_love_base.utils.path_resolver import to_server_path
@@ -15,7 +15,7 @@ QUOTE_TYPE_MAP = {
 }
 
 
-def _find_mention(content: str, msg_type: str, bot_name: str, aliases: Sequence[str]) -> str:
+def _find_mention(content: str, msg_type: str, bot_name: str) -> str:
     """
     找出正文里叫到机器人的那段文字，没叫到返回空串
 
@@ -26,24 +26,15 @@ def _find_mention(content: str, msg_type: str, bot_name: str, aliases: Sequence[
         content: 消息正文
         msg_type: 消息类型
         bot_name: 机器人的账号昵称
-        aliases: 配置里的别名，不区分大小写
     """
-    if bot_name:
-        # 语音转出来的文字里没有 @
-        call = bot_name if msg_type == 'voice' else f"@{bot_name}"
-        if call in content:
-            return call
-    lowered = content.lower()
-    for alias in aliases:
-        start = lowered.find(alias.lower()) if alias else -1
-        if start >= 0:
-            return content[start:start + len(alias)]
-    return ""
+    if not bot_name:
+        return ""
+    # 语音转出来的文字里没有 @
+    call = bot_name if msg_type == 'voice' else f"@{bot_name}"
+    return call if call in content else ""
 
 
-def convert_message(
-    raw_msg: Any, chat_name: str, *, bot_id: str = "", bot_name: str = "", aliases: Sequence[str] = ()
-) -> ChatMsg:
+def convert_message(raw_msg: Any, chat_name: str, *, bot_id: str = "", bot_name: str = "") -> ChatMsg:
     try:
         msg_type = getattr(raw_msg, 'type', 'text')
         msg_id = getattr(raw_msg, 'id', '')
@@ -54,7 +45,7 @@ def convert_message(
         chat_info = getattr(raw_msg, 'chat_info', {}) or {}
         is_group = chat_info.get('chat_type') == 'group'
 
-        mention = _find_mention(content, msg_type, bot_name, aliases)
+        mention = _find_mention(content, msg_type, bot_name)
         is_at_me = is_group and bool(mention)
         sender = getattr(raw_msg, 'sender', chat_name) if is_group else chat_name
 

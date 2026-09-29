@@ -66,7 +66,7 @@ class ListenerLifecycleTests(unittest.TestCase):
             "true_love_base.configuration": module(
                 "true_love_base.configuration",
                 Config=lambda: types.SimpleNamespace(
-                    master_wix="owner", listen_chats_file="listen_chats.json", mention_aliases=["zaf"],
+                    master_wix="owner", listen_chats_file="listen_chats.json", machine_name="win10-m8s",
                 ),
             ),
             "true_love_base.services": module(
@@ -228,7 +228,7 @@ class ListenerLifecycleTests(unittest.TestCase):
 
     def run_main(
         self, *, fail_loading=False, fail_stopping=False, cancel_loading=False, wechat_running=True,
-        changes=(),
+        changes=(), master="owner",
     ):
         """Run main(), applying one of `changes` after each supervisor step, then shut down."""
         self.wechat_running = wechat_running
@@ -241,7 +241,7 @@ class ListenerLifecycleTests(unittest.TestCase):
             return False
 
         client = self.client_module.WxAutoClient()
-        robot = Mock()
+        robot = Mock(master=master)
 
         def load(**kwargs):
             self.events.append("load")
@@ -358,7 +358,7 @@ class ListenerLifecycleTests(unittest.TestCase):
 
         keep_awake.assert_called_once_with()
 
-    def test_aliases_from_the_configuration_are_used_to_judge_messages(self):
+    def test_messages_are_stamped_with_the_name_of_this_machine(self):
         client, robot = self.main_module.init_wx()
         self.addCleanup(robot.cleanup)
         client.connect()
@@ -367,7 +367,20 @@ class ListenerLifecycleTests(unittest.TestCase):
 
         deliver(types.SimpleNamespace(attr="friend"), object())
 
-        self.assertEqual(self.client_module.convert_message.call_args.kwargs["aliases"], ("zaf",))
+        self.assertEqual(self.client_module.convert_message.call_args.kwargs["bot_id"], "win10-m8s")
+
+    def test_robot_knows_the_master_of_this_machine(self):
+        client, robot = self.main_module.init_wx()
+        self.addCleanup(robot.cleanup)
+
+        self.assertEqual(robot.master, "owner")
+
+    def test_machine_without_a_master_starts_without_announcing(self):
+        with self.assertLogs("Main", level="WARNING"):
+            robot = self.run_main(master="")
+
+        robot.send_text_msg.assert_not_called()
+        self.assertEqual(self.events, ["http", "load", "stop-sdk", "drain"])
 
     def test_missing_wechat_does_not_abort_startup(self):
         self.wechat_running = False

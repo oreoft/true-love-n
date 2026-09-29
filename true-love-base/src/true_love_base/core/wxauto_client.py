@@ -9,7 +9,7 @@ import json
 import logging
 from datetime import datetime
 from threading import Lock
-from typing import Callable, Optional, Sequence
+from typing import Callable, Optional
 
 # This is a special import, please do not modify
 from true_love_base.wxautox4x.wxautox4x import WeChat
@@ -39,19 +39,18 @@ class WxAutoClient():
     wxautox4 客户端适配器 封装 wxautox4 的所有操作。
     """
 
-    def __init__(self, mention_aliases: Sequence[str] = ()):
+    def __init__(self, bot_id: str = ""):
         """
         创建客户端；不连接微信，微信可用时由 connect() 建立连接
 
         Args:
-            mention_aliases: 除账号昵称外，群里还能用来叫机器人的别名
+            bot_id: 这个机器人的标识（机器名），随每条消息带给下游
         """
         self._wx = None
         self._running = True
-        # 当前登录的账号，每次连接时从微信读取
-        self._self_id: str = ""
+        self._bot_id = bot_id
+        # 当前登录账号的昵称，每次连接时从微信读取
         self._self_name: str = ""
-        self._mention_aliases = tuple(mention_aliases)
         # 当前状态（在线或离线）开始的时间
         self._state_since = datetime.now()
         # 最近一次连接失败的原因，同一个原因只报一次
@@ -74,9 +73,9 @@ class WxAutoClient():
             return False
         self._wx = wx
         self._connect_error = None
-        self._self_id, self._self_name = self._read_account(wx)
+        self._self_name = str(getattr(wx, 'nickname', None) or "")
         self._state_since = datetime.now()
-        LOG.info("WxAutoClient connected, self: %s (%s)", self.get_self_name(), self._self_id)
+        LOG.info("WxAutoClient connected, self: %s", self.get_self_name())
         return True
 
     def disconnect(self) -> None:
@@ -86,7 +85,7 @@ class WxAutoClient():
             wx, self._wx = self._wx, None
         if wx is None:
             return
-        self._self_id, self._self_name = "", ""
+        self._self_name = ""
         self._state_since = datetime.now()
         # Do not hold the lifecycle lock while the SDK stops its listener threads.
         try:
@@ -115,7 +114,7 @@ class WxAutoClient():
         online = self.is_connected()
         return {
             "wx_online": online,
-            "self_id": self._self_id or None,
+            "bot_id": self._bot_id,
             "self_name": self.get_self_name() if online else None,
             "since": self._state_since.isoformat(timespec="seconds"),
         }
@@ -151,17 +150,6 @@ class WxAutoClient():
             return False
 
     # ==================== 账号信息 ====================
-
-    @staticmethod
-    def _read_account(wx) -> tuple[str, str]:
-        """读取登录账号的 wxid 和昵称；构造 WeChat 时 SDK 已经取过，这里不再操作界面"""
-        info = getattr(wx, 'myinfo', None)
-        self_id = info.get('id') if isinstance(info, dict) else None
-        return str(self_id or ""), str(getattr(wx, 'nickname', None) or "")
-
-    def get_self_id(self) -> str:
-        """获取当前登录账号的 wxid，未连接或读不到时为空串"""
-        return self._self_id
 
     def get_self_name(self) -> str:
         """获取当前登录账号昵称"""
@@ -312,10 +300,7 @@ class WxAutoClient():
                 LOG.info('------------ Raw chat info ------------\n%s', self._dump_obj_attrs(chat))
 
                 # 转换消息
-                message = convert_message(
-                    raw_msg, chat_name,
-                    bot_id=self._self_id, bot_name=self._self_name, aliases=self._mention_aliases,
-                )
+                message = convert_message(raw_msg, chat_name, bot_id=self._bot_id, bot_name=self._self_name)
                 LOG.info('Converted message: %r', message)
                 LOG.info('---------------END-----------------')
 

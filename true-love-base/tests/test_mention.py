@@ -18,7 +18,7 @@ def message(content, *, chat_type="group", msg_type="text"):
 
 class MentionTests(unittest.TestCase):
     def convert(self, raw, **bot):
-        bot = {"bot_id": "wxid_bot", "bot_name": "kun jr", "aliases": (), **bot}
+        bot = {"bot_id": "win11-ser", "bot_name": "kun jr", **bot}
         return convert_message(raw, "room", **bot)
 
     def test_group_message_mentioning_the_account_nickname_is_for_the_bot(self):
@@ -45,14 +45,8 @@ class MentionTests(unittest.TestCase):
         self.assertTrue(msg.is_at_me)
         self.assertEqual(msg.mention, "kun jr")
 
-    def test_configured_alias_calls_the_bot_in_any_letter_case(self):
-        msg = self.convert(message("ZAF 帮我查一下"), aliases=("zaf",))
-
-        self.assertTrue(msg.is_at_me)
-        self.assertEqual(msg.mention, "ZAF")
-
-    def test_alias_means_nothing_unless_it_is_configured(self):
-        msg = self.convert(message("zaf 帮我查一下"))
+    def test_no_word_calls_the_bot_except_its_nickname(self):
+        msg = self.convert(message("zaf 帮我查一下"), bot_name="真爱粉")
 
         self.assertFalse(msg.is_at_me)
         self.assertEqual(msg.mention, "")
@@ -69,10 +63,10 @@ class MentionTests(unittest.TestCase):
         self.assertFalse(msg.is_at_me)
         self.assertEqual(msg.mention, "")
 
-    def test_every_message_names_the_bot_that_received_it(self):
+    def test_every_message_names_the_machine_that_received_it(self):
         msg = self.convert(message("hello"))
 
-        self.assertEqual(msg.bot_id, "wxid_bot")
+        self.assertEqual(msg.bot_id, "win11-ser")
 
 
 if __name__ == "__main__":

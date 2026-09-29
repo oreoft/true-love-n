@@ -34,15 +34,17 @@ class Robot:
     # 线程池配置
     MAX_WORKERS = 10
 
-    def __init__(self, client: WxAutoClient, listen_store: "ListenStore") -> None:
+    def __init__(self, client: WxAutoClient, listen_store: "ListenStore", master: str = "") -> None:
         """
         初始化机器人
         
         Args:
             client: 微信客户端实例（实现 WeChatClientProtocol）
             listen_store: 监听列表持久化管理器
+            master: 这台机器的管理员昵称，没有时为空串
         """
         self.client = client
+        self.master = master
         self.LOG = logging.getLogger("Robot")
         self._listen_store = listen_store
 

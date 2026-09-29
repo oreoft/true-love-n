@@ -67,6 +67,7 @@ async def send_text(request: dict[str, Any] | None = Body(default=None)) -> dict
 
     Request Body:
         - sendReceiver: 接收者
+        - is_master: 为 true 时发给这台机器的管理员，忽略 sendReceiver（可选）
         - content: 消息内容
         - atReceiver: 要@的人（可选）
 
@@ -79,7 +80,9 @@ async def send_text(request: dict[str, Any] | None = Body(default=None)) -> dict
         return unavailable
 
     data = _payload(request)
-    receiver = data.get("sendReceiver", "")
+    if data.get("is_master") and not robot.master:
+        return ApiErrors.NO_MASTER.to_dict()
+    receiver = _receiver(robot, data)
     content = data.get("content", "")
     at_receiver = data.get("atReceiver", "")
 
@@ -99,6 +102,7 @@ async def send_file(request: dict[str, Any] | None = Body(default=None)) -> dict
 
     Request Body:
         - sendReceiver: 接收者
+        - is_master: 为 true 时发给这台机器的管理员，忽略 sendReceiver（可选）
         - path: 文件路径（可以是 Server 的相对路径，会自动在 true-love-server 目录下查找）
     """
     robot = _get_robot()
@@ -107,8 +111,10 @@ async def send_file(request: dict[str, Any] | None = Body(default=None)) -> dict
         return unavailable
 
     data = _payload(request)
+    if data.get("is_master") and not robot.master:
+        return ApiErrors.NO_MASTER.to_dict()
     path = data.get("path", "")
-    receiver = data.get("sendReceiver", "")
+    receiver = _receiver(robot, data)
 
     if not receiver or not path:
         return ApiErrors.INVALID_PARAMS.to_dict()
@@ -280,6 +286,11 @@ def _unavailable(robot: Optional["Robot"]) -> Optional[dict[str, Any]]:
     if not robot.client.is_connected():
         return ApiErrors.WECHAT_OFFLINE.to_dict()
     return None
+
+
+def _receiver(robot: "Robot", data: dict[str, Any]) -> str:
+    """消息发给谁：指明发给管理员时用这台机器的管理员，否则用请求里的接收者"""
+    return robot.master if data.get("is_master") else data.get("sendReceiver", "")
 
 
 def _payload(data: dict[str, Any] | None) -> dict[str, Any]:

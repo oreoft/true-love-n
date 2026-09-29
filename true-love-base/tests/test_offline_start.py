@@ -27,8 +27,8 @@ def load_source(name, path):
     return result
 
 
-def new_sdk(nickname="bot", wxid="wxid_bot"):
-    sdk = Mock(nickname=nickname, myinfo={"display_name": nickname, "id": wxid})
+def new_sdk(nickname="bot"):
+    sdk = Mock(nickname=nickname)
     sdk.GetSubWindow.return_value = None
     sdk.SendMsg.return_value = True
     sdk.AddListenChat.return_value = True
@@ -212,10 +212,10 @@ class StatusTests(unittest.TestCase):
         clock = patch.object(client_module, "datetime", Mock(now=lambda: self.now))
         clock.start()
         self.addCleanup(clock.stop)
-        self.client = client_module.WxAutoClient()
+        self.client = client_module.WxAutoClient(bot_id="win10-m8s")
 
-    def connect_at(self, moment, nickname="真爱粉", wxid="wxid_bot"):
-        self.desktop.log_in(new_sdk(nickname, wxid))
+    def connect_at(self, moment, nickname="真爱粉"):
+        self.desktop.log_in(new_sdk(nickname))
         self.now = moment
         self.assertTrue(self.client.connect())
 
@@ -224,7 +224,7 @@ class StatusTests(unittest.TestCase):
 
         self.assertEqual(
             self.client.status(),
-            {"wx_online": False, "self_id": None, "self_name": None, "since": "2026-09-29T08:00:00"},
+            {"wx_online": False, "bot_id": "win10-m8s", "self_name": None, "since": "2026-09-29T08:00:00"},
         )
 
     def test_failed_connect_attempts_do_not_restart_the_offline_clock(self):
@@ -240,7 +240,7 @@ class StatusTests(unittest.TestCase):
 
         self.assertEqual(
             self.client.status(),
-            {"wx_online": True, "self_id": "wxid_bot", "self_name": "真爱粉", "since": "2026-09-29T08:05:00"},
+            {"wx_online": True, "bot_id": "win10-m8s", "self_name": "真爱粉", "since": "2026-09-29T08:05:00"},
         )
 
     def test_status_after_a_drop_shows_when_wechat_went_away(self):
@@ -250,7 +250,7 @@ class StatusTests(unittest.TestCase):
 
         self.assertEqual(
             self.client.status(),
-            {"wx_online": False, "self_id": None, "self_name": None, "since": "2026-09-29T08:20:00"},
+            {"wx_online": False, "bot_id": "win10-m8s", "self_name": None, "since": "2026-09-29T08:20:00"},
         )
 
     def test_reconnecting_as_another_account_reports_the_new_name(self):
@@ -258,11 +258,11 @@ class StatusTests(unittest.TestCase):
         self.assertEqual(self.client.status()["self_name"], "真爱粉")
         self.client.disconnect()
 
-        self.connect_at(datetime(2026, 9, 29, 8, 40, 0), nickname="小号", wxid="wxid_other")
+        self.connect_at(datetime(2026, 9, 29, 8, 40, 0), nickname="小号")
 
         self.assertEqual(
             self.client.status(),
-            {"wx_online": True, "self_id": "wxid_other", "self_name": "小号", "since": "2026-09-29T08:40:00"},
+            {"wx_online": True, "bot_id": "win10-m8s", "self_name": "小号", "since": "2026-09-29T08:40:00"},
         )
 
 
@@ -274,67 +274,47 @@ def group_message(content):
 
 
 class IdentityTests(unittest.TestCase):
-    """Messages are judged against the account that is logged in, whoever that is."""
+    """Messages are judged against the account that is logged in, and carry the machine that received them."""
 
     def setUp(self):
         self.desktop = WeChatDesktop()
-        self.client = load_client_module(self.desktop, real_converter=True).WxAutoClient(mention_aliases=["zaf"])
+        self.client = load_client_module(self.desktop, real_converter=True).WxAutoClient(bot_id="win11-ser")
         self.received = []
 
-    def log_in_and_listen(self, nickname, wxid):
-        sdk = new_sdk(nickname, wxid)
+    def log_in_and_listen(self, nickname):
+        sdk = new_sdk(nickname)
         sdk.GetSubWindow.return_value = Mock(who="room")
         self.desktop.log_in(sdk)
         self.assertTrue(self.client.connect())
         self.assertTrue(self.client.add_message_listener("room", lambda msg, chat: self.received.append(msg)))
         return sdk.AddListenChat.call_args.args[1]
 
-    def test_forwarded_message_names_the_logged_in_account(self):
-        deliver = self.log_in_and_listen("kun jr", "wxid_kun")
+    def test_forwarded_message_names_the_machine_that_received_it(self):
+        deliver = self.log_in_and_listen("kun jr")
 
         deliver(group_message("hello"), Mock(who="room"))
 
-        self.assertEqual(self.received[0].bot_id, "wxid_kun")
+        self.assertEqual(self.received[0].bot_id, "win11-ser")
         self.assertFalse(self.received[0].is_at_me)
 
     def test_mention_of_the_logged_in_nickname_is_for_this_bot(self):
-        deliver = self.log_in_and_listen("kun jr", "wxid_kun")
+        deliver = self.log_in_and_listen("kun jr")
 
         deliver(group_message("@kun jr\u2005hi"), Mock(who="room"))
 
         self.assertTrue(self.received[0].is_at_me)
         self.assertEqual(self.received[0].mention, "@kun jr")
 
-    def test_alias_from_the_configuration_reaches_the_bot(self):
-        deliver = self.log_in_and_listen("kun jr", "wxid_kun")
-
-        deliver(group_message("zaf hi"), Mock(who="room"))
-
-        self.assertTrue(self.received[0].is_at_me)
-
-    def test_identity_follows_the_account_after_logging_in_as_someone_else(self):
-        self.log_in_and_listen("kun jr", "wxid_kun")
+    def test_mentions_follow_the_account_after_logging_in_as_someone_else(self):
+        self.log_in_and_listen("kun jr")
         self.client.disconnect()
-        deliver = self.log_in_and_listen("小号", "wxid_other")
+        deliver = self.log_in_and_listen("小号")
 
         deliver(group_message("@kun jr\u2005hi"), Mock(who="room"))
         deliver(group_message("@小号\u2005hi"), Mock(who="room"))
 
-        self.assertEqual([m.bot_id for m in self.received], ["wxid_other", "wxid_other"])
+        self.assertEqual([m.bot_id for m in self.received], ["win11-ser", "win11-ser"])
         self.assertEqual([m.is_at_me for m in self.received], [False, True])
-
-    def test_account_without_a_readable_id_still_forwards_messages(self):
-        sdk = new_sdk("kun jr")
-        sdk.myinfo = None
-        sdk.GetSubWindow.return_value = Mock(who="room")
-        self.desktop.log_in(sdk)
-        self.assertTrue(self.client.connect())
-        self.client.add_message_listener("room", lambda msg, chat: self.received.append(msg))
-
-        sdk.AddListenChat.call_args.args[1](group_message("@kun jr\u2005hi"), Mock(who="room"))
-
-        self.assertEqual(self.received[0].bot_id, "")
-        self.assertTrue(self.received[0].is_at_me)
 
 
 class Timeline:
@@ -461,9 +441,10 @@ class RoutesTests(unittest.TestCase):
         clock = patch.object(client_module, "datetime", Mock(now=lambda: self.now))
         clock.start()
         self.addCleanup(clock.stop)
-        self.client = client_module.WxAutoClient()
+        self.client = client_module.WxAutoClient(bot_id="win10-m8s")
         self.robot = types.SimpleNamespace(
             client=self.client,
+            master="owner",
             send_text_msg=Mock(return_value=True),
             send_file_msg=Mock(return_value=True),
             add_listen_chat=Mock(return_value=True),
@@ -512,13 +493,46 @@ class RoutesTests(unittest.TestCase):
         self.assertEqual(response, {"code": 0, "message": "success", "data": None})
         self.robot.send_text_msg.assert_called_once_with("hi", "alice", None)
 
+    def test_text_for_the_master_goes_to_the_master_of_this_machine(self):
+        self.log_in()
+
+        response = asyncio.run(self.routes.send_text({"is_master": True, "content": "deployed"}))
+
+        self.assertEqual(response, {"code": 0, "message": "success", "data": None})
+        self.robot.send_text_msg.assert_called_once_with("deployed", "owner", None)
+
+    def test_chat_that_happens_to_be_called_master_is_an_ordinary_receiver(self):
+        self.log_in()
+
+        asyncio.run(self.routes.send_text({"sendReceiver": "master", "content": "hi"}))
+
+        self.robot.send_text_msg.assert_called_once_with("hi", "master", None)
+
+    def test_file_for_the_master_goes_to_the_master_of_this_machine(self):
+        self.log_in()
+
+        with patch.object(self.routes, "resolve_path", side_effect=lambda path: path):
+            response = asyncio.run(self.routes.send_file({"is_master": True, "path": "wx_imgs/report.png"}))
+
+        self.assertEqual(response, {"code": 0, "message": "success", "data": None})
+        self.robot.send_file_msg.assert_called_once_with("wx_imgs/report.png", "owner")
+
+    def test_message_for_the_master_is_refused_on_a_machine_without_one(self):
+        self.log_in()
+        self.robot.master = ""
+
+        response = asyncio.run(self.routes.send_text({"is_master": True, "content": "deployed"}))
+
+        self.assertEqual(response, {"code": 100, "message": "No master is configured for this machine", "data": None})
+        self.robot.send_text_msg.assert_not_called()
+
     def test_status_reports_wechat_offline_since_startup(self):
         response = asyncio.run(self.routes.status())
 
         self.assertEqual(response, {
             "code": 0,
             "message": "success",
-            "data": {"wx_online": False, "self_id": None, "self_name": None, "since": "2026-09-29T08:00:00"},
+            "data": {"wx_online": False, "bot_id": "win10-m8s", "self_name": None, "since": "2026-09-29T08:00:00"},
         })
 
     def test_status_reports_the_connected_account(self):
@@ -530,7 +544,7 @@ class RoutesTests(unittest.TestCase):
             "code": 0,
             "message": "success",
             "data": {
-                "wx_online": True, "self_id": "wxid_bot", "self_name": "真爱粉", "since": "2026-09-29T08:05:00",
+                "wx_online": True, "bot_id": "win10-m8s", "self_name": "真爱粉", "since": "2026-09-29T08:05:00",
             },
         })
 

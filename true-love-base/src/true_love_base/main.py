@@ -77,6 +77,9 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
+    if not robot.master:
+        LOG.warning(f"Machine [{config.machine_name}] has no master, startup and shutdown are not announced")
+
     # 是否已经向 master 报告过启动成功
     announced = False
 
@@ -94,12 +97,12 @@ def main():
         # 在主线程里守护微信连接，直到收到退出信号；AddListenChat starts SDK listening.
         WxSupervisor(client, start_listening, shutdown_event).run()
 
-        if announced and client.is_connected():
+        if announced and robot.master and client.is_connected():
             try:
-                if not robot.send_text_msg("True Love Base shutting down...", config.master_wix):
-                    LOG.warning("Shutdown notification was not delivered to [%s]", config.master_wix)
+                if not robot.send_text_msg("True Love Base shutting down...", robot.master):
+                    LOG.warning("Shutdown notification was not delivered to [%s]", robot.master)
             except Exception:
-                LOG.warning("Failed to send shutdown notification to [%s]", config.master_wix, exc_info=True)
+                LOG.warning("Failed to send shutdown notification to [%s]", robot.master, exc_info=True)
     except Exception:
         LOG.exception("Base runtime failed; shutting down")
         raise
@@ -133,6 +136,9 @@ def init_listening(robot: Robot, stop_event: Event, *, reconnected: bool = False
     if len(failed_chats) > 0:
         LOG.warning(f"Failed to load {len(failed_chats)} listen chats: {failed_chats}")
 
+    if not robot.master:
+        return True
+
     # 发送启动通知，包含监听成功和失败的列表
     try:
         success_list_str = "\n".join(
@@ -150,23 +156,23 @@ def init_listening(robot: Robot, stop_event: Event, *, reconnected: bool = False
             LOG.warning(f"Display scaling is {scale}%, wxautox4 needs 100%")
             startup_msg += f"\n\n屏幕缩放是 {scale}%，请调成 100%，否则下载图片等操作可能失败"
 
-        if not robot.send_text_msg(startup_msg, config.master_wix):
-            LOG.warning("Startup notification was not delivered to [%s]", config.master_wix)
+        if not robot.send_text_msg(startup_msg, robot.master):
+            LOG.warning("Startup notification was not delivered to [%s]", robot.master)
     except Exception:
-        LOG.warning("Failed to send startup notification to [%s]", config.master_wix, exc_info=True)
+        LOG.warning("Failed to send startup notification to [%s]", robot.master, exc_info=True)
     return True
 
 
 def init_wx() -> tuple[WxAutoClient, Robot]:
     # 初始化微信客户端；连接微信由 WxSupervisor 负责，微信没开也不影响 base 启动
-    client = WxAutoClient(mention_aliases=config.mention_aliases)
+    client = WxAutoClient(bot_id=config.machine_name)
 
     # 初始化监听列表持久化管理器
     listen_store = ListenStore(config.listen_chats_file)
     LOG.info(f"ListenStore initialized: {config.listen_chats_file}")
 
     # 初始化机器人
-    robot = Robot(client, listen_store)
+    robot = Robot(client, listen_store, master=config.master_wix)
     return client, robot
 
 

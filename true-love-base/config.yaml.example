@@ -1,15 +1,15 @@
 # True Love Base Configuration
 # Copy this file to config.yaml and modify as needed
 
-# Master user - nickname for notifications (wxauto uses nickname, not wxid)
-master_wix: "your_friend_nickname"
+# This file is shared by every machine that runs base. The only per-machine entry is the master:
+# the nickname that gets startup/shutdown notices, and everything sent with is_master.
+# Keys are Windows machine names (any letter case); a machine that is not listed has no master.
+master_wix:
+  win10-m8s: "your_friend_nickname"
+  another-machine: "another_nickname"
 
 # HTTP token for authentication with backend server
 http_token: "your_secret_token"
-
-# Extra names that call the bot in a group, besides "@<account nickname>" which is read from WeChat (optional).
-# Matched anywhere in the message, ignoring letter case.
-# mention_aliases: ["zaf"]
 
 # Server address (optional). Defaults to the server container on this machine via Docker Desktop.
 server:
