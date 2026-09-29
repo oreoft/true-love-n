@@ -152,6 +152,10 @@ def _trigger_ai(msg: ChatMsg) -> None:
         "token": token,
         "msg": msg.to_dict(),
     }
+    # 多套 server 共用一个 AI 时，告诉 AI 回复发回哪个 server；没配置就由 AI 用它的默认地址
+    reply_to = (Config().AI_SERVICE or {}).get("reply_to", "")
+    if reply_to:
+        payload["reply_to"] = reply_to.rstrip("/")
     resp = post_json(
         f"{ai_host}/trigger",
         payload,

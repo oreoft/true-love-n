@@ -32,6 +32,7 @@ def ai_response(status_code=200, data=None):
 class AiTriggerFallbackTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         config = types.SimpleNamespace(AI_SERVICE={"host": "http://ai.test"}, HTTP_TOKEN=["token"])
+        self.config = config
         self.repository = Mock()
         self.repository.save.return_value = True
         session = Mock()
@@ -96,6 +97,20 @@ class AiTriggerFallbackTests(unittest.IsolatedAsyncioTestCase):
 
         self.post_json.assert_called_once()
         self.send_text.assert_not_awaited()
+
+    async def test_trigger_tells_ai_which_server_to_send_the_reply_to(self):
+        self.config.AI_SERVICE["reply_to"] = "http://server-b.test:8088/"
+
+        await self.routes._handle_incoming_message(ChatMsg(sender_id="alice"))
+
+        payload = self.post_json.call_args.args[1]
+        self.assertEqual(payload["reply_to"], "http://server-b.test:8088")
+
+    async def test_server_without_a_reply_address_leaves_the_choice_to_ai(self):
+        await self.routes._handle_incoming_message(ChatMsg(sender_id="alice"))
+
+        payload = self.post_json.call_args.args[1]
+        self.assertNotIn("reply_to", payload)
 
     async def test_plain_group_message_never_triggers_ai(self):
         await self.routes._handle_incoming_message(ChatMsg(sender_id="alice", chat_id="room", is_group=True))

@@ -20,6 +20,14 @@ base_server:
   master_wxid: "wxid_xxx"  # Your wxid for notifications
   master_group: "xxx@chatroom"  # Master group roomid
 
+# AI service address (AI 服务地址)
+ai_service:
+  host: "http://localhost:8089"
+  # This server's address as AI reaches it (optional).
+  # Needed when several servers share one AI: AI sends each reply back through the server it came from.
+  # Without it AI replies through the server address in its own config.
+  # reply_to: "http://this-machine:8088"
+
 http_token: "your_secret_token"
 
 # ASR configuration (语音识别配置)
