@@ -159,7 +159,7 @@ def init_listening(robot: Robot, stop_event: Event, *, reconnected: bool = False
 
 def init_wx() -> tuple[WxAutoClient, Robot]:
     # 初始化微信客户端；连接微信由 WxSupervisor 负责，微信没开也不影响 base 启动
-    client = WxAutoClient()
+    client = WxAutoClient(mention_aliases=config.mention_aliases)
 
     # 初始化监听列表持久化管理器
     listen_store = ListenStore(config.listen_chats_file)

@@ -65,7 +65,9 @@ class ListenerLifecycleTests(unittest.TestCase):
             ),
             "true_love_base.configuration": module(
                 "true_love_base.configuration",
-                Config=lambda: types.SimpleNamespace(master_wix="owner", listen_chats_file="listen_chats.json"),
+                Config=lambda: types.SimpleNamespace(
+                    master_wix="owner", listen_chats_file="listen_chats.json", mention_aliases=["zaf"],
+                ),
             ),
             "true_love_base.services": module(
                 "true_love_base.services", __path__=[], server_client=types.SimpleNamespace(get_chat=Mock())
@@ -355,6 +357,17 @@ class ListenerLifecycleTests(unittest.TestCase):
             self.run_main()
 
         keep_awake.assert_called_once_with()
+
+    def test_aliases_from_the_configuration_are_used_to_judge_messages(self):
+        client, robot = self.main_module.init_wx()
+        self.addCleanup(robot.cleanup)
+        client.connect()
+        client.add_message_listener("group", Mock())
+        deliver = self.sdk.AddListenChat.call_args.args[1]
+
+        deliver(types.SimpleNamespace(attr="friend"), object())
+
+        self.assertEqual(self.client_module.convert_message.call_args.kwargs["aliases"], ("zaf",))
 
     def test_missing_wechat_does_not_abort_startup(self):
         self.wechat_running = False

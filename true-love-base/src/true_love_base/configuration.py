@@ -46,6 +46,9 @@ class Config:
         self.master_wix = self.config["master_wix"]
         self.http_token = self.config["http_token"]
 
+        # 群里除了账号昵称还能用来叫机器人的别名（昵称从微信读，别名读不到才放配置）
+        self.mention_aliases = self._load_aliases(self.config.get("mention_aliases"))
+
         # Server 服务地址（默认与 base 同机，server 跑在 Docker Desktop 里）
         self.server_host = (self.config.get("server") or {}).get("host") or DEFAULT_SERVER_HOST
 
@@ -73,6 +76,13 @@ class Config:
             loki_user_id=loki_config.get("user_id", ""),
             loki_api_key=loki_config.get("api_key", ""),
         )
+
+    @staticmethod
+    def _load_aliases(value) -> list[str]:
+        """别名列表；只写了一个字符串时当作一个别名，空白别名会匹配所有消息所以丢弃"""
+        if isinstance(value, str):
+            value = [value]
+        return [str(alias).strip() for alias in value or [] if str(alias).strip()]
 
     @staticmethod
     def _load_config() -> dict:

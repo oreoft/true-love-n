@@ -27,8 +27,8 @@ def load_source(name, path):
     return result
 
 
-def new_sdk(nickname="bot"):
-    sdk = Mock(nickname=nickname)
+def new_sdk(nickname="bot", wxid="wxid_bot"):
+    sdk = Mock(nickname=nickname, myinfo={"display_name": nickname, "id": wxid})
     sdk.GetSubWindow.return_value = None
     sdk.SendMsg.return_value = True
     sdk.AddListenChat.return_value = True
@@ -54,18 +54,20 @@ class WeChatDesktop:
         return self.sdk
 
 
-def load_client_module(desktop):
+def load_client_module(desktop, real_converter=False):
+    """Load the real client with only the Windows SDK replaced; optionally keep the real message converter."""
     dependencies = {
         "true_love_base.wxautox4x.wxautox4x": module("true_love_base.wxautox4x.wxautox4x", WeChat=desktop.open),
         "wxautox4.param": module("wxautox4.param", WxParam=type("WxParam", (), {})),
-        "true_love_common.chat_msg": module("true_love_common.chat_msg", ChatMsg=object),
-        "true_love_base.models.message_converter": module(
-            "true_love_base.models.message_converter", convert_message=Mock()
-        ),
         "true_love_base.utils.path_resolver": module(
-            "true_love_base.utils.path_resolver", get_wx_imgs_dir=lambda: None
+            "true_love_base.utils.path_resolver", get_wx_imgs_dir=lambda: None, to_server_path=lambda path: path
         ),
     }
+    if not real_converter:
+        dependencies["true_love_common.chat_msg"] = module("true_love_common.chat_msg", ChatMsg=object)
+        dependencies["true_love_base.models.message_converter"] = module(
+            "true_love_base.models.message_converter", convert_message=Mock()
+        )
     with patch.dict(sys.modules, dependencies):
         return load_source("offline_start_client", "core/wxauto_client.py")
 
@@ -212,8 +214,8 @@ class StatusTests(unittest.TestCase):
         self.addCleanup(clock.stop)
         self.client = client_module.WxAutoClient()
 
-    def connect_at(self, moment, nickname="真爱粉"):
-        self.desktop.log_in(new_sdk(nickname))
+    def connect_at(self, moment, nickname="真爱粉", wxid="wxid_bot"):
+        self.desktop.log_in(new_sdk(nickname, wxid))
         self.now = moment
         self.assertTrue(self.client.connect())
 
@@ -222,7 +224,7 @@ class StatusTests(unittest.TestCase):
 
         self.assertEqual(
             self.client.status(),
-            {"wx_online": False, "self_name": None, "since": "2026-09-29T08:00:00"},
+            {"wx_online": False, "self_id": None, "self_name": None, "since": "2026-09-29T08:00:00"},
         )
 
     def test_failed_connect_attempts_do_not_restart_the_offline_clock(self):
@@ -238,7 +240,7 @@ class StatusTests(unittest.TestCase):
 
         self.assertEqual(
             self.client.status(),
-            {"wx_online": True, "self_name": "真爱粉", "since": "2026-09-29T08:05:00"},
+            {"wx_online": True, "self_id": "wxid_bot", "self_name": "真爱粉", "since": "2026-09-29T08:05:00"},
         )
 
     def test_status_after_a_drop_shows_when_wechat_went_away(self):
@@ -248,7 +250,7 @@ class StatusTests(unittest.TestCase):
 
         self.assertEqual(
             self.client.status(),
-            {"wx_online": False, "self_name": None, "since": "2026-09-29T08:20:00"},
+            {"wx_online": False, "self_id": None, "self_name": None, "since": "2026-09-29T08:20:00"},
         )
 
     def test_reconnecting_as_another_account_reports_the_new_name(self):
@@ -256,12 +258,83 @@ class StatusTests(unittest.TestCase):
         self.assertEqual(self.client.status()["self_name"], "真爱粉")
         self.client.disconnect()
 
-        self.connect_at(datetime(2026, 9, 29, 8, 40, 0), nickname="小号")
+        self.connect_at(datetime(2026, 9, 29, 8, 40, 0), nickname="小号", wxid="wxid_other")
 
         self.assertEqual(
             self.client.status(),
-            {"wx_online": True, "self_name": "小号", "since": "2026-09-29T08:40:00"},
+            {"wx_online": True, "self_id": "wxid_other", "self_name": "小号", "since": "2026-09-29T08:40:00"},
         )
+
+
+def group_message(content):
+    return types.SimpleNamespace(
+        type="text", attr="friend", content=content, sender="alice", id="id-1", hash="hash-1",
+        chat_info={"chat_type": "group", "chat_name": "room"},
+    )
+
+
+class IdentityTests(unittest.TestCase):
+    """Messages are judged against the account that is logged in, whoever that is."""
+
+    def setUp(self):
+        self.desktop = WeChatDesktop()
+        self.client = load_client_module(self.desktop, real_converter=True).WxAutoClient(mention_aliases=["zaf"])
+        self.received = []
+
+    def log_in_and_listen(self, nickname, wxid):
+        sdk = new_sdk(nickname, wxid)
+        sdk.GetSubWindow.return_value = Mock(who="room")
+        self.desktop.log_in(sdk)
+        self.assertTrue(self.client.connect())
+        self.assertTrue(self.client.add_message_listener("room", lambda msg, chat: self.received.append(msg)))
+        return sdk.AddListenChat.call_args.args[1]
+
+    def test_forwarded_message_names_the_logged_in_account(self):
+        deliver = self.log_in_and_listen("kun jr", "wxid_kun")
+
+        deliver(group_message("hello"), Mock(who="room"))
+
+        self.assertEqual(self.received[0].bot_id, "wxid_kun")
+        self.assertFalse(self.received[0].is_at_me)
+
+    def test_mention_of_the_logged_in_nickname_is_for_this_bot(self):
+        deliver = self.log_in_and_listen("kun jr", "wxid_kun")
+
+        deliver(group_message("@kun jr\u2005hi"), Mock(who="room"))
+
+        self.assertTrue(self.received[0].is_at_me)
+        self.assertEqual(self.received[0].mention, "@kun jr")
+
+    def test_alias_from_the_configuration_reaches_the_bot(self):
+        deliver = self.log_in_and_listen("kun jr", "wxid_kun")
+
+        deliver(group_message("zaf hi"), Mock(who="room"))
+
+        self.assertTrue(self.received[0].is_at_me)
+
+    def test_identity_follows_the_account_after_logging_in_as_someone_else(self):
+        self.log_in_and_listen("kun jr", "wxid_kun")
+        self.client.disconnect()
+        deliver = self.log_in_and_listen("小号", "wxid_other")
+
+        deliver(group_message("@kun jr\u2005hi"), Mock(who="room"))
+        deliver(group_message("@小号\u2005hi"), Mock(who="room"))
+
+        self.assertEqual([m.bot_id for m in self.received], ["wxid_other", "wxid_other"])
+        self.assertEqual([m.is_at_me for m in self.received], [False, True])
+
+    def test_account_without_a_readable_id_still_forwards_messages(self):
+        sdk = new_sdk("kun jr")
+        sdk.myinfo = None
+        sdk.GetSubWindow.return_value = Mock(who="room")
+        self.desktop.log_in(sdk)
+        self.assertTrue(self.client.connect())
+        self.client.add_message_listener("room", lambda msg, chat: self.received.append(msg))
+
+        sdk.AddListenChat.call_args.args[1](group_message("@kun jr\u2005hi"), Mock(who="room"))
+
+        self.assertEqual(self.received[0].bot_id, "")
+        self.assertTrue(self.received[0].is_at_me)
 
 
 class Timeline:
@@ -445,7 +518,7 @@ class RoutesTests(unittest.TestCase):
         self.assertEqual(response, {
             "code": 0,
             "message": "success",
-            "data": {"wx_online": False, "self_name": None, "since": "2026-09-29T08:00:00"},
+            "data": {"wx_online": False, "self_id": None, "self_name": None, "since": "2026-09-29T08:00:00"},
         })
 
     def test_status_reports_the_connected_account(self):
@@ -456,7 +529,9 @@ class RoutesTests(unittest.TestCase):
         self.assertEqual(response, {
             "code": 0,
             "message": "success",
-            "data": {"wx_online": True, "self_name": "真爱粉", "since": "2026-09-29T08:05:00"},
+            "data": {
+                "wx_online": True, "self_id": "wxid_bot", "self_name": "真爱粉", "since": "2026-09-29T08:05:00",
+            },
         })
 
     def test_ping_still_answers_while_wechat_is_offline(self):
