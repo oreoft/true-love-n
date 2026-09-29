@@ -12,10 +12,6 @@ _JOBS = [
     "notice_usa_moyu_schedule",
     "download_moyu_file",
     "download_zao_bao_file",
-    "notice_test",
-    "notice_mei_yuan",
-    "notice_library_schedule",
-    "notice_ao_yuan_schedule",
 ]
 
 

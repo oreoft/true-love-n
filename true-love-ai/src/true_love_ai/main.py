@@ -9,27 +9,27 @@ import signal
 import uvicorn
 
 from true_love_ai.core.config import get_config
-from true_love_ai.agent.server_client import send_text_sync as send_text
+from true_love_ai.agent.server_client import notify_master_sync
 from true_love_ai.llm.llm_bootstrap import init_llm
 
 LOG = logging.getLogger(__name__)
 
 
-def notice_master(master_wxid: str):
+def notice_master():
     """启动通知"""
     try:
-        send_text(master_wxid, "真爱粉 AI 启动成功啦~ ✨")
+        notify_master_sync("真爱粉 AI 启动成功啦~ ✨")
     except Exception as e:
         LOG.warning(f"启动通知发送失败: {e}")
 
 
-def setup_signal_handlers(master_wxid: str):
+def setup_signal_handlers():
     """设置信号处理"""
 
     def handler(sig, frame):
         LOG.info("收到关闭信号，正在退出...")
         try:
-            send_text(master_wxid, "真爱粉 AI 正在关闭...")
+            notify_master_sync("真爱粉 AI 正在关闭...")
         except Exception:
             pass
         exit(0)
@@ -52,10 +52,10 @@ def main():
     LOG.info("AI 本地 skills 加载完成")
 
     # 设置信号处理
-    setup_signal_handlers(config.base_server.master_wxid)
+    setup_signal_handlers()
 
     # 启动通知
-    notice_master(config.base_server.master_wxid)
+    notice_master()
 
     LOG.info("=" * 50)
     LOG.info("真爱粉 AI 服务启动中...")

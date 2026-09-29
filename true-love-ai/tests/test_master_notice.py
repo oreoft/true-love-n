@@ -1,0 +1,69 @@
+"""AI tells the master when it starts and stops, without knowing who the master is."""
+
+import types
+import unittest
+from unittest.mock import Mock, patch
+
+from true_love_common.http.client import HttpResult
+
+from true_love_ai import main
+from true_love_ai.agent import server_client
+from true_love_ai.agent.skills import job_skill
+
+
+def accepted(url):
+    return HttpResult(
+        method="POST", url=url, ok=True, status_code=200, headers={}, text="", content=b"",
+        data={"code": 0}, cost_ms=1,
+    )
+
+
+class MasterNoticeTests(unittest.TestCase):
+    def setUp(self):
+        config = types.SimpleNamespace(
+            base_server=types.SimpleNamespace(host="http://default.test:8088"),
+            http=types.SimpleNamespace(token=["token"]),
+        )
+        self.post = Mock(side_effect=lambda url, payload, timeout=None: accepted(url))
+        for patcher in (
+            patch.object(server_client, "get_config", return_value=config),
+            patch.object(server_client, "post_json", self.post),
+        ):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_start_notice_asks_the_server_to_reach_the_master(self):
+        main.notice_master()
+
+        url, payload = self.post.call_args.args[:2]
+        self.assertEqual(url, "http://default.test:8088/action/send")
+        self.assertEqual(payload, {"is_master": True, "content": "真爱粉 AI 启动成功啦~ ✨", "token": "token"})
+
+    def test_ai_still_starts_when_the_notice_cannot_be_sent(self):
+        self.post.side_effect = ConnectionError("refused")
+
+        with self.assertLogs(level="WARNING"):
+            main.notice_master()
+
+
+class RunJobTests(unittest.IsolatedAsyncioTestCase):
+    async def test_job_the_server_no_longer_has_is_not_triggered(self):
+        with patch.object(job_skill, "_async_post") as post:
+            reply = await job_skill.run_job({"job_name": "notice_mei_yuan"}, {})
+
+        post.assert_not_called()
+        self.assertIn("未知任务", reply)
+
+    async def test_daily_push_can_still_be_triggered_by_hand(self):
+        async def accept(path, payload, timeout=None):
+            return {"code": 0}
+
+        with patch.object(job_skill, "_async_post", side_effect=accept) as post:
+            reply = await job_skill.run_job({"job_name": "notice_moyu_schedule"}, {})
+
+        post.assert_called_once_with("/action/job/run", {"job_name": "notice_moyu_schedule"}, timeout=10.0)
+        self.assertIn("已触发", reply)
+
+
+if __name__ == "__main__":
+    unittest.main()

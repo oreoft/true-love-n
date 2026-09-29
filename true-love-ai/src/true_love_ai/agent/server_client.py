@@ -72,12 +72,9 @@ async def _async_post(path: str, payload: dict, timeout: float = 10.0) -> dict:
 
 # ==================== 消息发送 ====================
 
-def send_text_sync(receiver: str, content: str, at_user: str = "",
-                   platform: str = "wechat") -> bool:
-    """同步发送文本消息（用于启动/关闭通知等非异步场景）"""
-    result = _post("/action/send", {
-        "receiver": receiver, "content": content, "at_user": at_user, "platform": platform,
-    })
+def notify_master_sync(content: str) -> bool:
+    """同步给管理员发通知（用于启动/关闭等非异步场景）。管理员是谁由 base 决定，这里不传接收者"""
+    result = _post("/action/send", {"is_master": True, "content": content})
     return result.get("code") == 0
 
 

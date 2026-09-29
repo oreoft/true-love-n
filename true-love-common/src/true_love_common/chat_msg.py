@@ -107,7 +107,7 @@ class ChatMsg:
     link_msg: Optional[LinkMsg] = None
     refer_msg: Optional[ChatMsg] = None
 
-    # 收到这条消息的机器人账号（微信为 wxid），多个机器人共用 AI 时用来区分
+    # 收到这条消息的机器人（微信为 base 所在机器的机器名），多个机器人共用 AI 时用来区分
     bot_id: str = ""
     # 正文里叫到机器人的那段文字（如 "@真爱粉"），没叫到为空
     mention: str = ""
