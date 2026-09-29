@@ -29,10 +29,10 @@ def ai_response(status_code=200, data=None):
     )
 
 
-class AiTriggerFallbackTests(unittest.IsolatedAsyncioTestCase):
+class RoutesCase(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         config = types.SimpleNamespace(AI_SERVICE={"host": "http://ai.test"}, HTTP_TOKEN=["token"])
-        self.config = config
+        self.settings = {"reply_to": ""}
         self.repository = Mock()
         self.repository.save.return_value = True
         session = Mock()
@@ -53,6 +53,8 @@ class AiTriggerFallbackTests(unittest.IsolatedAsyncioTestCase):
             "true_love_server.services.loki_client": module(
                 "true_love_server.services.loki_client", get_loki_client=Mock()),
             "true_love_server.services.reminder_service": module("true_love_server.services.reminder_service"),
+            "true_love_server.services.settings_service": module(
+                "true_love_server.services.settings_service", get=lambda key: self.settings[key]),
         }
         modules = patch.dict(sys.modules, dependencies)
         modules.start()
@@ -60,14 +62,19 @@ class AiTriggerFallbackTests(unittest.IsolatedAsyncioTestCase):
         self.routes = importlib.import_module("true_love_server.api.routes")
 
         self.send_text = AsyncMock(return_value=(True, ""))
+        self.send_to_master = AsyncMock(return_value=(True, ""))
         self.post_json = Mock(return_value=ai_response(data={"code": 0}))
         for patcher in (
             patch.object(self.routes.base_client, "send_text", self.send_text),
+            patch.object(self.routes.base_client, "send_to_master", self.send_to_master, create=True),
             patch.object(self.routes, "post_json", self.post_json),
         ):
             patcher.start()
             self.addCleanup(patcher.stop)
 
+
+
+class AiTriggerFallbackTests(RoutesCase):
     async def test_private_message_gets_notice_when_ai_is_unreachable(self):
         self.post_json.side_effect = ConnectionError("refused")
 
@@ -99,12 +106,24 @@ class AiTriggerFallbackTests(unittest.IsolatedAsyncioTestCase):
         self.send_text.assert_not_awaited()
 
     async def test_trigger_tells_ai_which_server_to_send_the_reply_to(self):
-        self.config.AI_SERVICE["reply_to"] = "http://server-b.test:8088/"
+        self.settings["reply_to"] = "http://server-b.test:8088"
 
         await self.routes._handle_incoming_message(ChatMsg(sender_id="alice"))
 
         payload = self.post_json.call_args.args[1]
         self.assertEqual(payload["reply_to"], "http://server-b.test:8088")
+
+    async def test_reply_address_changed_in_the_console_applies_to_the_next_message(self):
+        self.settings["reply_to"] = "http://old.test:8088"
+        await self.routes._handle_incoming_message(ChatMsg(sender_id="alice"))
+        self.settings["reply_to"] = "http://new.test:8088"
+
+        await self.routes._handle_incoming_message(ChatMsg(sender_id="bob"))
+
+        self.assertEqual(
+            [call.args[1]["reply_to"] for call in self.post_json.call_args_list],
+            ["http://old.test:8088", "http://new.test:8088"],
+        )
 
     async def test_server_without_a_reply_address_leaves_the_choice_to_ai(self):
         await self.routes._handle_incoming_message(ChatMsg(sender_id="alice"))
@@ -133,6 +152,36 @@ class AiTriggerFallbackTests(unittest.IsolatedAsyncioTestCase):
 
         self.post_json.assert_called_once()
         self.send_text.assert_not_awaited()
+
+
+class PushToMasterTests(RoutesCase):
+    """Outside callers push notices to the master without knowing who that is; base knows."""
+
+    async def test_push_addressed_to_master_is_handed_to_base_as_a_message_for_its_master(self):
+        response = await self.routes.send_msg({"token": "token", "sendReceiver": "master", "content": "deployed"})
+
+        self.send_to_master.assert_awaited_once_with("deployed")
+        self.send_text.assert_not_awaited()
+        self.assertEqual(response.code, 0)
+
+    async def test_push_to_anyone_else_is_refused(self):
+        with self.assertRaises(self.routes.ValidationException):
+            await self.routes.send_msg({"token": "token", "sendReceiver": "委员会", "content": "hi"})
+
+        self.send_to_master.assert_not_awaited()
+        self.send_text.assert_not_awaited()
+
+    async def test_push_without_content_is_refused(self):
+        with self.assertRaises(self.routes.ValidationException):
+            await self.routes.send_msg({"token": "token", "sendReceiver": "master", "content": ""})
+
+        self.send_to_master.assert_not_awaited()
+
+    async def test_caller_learns_when_base_could_not_deliver(self):
+        self.send_to_master.return_value = (False, "WeChat offline")
+
+        with self.assertRaisesRegex(self.routes.ValidationException, "WeChat offline"):
+            await self.routes.send_msg({"token": "token", "sendReceiver": "master", "content": "deployed"})
 
 
 if __name__ == "__main__":

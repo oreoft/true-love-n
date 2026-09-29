@@ -19,6 +19,7 @@ from .exception_handlers import ApiResponse, ValidationException
 from ..core import Config
 from true_love_common.chat_msg import ChatMsg
 from ..services import base_client
+from ..services import settings_service
 from ..services.listen_manager import get_listen_manager
 from ..services.loki_client import get_loki_client
 from ..services.group_message_repository import GroupMessageRepository
@@ -33,6 +34,9 @@ listen_manager = get_listen_manager()
 _MEDIA_ROOT = Path("wx_imgs")
 
 AI_UNAVAILABLE_REPLY = "啊哦~AI酱 暂时连不上，稍后再试试捏~"
+
+# 外部推送接口里代表管理员的接收者
+MASTER = "master"
 
 
 @router.get("/media/{file_path:path}")
@@ -64,28 +68,22 @@ async def send_msg(request: dict):
     """
     推送消息接口
 
-    供外部调用，发送消息到指定接收者。
+    供外部调用，给管理员推送通知（部署结果等）。接收者只能是 master，
+    管理员具体是谁由这台机器的 base 决定。
     """
     LOG.info("推送消息收到请求, req: %s", request)
 
     # 验证 token
     verify_token(request.get('token', ''))
 
-    http_config = Config().HTTP or {}
     send_receiver = request.get('sendReceiver')
-    at_receiver = request.get('atReceiver')
     content = request.get('content')
-    receiver_map = http_config.get("receiver_map", {})
 
     # 判断是否合法发送人
-    if not receiver_map.get(send_receiver) or not content:
+    if send_receiver != MASTER or not content:
         raise ValidationException("诶嘿~接收者没注册或者内容是空的呢，检查一下吧~")
 
-    success, error_msg = await base_client.send_text(
-        receiver_map.get(send_receiver, ""),
-        receiver_map.get(at_receiver, ""),
-        content
-    )
+    success, error_msg = await base_client.send_to_master(content)
 
     if not success:
         raise ValidationException(f"呜呜~消息发送失败了捏: {error_msg}")
@@ -152,10 +150,10 @@ def _trigger_ai(msg: ChatMsg) -> None:
         "token": token,
         "msg": msg.to_dict(),
     }
-    # 多套 server 共用一个 AI 时，告诉 AI 回复发回哪个 server；没配置就由 AI 用它的默认地址
-    reply_to = (Config().AI_SERVICE or {}).get("reply_to", "")
+    # 多套 server 共用一个 AI 时，告诉 AI 回复发回哪个 server；后台没设置就由 AI 用它的默认地址
+    reply_to = settings_service.get("reply_to")
     if reply_to:
-        payload["reply_to"] = reply_to.rstrip("/")
+        payload["reply_to"] = reply_to
     resp = post_json(
         f"{ai_host}/trigger",
         payload,
@@ -390,10 +388,6 @@ def _get_job_map() -> dict:
             "notice_usa_moyu_schedule": jp.notice_usa_moyu_schedule,
             "download_moyu_file": jp.download_moyu_file,
             "download_zao_bao_file": jp.download_zao_bao_file,
-            "notice_test": jp.notice_test,
-            "notice_mei_yuan": jp.notice_mei_yuan,
-            "notice_library_schedule": jp.notice_library_schedule,
-            "notice_ao_yuan_schedule": jp.notice_ao_yuan_schedule,
         }
     return _JOB_MAP
 
@@ -474,6 +468,34 @@ async def query_loki_logs(
         "query_end_ms": end_ms,
         "count": len(logs)
     })
+
+
+# ==================== Admin 设置接口 ====================
+
+@router.get("/admin/settings")
+async def list_settings():
+    """全部设置项及当前值"""
+    return ApiResponse(data={"settings": settings_service.list_all()})
+
+
+@router.post("/admin/settings/update")
+async def update_setting(request: dict):
+    """
+    修改一项设置，立即生效
+
+    Request Body:
+        - key: 设置项
+        - value: 新的值（文本或列表，取决于设置项）
+    """
+    key = str(request.get("key") or "").strip()
+    if not key:
+        raise ValidationException("key 不能为空")
+    try:
+        value = settings_service.update(key, request.get("value"))
+    except ValueError as e:
+        raise ValidationException(str(e))
+    LOG.info("admin/settings/update: key=%s", key)
+    return ApiResponse(data={"key": key, "value": value})
 
 
 # ==================== Admin 定时提醒管理接口 ====================

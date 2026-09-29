@@ -54,6 +54,15 @@ class WeChatBaseClient(BaseClient):
 
     # ==================== WeChat 专属操作 ====================
 
+    async def send_to_master(self, content: str) -> tuple[bool, str]:
+        """给这台机器的管理员发文本。管理员是谁只有 base 知道，这里不传接收者。"""
+        payload = json.dumps({"is_master": True, "content": content}, ensure_ascii=False)
+        try:
+            return api_response_ok(await self._post("send_to_master", f"{self.host}/send/text", payload))
+        except Exception as e:
+            LOG.error("WeChat send_to_master failed: %s", e)
+            return False, str(e)
+
     async def send_img(self, path: str, receiver: str, raise_on_error: bool = False) -> tuple[bool, str]:
         return await self.send_file(path, receiver, raise_on_error=raise_on_error)
 

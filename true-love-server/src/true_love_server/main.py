@@ -11,7 +11,7 @@ import logging
 
 import uvicorn
 
-from .services import base_client
+from .services import base_client, settings_service
 from .jobs import Job
 from .api import create_app
 from .core import Config
@@ -33,13 +33,12 @@ def _run_async(coro):
 
 
 def notice_master():
-    """启动通知和信号处理"""
-    master = config.BASE_SERVER.get("master_name")
-    _run_async(base_client.send_text(master, "", "真爱粉server启动成功..."))
+    """启动通知和信号处理；管理员是谁由 base 决定"""
+    _run_async(base_client.send_to_master("真爱粉server启动成功..."))
 
     def handler(sig, frame):
         """退出前清理环境"""
-        _run_async(base_client.send_text(master, "", "真爱粉server正在关闭..."))
+        _run_async(base_client.send_to_master("真爱粉server正在关闭..."))
         exit(0)
 
     signal.signal(signal.SIGINT, handler)
@@ -48,6 +47,9 @@ def notice_master():
 def main():
     """主函数"""
     init_db()
+
+    # 配置文件里原有的推送群搬进数据库（只在数据库里还没有时才搬）
+    settings_service.import_from_config(getattr(config, "AUTO_NOTICE", None))
 
     # 通知 master
     notice_master()

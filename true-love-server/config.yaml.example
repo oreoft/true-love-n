@@ -1,56 +1,29 @@
 # True Love Server Configuration Example
 # ============================================
-# 
-# IMPORTANT: Since wxautox4 uses UIAutomation (not hook),
-# all identifiers have changed from wxid to NICKNAMES!
 #
-# - sender: now is nickname (e.g., "纯路人") instead of wxid
-# - chat_id: now is nickname/group name (e.g., "委员会") instead of roomid
+# This file is shared by every machine that runs the server: it holds only the
+# secrets and addresses that are the same everywhere.
 #
-# Please update your config accordingly.
+# What differs per bot is NOT here. It lives in the database of each server and
+# is changed in the admin console ("设置" tab), taking effect immediately:
+#   - 本机回调地址        the address AI uses to reach this server
+#   - 每日摸鱼推送的群    groups that get the 09:05 (Asia/Shanghai) push
+#   - 美国摸鱼推送的群    groups that get the 08:00 (America/Chicago) push
+#
+# Who the master is, is known only to base (see true-love-base/config.yaml.example).
 
-# Base service address (base 服务地址)
+# Base service address (base 服务地址). Base runs on the same machine as the server.
 base_server:
-  host: "http://localhost:5000"
   hosts:
-    wechat: "http://localhost:5000"
+    wechat: "http://host.docker.internal:5000"
     lark: ""
-  # Note: self_wxid is kept for backward compatibility but may not be needed
-  self_wxid: "wxid_xxx"  
-  master_wxid: "wxid_xxx"  # Your wxid for notifications
-  master_group: "xxx@chatroom"  # Master group roomid
 
 # AI service address (AI 服务地址)
 ai_service:
   host: "http://localhost:8089"
-  # This server's address as AI reaches it (optional).
-  # Needed when several servers share one AI: AI sends each reply back through the server it came from.
-  # Without it AI replies through the server address in its own config.
-  # reply_to: "http://this-machine:8088"
 
-http_token: "your_secret_token"
-
-# ASR configuration (语音识别配置)
-asr:
-  secret_id: "your_secret_id"
-  secret_key: "your_secret_key"
-  asr_appid: 123456
-  asr_secret_id: "your_asr_secret_id"
-  asr_secret_key: "your_asr_secret_key"
-
-# =============================================================
-# NOTE: groups/privates allow_list settings have been REMOVED!
-# =============================================================
-# These settings are now controlled in true-love-base/config.yaml
-# via the `listen_chats` configuration.
-#
-# Base now handles:
-# - Which chats to listen to (via listen_chats)
-# - Whether a chat is group or private (is_group flag)
-# - When to respond (groups: only when @, private: always)
-#
-# Server only processes messages that base decides to forward.
-# =============================================================
+# Tokens accepted by this server; the first one is also used when calling AI
+http_token: ["your_secret_token"]
 
 # ALAPI configuration (早报等 API)
 alapi:
@@ -68,78 +41,9 @@ loki:
   # 获取方式: Grafana Cloud -> Access Policies -> Create access policy -> Add token
   api_key: "glc_xxxxx"
   # 要查询的服务列表 (对应日志的 service_name label)
-  services: ["ai", "base", "server"]
-
-# Auto notification settings (for scheduled notifications)
-auto_notice: {}
-
-# Reminder settings
-# NOTE: Uses NICKNAMES now!
-remainder:
-  utc+8: []
-
-# Chat bot configuration
-enable_bot: chatgpt
+  services: ["tl-ai", "tl-base", "tl-server"]
 
 # HTTP service configuration
 http:
   host: "0.0.0.0"
   port: 8088
-  token: ["your_token"]
-  # NOTE: receiver_map values now use GROUP NAMES / NICKNAMES!
-  # Example: receiver_map: {"alias": "群名称或昵称"}
-  receiver_map: {}
-
-# GitHub integration
-# NOTE: allow_user now uses NICKNAMES instead of wxid!
-github:
-  allow_user: []
-  token: "github_pat_xxx"
-
-# Card feature
-# NOTE: card_user values now use NICKNAMES instead of wxid!
-card:
-  card_user: {}
-
-# Muninn integration (Muninn CDK 生成配置)
-# NOTE: allow_user now uses NICKNAMES instead of wxid!
-muninn:
-  allow_user: []  # 允许生成 CDK 的用户昵称列表
-  api_base_url: ""
-  admin_token: "your_muninn_admin_token"
-
-# Logging configuration
-logging:
-  version: 1
-  disable_existing_loggers: False
-  formatters:
-    simple:
-      format: "%(asctime)s %(message)s"
-      datefmt: "%Y-%m-%d %H:%M:%S"
-    error:
-      format: "%(asctime)s %(name)s %(levelname)s %(filename)s::%(funcName)s[%(lineno)d]:%(message)s"
-  handlers:
-    console:
-      class: logging.StreamHandler
-      level: INFO
-      formatter: simple
-      stream: ext://sys.stdout
-    info_file_handler:
-      class: logging.handlers.RotatingFileHandler
-      level: INFO
-      formatter: simple
-      filename: logs/server_info.log
-      maxBytes: 10485760
-      backupCount: 20
-      encoding: utf8
-    error_file_handler:
-      class: logging.handlers.RotatingFileHandler
-      level: ERROR
-      formatter: error
-      filename: logs/server_error.log
-      maxBytes: 10485760
-      backupCount: 20
-      encoding: utf8
-  root:
-    level: INFO
-    handlers: [console, info_file_handler, error_file_handler]

@@ -10,7 +10,6 @@ import concurrent
 import functools
 import logging
 import os
-import re
 import time
 from concurrent import futures
 from datetime import datetime
@@ -20,15 +19,13 @@ from bs4 import BeautifulSoup
 from PIL import Image
 from true_love_common.http.client import get, post
 
-from ..services import base_client
+from ..services import base_client, settings_service
 from ..core import Config
 from ..core.fs import ensure_dir
 
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
 _config = Config()
-config = _config.AUTO_NOTICE
 alapi_config = _config.ALAPI
-test_room_ids: list = config.get("test", [])
 LOG = logging.getLogger("JobProcess")
 
 
@@ -73,50 +70,6 @@ def log_function_execution(func):
 
 
 @log_function_execution
-def notice_mei_yuan():
-    room_ids: list = config.get("notice_mei_yuan", [])
-    rsp = _fetch_ai_data("/data/currency", {"currency": "美元"})
-    numbers = re.findall(r'\d+\.\d+|\d+', rsp)
-    LOG.info(numbers)
-    if len(numbers) > 2 and float(numbers[2]) <= 700:
-        for room_id in room_ids:
-            asyncio.run(base_client.send_text(room_id, "", "提醒现在的美元汇率情况低于700：\n" + rsp))
-            time.sleep(5)
-    return True
-
-
-@log_function_execution
-def notice_library_schedule():
-    room_ids: list = config.get("notice_library_schedule", [])
-    rsp2 = _fetch_ai_data("/data/currency", {"currency": "美元"})
-    msg = "早上好☀️宝子们，\n\n"
-    if rsp2 and "失败" not in rsp2: msg = msg + "今日汇率情况：\n" + rsp2
-    for room_id in room_ids:
-        asyncio.run(base_client.send_text(room_id, "", msg))
-        time.sleep(5)
-    return True
-
-
-@log_function_execution
-def notice_ao_yuan_schedule():
-    room_ids: list = config.get("notice_ao_yuan_schedule", [])
-    rsp = _fetch_ai_data("/data/currency", {"currency": "澳币"})
-    rsp2 = _fetch_ai_data("/data/currency", {"currency": "美元"})
-    msg = "早上好☀️宝宝，\n\n"
-    if rsp and "失败" not in rsp: msg = msg + "今日澳币汇率情况：\n" + rsp + "\n\n"
-    if rsp2 and "失败" not in rsp2: msg = msg + "今日美元汇率情况：\n" + rsp2
-    moyu_dir = "https://api.vvhan.com/api/moyu"
-    # 使用相对路径，base 端会自动解析到 true-love-server 目录
-    zao_bao_path = 'zaobao-jpg/' + get_current_date('Australia/Melbourne') + '.jpg'
-    for room_id in room_ids:
-        asyncio.run(base_client.send_text(room_id, "", msg))
-        asyncio.run(base_client.get_wechat_client().send_img(moyu_dir, room_id))
-        asyncio.run(base_client.get_wechat_client().send_img(zao_bao_path, room_id))
-        time.sleep(5)
-    return True
-
-
-@log_function_execution
 def send_daily_notice(room_id, content='早上好☀️家人萌~', tz: str = "Asia/Shanghai"):
     # 使用指定时区的日期，确保文件名与下载任务的触发时间一致
     current_date = get_current_date(tz)
@@ -147,13 +100,9 @@ def send_daily_notice(room_id, content='早上好☀️家人萌~', tz: str = "A
 
 
 @log_function_execution
-def send_aoyun_notice(room_id):
-    pass  # 奥运功能已过期删除
-
-
-@log_function_execution
 def notice_moyu_schedule():
-    room_ids: list = config.get("notice_moyu_schedule")
+    # 每次执行时现读，后台改完不用重启
+    room_ids: list = settings_service.get("moyu_groups")
     for room_id in room_ids:
         send_daily_notice(room_id)
         time.sleep(30)
@@ -162,23 +111,10 @@ def notice_moyu_schedule():
 
 @log_function_execution
 def notice_usa_moyu_schedule():
-    room_ids: list = config.get("notice_usa_moyu_schedule", [])
+    room_ids: list = settings_service.get("usa_moyu_groups")
     for room_id in room_ids:
         send_daily_notice(room_id, "早上好☀️友友们~, \n现在国内太阳已经落下, 多赢阿美莉卡一天", tz="America/Chicago")
         time.sleep(30)
-    return True
-
-
-@log_function_execution
-def notice_test():
-    for test_room_id in test_room_ids:
-        asyncio.run(base_client.send_text(test_room_id, "", "test"))
-        LOG.info("notice_test success")
-
-
-@log_function_execution
-def notice_card_schedule():
-    # 刷卡查询技能已删除
     return True
 
 

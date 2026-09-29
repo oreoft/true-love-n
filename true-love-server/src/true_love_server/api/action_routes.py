@@ -32,24 +32,31 @@ async def action_send(request: dict):
     发送文本消息
 
     Body:
-        - token:    鉴权 token
-        - receiver: 接收者（chat_id 或群名）
-        - content:  消息内容
-        - at_user:  要@的用户（可选）
-        - platform: 目标平台 "wechat"(默认) | "lark"
+        - token:     鉴权 token
+        - receiver:  接收者（chat_id 或群名）
+        - is_master: 为 true 时发给管理员，不需要 receiver（可选）
+        - content:   消息内容
+        - at_user:   要@的用户（可选）
+        - platform:  目标平台 "wechat"(默认) | "lark"
     """
     verify_token(request.get("token", ""))
 
     receiver = request.get("receiver", "")
+    is_master = bool(request.get("is_master"))
     content = request.get("content", "")
     at_user = request.get("at_user", "")
     platform = request.get("platform", "wechat")
 
-    if not receiver or not content:
+    if not content or not (receiver or is_master):
         raise ValidationException("receiver 和 content 不能为空")
 
-    LOG.info("action/send: platform=%s receiver=%s at_user=%s content=%s", platform, receiver, at_user, content[:50])
-    success, error_msg = await base_client.send_text(receiver, at_user, content, platform=platform)
+    if is_master:
+        LOG.info("action/send: to master, content=%s", content[:50])
+        success, error_msg = await base_client.send_to_master(content)
+    else:
+        LOG.info("action/send: platform=%s receiver=%s at_user=%s content=%s",
+                 platform, receiver, at_user, content[:50])
+        success, error_msg = await base_client.send_text(receiver, at_user, content, platform=platform)
 
     if not success:
         raise ValidationException(f"消息发送失败: {error_msg}")

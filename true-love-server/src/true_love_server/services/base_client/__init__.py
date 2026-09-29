@@ -71,6 +71,14 @@ async def send_text(send_receiver: str, at_receiver: str, content: str,
         return False, str(e)
 
 
+async def send_to_master(content: str) -> tuple[bool, str]:
+    """给管理员发文本通知（管理员由微信 base 自己的配置决定）"""
+    try:
+        return await get_wechat_client().send_to_master(content)
+    except Exception as e:
+        return False, str(e)
+
+
 async def send_file(ref: str, receiver: str,
                     platform: str = "wechat", raise_on_error: bool = False) -> tuple[bool, str]:
     try:

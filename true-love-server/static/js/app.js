@@ -26,6 +26,9 @@
             // Skill page
             const skillPage = useSkillPage(showToast, showConfirm);
 
+            // Settings page
+            const settingsPage = useSettingsPage(showToast);
+
             // Tab 切换
             const switchTab = (tab) => {
                 activeTab.value = tab;
@@ -44,6 +47,9 @@
                 }
                 if (tab === 'skills') {
                     skillPage.fetchSkills();
+                }
+                if (tab === 'settings') {
+                    settingsPage.fetchSettings();
                 }
             };
 
@@ -76,7 +82,10 @@
                 ...reminderPage,
 
                 // Skill page
-                ...skillPage
+                ...skillPage,
+
+                // Settings page
+                ...settingsPage
             };
         }
     }).mount('#app');

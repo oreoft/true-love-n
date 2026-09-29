@@ -46,11 +46,11 @@ class Config:
             )
             LOG.info("_load_config 刷新配置成功: keys=%s", sorted(yconfig.keys()))
 
+            # 旧配置：推送群已经改到数据库里，这里只用于启动时导入一次
             self.AUTO_NOTICE: dict = yconfig.get("auto_notice")
             self.HTTP_TOKEN: dict = yconfig.get("http_token")
             self.HTTP = yconfig.get("http")
             self.BASE_SERVER: dict = yconfig.get("base_server")
-            self.ASR: dict = yconfig.get("asr", {})
             self.AI_SERVICE: dict = yconfig.get("ai_service", {})
             self.ALAPI: dict = yconfig.get("alapi", {})
             self.LOKI: dict = loki_config
