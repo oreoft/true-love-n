@@ -328,7 +328,13 @@ class WxAutoClient():
 
                 internal_callback = self._create_internal_callback(chat_name, callback)
                 result = self.wx.AddListenChat(chat_name, internal_callback)
-                return self._check_response(result, "AddListenChat", chat_name)
+                if not self._check_response(result, "AddListenChat", chat_name):
+                    return False
+                # AddListenChat 可能报成功但聊天窗口没有弹出来，这种监听收不到任何消息
+                if self.wx.GetSubWindow(chat_name) is None:
+                    LOG.error(f"[AddListenChat] [{chat_name}] reported success but its chat window is missing")
+                    return False
+                return True
             except Exception:
                 LOG.exception("Failed to add listener for [%s]", chat_name)
                 return False

@@ -29,9 +29,10 @@ class ListenerLifecycleTests(unittest.TestCase):
     def setUp(self):
         self.events = []
         self.sdk = Mock(nickname="test account")
-        self.sdk.AddListenChat.return_value = True
+        self.windows = {}
+        self.sdk.AddListenChat.side_effect = self.open_chat_window
         self.sdk.StopListening.side_effect = lambda **kwargs: self.events.append("stop-sdk")
-        self.sdk.GetSubWindow.return_value = None
+        self.sdk.GetSubWindow.side_effect = self.windows.get
         self.sdk.SendMsg.return_value = True
         self.sdk.IsOnline.return_value = True
         self.wechat_running = True
@@ -86,6 +87,10 @@ class ListenerLifecycleTests(unittest.TestCase):
         self.client = self.client_module.WxAutoClient()
         self.assertTrue(self.client.connect())
 
+    def open_chat_window(self, chat_name, callback=None):
+        self.windows[chat_name] = Mock(who=chat_name)
+        return True
+
     def test_cleanup_stops_sdk_once_and_preserves_open_chat_windows(self):
         self.client.cleanup()
         self.client.cleanup()
@@ -120,7 +125,7 @@ class ListenerLifecycleTests(unittest.TestCase):
             if not release.wait(2):
                 raise TimeoutError("test registration was not released")
             self.events.append("registered")
-            return True
+            return self.open_chat_window(*args)
 
         self.sdk.AddListenChat.side_effect = register
         registering = threading.Thread(target=self.client.add_message_listener, args=("group", Mock()))
@@ -168,7 +173,7 @@ class ListenerLifecycleTests(unittest.TestCase):
 
         def register(*args):
             stopped.set()
-            return True
+            return self.open_chat_window(*args)
 
         self.sdk.AddListenChat.side_effect = register
         result = robot.load_listen_chats(stop_event=stopped)
@@ -190,6 +195,31 @@ class ListenerLifecycleTests(unittest.TestCase):
             self.assertFalse(robot.add_listen_chat("group", stop_event=stopped))
 
         self.assertEqual(self.sdk.AddListenChat.call_count, 1)
+
+    def test_listener_is_not_registered_when_its_chat_window_never_opened(self):
+        self.sdk.AddListenChat.side_effect = lambda *args: True
+
+        with self.assertLogs("WxAutoClient", level="ERROR"):
+            self.assertFalse(self.client.add_message_listener("group", Mock()))
+
+    def test_registration_is_retried_until_the_chat_window_opens(self):
+        robot = self.robot_module.Robot(self.client, Mock())
+        self.addCleanup(robot.cleanup)
+        attempts = []
+
+        def register(*args):
+            attempts.append(args[0])
+            return True if len(attempts) == 1 else self.open_chat_window(*args)
+
+        self.sdk.AddListenChat.side_effect = register
+        not_stopping = Mock()
+        not_stopping.is_set.return_value = False
+        not_stopping.wait.return_value = False
+
+        with self.assertLogs("WxAutoClient", level="ERROR"), self.assertLogs("Robot", level="WARNING"):
+            self.assertTrue(robot.add_listen_chat("group", stop_event=not_stopping))
+
+        self.assertEqual(attempts, ["group", "group"])
 
     def run_main(
         self, *, fail_loading=False, fail_stopping=False, cancel_loading=False, wechat_running=True,
