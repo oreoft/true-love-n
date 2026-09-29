@@ -44,6 +44,22 @@ async def ping() -> str:
     return "pong"
 
 
+@router.get("/status")
+async def status() -> dict[str, Any]:
+    """
+    微信连接状态
+
+    base 进程不依赖微信存活，微信是否可用要看这个接口。
+
+    Response:
+        - data: {"wx_online": 微信是否在线, "self_name": 当前登录的昵称, "since": 进入当前状态的时间}
+    """
+    robot = _get_robot()
+    if robot is None:
+        return ApiErrors.ROBOT_NOT_READY.to_dict()
+    return ApiResponse.success(robot.client.status()).to_dict()
+
+
 @router.post("/send/text")
 async def send_text(request: dict[str, Any] | None = Body(default=None)) -> dict[str, Any]:
     """
@@ -58,8 +74,9 @@ async def send_text(request: dict[str, Any] | None = Body(default=None)) -> dict
     分批依次发送，仅第一批携带 @。
     """
     robot = _get_robot()
-    if robot is None:
-        return ApiErrors.ROBOT_NOT_READY.to_dict()
+    unavailable = _unavailable(robot)
+    if unavailable is not None:
+        return unavailable
 
     data = _payload(request)
     receiver = data.get("sendReceiver", "")
@@ -85,8 +102,9 @@ async def send_file(request: dict[str, Any] | None = Body(default=None)) -> dict
         - path: 文件路径（可以是 Server 的相对路径，会自动在 true-love-server 目录下查找）
     """
     robot = _get_robot()
-    if robot is None:
-        return ApiErrors.ROBOT_NOT_READY.to_dict()
+    unavailable = _unavailable(robot)
+    if unavailable is not None:
+        return unavailable
 
     data = _payload(request)
     path = data.get("path", "")
@@ -121,8 +139,9 @@ async def add_listen(request: dict[str, Any] | None = Body(default=None)) -> dic
         - data: {"success": bool}
     """
     robot = _get_robot()
-    if robot is None:
-        return ApiErrors.ROBOT_NOT_READY.to_dict()
+    unavailable = _unavailable(robot)
+    if unavailable is not None:
+        return unavailable
 
     data = _payload(request)
     nickname = data.get("nickname", "")
@@ -158,8 +177,9 @@ async def execute_wx(request: dict[str, Any] | None = Body(default=None)) -> dic
         - AddListenChat 请使用 /listen/add 独立接口
     """
     robot = _get_robot()
-    if robot is None:
-        return ApiErrors.ROBOT_NOT_READY.to_dict()
+    unavailable = _unavailable(robot)
+    if unavailable is not None:
+        return unavailable
 
     data = _payload(request)
     method_name = data.get("name", "")
@@ -194,8 +214,9 @@ async def execute_chat(request: dict[str, Any] | None = Body(default=None)) -> d
         - 不允许调用 __ 或 _ 开头的方法
     """
     robot = _get_robot()
-    if robot is None:
-        return ApiErrors.ROBOT_NOT_READY.to_dict()
+    unavailable = _unavailable(robot)
+    if unavailable is not None:
+        return unavailable
 
     data = _payload(request)
     chat_name = data.get("chat_name", "")
@@ -233,8 +254,9 @@ async def batch_chat_info(request: dict[str, Any] | None = Body(default=None)) -
         }
     """
     robot = _get_robot()
-    if robot is None:
-        return ApiErrors.ROBOT_NOT_READY.to_dict()
+    unavailable = _unavailable(robot)
+    if unavailable is not None:
+        return unavailable
 
     data = _payload(request)
     chat_names = data.get("chat_names", [])
@@ -249,6 +271,15 @@ def _get_robot() -> Optional["Robot"]:
     from true_love_base.api.server import get_robot
 
     return get_robot()
+
+
+def _unavailable(robot: Optional["Robot"]) -> Optional[dict[str, Any]]:
+    """微信用不了时返回对应的错误响应，可用时返回 None"""
+    if robot is None:
+        return ApiErrors.ROBOT_NOT_READY.to_dict()
+    if not robot.client.is_connected():
+        return ApiErrors.WECHAT_OFFLINE.to_dict()
+    return None
 
 
 def _payload(data: dict[str, Any] | None) -> dict[str, Any]:

@@ -54,6 +54,7 @@ class ChatResponse:
 class ApiErrors:
     """API 错误定义"""
     ROBOT_NOT_READY = ApiResponse.error(BizCode.ROBOT_NOT_READY, "Robot not ready")
+    WECHAT_OFFLINE = ApiResponse.error(BizCode.ROBOT_NOT_READY, "WeChat offline")
     SEND_FAILED = ApiResponse.error(BizCode.SEND_FAILED, "Send failed, please retry")
     INVALID_PARAMS = ApiResponse.error(BizCode.TOKEN_ERROR, "Invalid parameters")
     INTERNAL_ERROR = ApiResponse.error(BizCode.INTERNAL_ERROR, "Internal server error")

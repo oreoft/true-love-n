@@ -44,7 +44,6 @@ class Robot:
         """
         self.client = client
         self.LOG = logging.getLogger("Robot")
-        self.self_name = self.client.get_self_name()
         self._listen_store = listen_store
 
         # 消息处理线程池
@@ -58,7 +57,7 @@ class Robot:
         # 每个 chat_id 一个锁，保证同一聊天内消息顺序
         self._chat_locks: dict[str, threading.Lock] = defaultdict(threading.Lock)
 
-        self.LOG.info(f"Robot initialized, self_name: {self.self_name}, max_workers: {self.MAX_WORKERS}")
+        self.LOG.info(f"Robot initialized, max_workers: {self.MAX_WORKERS}")
 
     def forward_msg(self, msg: ChatMsg) -> str:
         """

@@ -16,6 +16,7 @@ from true_love_base.configuration import Config
 from true_love_base.core import WxAutoClient
 from true_love_base.services.listen_store import ListenStore
 from true_love_base.services.robot import Robot
+from true_love_base.services.wx_supervisor import WxSupervisor
 
 # 初始化配置（会设置日志）
 config = Config()
@@ -59,7 +60,7 @@ def main():
     LOG.info("True Love Base starting...")
     LOG.info("=" * 50)
 
-    # 初始化微信客户端和机器人
+    # 初始化微信客户端和机器人（不连接微信）
     client, robot = init_wx()
 
     # 关闭事件，用于优雅退出
@@ -73,27 +74,29 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
+    # 是否已经向 master 报告过启动成功
+    announced = False
+
+    def start_listening() -> None:
+        nonlocal announced
+        if init_listening(robot, shutdown_event, reconnected=announced):
+            announced = True
+
     try:
-        # Callbacks can trigger replies while the saved listeners are still loading.
+        # HTTP 先起来：微信没开时接口照常响应，只是返回微信离线
         server.enable_http(robot)
         LOG.info("HTTP server enabled")
-        # AddListenChat starts SDK listening; this main loop keeps the process alive.
-        init_listening(robot, shutdown_event)
-        if shutdown_event.is_set():
-            return
+        LOG.info("True Love Base is ready! Waiting for WeChat...")
 
-        LOG.info("True Love Base is ready!")
-        LOG.info("Use HTTP API to add chat listeners:")
-        LOG.info("  POST /listen/add  {\"chat_name\": \"好友昵称或群名\"}")
+        # 在主线程里守护微信连接，直到收到退出信号；AddListenChat starts SDK listening.
+        WxSupervisor(client, start_listening, shutdown_event).run()
 
-        while not shutdown_event.wait(timeout=0.2):
-            pass
-
-        try:
-            if not robot.send_text_msg("True Love Base shutting down...", config.master_wix):
-                LOG.warning("Shutdown notification was not delivered to [%s]", config.master_wix)
-        except Exception:
-            LOG.warning("Failed to send shutdown notification to [%s]", config.master_wix, exc_info=True)
+        if announced and client.is_connected():
+            try:
+                if not robot.send_text_msg("True Love Base shutting down...", config.master_wix):
+                    LOG.warning("Shutdown notification was not delivered to [%s]", config.master_wix)
+            except Exception:
+                LOG.warning("Failed to send shutdown notification to [%s]", config.master_wix, exc_info=True)
     except Exception:
         LOG.exception("Base runtime failed; shutting down")
         raise
@@ -106,11 +109,16 @@ def main():
         LOG.info("Cleanup completed, bye!")
 
 
-def init_listening(robot: Robot, stop_event: Event) -> None:
-    """Register saved listeners once; the SDK owns its listener threads."""
+def init_listening(robot: Robot, stop_event: Event, *, reconnected: bool = False) -> bool:
+    """
+    Register saved listeners after WeChat connects; the SDK owns its listener threads.
+
+    Returns:
+        False when shutdown cancelled the registration, so nothing was announced
+    """
     load_result = robot.load_listen_chats(stop_event=stop_event)
     if stop_event.is_set():
-        return
+        return False
     success_chats = load_result["success"]
     failed_chats = load_result["failed"]
 
@@ -129,7 +137,8 @@ def init_listening(robot: Robot, stop_event: Event) -> None:
         failed_list_str = "\n".join(
             [f"  {i + 1}. {name}" for i, name in enumerate(failed_chats)]) if failed_chats else "  (无)"
 
-        startup_msg = f"True Love Base started successfully!\n\n当前监听列表 ({len(success_chats)}个):\n{success_list_str}"
+        headline = "WeChat reconnected!" if reconnected else "True Love Base started successfully!"
+        startup_msg = f"{headline}\n\n当前监听列表 ({len(success_chats)}个):\n{success_list_str}"
         if failed_chats:
             startup_msg += f"\n\n监听失败 ({len(failed_chats)}个):\n{failed_list_str}"
 
@@ -137,16 +146,12 @@ def init_listening(robot: Robot, stop_event: Event) -> None:
             LOG.warning("Startup notification was not delivered to [%s]", config.master_wix)
     except Exception:
         LOG.warning("Failed to send startup notification to [%s]", config.master_wix, exc_info=True)
+    return True
 
 
 def init_wx() -> tuple[WxAutoClient, Robot]:
-    # 初始化微信客户端
-    try:
-        client = WxAutoClient()
-        LOG.info(f"WeChat client initialized, self: {client.get_self_name()}")
-    except Exception as e:
-        LOG.error(f"Failed to initialize WeChat client: {e}")
-        sys.exit(1)
+    # 初始化微信客户端；连接微信由 WxSupervisor 负责，微信没开也不影响 base 启动
+    client = WxAutoClient()
 
     # 初始化监听列表持久化管理器
     listen_store = ListenStore(config.listen_chats_file)

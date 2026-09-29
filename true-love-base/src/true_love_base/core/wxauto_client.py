@@ -7,6 +7,7 @@ WxAuto WxAutoClient - wxautox4 SDK 封装客户端
 
 import json
 import logging
+from datetime import datetime
 from threading import Lock
 from typing import Callable, Optional
 
@@ -36,24 +37,76 @@ class WxAutoClient():
     """
 
     def __init__(self):
-        """初始化 wxautox4 客户端"""
+        """创建客户端；不连接微信，微信可用时由 connect() 建立连接"""
         self._wx = None
-        self._running = False
+        self._running = True
         self._self_name: Optional[str] = None
+        # 当前状态（在线或离线）开始的时间
+        self._state_since = datetime.now()
+        # 最近一次连接失败的原因，同一个原因只报一次
+        self._connect_error: Optional[str] = None
         # Coordinate listener registration with shutdown, independently of SDK UI locks.
         self._lifecycle_lock = Lock()
 
-        self._init_client()
-
-    def _init_client(self):
-        """初始化 wxautox4 WeChat 实例"""
+    def connect(self) -> bool:
+        """连接已登录的微信主窗口；微信没开或没登录时返回 False，由调用方稍后重试"""
         try:
-            self._wx = WeChat(version='WeChat')
-            self._running = True
-            LOG.info("WxAutoClient initialized successfully")
+            wx = WeChat(version='WeChat')
+            # 主窗口还在但已经掉线（比如断网）时先不接管，等它恢复在线
+            if not wx.IsOnline():
+                raise RuntimeError("WeChat main window is open but not online")
         except Exception as e:
-            LOG.exception("Failed to initialize WxAutoClient")
-            raise RuntimeError(f"Failed to initialize wxautox4: {e}") from e
+            # 离线期间每隔几秒就会重试一次
+            level = logging.DEBUG if str(e) == self._connect_error else logging.WARNING
+            self._connect_error = str(e)
+            LOG.log(level, "WeChat is not available: %s", e)
+            return False
+        self._wx = wx
+        self._connect_error = None
+        self._self_name = None
+        self._state_since = datetime.now()
+        LOG.info("WxAutoClient connected, self: %s", self.get_self_name())
+        return True
+
+    def disconnect(self) -> None:
+        """微信掉线后丢弃当前实例；监听在下一次 connect() 之后重新注册"""
+        # Wait for an in-flight registration, so it cannot land on the instance being dropped.
+        with self._lifecycle_lock:
+            wx, self._wx = self._wx, None
+        if wx is None:
+            return
+        self._self_name = None
+        self._state_since = datetime.now()
+        # Do not hold the lifecycle lock while the SDK stops its listener threads.
+        try:
+            wx.StopListening(remove=False)
+        except Exception:
+            LOG.warning("Failed to stop listening on the dropped WeChat instance", exc_info=True)
+        LOG.info("WxAutoClient disconnected")
+
+    def check_online(self) -> bool:
+        """向微信确认登录态；被挤下线、退出登录、窗口已不存在都算掉线"""
+        wx = self._wx
+        if wx is None:
+            return False
+        try:
+            return bool(wx.IsOnline())
+        except Exception as e:
+            LOG.warning("WeChat online check failed: %s", e)
+            return False
+
+    def is_connected(self) -> bool:
+        """微信当前是否可用：已连接，且 base 没有在关闭"""
+        return self._running and self._wx is not None
+
+    def status(self) -> dict:
+        """微信连接状态，供 /status 接口返回"""
+        online = self.is_connected()
+        return {
+            "wx_online": online,
+            "self_name": self.get_self_name() if online else None,
+            "since": self._state_since.isoformat(timespec="seconds"),
+        }
 
     @property
     def wx(self):
@@ -282,10 +335,6 @@ class WxAutoClient():
 
     # ==================== 生命周期 ====================
 
-    def is_running(self) -> bool:
-        """检查客户端是否运行中"""
-        return self._running and self._wx is not None
-
     def cleanup(self) -> None:
         """停止 SDK 监听，保留微信窗口供已接收的任务收尾。"""
         with self._lifecycle_lock:
@@ -293,9 +342,13 @@ class WxAutoClient():
                 LOG.debug("Skipping cleanup: client is already stopping or stopped")
                 return
             self._running = False
+            wx = self._wx
+        if wx is None:
+            LOG.info("WxAutoClient cleaned up while offline")
+            return
         # Do not hold the lifecycle lock while the SDK stops its listener threads.
         try:
-            self.wx.StopListening(remove=False)
+            wx.StopListening(remove=False)
         except Exception:
             LOG.exception("Failed to stop wxautox4 listening")
             raise

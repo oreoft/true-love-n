@@ -33,12 +33,20 @@ class ListenerLifecycleTests(unittest.TestCase):
         self.sdk.StopListening.side_effect = lambda **kwargs: self.events.append("stop-sdk")
         self.sdk.GetSubWindow.return_value = None
         self.sdk.SendMsg.return_value = True
+        self.sdk.IsOnline.return_value = True
+        self.wechat_running = True
+
+        def open_wechat(**kwargs):
+            if not self.wechat_running:
+                raise RuntimeError("no logged-in WeChat main window")
+            return self.sdk
+
         http = module("true_love_base.api.server", enable_http=lambda robot: self.events.append("http"))
         dependencies = {
             "true_love_base": module("true_love_base", __path__=[]),
             "true_love_base.api": module("true_love_base.api", server=http),
             "true_love_base.wxautox4x.wxautox4x": module(
-                "true_love_base.wxautox4x.wxautox4x", WeChat=lambda **kwargs: self.sdk
+                "true_love_base.wxautox4x.wxautox4x", WeChat=open_wechat
             ),
             "wxautox4.param": module("wxautox4.param", WxParam=type("WxParam", (), {})),
             "true_love_common.chat_msg": module("true_love_common.chat_msg", ChatMsg=object),
@@ -52,13 +60,14 @@ class ListenerLifecycleTests(unittest.TestCase):
                 "true_love_base.utils.path_resolver", get_wx_imgs_dir=lambda: None
             ),
             "true_love_base.configuration": module(
-                "true_love_base.configuration", Config=lambda: types.SimpleNamespace(master_wix="owner")
+                "true_love_base.configuration",
+                Config=lambda: types.SimpleNamespace(master_wix="owner", listen_chats_file="listen_chats.json"),
             ),
             "true_love_base.services": module(
                 "true_love_base.services", __path__=[], server_client=types.SimpleNamespace(get_chat=Mock())
             ),
             "true_love_base.services.listen_store": module(
-                "true_love_base.services.listen_store", ListenStore=object
+                "true_love_base.services.listen_store", ListenStore=Mock()
             ),
         }
         modules = patch.dict(sys.modules, dependencies)
@@ -70,15 +79,19 @@ class ListenerLifecycleTests(unittest.TestCase):
         )
         self.robot_module = load_source("lifecycle_robot", "services/robot.py")
         sys.modules["true_love_base.services.robot"] = self.robot_module
+        sys.modules["true_love_base.services.wx_supervisor"] = load_source(
+            "lifecycle_supervisor", "services/wx_supervisor.py"
+        )
         self.main_module = load_source("lifecycle_main", "main.py")
         self.client = self.client_module.WxAutoClient()
+        self.assertTrue(self.client.connect())
 
     def test_cleanup_stops_sdk_once_and_preserves_open_chat_windows(self):
         self.client.cleanup()
         self.client.cleanup()
 
         self.sdk.StopListening.assert_called_once_with(remove=False)
-        self.assertFalse(self.client.is_running())
+        self.assertFalse(self.client.is_connected())
 
     def test_shutdown_rejects_new_listener_registrations(self):
         self.client.cleanup()
@@ -173,12 +186,26 @@ class ListenerLifecycleTests(unittest.TestCase):
             return False
 
         self.sdk.AddListenChat.side_effect = register
-        with self.assertLogs("WxAutoClient", level="ERROR"):
+        with self.assertLogs("WxAutoClient", level="ERROR"), self.assertLogs("Robot", level="WARNING"):
             self.assertFalse(robot.add_listen_chat("group", stop_event=stopped))
 
         self.assertEqual(self.sdk.AddListenChat.call_count, 1)
 
-    def run_main(self, *, fail_loading=False, fail_stopping=False, cancel_loading=False):
+    def run_main(
+        self, *, fail_loading=False, fail_stopping=False, cancel_loading=False, wechat_running=True,
+        changes=(),
+    ):
+        """Run main(), applying one of `changes` after each supervisor step, then shut down."""
+        self.wechat_running = wechat_running
+        changes = list(changes)
+
+        def wait(timeout):
+            if not changes:
+                return True
+            changes.pop(0)()
+            return False
+
+        client = self.client_module.WxAutoClient()
         robot = Mock()
 
         def load(**kwargs):
@@ -207,9 +234,9 @@ class ListenerLifecycleTests(unittest.TestCase):
 
         shutdown = Mock()
         shutdown.is_set.return_value = False
-        shutdown.wait.return_value = True
+        shutdown.wait.side_effect = wait
         with (
-            patch.object(self.main_module, "init_wx", return_value=(self.client, robot)),
+            patch.object(self.main_module, "init_wx", return_value=(client, robot)),
             patch.object(self.main_module, "disable_quick_edit"),
             patch.object(self.main_module.signal, "signal"),
             patch.object(self.main_module, "Thread", ImmediateThread, create=True),
@@ -230,11 +257,53 @@ class ListenerLifecycleTests(unittest.TestCase):
         robot.send_text_msg.assert_not_called()
         self.assertEqual(self.events, ["http", "load", "stop-sdk", "drain"])
 
-    def test_startup_failure_still_stops_sdk_and_drains_workers(self):
-        with self.assertRaisesRegex(RuntimeError, "startup failed"):
-            self.run_main(fail_loading=True)
+    def test_listener_setup_failure_keeps_base_alive_and_still_drains_workers(self):
+        with self.assertLogs("WxSupervisor", level="ERROR"):
+            robot = self.run_main(fail_loading=True)
 
+        robot.send_text_msg.assert_not_called()
         self.assertEqual(self.events, ["http", "load", "stop-sdk", "drain"])
+
+    def test_base_serves_http_and_stays_up_without_wechat(self):
+        with self.assertLogs("WxAutoClient", level="WARNING"):
+            robot = self.run_main(wechat_running=False)
+
+        robot.load_listen_chats.assert_not_called()
+        robot.send_text_msg.assert_not_called()
+        self.assertEqual(self.events, ["http", "drain"])
+
+    def go_offline(self):
+        self.sdk.IsOnline.return_value = False
+
+    def come_back(self):
+        self.sdk.IsOnline.return_value = True
+
+    def test_shutdown_notice_is_skipped_once_wechat_is_gone(self):
+        with self.assertLogs("WxSupervisor", level="WARNING"):
+            robot = self.run_main(changes=[self.go_offline, lambda: None])
+
+        self.assertEqual(robot.send_text_msg.call_count, 1)
+        self.assertIn("started successfully", robot.send_text_msg.call_args.args[0])
+        self.assertEqual(self.events, ["http", "load", "stop-sdk", "drain"])
+
+    def test_master_can_tell_a_reconnect_from_a_fresh_start(self):
+        with self.assertLogs("WxSupervisor", level="WARNING"):
+            robot = self.run_main(changes=[self.go_offline, lambda: None, self.come_back])
+
+        started, reconnected, stopping = [call.args[0] for call in robot.send_text_msg.call_args_list]
+        self.assertIn("started successfully", started)
+        self.assertIn("reconnected", reconnected)
+        self.assertNotIn("started successfully", reconnected)
+        self.assertIn("shutting down", stopping)
+
+    def test_missing_wechat_does_not_abort_startup(self):
+        self.wechat_running = False
+
+        with self.assertNoLogs(level="WARNING"):
+            client, robot = self.main_module.init_wx()
+        self.addCleanup(robot.cleanup)
+
+        self.assertFalse(client.is_connected())
 
     def test_sdk_stop_failure_is_visible_and_workers_still_drain(self):
         with self.assertLogs("WxAutoClient", level="ERROR"):
