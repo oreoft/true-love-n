@@ -107,6 +107,11 @@ class ChatMsg:
     link_msg: Optional[LinkMsg] = None
     refer_msg: Optional[ChatMsg] = None
 
+    # 收到这条消息的机器人账号（微信为 wxid），多个机器人共用 AI 时用来区分
+    bot_id: str = ""
+    # 正文里叫到机器人的那段文字（如 "@真爱粉"），没叫到为空
+    mention: str = ""
+
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
@@ -131,4 +136,6 @@ class ChatMsg:
             file_msg=FileMsg.from_dict(data["file_msg"]) if data.get("file_msg") else None,
             link_msg=LinkMsg.from_dict(data["link_msg"]) if data.get("link_msg") else None,
             refer_msg=cls.from_dict(data["refer_msg"]) if data.get("refer_msg") else None,
+            bot_id=data.get("bot_id", ""),
+            mention=data.get("mention", ""),
         )
