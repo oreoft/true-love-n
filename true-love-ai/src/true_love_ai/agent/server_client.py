@@ -6,7 +6,9 @@ AI Agent 执行完后，通过这个客户端调用 Server 的 /action/* 接口
 来完成 WeChat 操作（发消息、管理提醒、管理监听等）。
 """
 
+import contextvars
 import logging
+from contextlib import contextmanager
 
 from true_love_common.http.client import async_get, async_post_json, post_json
 
@@ -15,8 +17,30 @@ from true_love_ai.core.config import get_config
 LOG = logging.getLogger("ServerClient")
 
 
+# 当前这次处理要回调的 server 地址。多套 server 共用一个 AI 时由 /trigger 带来
+_reply_to: contextvars.ContextVar[str] = contextvars.ContextVar("reply_to", default="")
+
+
+@contextmanager
+def reply_through(url):
+    """
+    这段代码里（包括它派生的任务）的回调都发往指定的 server
+
+    Args:
+        url: server 地址；为空或不是 http(s) 地址时用配置里的默认 server
+    """
+    valid = isinstance(url, str) and url.startswith(("http://", "https://"))
+    if url and not valid:
+        LOG.warning("Ignoring reply address that is not a web address: %r", url)
+    token = _reply_to.set(url.rstrip("/") if valid else "")
+    try:
+        yield
+    finally:
+        _reply_to.reset(token)
+
+
 def _get_server_url() -> str:
-    return get_config().base_server.host.rstrip("/")
+    return _reply_to.get() or get_config().base_server.host.rstrip("/")
 
 
 def _get_token() -> str:

@@ -19,8 +19,9 @@ async def trigger(request: dict, background_tasks: BackgroundTasks):
     立即返回 200，后台启动 Agent Loop 处理。
 
     Body:
-        - token: 鉴权 token
-        - msg:   ChatMsg.to_dict() 格式
+        - token:    鉴权 token
+        - msg:      ChatMsg.to_dict() 格式
+        - reply_to: 回复要发回的 server 地址（可选，多套 server 共用 AI 时由 server 带上）
     """
     if not verify_token(request.get("token", "")):
         return APIResponse.token_error()
@@ -37,17 +38,19 @@ async def trigger(request: dict, background_tasks: BackgroundTasks):
     from true_love_ai.agent.skills import ensure_skills_loaded
     ensure_skills_loaded()
 
-    background_tasks.add_task(_run_agent, msg)
+    background_tasks.add_task(_run_agent, msg, request.get("reply_to"))
     return APIResponse.success(None)
 
 
-async def _run_agent(msg: ChatMsg) -> None:
-    try:
-        from true_love_ai.agent.agent_loop import get_agent_loop
-        await get_agent_loop().run(msg)
-    except Exception as e:
-        LOG.exception("Agent Loop 执行异常: sender_id=%s, err=%s", msg.sender_id, e)
-        await _send_fallback(msg)
+async def _run_agent(msg: ChatMsg, reply_to=None) -> None:
+    from true_love_ai.agent.server_client import reply_through
+    with reply_through(reply_to):
+        try:
+            from true_love_ai.agent.agent_loop import get_agent_loop
+            await get_agent_loop().run(msg)
+        except Exception as e:
+            LOG.exception("Agent Loop 执行异常: sender_id=%s, err=%s", msg.sender_id, e)
+            await _send_fallback(msg)
 
 
 async def _send_fallback(msg: ChatMsg) -> None:

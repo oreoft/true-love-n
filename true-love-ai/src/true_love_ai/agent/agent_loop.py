@@ -33,13 +33,10 @@ MAX_TOOL_ITERATIONS = 6
 # 单个 skill 执行超时（秒）
 SKILL_TIMEOUT_SECONDS = 300
 
-# 触发词清理
-_TRIGGER_PATTERNS = [re.compile(p, re.IGNORECASE) for p in [r"@真爱粉\s*", r"\bzaf\b"]]
-
-
-def _clean_content(content: str) -> str:
-    for pat in _TRIGGER_PATTERNS:
-        content = pat.sub("", content)
+def _clean_content(content: str, mention: str = "") -> str:
+    """去掉正文里叫机器人的那段文字；是哪段文字由 base 识别后随消息带来"""
+    if mention:
+        content = content.replace(mention, "", 1)
     return content.strip()
 
 
@@ -145,7 +142,7 @@ class AgentLoop:
     def _build_user_content(self, msg: ChatMsg) -> Optional[str]:
         """把各类消息类型转换为 LLM 可理解的文本"""
         msg_type = msg.msg_type
-        content = _clean_content(msg.content)
+        content = _clean_content(msg.content, msg.mention)
 
         if msg_type == "text":
             url = self._extract_first_link(content)
