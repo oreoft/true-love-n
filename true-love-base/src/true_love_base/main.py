@@ -17,6 +17,7 @@ from true_love_base.core import WxAutoClient
 from true_love_base.services.listen_store import ListenStore
 from true_love_base.services.robot import Robot
 from true_love_base.services.wx_supervisor import WxSupervisor
+from true_love_base.utils.win_env import display_scale_percent, keep_awake
 
 # 初始化配置（会设置日志）
 config = Config()
@@ -56,6 +57,8 @@ def main():
     """主函数"""
     # 禁用 Windows 控制台 QuickEdit 模式，防止点击窗口导致程序暂停
     disable_quick_edit()
+    # 机器睡眠或熄屏后微信窗口操作不了；状态绑定在主线程上，base 退出后自动恢复
+    keep_awake()
     LOG.info("=" * 50)
     LOG.info("True Love Base starting...")
     LOG.info("=" * 50)
@@ -141,6 +144,11 @@ def init_listening(robot: Robot, stop_event: Event, *, reconnected: bool = False
         startup_msg = f"{headline}\n\n当前监听列表 ({len(success_chats)}个):\n{success_list_str}"
         if failed_chats:
             startup_msg += f"\n\n监听失败 ({len(failed_chats)}个):\n{failed_list_str}"
+
+        scale = display_scale_percent()
+        if scale is not None and scale != 100:
+            LOG.warning(f"Display scaling is {scale}%, wxautox4 needs 100%")
+            startup_msg += f"\n\n屏幕缩放是 {scale}%，请调成 100%，否则下载图片等操作可能失败"
 
         if not robot.send_text_msg(startup_msg, config.master_wix):
             LOG.warning("Startup notification was not delivered to [%s]", config.master_wix)
