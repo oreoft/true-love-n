@@ -5,6 +5,7 @@ Scheduler Service - 定时任务调度服务
 """
 import logging
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler import events
@@ -13,9 +14,10 @@ from ..core.db_engine import engine
 
 LOG = logging.getLogger("SchedulerService")
 
-# 初始化配置与 Job Store（表名暂定 apscheduler_jobs）
+# 提醒和定时任务存在数据库里，重启不丢；"立即执行"这种一次性的放内存
 _jobstores = {
-    'default': SQLAlchemyJobStore(engine=engine, tablename='apscheduler_jobs')
+    'default': SQLAlchemyJobStore(engine=engine, tablename='apscheduler_jobs'),
+    'memory': MemoryJobStore(),
 }
 _executors = {
     'default': ThreadPoolExecutor(20)

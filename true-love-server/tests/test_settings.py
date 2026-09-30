@@ -44,33 +44,8 @@ class SettingsCase(unittest.TestCase):
 
 
 class SettingsTests(SettingsCase):
-    def test_server_that_was_never_configured_has_no_groups_and_no_reply_address(self):
-        self.assertEqual(self.settings.get("moyu_groups"), [])
-        self.assertEqual(self.settings.get("usa_moyu_groups"), [])
+    def test_server_that_was_never_configured_has_no_reply_address(self):
         self.assertEqual(self.settings.get("reply_to"), "")
-
-    def test_saved_groups_are_what_the_next_reader_gets(self):
-        self.settings.update("moyu_groups", ["委员会", "家人群"])
-
-        self.assertEqual(self.settings.get("moyu_groups"), ["委员会", "家人群"])
-        self.assertEqual(self.settings.get("usa_moyu_groups"), [])
-
-    def test_saving_again_replaces_the_previous_value(self):
-        self.settings.update("moyu_groups", ["委员会", "家人群"])
-        self.settings.update("moyu_groups", ["家人群"])
-
-        self.assertEqual(self.settings.get("moyu_groups"), ["家人群"])
-
-    def test_group_names_are_trimmed_and_blank_or_repeated_ones_dropped(self):
-        self.settings.update("moyu_groups", [" 委员会 ", "", "家人群", "委员会", "   "])
-
-        self.assertEqual(self.settings.get("moyu_groups"), ["委员会", "家人群"])
-
-    def test_groups_must_be_given_as_a_list(self):
-        with self.assertRaises(ValueError):
-            self.settings.update("moyu_groups", "委员会")
-
-        self.assertEqual(self.settings.get("moyu_groups"), [])
 
     def test_reply_address_is_stored_without_a_trailing_slash(self):
         self.settings.update("reply_to", " http://win10-m8s:8088/ ")
@@ -98,53 +73,20 @@ class SettingsTests(SettingsCase):
             self.settings.get("master")
 
     def test_console_lists_every_setting_with_its_current_value(self):
-        self.settings.update("usa_moyu_groups", ["湾区群"])
+        self.settings.update("reply_to", "http://win10-m8s:8088")
 
         listed = {item["key"]: item for item in self.settings.list_all()}
 
-        self.assertEqual(sorted(listed), ["moyu_groups", "reply_to", "usa_moyu_groups"])
-        self.assertEqual(listed["usa_moyu_groups"]["value"], ["湾区群"])
-        self.assertEqual(listed["usa_moyu_groups"]["type"], "list")
-        self.assertEqual(listed["reply_to"]["value"], "")
+        self.assertEqual(sorted(listed), ["reply_to"])
+        self.assertEqual(listed["reply_to"]["value"], "http://win10-m8s:8088")
         self.assertEqual(listed["reply_to"]["type"], "text")
-        self.assertTrue(all(item["label"] for item in listed.values()))
+        self.assertTrue(listed["reply_to"]["label"])
 
-
-class ImportFromConfigTests(SettingsCase):
-    """What used to be written in config.yaml is carried over once, so an upgrade changes nothing by itself."""
-
-    def test_groups_from_the_configuration_file_are_carried_over(self):
-        self.settings.import_from_config(
-            {"notice_moyu_schedule": ["委员会", "家人群"], "notice_usa_moyu_schedule": ["湾区群"], "test": ["x"]},
-        )
-
-        self.assertEqual(self.settings.get("moyu_groups"), ["委员会", "家人群"])
-        self.assertEqual(self.settings.get("usa_moyu_groups"), ["湾区群"])
-
-    def test_value_changed_in_the_console_is_not_overwritten_by_the_next_start(self):
-        legacy = {"notice_moyu_schedule": ["委员会", "家人群"]}
-        self.settings.import_from_config(legacy)
-        self.settings.update("moyu_groups", ["家人群"])
-
-        self.settings.import_from_config(legacy)
-
-        self.assertEqual(self.settings.get("moyu_groups"), ["家人群"])
-
-    def test_groups_emptied_in_the_console_stay_empty_after_the_next_start(self):
-        legacy = {"notice_moyu_schedule": ["委员会"]}
-        self.settings.import_from_config(legacy)
-        self.settings.update("moyu_groups", [])
-
-        self.settings.import_from_config(legacy)
-
-        self.assertEqual(self.settings.get("moyu_groups"), [])
-
-    def test_server_without_the_old_configuration_starts_with_nothing(self):
-        for legacy in (None, {}, {"notice_moyu_schedule": None}):
-            with self.subTest(legacy=legacy):
-                self.settings.import_from_config(legacy)
-
-                self.assertEqual(self.settings.get("moyu_groups"), [])
+    def test_push_groups_are_no_longer_settings(self):
+        """They became scheduled tasks; see test_task_service."""
+        for key in ("moyu_groups", "usa_moyu_groups"):
+            with self.assertRaises(ValueError):
+                self.settings.get(key)
 
 
 if __name__ == "__main__":

@@ -11,8 +11,7 @@ import logging
 
 import uvicorn
 
-from .services import base_client, settings_service
-from .jobs import Job
+from .services import base_client
 from .api import create_app
 from .core import Config
 from .core.db_engine import init_db
@@ -48,20 +47,16 @@ def main():
     """主函数"""
     init_db()
 
-    # 配置文件里原有的推送群搬进数据库（只在数据库里还没有时才搬）
-    settings_service.import_from_config(getattr(config, "AUTO_NOTICE", None))
+    # 启动持久化调度器（提醒和定时任务）
+    from .services import task_service
+    from .services.scheduler_service import start_scheduler
+    start_scheduler()
+
+    # 设置页原来的推送群迁移成定时任务（只迁移一次）
+    task_service.import_from_settings()
 
     # 通知 master
     notice_master()
-
-    # 注册并异步启动定时任务
-    if config.APP_ENV == "prod":
-        job = Job()
-        job.async_enable_jobs()
-
-    # 启动持久化调度器
-    from .services.scheduler_service import start_scheduler
-    start_scheduler()
 
     # 启动应用
     app = create_app()

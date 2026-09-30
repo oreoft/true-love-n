@@ -79,6 +79,29 @@ window.api = {
         body: JSON.stringify({ job_id: jobId })
     }),
 
+    // Task API
+    fetchTaskList: () => apiRequest('/admin/task/list'),
+
+    addTask: (jobName, receivers, schedule) => apiRequest('/admin/task/add', {
+        method: 'POST',
+        body: JSON.stringify({ job_name: jobName, receivers, schedule })
+    }),
+
+    updateTask: (taskId, jobName, receivers, schedule) => apiRequest('/admin/task/update', {
+        method: 'POST',
+        body: JSON.stringify({ task_id: taskId, job_name: jobName, receivers, schedule })
+    }),
+
+    deleteTask: (taskId) => apiRequest('/admin/task/delete', {
+        method: 'POST',
+        body: JSON.stringify({ task_id: taskId })
+    }),
+
+    runTask: (taskId) => apiRequest('/admin/task/run', {
+        method: 'POST',
+        body: JSON.stringify({ task_id: taskId })
+    }),
+
     // Skill API
     fetchSkillList: () => apiRequest('/admin/skill/list'),
 

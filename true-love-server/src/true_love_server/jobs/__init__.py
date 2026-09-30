@@ -2,12 +2,9 @@
 """
 Jobs module - 定时任务模块
 
-包含定时任务管理和具体的任务处理。
+包含定时任务的具体实现，调度由 services/task_service.py 负责。
 """
 
-from .job_mgmt import Job
 from . import job_process
 
-__all__ = ["Job", "job_process"]
-
-
+__all__ = ["job_process"]

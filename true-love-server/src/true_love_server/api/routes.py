@@ -376,42 +376,22 @@ async def get_all_message(request: dict):
 
 # ==================== Job 手动触发接口 ====================
 
-_JOB_MAP = None
-
-
-def _get_job_map() -> dict:
-    global _JOB_MAP
-    if _JOB_MAP is None:
-        from ..jobs import job_process as jp
-        _JOB_MAP = {
-            "notice_moyu_schedule": jp.notice_moyu_schedule,
-            "notice_usa_moyu_schedule": jp.notice_usa_moyu_schedule,
-            "download_moyu_file": jp.download_moyu_file,
-            "download_zao_bao_file": jp.download_zao_bao_file,
-        }
-    return _JOB_MAP
-
-
 @router.post("/action/job/run")
-async def run_job(request: dict, background_tasks: BackgroundTasks):
+async def run_job(request: dict):
     """
-    手动触发定时任务
+    立即执行某个任务名下的所有定时任务（AI 手动触发用）
 
     Request Body:
         - job_name: 任务名称
     """
     verify_token(request.get("token", ""))
     job_name = request.get("job_name", "").strip()
-    job_map = _get_job_map()
-
-    if not job_name:
-        raise ValidationException(f"job_name 不能为空，可选: {list(job_map.keys())}")
-    if job_name not in job_map:
-        raise ValidationException(f"未知 job: {job_name}，可选: {list(job_map.keys())}")
-
-    background_tasks.add_task(job_map[job_name])
-    LOG.info("手动触发 job: %s", job_name)
-    return ApiResponse(data={"job_name": job_name, "status": "triggered"})
+    try:
+        started = _ts.run_by_job_name(job_name)
+    except ValueError as e:
+        raise ValidationException(str(e))
+    LOG.info("手动触发 job: %s, tasks=%s", job_name, started)
+    return ApiResponse(data={"job_name": job_name, "status": "triggered", "tasks": len(started)})
 
 
 # ==================== Loki 日志查询接口 ====================
@@ -554,6 +534,52 @@ async def admin_delete_reminder(request: dict):
         raise ValidationException(str(e))
     LOG.info("admin/reminder/delete: job_id=%s", job_id)
     return ApiResponse(data=data)
+
+
+# ==================== Admin 定时任务管理接口 ====================
+
+from ..services import task_service as _ts
+
+
+def _task_call(func, *args):
+    try:
+        return func(*args)
+    except ValueError as e:
+        raise ValidationException(str(e))
+
+
+@router.get("/admin/task/list")
+async def list_tasks():
+    tasks = _ts.list_tasks()
+    LOG.info("admin/task/list: count=%d", len(tasks))
+    return ApiResponse(data={
+        "tasks": tasks,
+        "jobs": _ts.job_options(),
+        "timezones": [{"value": key, "label": label} for key, label in _ts.TIMEZONES.items()],
+    })
+
+
+@router.post("/admin/task/add")
+async def admin_add_task(request: dict):
+    data = _task_call(_ts.add_task, request.get("job_name", ""), request.get("receivers"), request.get("schedule"))
+    return ApiResponse(data=data)
+
+
+@router.post("/admin/task/update")
+async def admin_update_task(request: dict):
+    data = _task_call(_ts.update_task, request.get("task_id", ""), request.get("job_name", ""),
+                      request.get("receivers"), request.get("schedule"))
+    return ApiResponse(data=data)
+
+
+@router.post("/admin/task/delete")
+async def admin_delete_task(request: dict):
+    return ApiResponse(data=_task_call(_ts.delete_task, request.get("task_id", "")))
+
+
+@router.post("/admin/task/run")
+async def admin_run_task(request: dict):
+    return ApiResponse(data=_task_call(_ts.run_now, request.get("task_id", "")))
 
 
 # ==================== Admin 动态技能管理接口 ====================

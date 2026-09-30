@@ -54,6 +54,7 @@ class AdminSettingsTests(unittest.IsolatedAsyncioTestCase):
             "true_love_server.services.loki_client": module(
                 "true_love_server.services.loki_client", get_loki_client=Mock()),
             "true_love_server.services.reminder_service": module("true_love_server.services.reminder_service"),
+            "true_love_server.services.task_service": module("true_love_server.services.task_service"),
             "true_love_server.services.ai_skill_client": module("true_love_server.services.ai_skill_client"),
         }
         modules = patch.dict(sys.modules, dependencies)

@@ -1,0 +1,233 @@
+"""Scheduled tasks push a chosen job to a list of receivers, once or every day, and survive in this server's database."""
+
+import importlib
+import json
+import sys
+import types
+import unittest
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from unittest.mock import Mock, patch
+
+import pytz
+from apscheduler.jobstores.memory import MemoryJobStore
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger  # noqa: F401  loaded before sys.modules is patched, so pickling finds the same class
+from apscheduler.triggers.date import DateTrigger  # noqa: F401
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+
+SOURCE = Path(__file__).parents[1] / "src/true_love_server"
+
+
+def module(name, path=None, **attributes):
+    result = types.ModuleType(name)
+    if path is not None:
+        result.__path__ = [str(path)]
+    result.__dict__.update(attributes)
+    return result
+
+
+class TaskServiceCase(unittest.TestCase):
+    def setUp(self):
+        engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        self.SessionLocal = sessionmaker(bind=engine)
+        self.scheduler = BackgroundScheduler(
+            jobstores={"default": SQLAlchemyJobStore(engine=engine), "memory": MemoryJobStore()}, timezone="UTC")
+        self.run_task = Mock()
+        tasks = {
+            "notice_moyu_schedule": {"label": "国内摸鱼", "run": Mock()},
+            "notice_usa_moyu_schedule": {"label": "美国摸鱼", "run": Mock()},
+        }
+        # Real task code against a throwaway database and a paused scheduler: jobs are stored, nothing fires.
+        dependencies = {
+            "true_love_server": module("true_love_server", SOURCE),
+            "true_love_server.core": module("true_love_server.core", SOURCE / "core"),
+            "true_love_server.models": module("true_love_server.models", SOURCE / "models"),
+            "true_love_server.services": module("true_love_server.services", SOURCE / "services"),
+            "true_love_server.core.db_engine": module("true_love_server.core.db_engine", SessionLocal=self.SessionLocal),
+            "true_love_server.services.scheduler_service": module(
+                "true_love_server.services.scheduler_service", scheduler=self.scheduler),
+            "true_love_server.jobs": module("true_love_server.jobs", SOURCE / "jobs"),
+            "true_love_server.jobs.job_process": module(
+                "true_love_server.jobs.job_process", TASKS=tasks, run_task=self.run_task),
+        }
+        modules = patch.dict(sys.modules, dependencies)
+        modules.start()
+        self.addCleanup(modules.stop)
+        self.tasks = importlib.import_module("true_love_server.services.task_service")
+        self.Setting = importlib.import_module("true_love_server.models.setting").Setting
+        self.Setting.metadata.create_all(bind=engine)
+        self.scheduler.start(paused=True)
+        self.addCleanup(self.scheduler.shutdown, wait=False)
+
+    def daily(self, at="09:05", tz="Asia/Shanghai"):
+        return {"mode": "daily", "time": at, "timezone": tz}
+
+    def next_run(self, task):
+        return datetime.fromisoformat(task["next_run_time"])
+
+
+class TaskTests(TaskServiceCase):
+    def test_daily_task_runs_next_at_that_time_in_its_timezone(self):
+        for at, tz in (("09:05", "Asia/Shanghai"), ("08:00", "America/Chicago")):
+            with self.subTest(tz=tz):
+                task = self.tasks.add_task("notice_moyu_schedule", ["委员会"], self.daily(at, tz))
+
+                local = self.next_run(task).astimezone(pytz.timezone(tz))
+                self.assertEqual(local.strftime("%H:%M"), at)
+                self.assertLess(self.next_run(task) - datetime.now(timezone.utc), timedelta(days=1))
+
+    def test_once_task_runs_at_the_chosen_moment(self):
+        run_at = (datetime.now(timezone.utc) + timedelta(hours=3)).replace(microsecond=0)
+
+        task = self.tasks.add_task("notice_moyu_schedule", ["委员会"], {"mode": "once", "run_at": run_at.isoformat()})
+
+        self.assertEqual(self.next_run(task), run_at)
+        self.assertEqual(task["schedule"]["mode"], "once")
+
+    def test_console_lists_tasks_with_receivers_and_a_readable_job_name(self):
+        self.tasks.add_task("notice_usa_moyu_schedule", [" 湾区群 ", "", "委员会", "湾区群"], self.daily("08:00", "America/Chicago"))
+
+        [task] = self.tasks.list_tasks()
+
+        self.assertEqual(task["job_label"], "美国摸鱼")
+        self.assertEqual(task["receivers"], ["湾区群", "委员会"])
+        self.assertEqual(task["schedule"], {"mode": "daily", "time": "08:00", "timezone": "America/Chicago"})
+
+    def test_reminders_are_not_listed_as_tasks(self):
+        self.scheduler.add_job(print, "date", run_date=datetime.now(timezone.utc) + timedelta(hours=1),
+                               id="reminder_委员会_1")
+
+        self.assertEqual(self.tasks.list_tasks(), [])
+
+    def test_invalid_forms_are_refused(self):
+        future = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+        past = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+        cases = {
+            "unknown job": ("download_moyu_file", ["委员会"], self.daily()),
+            "no receiver": ("notice_moyu_schedule", ["", " "], self.daily()),
+            "receivers not a list": ("notice_moyu_schedule", "委员会", self.daily()),
+            "bad time": ("notice_moyu_schedule", ["委员会"], self.daily("25:00")),
+            "bad timezone": ("notice_moyu_schedule", ["委员会"], self.daily("09:05", "Mars/Olympus")),
+            "past moment": ("notice_moyu_schedule", ["委员会"], {"mode": "once", "run_at": past}),
+            "moment without timezone": ("notice_moyu_schedule", ["委员会"], {"mode": "once", "run_at": future[:19]}),
+            "no mode": ("notice_moyu_schedule", ["委员会"], {}),
+        }
+        for name, args in cases.items():
+            with self.subTest(name):
+                with self.assertRaises(ValueError):
+                    self.tasks.add_task(*args)
+
+        self.assertEqual(self.tasks.list_tasks(), [])
+
+    def test_changing_a_task_keeps_its_id_and_replaces_everything_else(self):
+        task = self.tasks.add_task("notice_moyu_schedule", ["委员会"], self.daily())
+
+        self.tasks.update_task(task["task_id"], "notice_usa_moyu_schedule", ["湾区群"], self.daily("08:00", "America/Chicago"))
+
+        [changed] = self.tasks.list_tasks()
+        self.assertEqual(changed["task_id"], task["task_id"])
+        self.assertEqual((changed["job_name"], changed["receivers"]), ("notice_usa_moyu_schedule", ["湾区群"]))
+
+    def test_deleted_task_is_gone(self):
+        task = self.tasks.add_task("notice_moyu_schedule", ["委员会"], self.daily())
+
+        self.tasks.delete_task(task["task_id"])
+
+        self.assertEqual(self.tasks.list_tasks(), [])
+        with self.assertRaises(ValueError):
+            self.tasks.delete_task(task["task_id"])
+
+    def test_reminder_cannot_be_changed_through_the_task_page(self):
+        self.scheduler.add_job(print, "date", run_date=datetime.now(timezone.utc) + timedelta(hours=1),
+                               id="reminder_委员会_1")
+
+        for call in (lambda: self.tasks.delete_task("reminder_委员会_1"), lambda: self.tasks.run_now("reminder_委员会_1")):
+            with self.assertRaises(ValueError):
+                call()
+
+    def test_running_now_starts_an_extra_run_and_keeps_the_schedule(self):
+        task = self.tasks.add_task("notice_moyu_schedule", ["委员会"], self.daily())
+        extra = []
+        with patch.object(self.tasks, "_start", extra.append):
+            self.tasks.run_now(task["task_id"])
+
+        self.assertEqual([(run["job_name"], run["receivers"]) for run in extra], [("notice_moyu_schedule", ["委员会"])])
+        self.assertEqual(self.tasks.list_tasks()[0]["next_run_time"], task["next_run_time"])
+
+    def test_ai_trigger_runs_every_task_of_that_job(self):
+        self.tasks.add_task("notice_moyu_schedule", ["委员会"], self.daily())
+        self.tasks.add_task("notice_moyu_schedule", ["家人群"], self.daily("12:00"))
+        self.tasks.add_task("notice_usa_moyu_schedule", ["湾区群"], self.daily("08:00", "America/Chicago"))
+        extra = []
+        with patch.object(self.tasks, "_start", extra.append):
+            started = self.tasks.run_by_job_name("notice_moyu_schedule")
+
+        self.assertEqual(len(started), 2)
+        self.assertEqual(sorted(run["receivers"][0] for run in extra), ["委员会", "家人群"])
+        with self.assertRaises(ValueError):
+            self.tasks.run_by_job_name("download_moyu_file")
+
+    def test_scheduled_run_pushes_to_the_task_receivers(self):
+        task = self.tasks.add_task("notice_moyu_schedule", ["委员会", "家人群"], self.daily())
+        job = self.scheduler.get_job(task["task_id"])
+
+        job.func(**job.kwargs)
+
+        self.run_task.assert_called_once_with("notice_moyu_schedule", ["委员会", "家人群"])
+
+
+class ImportFromSettingsTests(TaskServiceCase):
+    """The push groups that used to be settings become daily tasks once, at the times they used to run."""
+
+    def save_setting(self, key, value):
+        with self.SessionLocal() as db:
+            db.add(self.Setting(key=key, value=json.dumps(value, ensure_ascii=False)))
+            db.commit()
+
+    def settings_left(self):
+        with self.SessionLocal() as db:
+            return sorted(row.key for row in db.query(self.Setting).all())
+
+    def test_old_groups_become_daily_tasks_at_the_old_times(self):
+        self.save_setting("moyu_groups", ["委员会", "家人群"])
+        self.save_setting("usa_moyu_groups", ["湾区群"])
+        self.save_setting("reply_to", "http://h-m8s:8088")
+
+        self.tasks.import_from_settings()
+
+        described = {task["job_name"]: (task["receivers"], task["schedule"]) for task in self.tasks.list_tasks()}
+        self.assertEqual(described, {
+            "notice_moyu_schedule": (["委员会", "家人群"], self.daily("09:05", "Asia/Shanghai")),
+            "notice_usa_moyu_schedule": (["湾区群"], self.daily("08:00", "America/Chicago")),
+        })
+        self.assertEqual(self.settings_left(), ["reply_to"])
+
+    def test_migration_happens_only_once(self):
+        self.save_setting("moyu_groups", ["委员会"])
+
+        self.tasks.import_from_settings()
+        self.tasks.import_from_settings()
+
+        self.assertEqual(len(self.tasks.list_tasks()), 1)
+
+    def test_emptied_groups_are_dropped_without_creating_a_task(self):
+        self.save_setting("moyu_groups", [])
+
+        self.tasks.import_from_settings()
+
+        self.assertEqual(self.tasks.list_tasks(), [])
+        self.assertEqual(self.settings_left(), [])
+
+    def test_new_server_has_nothing_to_migrate(self):
+        self.tasks.import_from_settings()
+
+        self.assertEqual(self.tasks.list_tasks(), [])
+
+
+if __name__ == "__main__":
+    unittest.main()

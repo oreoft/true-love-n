@@ -1,23 +1,37 @@
 /**
- * 定时提醒管理页面 composable
+ * 定时任务页面 composable
+ *
+ * 两种类型：普通提醒（一次性给一个接收者发一句话），定时任务（把写好的任务推给一批接收者，单次或每天）。
  */
 
 window.useReminderPage = function(showToast, showConfirm) {
-    const { ref, reactive } = Vue;
+    const { ref, reactive, computed } = Vue;
 
     const reminders = ref([]);
+    const tasks = ref([]);
+    const jobOptions = ref([]);
+    const timezones = ref([]);
     const loading = ref(false);
     const deletingItems = ref({});
 
-    // 添加弹窗状态
+    // 添加弹窗状态（taskId 不为空时是在修改定时任务）
     const addModal = reactive({
         show: false,
         loading: false,
+        type: 'reminder',
         receiver: '',
         content: '',
         targetTime: '',   // datetime-local 格式 YYYY-MM-DDTHH:MM
         atUser: '',
         platform: 'wechat',
+        taskId: '',
+        receivers: [],
+        newReceiver: '',
+        jobName: '',
+        mode: 'daily',
+        runAt: '',        // datetime-local 格式
+        time: '09:00',
+        timezone: 'Asia/Shanghai',
     });
 
     // 修改弹窗状态
@@ -81,13 +95,32 @@ window.useReminderPage = function(showToast, showConfirm) {
         }
     };
 
+    const timezoneLabel = (value) => (timezones.value.find(tz => tz.value === value) || {}).label || value;
+
+    const describeSchedule = (schedule) => schedule.mode === 'daily'
+        ? `每天 ${schedule.time}（${timezoneLabel(schedule.timezone).replace('时间', '')}）`
+        : '单次';
+
+    // 两种类型合在一张表里，按下次执行时间排
+    const scheduleItems = computed(() => [
+        ...reminders.value.map(job => ({ ...job, kind: 'reminder', key: job.job_id, nextRun: job.next_run_time })),
+        ...tasks.value.map(task => ({ ...task, kind: 'task', key: task.task_id, nextRun: task.next_run_time })),
+    ].sort((a, b) => (a.nextRun || '9999').localeCompare(b.nextRun || '9999')));
+
     const fetchReminders = async () => {
         loading.value = true;
         try {
-            const data = await api.fetchReminderList();
-            reminders.value = (data.data?.jobs || []).map(job => ({
+            const [reminderData, taskData] = await Promise.all([api.fetchReminderList(), api.fetchTaskList()]);
+            reminders.value = (reminderData.data?.jobs || []).map(job => ({
                 ...job,
                 _time: formatTime(job.next_run_time)
+            }));
+            jobOptions.value = taskData.data?.jobs || [];
+            timezones.value = taskData.data?.timezones || [];
+            tasks.value = (taskData.data?.tasks || []).map(task => ({
+                ...task,
+                _time: task.next_run_time ? formatTime(task.next_run_time) : { full: '-', offset: '' },
+                _schedule: describeSchedule(task.schedule),
             }));
         } catch (error) {
             showToast(error.message, 'error');
@@ -99,15 +132,94 @@ window.useReminderPage = function(showToast, showConfirm) {
     // ==================== 添加 ====================
 
     const openAddModal = () => {
-        addModal.show = true;
-        addModal.receiver = '';
-        addModal.content = '';
-        addModal.targetTime = '';
-        addModal.atUser = '';
-        addModal.platform = 'wechat';
+        Object.assign(addModal, {
+            show: true,
+            type: 'reminder',
+            receiver: '',
+            content: '',
+            targetTime: '',
+            atUser: '',
+            platform: 'wechat',
+            taskId: '',
+            receivers: [],
+            newReceiver: '',
+            jobName: jobOptions.value[0]?.job_name || '',
+            mode: 'daily',
+            runAt: '',
+            time: '09:00',
+            timezone: 'Asia/Shanghai',
+        });
+    };
+
+    const openTaskEdit = (task) => {
+        openAddModal();
+        Object.assign(addModal, {
+            type: 'task',
+            taskId: task.task_id,
+            receivers: [...task.receivers],
+            jobName: task.job_name,
+            mode: task.schedule.mode,
+            runAt: task.schedule.mode === 'once' ? isoToLocalInput(task.schedule.run_at) : '',
+            time: task.schedule.time || '09:00',
+            timezone: task.schedule.timezone || 'Asia/Shanghai',
+        });
+    };
+
+    const addTaskReceiver = () => {
+        const name = addModal.newReceiver.trim();
+        if (!name) return;
+        if (addModal.receivers.some(existing => existing.trim() === name)) {
+            showToast(`${name} 已经在列表里了`, 'error');
+            return;
+        }
+        addModal.receivers.push(name);
+        addModal.newReceiver = '';
+    };
+
+    const removeTaskReceiver = (index) => {
+        addModal.receivers.splice(index, 1);
+    };
+
+    const submitTask = async () => {
+        // 输入框里还没点"添加"的也算上
+        const receivers = [...addModal.receivers, addModal.newReceiver].map(name => name.trim()).filter(Boolean);
+        if (receivers.length === 0 || !addModal.jobName) {
+            showToast('接收者和任务不能为空', 'error');
+            return;
+        }
+        if (addModal.mode === 'once' && !addModal.runAt) {
+            showToast('请选择执行时间', 'error');
+            return;
+        }
+        if (addModal.mode === 'daily' && !addModal.time) {
+            showToast('请选择每天执行的时间', 'error');
+            return;
+        }
+        const schedule = addModal.mode === 'once'
+            ? { mode: 'once', run_at: localInputToIso(addModal.runAt) }
+            : { mode: 'daily', time: addModal.time, timezone: addModal.timezone };
+        addModal.loading = true;
+        try {
+            if (addModal.taskId) {
+                await api.updateTask(addModal.taskId, addModal.jobName, receivers, schedule);
+                showToast('定时任务已修改', 'success');
+            } else {
+                await api.addTask(addModal.jobName, receivers, schedule);
+                showToast('定时任务已添加', 'success');
+            }
+            addModal.show = false;
+            await fetchReminders();
+        } catch (error) {
+            showToast(error.message, 'error');
+        } finally {
+            addModal.loading = false;
+        }
     };
 
     const submitAdd = async () => {
+        if (addModal.type === 'task') {
+            return submitTask();
+        }
         if (!addModal.receiver.trim() || !addModal.content.trim() || !addModal.targetTime) {
             showToast('接收者、内容、触发时间不能为空', 'error');
             return;
@@ -187,8 +299,46 @@ window.useReminderPage = function(showToast, showConfirm) {
         );
     };
 
+    const deleteTask = (task) => {
+        showConfirm(
+            '删除定时任务',
+            `确定要删除「${task.job_label}」（${task._schedule}，${task.receivers.length} 个接收者）吗？`,
+            async () => {
+                deletingItems.value[task.task_id] = true;
+                try {
+                    await api.deleteTask(task.task_id);
+                    showToast('定时任务已删除', 'success');
+                    await fetchReminders();
+                } catch (error) {
+                    showToast(error.message, 'error');
+                } finally {
+                    delete deletingItems.value[task.task_id];
+                }
+            }
+        );
+    };
+
+    const runTask = (task) => {
+        showConfirm(
+            '立即执行',
+            `现在就把「${task.job_label}」推给 ${task.receivers.join('、')} 吗？不影响之后的定时。`,
+            async () => {
+                try {
+                    await api.runTask(task.task_id);
+                    showToast('已开始执行，推送需要一会儿', 'success');
+                } catch (error) {
+                    showToast(error.message, 'error');
+                }
+            }
+        );
+    };
+
     return {
         reminders,
+        tasks,
+        jobOptions,
+        timezones,
+        scheduleItems,
         reminderLoading: loading,
         deletingItems,
         fetchReminders,
@@ -201,5 +351,11 @@ window.useReminderPage = function(showToast, showConfirm) {
         editModal,
         openEditModal,
         submitEdit,
+        // 定时任务
+        openTaskEdit,
+        addTaskReceiver,
+        removeTaskReceiver,
+        deleteTask,
+        runTask,
     };
 };

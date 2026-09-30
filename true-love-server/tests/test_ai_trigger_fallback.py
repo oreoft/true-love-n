@@ -53,6 +53,7 @@ class RoutesCase(unittest.IsolatedAsyncioTestCase):
             "true_love_server.services.loki_client": module(
                 "true_love_server.services.loki_client", get_loki_client=Mock()),
             "true_love_server.services.reminder_service": module("true_love_server.services.reminder_service"),
+            "true_love_server.services.task_service": module("true_love_server.services.task_service"),
             "true_love_server.services.settings_service": module(
                 "true_love_server.services.settings_service", get=lambda key: self.settings[key]),
         }

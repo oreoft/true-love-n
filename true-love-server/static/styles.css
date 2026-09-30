@@ -1332,7 +1332,7 @@ body {
     font-family: monospace;
     font-size: 12px;
     color: #6b7280;
-    max-width: 120px;
+    max-width: 150px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1625,4 +1625,90 @@ body {
     justify-content: flex-end;
     gap: 8px;
     margin-top: 12px;
+}
+
+/* ==================== Schedule（提醒 + 定时任务） ==================== */
+
+.kind-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.kind-badge.reminder {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.kind-badge.task {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
+.reminder-receiver .receiver-line {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.receiver-line + .receiver-line {
+    margin-top: 2px;
+}
+
+.reminder-trigger {
+    white-space: nowrap;
+    color: #374151;
+}
+
+.trigger-next {
+    margin-top: 2px;
+    font-size: 12px;
+    color: #9ca3af;
+    font-variant-numeric: tabular-nums;
+}
+
+.row-actions {
+    display: flex;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.segmented {
+    display: inline-flex;
+    align-self: flex-start;
+    padding: 3px;
+    border-radius: 8px;
+    background: #f3f4f6;
+    gap: 2px;
+}
+
+.segmented button {
+    border: none;
+    background: transparent;
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #4b5563;
+    cursor: pointer;
+}
+
+.segmented button.active {
+    background: white;
+    color: #111827;
+    font-weight: 500;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.form-field .settings-rows {
+    margin-bottom: 0;
 }

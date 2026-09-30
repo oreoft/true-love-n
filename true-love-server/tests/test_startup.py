@@ -22,25 +22,23 @@ def module(name, path=None, **attributes):
 class StartupTests(unittest.TestCase):
     def setUp(self):
         self.events = []
-        self.config = types.SimpleNamespace(
-            AUTO_NOTICE={"notice_moyu_schedule": ["委员会"]}, APP_ENV="dev", HTTP={"host": "127.0.0.1", "port": 8088})
+        self.config = types.SimpleNamespace(APP_ENV="dev", HTTP={"host": "127.0.0.1", "port": 8088})
         self.send_to_master = AsyncMock(
             side_effect=lambda content: self.events.append(("master", content)) or (True, ""))
         self.send_text = AsyncMock(return_value=(True, ""))
-        settings = types.SimpleNamespace(
-            import_from_config=lambda auto_notice: self.events.append(("import", auto_notice)))
+        tasks = types.SimpleNamespace(import_from_settings=lambda: self.events.append(("import", None)))
         dependencies = {
             "true_love_server": module("true_love_server", SOURCE),
             "true_love_server.api": module("true_love_server.api", create_app=Mock()),
-            "true_love_server.jobs": module("true_love_server.jobs", Job=Mock()),
             "true_love_server.core": module("true_love_server.core", SOURCE / "core", Config=lambda: self.config),
             "true_love_server.core.db_engine": module(
                 "true_love_server.core.db_engine", init_db=lambda: self.events.append(("db", None))),
             "true_love_server.services": module(
-                "true_love_server.services", SOURCE / "services", settings_service=settings,
+                "true_love_server.services", SOURCE / "services", task_service=tasks,
                 base_client=types.SimpleNamespace(send_to_master=self.send_to_master, send_text=self.send_text)),
             "true_love_server.services.scheduler_service": module(
-                "true_love_server.services.scheduler_service", start_scheduler=Mock()),
+                "true_love_server.services.scheduler_service",
+                start_scheduler=lambda: self.events.append(("scheduler", None))),
         }
         modules = patch.dict(sys.modules, dependencies)
         modules.start()
@@ -50,23 +48,16 @@ class StartupTests(unittest.TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
 
-    def test_old_configuration_is_carried_into_the_database_once_the_tables_exist(self):
+    def test_old_push_groups_become_tasks_once_the_scheduler_runs(self):
         self.main.main()
 
-        self.assertEqual(self.events[:2], [("db", None), ("import", {"notice_moyu_schedule": ["委员会"]})])
+        self.assertEqual(self.events[:3], [("db", None), ("scheduler", None), ("import", None)])
 
     def test_master_is_told_the_server_started_without_the_server_knowing_who_that_is(self):
         self.main.main()
 
         self.assertEqual(self.events[-1], ("master", "真爱粉server启动成功..."))
         self.send_text.assert_not_awaited()
-
-    def test_server_starts_when_the_old_configuration_is_already_gone(self):
-        del self.config.AUTO_NOTICE
-
-        self.main.main()
-
-        self.assertEqual(self.events[:2], [("db", None), ("import", None)])
         self.main.uvicorn.run.assert_called_once()
 
 

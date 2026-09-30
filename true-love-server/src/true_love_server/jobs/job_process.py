@@ -6,12 +6,11 @@ Job Process - 定时任务处理
 """
 
 import asyncio
-import concurrent
 import functools
 import logging
 import os
+import threading
 import time
-from concurrent import futures
 from datetime import datetime
 
 import pytz
@@ -19,11 +18,10 @@ from bs4 import BeautifulSoup
 from PIL import Image
 from true_love_common.http.client import get, post
 
-from ..services import base_client, settings_service
+from ..services import base_client
 from ..core import Config
 from ..core.fs import ensure_dir
 
-executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
 _config = Config()
 alapi_config = _config.ALAPI
 LOG = logging.getLogger("JobProcess")
@@ -69,10 +67,9 @@ def log_function_execution(func):
     return wrapper
 
 
-@log_function_execution
-def send_daily_notice(room_id, content='早上好☀️家人萌~', tz: str = "Asia/Shanghai"):
-    # 使用指定时区的日期，确保文件名与下载任务的触发时间一致
-    current_date = get_current_date(tz)
+def send_daily_notice(room_id, content='早上好☀️家人萌~'):
+    # 图片按北京时间的日期命名，和下载时一致
+    current_date = get_current_date()
     moyu_file_path = f'moyu-jpg/{current_date}.jpg'
     zao_bao_file_path = f'zaobao-jpg/{current_date}.jpg'
 
@@ -99,23 +96,48 @@ def send_daily_notice(room_id, content='早上好☀️家人萌~', tz: str = "A
         LOG.info(f"send_image: {moyu_file_path}, result: {zao_bao_res}")
 
 
-@log_function_execution
-def notice_moyu_schedule():
-    # 每次执行时现读，后台改完不用重启
-    room_ids: list = settings_service.get("moyu_groups")
-    for room_id in room_ids:
-        send_daily_notice(room_id)
-        time.sleep(30)
-    return True
+# 后台"定时任务"里可选的任务：任务名 → 显示名和给一个接收者执行的方法
+TASKS = {
+    "notice_moyu_schedule": {
+        "label": "国内摸鱼",
+        "run": lambda room_id: send_daily_notice(room_id),
+    },
+    "notice_usa_moyu_schedule": {
+        "label": "美国摸鱼",
+        "run": lambda room_id: send_daily_notice(
+            room_id, "早上好☀️友友们~, \n现在国内太阳已经落下, 多赢阿美莉卡一天"),
+    },
+}
+
+_download_lock = threading.Lock()
+
+
+def ensure_today_images():
+    """当天的摸鱼图、早报图还没有就先下载；加锁，同时触发的任务只下载一次"""
+    with _download_lock:
+        current_date = get_current_date()
+        if not check_image_openable(f'moyu-jpg/{current_date}.jpg'):
+            download_moyu_file()
+        if not check_image_openable(f'zaobao-jpg/{current_date}.jpg'):
+            download_zao_bao_file()
 
 
 @log_function_execution
-def notice_usa_moyu_schedule():
-    room_ids: list = settings_service.get("usa_moyu_groups")
-    for room_id in room_ids:
-        send_daily_notice(room_id, "早上好☀️友友们~, \n现在国内太阳已经落下, 多赢阿美莉卡一天", tz="America/Chicago")
-        time.sleep(30)
-    return True
+def run_task(job_name: str, receivers: list[str]) -> None:
+    """把任务依次推给每个接收者，接收者之间隔 30 秒"""
+    task = TASKS[job_name]
+    try:
+        ensure_today_images()
+    except Exception as e:
+        # 图片下载失败也照常推文字
+        LOG.error("下载当天图片失败: %s", e)
+    for index, room_id in enumerate(receivers):
+        if index:
+            time.sleep(30)
+        try:
+            task["run"](room_id)
+        except Exception as e:
+            LOG.exception("任务 %s 推送到 %s 失败: %s", job_name, room_id, e)
 
 
 @log_function_execution
@@ -179,14 +201,6 @@ def download_zao_bao_file():
     with open(full_file_path, 'wb') as file:
         file.write(response.content)
     LOG.info(f'{local_filename} 已下载到 {download_directory}')
-
-
-def async_download_zao_bao_file():
-    executor.submit(download_zao_bao_file)
-
-
-def async_download_moyu_file():
-    executor.submit(download_moyu_file)
 
 
 def get_moyu_url_by_wx():
@@ -256,6 +270,3 @@ def check_image_openable(image_path):
         LOG.error(f"Cannot open image: {e}")
         return False
 
-
-if __name__ == '__main__':
-    download_zao_bao_file();

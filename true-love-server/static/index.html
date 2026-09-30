@@ -41,7 +41,7 @@
                         :class="['btn', 'btn-sm', activeTab === 'reminders' ? 'btn-primary' : 'btn-outline-light']"
                         @click="switchTab('reminders')"
                     >
-                        ⏰ 提醒
+                        ⏰ 定时任务
                     </button>
                     <button
                         :class="['btn', 'btn-sm', activeTab === 'skills' ? 'btn-primary' : 'btn-outline-light']"
@@ -254,15 +254,19 @@
             </div>
         </template>
         
-        <!-- Reminders Page -->
+        <!-- Reminders Page：普通提醒 + 定时任务 -->
         <template v-else-if="activeTab === 'reminders'">
             <!-- Summary Bar -->
             <div class="summary-bar">
                 <div class="summary-content">
                     <div class="summary-stats">
                         <div class="stat-item">
-                            <span class="stat-label">待执行提醒</span>
+                            <span class="stat-label">提醒</span>
                             <span class="stat-value">{{ reminders.length }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">定时任务</span>
+                            <span class="stat-value">{{ tasks.length }}</span>
                         </div>
                     </div>
                     <div style="display: flex; gap: 8px;">
@@ -270,7 +274,7 @@
                             {{ reminderLoading ? '刷新中...' : '刷新' }}
                         </button>
                         <button class="btn btn-primary btn-sm" @click="openAddModal">
-                            ＋ 添加提醒
+                            ＋ 添加
                         </button>
                     </div>
                 </div>
@@ -279,56 +283,73 @@
             <!-- List -->
             <div class="list-container">
                 <div class="list-header">
-                    <span class="list-title">定时提醒 ({{ reminders.length }})</span>
+                    <span class="list-title">定时任务 ({{ scheduleItems.length }})</span>
                 </div>
 
-                <div v-if="reminderLoading && reminders.length === 0" class="loading">
+                <div v-if="reminderLoading && scheduleItems.length === 0" class="loading">
                     <div class="spinner"></div>
                     <p>加载中...</p>
                 </div>
 
-                <div v-else-if="reminders.length === 0 && !reminderLoading" class="empty-state">
+                <div v-else-if="scheduleItems.length === 0 && !reminderLoading" class="empty-state">
                     <div class="empty-icon">⏰</div>
-                    <p class="empty-text">暂无待执行的提醒任务</p>
+                    <p class="empty-text">暂无待执行的提醒和定时任务</p>
                 </div>
 
                 <div v-else class="reminder-table-wrapper">
                     <table class="reminder-table">
                         <thead>
                             <tr>
+                                <th>类型</th>
                                 <th>接收者</th>
-                                <th>提醒内容</th>
-                                <th>触发时间</th>
-                                <th>平台</th>
+                                <th>内容</th>
+                                <th>触发</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="job in reminders" :key="job.job_id">
-                                <td class="reminder-receiver">{{ job.receiver }}</td>
-                                <td class="reminder-content">{{ job.content }}</td>
-                                <td class="reminder-time">
-                                    <span class="time-local">{{ job._time.full }}</span>
-                                    <span class="time-offset">{{ job._time.offset }}</span>
+                            <tr v-for="item in scheduleItems" :key="item.key">
+                                <td>
+                                    <span :class="['kind-badge', item.kind]">{{ item.kind === 'task' ? '定时任务' : '提醒' }}</span>
+                                    <span v-if="item.kind === 'reminder' && item.platform !== 'wechat'"
+                                          :class="['platform-badge', item.platform]">{{ item.platform }}</span>
+                                </td>
+                                <td class="reminder-receiver">
+                                    <template v-if="item.kind === 'task'">
+                                        <div v-for="name in item.receivers" :key="name" class="receiver-line">{{ name }}</div>
+                                    </template>
+                                    <template v-else>{{ item.receiver }}</template>
+                                </td>
+                                <td class="reminder-content">{{ item.kind === 'task' ? item.job_label : item.content }}</td>
+                                <td class="reminder-trigger">
+                                    <div>{{ item.kind === 'task' ? item._schedule : '单次' }}</div>
+                                    <div class="trigger-next">下次 {{ item._time.full }} {{ item._time.offset }}</div>
                                 </td>
                                 <td>
-                                    <span :class="['platform-badge', job.platform]">{{ job.platform }}</span>
-                                </td>
-                                <td style="display: flex; gap: 6px;">
-                                    <button
-                                        class="btn btn-outline btn-sm"
-                                        @click="openEditModal(job)"
-                                        :disabled="deletingItems[job.job_id]"
-                                    >
-                                        修改
-                                    </button>
-                                    <button
-                                        class="btn btn-danger btn-sm"
-                                        @click="deleteReminder(job.job_id, job.content)"
-                                        :disabled="deletingItems[job.job_id]"
-                                    >
-                                        {{ deletingItems[job.job_id] ? '删除中...' : '删除' }}
-                                    </button>
+                                    <div class="row-actions">
+                                        <button
+                                            class="btn btn-outline btn-sm"
+                                            @click="item.kind === 'task' ? openTaskEdit(item) : openEditModal(item)"
+                                            :disabled="deletingItems[item.key]"
+                                        >
+                                            修改
+                                        </button>
+                                        <button
+                                            v-if="item.kind === 'task'"
+                                            class="btn btn-outline btn-sm"
+                                            @click="runTask(item)"
+                                            :disabled="deletingItems[item.key]"
+                                        >
+                                            立即执行
+                                        </button>
+                                        <button
+                                            class="btn btn-danger btn-sm"
+                                            @click="item.kind === 'task' ? deleteTask(item) : deleteReminder(item.job_id, item.content)"
+                                            :disabled="deletingItems[item.key]"
+                                        >
+                                            {{ deletingItems[item.key] ? '删除中...' : '删除' }}
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>
@@ -512,39 +533,101 @@
             </div>
         </template>
 
-        <!-- Reminder Add Modal -->
+        <!-- Reminder / Task Add Modal -->
         <div v-if="addModal.show" class="modal-overlay" @click.self="addModal.show = false">
             <div class="modal">
-                <h3 class="modal-title">添加提醒</h3>
+                <h3 class="modal-title">{{ addModal.taskId ? '修改定时任务' : '添加' }}</h3>
                 <div class="reminder-form">
-                    <div class="form-field">
-                        <label>接收者 <span class="form-required">*</span></label>
-                        <input v-model="addModal.receiver" class="modal-input" placeholder="chat_id 或群名" />
+                    <div v-if="!addModal.taskId" class="form-field">
+                        <label>类型</label>
+                        <div class="segmented">
+                            <button :class="{ active: addModal.type === 'reminder' }" @click="addModal.type = 'reminder'">普通提醒</button>
+                            <button :class="{ active: addModal.type === 'task' }" @click="addModal.type = 'task'">定时任务</button>
+                        </div>
                     </div>
-                    <div class="form-field">
-                        <label>提醒内容 <span class="form-required">*</span></label>
-                        <input v-model="addModal.content" class="modal-input" placeholder="如：去开会" />
-                    </div>
-                    <div class="form-field">
-                        <label>触发时间 <span class="form-required">*</span></label>
-                        <input v-model="addModal.targetTime" type="datetime-local" class="modal-input" />
-                    </div>
-                    <div class="form-field">
-                        <label>@用户（可选）</label>
-                        <input v-model="addModal.atUser" class="modal-input" placeholder="被@用户 ID" />
-                    </div>
-                    <div class="form-field">
-                        <label>平台</label>
-                        <select v-model="addModal.platform" class="modal-input">
-                            <option value="wechat">wechat</option>
-                            <option value="lark">lark</option>
-                        </select>
-                    </div>
+
+                    <template v-if="addModal.type === 'reminder'">
+                        <div class="form-field">
+                            <label>接收者 <span class="form-required">*</span></label>
+                            <input v-model="addModal.receiver" class="modal-input" placeholder="chat_id 或群名" />
+                        </div>
+                        <div class="form-field">
+                            <label>提醒内容 <span class="form-required">*</span></label>
+                            <input v-model="addModal.content" class="modal-input" placeholder="如：去开会" />
+                        </div>
+                        <div class="form-field">
+                            <label>触发时间 <span class="form-required">*</span></label>
+                            <input v-model="addModal.targetTime" type="datetime-local" class="modal-input" />
+                        </div>
+                        <div class="form-field">
+                            <label>@用户（可选）</label>
+                            <input v-model="addModal.atUser" class="modal-input" placeholder="被@用户 ID" />
+                        </div>
+                        <div class="form-field">
+                            <label>平台</label>
+                            <select v-model="addModal.platform" class="modal-input">
+                                <option value="wechat">wechat</option>
+                                <option value="lark">lark</option>
+                            </select>
+                        </div>
+                    </template>
+
+                    <template v-else>
+                        <div class="form-field">
+                            <label>任务 <span class="form-required">*</span></label>
+                            <select v-model="addModal.jobName" class="modal-input">
+                                <option v-for="job in jobOptions" :key="job.job_name" :value="job.job_name">{{ job.label }}</option>
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label>接收者 <span class="form-required">*</span></label>
+                            <div class="settings-rows">
+                                <div v-for="(name, index) in addModal.receivers" :key="index" class="settings-row">
+                                    <span class="settings-row-index">{{ index + 1 }}</span>
+                                    <input v-model="addModal.receivers[index]" class="settings-row-input" />
+                                    <button class="settings-row-remove" @click="removeTaskReceiver(index)" title="删除">&times;</button>
+                                </div>
+                                <div class="settings-row settings-row-add">
+                                    <span class="settings-row-index">+</span>
+                                    <input
+                                        v-model="addModal.newReceiver"
+                                        class="settings-row-input"
+                                        placeholder="输入群名，回车添加"
+                                        @keyup.enter="addTaskReceiver"
+                                    />
+                                    <button class="btn btn-outline btn-sm" @click="addTaskReceiver" :disabled="!addModal.newReceiver.trim()">添加</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-field">
+                            <label>触发时机</label>
+                            <div class="segmented">
+                                <button :class="{ active: addModal.mode === 'daily' }" @click="addModal.mode = 'daily'">每天</button>
+                                <button :class="{ active: addModal.mode === 'once' }" @click="addModal.mode = 'once'">单次</button>
+                            </div>
+                        </div>
+                        <div v-if="addModal.mode === 'daily'" class="form-field form-row">
+                            <div>
+                                <label>时间 <span class="form-required">*</span></label>
+                                <input v-model="addModal.time" type="time" class="modal-input" />
+                            </div>
+                            <div>
+                                <label>时区</label>
+                                <select v-model="addModal.timezone" class="modal-input">
+                                    <option v-for="tz in timezones" :key="tz.value" :value="tz.value">{{ tz.label }}</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div v-else class="form-field">
+                            <label>执行时间 <span class="form-required">*</span></label>
+                            <input v-model="addModal.runAt" type="datetime-local" class="modal-input" />
+                        </div>
+                    </template>
                 </div>
                 <div class="modal-actions">
                     <button class="btn btn-outline" @click="addModal.show = false">取消</button>
                     <button class="btn btn-primary" @click="submitAdd" :disabled="addModal.loading">
-                        {{ addModal.loading ? '添加中...' : '确认添加' }}
+                        {{ addModal.loading ? '保存中...' : (addModal.taskId ? '保存修改' : '确认添加') }}
                     </button>
                 </div>
             </div>

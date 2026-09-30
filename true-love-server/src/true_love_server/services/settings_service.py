@@ -26,22 +26,6 @@ DEFINITIONS: dict[str, dict[str, str]] = {
         "hint": "AI 访问这台 server 用的地址，如 http://机器名:8088。"
                 "多台 server 共用 AI 时必须填；不填时 AI 从它配置里的默认 server 回复",
     },
-    "moyu_groups": {
-        "label": "每日摸鱼推送的群",
-        "type": LIST,
-        "hint": "每天 09:05（北京时间）推送",
-    },
-    "usa_moyu_groups": {
-        "label": "美国摸鱼推送的群",
-        "type": LIST,
-        "hint": "每天 08:00（美中时间）推送",
-    },
-}
-
-# 配置文件 auto_notice 里的旧名字 → 设置项
-_LEGACY_GROUPS = {
-    "notice_moyu_schedule": "moyu_groups",
-    "notice_usa_moyu_schedule": "usa_moyu_groups",
 }
 
 
@@ -103,17 +87,3 @@ def list_all() -> list[dict[str, Any]]:
     """全部设置项及当前值，供管理后台展示"""
     return [{"key": key, **definition, "value": get(key)} for key, definition in DEFINITIONS.items()]
 
-
-def import_from_config(auto_notice: Optional[dict]) -> None:
-    """
-    把配置文件里原有的推送群搬进数据库
-
-    只搬数据库里还没有的设置项，所以后台改过的值不会被下一次启动覆盖。
-    配置文件里的旧条目清理掉之后，这里什么都不做。
-    """
-    for legacy_key, key in _LEGACY_GROUPS.items():
-        groups = (auto_notice or {}).get(legacy_key)
-        if not groups or _read(key) is not None:
-            continue
-        update(key, list(groups))
-        LOG.info("setting [%s] imported from config auto_notice.%s", key, legacy_key)
