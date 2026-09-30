@@ -110,7 +110,8 @@ class ListenManagerTests(ListenCase):
 
 class ListenRoutesTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
-        self.manager = types.SimpleNamespace(get_listen_list=Mock(return_value=["群A"]), refresh_listen=AsyncMock())
+        self.manager = types.SimpleNamespace(refresh_listen=AsyncMock())
+        self.store = types.SimpleNamespace(list_all=Mock(return_value=["群A"]))
         self.verify_token = Mock()
         dependencies = {
             "true_love_server": module("true_love_server", SOURCE),
@@ -119,6 +120,7 @@ class ListenRoutesTests(unittest.IsolatedAsyncioTestCase):
             "true_love_server.core": module("true_love_server.core", Config=Mock()),
             "true_love_server.services": module(
                 "true_love_server.services", SOURCE / "services", base_client=Mock(), settings_service=Mock(),
+                listen_store=self.store,
                 reminder_service=Mock(), task_service=Mock(), ai_skill_client=Mock()),
             "true_love_server.services.listen_manager": module(
                 "true_love_server.services.listen_manager", get_listen_manager=lambda: self.manager),
