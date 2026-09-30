@@ -7,7 +7,6 @@ import logging
 import time
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass, field
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -20,7 +19,6 @@ from true_love_common.http.exceptions import AppException
 from true_love_common.http.response import ApiResponse, BizCode
 from true_love_common.observability.sanitize import (
     DEFAULT_MAX_TEXT_LENGTH,
-    DEFAULT_SENSITIVE_KEYS,
     sanitize_json_text,
     sanitize_text,
 )
@@ -34,23 +32,14 @@ LOG = logging.getLogger("HttpMiddleware")
 EXCEPTION_LOG = logging.getLogger("ExceptionHandler")
 
 
-@dataclass(frozen=True)
-class HttpLoggingConfig:
-    service_name: str
-    skip_paths: set[str] = field(default_factory=lambda: {"/health", "/ping"})
-    skip_methods: set[str] = field(default_factory=lambda: {"OPTIONS"})
-    log_request_body: bool = True
-    log_response_body: bool = True
-    max_request_body_chars: int = DEFAULT_MAX_TEXT_LENGTH
-    max_response_body_chars: int = 500
-    sensitive_keys: set[str] | frozenset[str] = DEFAULT_SENSITIVE_KEYS
-    binary_content_types: tuple[str, ...] = (
-        "audio/",
-        "image/",
-        "video/",
-        "application/octet-stream",
-        "application/pdf",
-    )
+SKIP_METHODS = frozenset({"OPTIONS"})
+BINARY_CONTENT_TYPES = (
+    "audio/",
+    "image/",
+    "video/",
+    "application/octet-stream",
+    "application/pdf",
+)
 
 
 class HttpLoggingMiddleware(BaseHTTPMiddleware):
@@ -62,28 +51,12 @@ class HttpLoggingMiddleware(BaseHTTPMiddleware):
         *,
         service_name: str,
         skip_paths: set[str] | None = None,
-        skip_methods: set[str] | None = None,
-        log_request_body: bool = True,
-        log_response_body: bool = True,
-        max_request_body_chars: int = DEFAULT_MAX_TEXT_LENGTH,
         max_response_body_chars: int = 500,
-        sensitive_keys: set[str] | frozenset[str] = DEFAULT_SENSITIVE_KEYS,
-        binary_content_types: tuple[str, ...] | None = None,
     ) -> None:
         super().__init__(app)
-        self.config = HttpLoggingConfig(
-            service_name=service_name,
-            skip_paths=skip_paths if skip_paths is not None else {"/health", "/ping"},
-            skip_methods=skip_methods if skip_methods is not None else {"OPTIONS"},
-            log_request_body=log_request_body,
-            log_response_body=log_response_body,
-            max_request_body_chars=max_request_body_chars,
-            max_response_body_chars=max_response_body_chars,
-            sensitive_keys=sensitive_keys,
-            binary_content_types=binary_content_types
-            if binary_content_types is not None
-            else HttpLoggingConfig(service_name=service_name).binary_content_types,
-        )
+        self.service_name = service_name
+        self.skip_paths = skip_paths if skip_paths is not None else {"/health", "/ping"}
+        self.max_response_body_chars = max_response_body_chars
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         request_id = uuid.uuid4().hex[:8]
@@ -92,19 +65,19 @@ class HttpLoggingMiddleware(BaseHTTPMiddleware):
         trace_context = set_trace_from_gcp_header(request.headers.get(GCP_TRACE_HEADER))
         path = request.url.path
         skip_log = (
-            any(path == p or path.startswith(p + "/") for p in self.config.skip_paths)
-            or request.method in self.config.skip_methods
+            any(path == p or path.startswith(p + "/") for p in self.skip_paths)
+            or request.method in SKIP_METHODS
         )
 
         body = b""
-        if self.config.log_request_body and request.method in {"POST", "PUT", "PATCH"}:
+        if request.method in {"POST", "PUT", "PATCH"}:
             body = await request.body()
             request._receive = _make_receive(body)
 
         if not skip_log:
             LOG.info(
                 "HTTP IN start service=%s request_id=%s method=%s path=%s query=%s client=%s body=%s",
-                self.config.service_name,
+                self.service_name,
                 request_id,
                 request.method,
                 request.url.path,
@@ -113,9 +86,7 @@ class HttpLoggingMiddleware(BaseHTTPMiddleware):
                 _format_body(
                     body,
                     content_type=request.headers.get("content-type", ""),
-                    max_chars=self.config.max_request_body_chars,
-                    sensitive_keys=self.config.sensitive_keys,
-                    binary_content_types=self.config.binary_content_types,
+                    max_chars=DEFAULT_MAX_TEXT_LENGTH,
                 )
                 if body
                 else "empty",
@@ -136,7 +107,7 @@ class HttpLoggingMiddleware(BaseHTTPMiddleware):
             cost_ms = (time.perf_counter() - start_time) * 1000
             LOG.exception(
                 "HTTP IN error service=%s request_id=%s method=%s path=%s cost_ms=%.0f error=%s",
-                self.config.service_name,
+                self.service_name,
                 request_id,
                 request.method,
                 request.url.path,
@@ -156,9 +127,7 @@ class HttpLoggingMiddleware(BaseHTTPMiddleware):
 
         cost_ms = (time.perf_counter() - start_time) * 1000
         content_type = response.media_type or response.headers.get("content-type", "")
-        is_streaming_or_binary = "text/event-stream" in content_type or content_type.startswith(
-            self.config.binary_content_types
-        )
+        is_streaming_or_binary = "text/event-stream" in content_type or content_type.startswith(BINARY_CONTENT_TYPES)
 
         if is_streaming_or_binary:
             response.headers[GCP_TRACE_HEADER] = get_gcp_trace_header()
@@ -166,7 +135,7 @@ class HttpLoggingMiddleware(BaseHTTPMiddleware):
             if not skip_log:
                 LOG.info(
                     "HTTP IN end service=%s request_id=%s method=%s path=%s status=%s cost_ms=%.0f body=%s",
-                    self.config.service_name,
+                    self.service_name,
                     request_id,
                     request.method,
                     request.url.path,
@@ -192,7 +161,7 @@ class HttpLoggingMiddleware(BaseHTTPMiddleware):
         if not skip_log:
             LOG.info(
                 "HTTP IN end service=%s request_id=%s method=%s path=%s status=%s cost_ms=%.0f body=%s",
-                self.config.service_name,
+                self.service_name,
                 request_id,
                 request.method,
                 request.url.path,
@@ -201,12 +170,8 @@ class HttpLoggingMiddleware(BaseHTTPMiddleware):
                 _format_body(
                     response_body,
                     content_type=content_type,
-                    max_chars=self.config.max_response_body_chars,
-                    sensitive_keys=self.config.sensitive_keys,
-                    binary_content_types=self.config.binary_content_types,
-                )
-                if self.config.log_response_body
-                else "[disabled]",
+                    max_chars=self.max_response_body_chars,
+                ),
                 extra={
                     "event": "http.in.end",
                     "direction": "in",
@@ -241,22 +206,16 @@ def _format_body(
     *,
     content_type: str,
     max_chars: int,
-    sensitive_keys: set[str] | frozenset[str],
-    binary_content_types: tuple[str, ...],
 ) -> str:
     if not body:
         return "empty"
 
-    if content_type.startswith(binary_content_types):
+    if content_type.startswith(BINARY_CONTENT_TYPES):
         return f"[binary {content_type or 'unknown'}, {len(body)} bytes]"
 
     text = body.decode("utf-8", errors="replace")
     if "json" in content_type:
-        return sanitize_json_text(
-            text,
-            sensitive_keys=sensitive_keys,
-            max_text_length=max_chars,
-        )
+        return sanitize_json_text(text, max_text_length=max_chars)
     return sanitize_text(text, max_length=max_chars)
 
 

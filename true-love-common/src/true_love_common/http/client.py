@@ -31,13 +31,6 @@ class HttpResult:
     error_type: str = ""
     cost_ms: float = 0.0
 
-    def json(self) -> Any:
-        if self.data is not None:
-            return self.data
-        if not self.text:
-            return None
-        return json.loads(self.text)
-
     def raise_for_status(self) -> None:
         if self.ok:
             return
@@ -57,8 +50,6 @@ def request(
     headers: dict[str, str] | None = None,
     timeout: Any = None,
     client: httpx.Client | None = None,
-    session: httpx.Client | None = None,
-    raise_for_status: bool = False,
     **kwargs: Any,
 ) -> HttpResult:
     method = method.upper()
@@ -67,30 +58,14 @@ def request(
     _log_start(method, url, kwargs)
     start = time.perf_counter()
     try:
-        active_client = client or session
-        if active_client is not None:
-            response = active_client.request(method, url, headers=merged_headers, timeout=httpx_timeout, **kwargs)
+        if client is not None:
+            response = client.request(method, url, headers=merged_headers, timeout=httpx_timeout, **kwargs)
         else:
             with httpx.Client(timeout=httpx_timeout) as active_client:
                 response = active_client.request(method, url, headers=merged_headers, **kwargs)
-        result = _result_from_httpx_response(method, url, response, (time.perf_counter() - start) * 1000)
-        _log_end(result)
-        if raise_for_status:
-            response.raise_for_status()
-        return result
+        return _ok_result(method, url, response, start)
     except Exception as exc:
-        result = HttpResult(
-            method=method,
-            url=url,
-            ok=False,
-            error=repr(exc),
-            error_type=exc.__class__.__name__,
-            cost_ms=(time.perf_counter() - start) * 1000,
-        )
-        _log_error(result)
-        if raise_for_status:
-            raise
-        return result
+        return _error_result(method, url, exc, start)
 
 
 def get(url: str, **kwargs: Any) -> HttpResult:
@@ -111,7 +86,6 @@ async def async_request(
     *,
     headers: dict[str, str] | None = None,
     timeout: Any = None,
-    raise_for_status: bool = False,
     **kwargs: Any,
 ) -> HttpResult:
     method = method.upper()
@@ -122,24 +96,9 @@ async def async_request(
     try:
         async with httpx.AsyncClient(timeout=httpx_timeout) as client:
             response = await client.request(method, url, headers=merged_headers, **kwargs)
-        result = _result_from_httpx_response(method, url, response, (time.perf_counter() - start) * 1000)
-        _log_end(result)
-        if raise_for_status:
-            response.raise_for_status()
-        return result
+        return _ok_result(method, url, response, start)
     except Exception as exc:
-        result = HttpResult(
-            method=method,
-            url=url,
-            ok=False,
-            error=repr(exc),
-            error_type=exc.__class__.__name__,
-            cost_ms=(time.perf_counter() - start) * 1000,
-        )
-        _log_error(result)
-        if raise_for_status:
-            raise
-        return result
+        return _error_result(method, url, exc, start)
 
 
 async def async_get(url: str, **kwargs: Any) -> HttpResult:
@@ -152,6 +111,25 @@ async def async_post(url: str, **kwargs: Any) -> HttpResult:
 
 async def async_post_json(url: str, payload: dict[str, Any], **kwargs: Any) -> HttpResult:
     return await async_post(url, json=payload, **kwargs)
+
+
+def _ok_result(method: str, url: str, response: Any, start: float) -> HttpResult:
+    result = _result_from_httpx_response(method, url, response, (time.perf_counter() - start) * 1000)
+    _log_end(result)
+    return result
+
+
+def _error_result(method: str, url: str, exc: Exception, start: float) -> HttpResult:
+    result = HttpResult(
+        method=method,
+        url=url,
+        ok=False,
+        error=repr(exc),
+        error_type=exc.__class__.__name__,
+        cost_ms=(time.perf_counter() - start) * 1000,
+    )
+    _log_error(result)
+    return result
 
 
 def _result_from_httpx_response(method: str, url: str, response: Any, cost_ms: float) -> HttpResult:

@@ -28,8 +28,3 @@ class AuthException(BusinessException):
 class ValidationException(BusinessException):
     def __init__(self, message: str = "invalid parameters", data: Any = None):
         super().__init__(code=BizCode.VALIDATION_ERROR, message=message, data=data)
-
-
-class InternalException(BusinessException):
-    def __init__(self, message: str = "internal server error", data: Any = None):
-        super().__init__(code=BizCode.INTERNAL_ERROR, message=message, data=data)

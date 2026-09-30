@@ -15,7 +15,6 @@ class BizCode:
     SEND_FAILED = 102
     AUTH_FAILED = 103
     TOKEN_ERROR = 103
-    AI_INTERNAL_ERROR = 105
     INTERNAL_ERROR = 500
 
 
@@ -27,9 +26,6 @@ class ApiResponse:
 
     def to_dict(self) -> dict[str, Any]:
         return {"code": self.code, "message": self.message, "data": self.data}
-
-    def model_dump(self) -> dict[str, Any]:
-        return self.to_dict()
 
     @classmethod
     def success(cls, data: Any = None, message: str = "success") -> "ApiResponse":
@@ -49,10 +45,6 @@ class ApiResponse:
     @classmethod
     def token_error(cls, message: str = "failed token check") -> "ApiResponse":
         return cls(code=BizCode.TOKEN_ERROR, message=message, data=None)
-
-    @classmethod
-    def internal_error(cls, message: str = "发生未知错误, 稍后再试试捏") -> "ApiResponse":
-        return cls(code=BizCode.AI_INTERNAL_ERROR, message=message, data=None)
 
 
 APIResponse = ApiResponse

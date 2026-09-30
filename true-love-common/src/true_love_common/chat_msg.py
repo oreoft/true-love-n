@@ -2,7 +2,7 @@
 """
 ChatMsg 消息协议定义
 
-各服务（server / ai / lark-agent-base / wechat-base）之间传递消息时
+各服务（server / ai / lark-agent-base / true-love-base）之间传递消息时
 统一使用此模块中的类。字段变更只需改此文件，各服务按提示同步。
 """
 
@@ -67,11 +67,10 @@ class FileMsg:
 @dataclass
 class LinkMsg:
     url: Optional[str] = None
-    title: Optional[str] = None
 
     @classmethod
     def from_dict(cls, d: dict) -> LinkMsg:
-        return cls(url=d.get("url"), title=d.get("title"))
+        return cls(url=d.get("url"))
 
 
 @dataclass

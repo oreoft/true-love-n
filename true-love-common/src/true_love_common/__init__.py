@@ -1,11 +1,2 @@
-from .chat_msg import ChatMsg, ResourceRef, ImageMsg, VoiceMsg, VideoMsg, FileMsg, LinkMsg
-
-__all__ = [
-    "ChatMsg",
-    "ResourceRef",
-    "ImageMsg",
-    "VoiceMsg",
-    "VideoMsg",
-    "FileMsg",
-    "LinkMsg",
-]
+# -*- coding: utf-8 -*-
+"""True Love shared protocol definitions and infrastructure helpers."""
