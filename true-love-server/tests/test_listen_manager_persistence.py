@@ -1,11 +1,7 @@
 """The listen list lives in this server's database; base fetches it instead of reading a shared file."""
 
 import importlib
-import json
-import os
-import sqlite3
 import sys
-import tempfile
 import types
 import unittest
 from pathlib import Path
@@ -110,44 +106,6 @@ class ListenManagerTests(ListenCase):
 
         self.assertTrue(result["success"])
         self.assertEqual(self.store.list_all(), ["deleted chat", "kept chat"])
-
-
-class LegacyFileImportTests(unittest.TestCase):
-    """The shared listen_chats.json is imported once by migration 002."""
-
-    def setUp(self):
-        spec = importlib.util.spec_from_file_location("migrate_subject", SOURCE / "core/migrate.py")
-        self.migrate = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(self.migrate)
-        temp = tempfile.TemporaryDirectory()
-        self.addCleanup(temp.cleanup)
-        cwd = os.getcwd()
-        os.chdir(temp.name)
-        self.addCleanup(os.chdir, cwd)
-        self.db = Path(temp.name) / "server.db"
-        with sqlite3.connect(self.db) as conn:
-            conn.execute("CREATE TABLE schema_migrations (version TEXT, description TEXT, applied_at TEXT)")
-            conn.execute("CREATE TABLE listen_chats (chat_name VARCHAR(128) PRIMARY KEY, created_at DATETIME)")
-
-    def saved(self):
-        with sqlite3.connect(self.db) as conn:
-            return [row[0] for row in conn.execute("SELECT chat_name FROM listen_chats ORDER BY created_at")]
-
-    def test_file_is_imported_in_order_once(self):
-        Path("listen_chats.json").write_text(json.dumps(["群A", "好友B", "群A"]), encoding="utf-8")
-
-        self.migrate.run(str(self.db))
-        self.assertEqual(self.saved(), ["群A", "好友B"])
-
-        # Later edits to the old file no longer matter.
-        Path("listen_chats.json").write_text(json.dumps(["群C"]), encoding="utf-8")
-        self.migrate.run(str(self.db))
-        self.assertEqual(self.saved(), ["群A", "好友B"])
-
-    def test_missing_file_imports_nothing(self):
-        self.migrate.run(str(self.db))
-
-        self.assertEqual(self.saved(), [])
 
 
 class ListenRoutesTests(unittest.IsolatedAsyncioTestCase):

@@ -50,12 +50,10 @@ services:
 
     # 启动前把挂载目录里的文件软链到 /app（服务按工作目录的相对路径读写）
     # 共享目录不存在就先建出来；ln -n 保证容器原地重启时替换旧链接，而不是钻进目录里再建一层
-    # listen_chats.json 只供 migration 002 把旧监听列表导入数据库一次，两台机器都导完后可以删掉这行
     command: >
       /bin/sh -c "
       R=/mnt/true-love-n &&
       ln -sfn /mnt/config-center/true-love-server/config.yaml /app/config.yaml &&
-      ln -sfn $$R/true-love-base/listen_chats.json /app/listen_chats.json &&
       for d in wx_imgs moyu-jpg zaobao-jpg gen-img gen-video gen-audio files-save; do
       mkdir -p $$R/true-love-base/$$d && ln -sfn $$R/true-love-base/$$d /app/$$d || exit 1;
       done &&

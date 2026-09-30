@@ -35,7 +35,6 @@ logs
 moyu-jpg
 zaobao-jpg
 *.db
-listen_chats.json
 
 # Config (运行时挂载)
 config.yaml

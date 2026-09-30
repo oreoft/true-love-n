@@ -13,34 +13,37 @@ def _cols(conn: sqlite3.Connection, table: str) -> set[str]:
     return {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
 
 
-# 监听列表从共享文件搬进数据库
-VERSION = "002"
-DESCRIPTION = "listen_chats: import listen_chats.json into the listen_chats table"
-
-# 旧版 base 工作目录下的监听列表，docker-compose 软链到 server 工作目录
-LEGACY_LISTEN_FILE = "listen_chats.json"
+# 多平台支持迁移
+VERSION = "001"
+DESCRIPTION = "multi_platform: add platform/sender_id/sender_name/chat_name, drop sender"
 
 
 def migrate(conn: sqlite3.Connection) -> None:
-    """把旧的 listen_chats.json 导入 listen_chats 表，文件不存在时什么都不导"""
-    import json
-    import os
-    from datetime import datetime, timedelta
+    """多平台支持：新增 platform/sender_id/sender_name/chat_name，回填，删旧列，建索引"""
+    existing = _cols(conn, "group_messages")
 
-    if not os.path.exists(LEGACY_LISTEN_FILE):
-        return
-    with open(LEGACY_LISTEN_FILE, encoding="utf-8") as f:
-        chats = json.load(f)
-    if not isinstance(chats, list):
-        return
+    for col, typedef in [
+        ("platform",    "VARCHAR(32)  NOT NULL DEFAULT 'wechat'"),
+        ("sender_id",   "VARCHAR(128) NOT NULL DEFAULT ''"),
+        ("sender_name", "VARCHAR(128) NOT NULL DEFAULT ''"),
+        ("chat_name",   "VARCHAR(128) NOT NULL DEFAULT ''"),
+    ]:
+        if col not in existing:
+            conn.execute(f"ALTER TABLE group_messages ADD COLUMN {col} {typedef}")
 
-    # 按文件里的顺序递增加入时间，base 会按这个顺序注册监听
-    start = datetime.now()
-    for i, chat_name in enumerate(dict.fromkeys(str(c) for c in chats if c)):
-        conn.execute(
-            "INSERT OR IGNORE INTO listen_chats (chat_name, created_at) VALUES (?, ?)",
-            (chat_name, (start + timedelta(microseconds=i)).strftime("%Y-%m-%d %H:%M:%S.%f")),
-        )
+    if "sender" in existing:
+        conn.execute("UPDATE group_messages SET sender_id   = sender WHERE sender_id   = ''")
+        conn.execute("UPDATE group_messages SET sender_name = sender WHERE sender_name = ''")
+    conn.execute("UPDATE group_messages SET chat_name = chat_id WHERE chat_name = ''")
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_platform_chat ON group_messages (platform, chat_id)"
+    )
+
+    if "sender" in _cols(conn, "group_messages"):
+        # ix_group_messages_sender 索引引用了 sender 列，必须先删索引才能删列
+        conn.execute("DROP INDEX IF EXISTS ix_group_messages_sender")
+        conn.execute("ALTER TABLE group_messages DROP COLUMN sender")
 
 
 def run(db_path: str) -> None:
