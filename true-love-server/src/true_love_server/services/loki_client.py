@@ -7,6 +7,7 @@ Loki Client - Loki 日志查询客户端
 
 import json
 import logging
+import re
 import time
 from dataclasses import dataclass, asdict
 from datetime import datetime
@@ -31,6 +32,7 @@ class LogEntry:
     service: str  # 服务名称
     content: str  # 日志内容
     raw: str  # 原始日志行
+    ts_ns: str  # Loki 入库时间戳（纳秒），用作分页游标和去重
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -73,10 +75,21 @@ class LokiClient:
         """获取 Basic Auth 认证"""
         return HTTPBasicAuth(self.user_id, self.api_key)
 
-    def _build_query(self) -> str:
-        """构建 LogQL 查询语句"""
-        services_regex = '|'.join(self.services)
-        return f'{{service_name=~"{services_regex}"}}'
+    def _build_query(self, services: Optional[List[str]] = None, keyword: str = '') -> str:
+        """
+        构建 LogQL 查询语句
+
+        services 只接受配置里的服务名，不认识的忽略；为空时查全部。
+        keyword 按不区分大小写的子串匹配整行日志。
+        """
+        selected = [s for s in (services or []) if s in self.services] or self.services
+        services_regex = '|'.join(selected)
+        query = f'{{service_name=~`{services_regex}`}}'
+        keyword = keyword.replace('`', '').strip()
+        if keyword:
+            # 反引号字符串里不需要再转义，关键词本身按字面匹配
+            query += f' |~ `(?i){re.escape(keyword)}`'
+        return query
 
     def _parse_log_line(self, line: str, labels: dict, ts_ns: int) -> LogEntry:
         """
@@ -123,7 +136,8 @@ class LokiClient:
             level=level,
             service=service,
             content=content,
-            raw=line
+            raw=line,
+            ts_ns=str(ts_ns)
         )
 
     def query_range(
@@ -131,7 +145,9 @@ class LokiClient:
             start_ns: int,
             end_ns: int,
             limit: int = 50,
-            direction: str = 'backward'
+            direction: str = 'backward',
+            services: Optional[List[str]] = None,
+            keyword: str = ''
     ) -> dict:
         """
         查询时间范围内的日志
@@ -141,6 +157,8 @@ class LokiClient:
             end_ns: 结束时间（纳秒时间戳）
             limit: 最大返回条数
             direction: 排序方向 forward/backward
+            services: 只查这些服务，为空查全部
+            keyword: 关键词，不区分大小写
         
         Returns:
             {
@@ -160,7 +178,7 @@ class LokiClient:
                 "message": "Loki 配置不完整，请检查 config.yaml 中的 loki 配置"
             }
 
-        query = self._build_query()
+        query = self._build_query(services, keyword)
 
         # 直接访问 Loki API
         url = f"{self.loki_url}/loki/api/v1/query_range"
@@ -210,8 +228,8 @@ class LokiClient:
                     earliest_ns = min(earliest_ns, ts_ns)
                     latest_ns = max(latest_ns, ts_ns)
 
-            # 按时间戳排序（从旧到新，方便前端展示）
-            logs.sort(key=lambda x: x.timestamp)
+            # 按时间戳排序（从新到旧，前端最新的在最上面）
+            logs.sort(key=lambda x: x.timestamp, reverse=True)
 
             return {
                 "success": True,

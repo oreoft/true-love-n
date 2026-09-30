@@ -58,8 +58,13 @@ window.api = {
     }),
     
     // Loki API
-    fetchLokiLogs: (startMs, endMs, limit = 50, direction = 'backward') =>
-        apiRequest(`/admin/loki/logs?start_ms=${startMs}&end_ms=${endMs}&limit=${limit}&direction=${direction}`),
+    fetchLokiLogs: ({ beforeNs = '', services = '', keyword = '', limit = 50 } = {}) => {
+        const params = new URLSearchParams({ limit: String(limit) });
+        if (beforeNs) params.set('before_ns', beforeNs);
+        if (services) params.set('services', services);
+        if (keyword) params.set('keyword', keyword);
+        return apiRequest(`/admin/loki/logs?${params}`);
+    },
 
     // Reminder API
     fetchReminderList: () => apiRequest('/admin/reminder/list'),

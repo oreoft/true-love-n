@@ -1,269 +1,172 @@
 /**
  * Loki 日志页面 composable
+ *
+ * 列表从新到旧：最上面是最新的日志，往下滚自动加载更早的一页。
+ * 服务过滤和关键词搜索都交给后端做，切换条件后从最新一页重新加载。
  */
 
 window.useLokiLogs = function(showToast) {
-    const { ref, computed, nextTick } = Vue;
-    
+    const { ref, computed } = Vue;
+
+    const PAGE_SIZE = 50;
+    // 距离页面底部多少像素时加载下一页
+    const LOAD_OLDER_THRESHOLD = 300;
+
     // State
-    const lokiServices = ref(['ai', 'base', 'server']);
-    const lokiServiceFilter = ref(['ai', 'base', 'server']);
+    const lokiServices = [
+        { value: 'tl-ai', label: 'ai' },
+        { value: 'tl-base', label: 'base' },
+        { value: 'tl-server', label: 'server' }
+    ];
+    const lokiServiceFilter = ref(lokiServices.map(s => s.value));
+    const lokiKeyword = ref('');
     const lokiLogs = ref([]);
     const lokiLoading = ref(false);
     const lokiLoadingOlder = ref(false);
-    const lokiLoadingNewer = ref(false);
-    const lokiLogsContainer = ref(null);
-    const lokiAutoScroll = ref(true);
-    const lokiPolling = ref(false);
     const lokiCanLoadOlder = ref(true);
-    let lokiPollTimer = null;
-    
-    // 时间边界（毫秒）
-    const lokiEarliestMs = ref(0);
-    const lokiLatestMs = ref(0);
-    
-    // 过滤后的日志
-    const filteredLokiLogs = computed(() => {
-        if (lokiServiceFilter.value.length === lokiServices.value.length) {
-            return lokiLogs.value;
-        }
-        return lokiLogs.value.filter(log => lokiServiceFilter.value.includes(log.service));
-    });
-    
-    // 时间范围显示
+    let lokiNextBeforeNs = '';
+    // 每次重新加载加一，丢弃条件变化前发出的请求结果
+    let lokiRequestSeq = 0;
+
+    // 时间范围显示：最新 ~ 最早
     const lokiTimeRange = computed(() => {
         if (lokiLogs.value.length === 0) return '';
-        const first = lokiLogs.value[0];
-        const last = lokiLogs.value[lokiLogs.value.length - 1];
-        if (first && last) {
-            const startTime = first.time_str?.split(' ')[1] || '';
-            const endTime = last.time_str?.split(' ')[1] || '';
-            return `${startTime} ~ ${endTime}`;
-        }
-        return '';
+        const newest = lokiLogs.value[0];
+        const oldest = lokiLogs.value[lokiLogs.value.length - 1];
+        return `${newest.time_str} ~ ${oldest.time_str}`;
     });
-    
-    // 查询 Loki 日志
-    const fetchLokiLogs = async (startMs, endMs, direction = 'backward', prepend = false) => {
+
+    const logKey = (log) => log.ts_ns + '|' + log.raw;
+
+    const fetchPage = async (beforeNs) => {
+        const services = lokiServiceFilter.value.length === lokiServices.length
+            ? ''
+            : lokiServiceFilter.value.join(',');
+        const result = await api.fetchLokiLogs({
+            beforeNs,
+            services,
+            keyword: lokiKeyword.value.trim(),
+            limit: PAGE_SIZE
+        });
+        return result.data || { logs: [], next_before_ns: '', has_more: false };
+    };
+
+    // 从最新一页重新加载
+    const reloadLokiLogs = async () => {
+        const seq = ++lokiRequestSeq;
+        lokiLoading.value = true;
+        lokiLoadingOlder.value = false;
         try {
-            const result = await api.fetchLokiLogs(startMs, endMs, 50, direction);
-            
-            if (result.data && result.data.logs) {
-                const newLogs = result.data.logs;
-                
-                if (newLogs.length === 0) {
-                    if (prepend) {
-                        lokiCanLoadOlder.value = false;
-                    }
-                    return 0;
-                }
-                
-                // 去重合并
-                const existingKeys = new Set(lokiLogs.value.map(l => l.timestamp + '|' + l.raw));
-                const uniqueNewLogs = newLogs.filter(l => !existingKeys.has(l.timestamp + '|' + l.raw));
-                
-                if (uniqueNewLogs.length === 0) {
-                    return 0;
-                }
-                
-                if (prepend) {
-                    lokiLogs.value = [...uniqueNewLogs, ...lokiLogs.value];
-                } else {
-                    lokiLogs.value = [...lokiLogs.value, ...uniqueNewLogs];
-                }
-                
-                // 按时间排序
-                lokiLogs.value.sort((a, b) => a.timestamp - b.timestamp);
-                
-                // 更新时间边界
-                if (lokiLogs.value.length > 0) {
-                    lokiEarliestMs.value = lokiLogs.value[0].timestamp;
-                    lokiLatestMs.value = lokiLogs.value[lokiLogs.value.length - 1].timestamp;
-                }
-                
-                return uniqueNewLogs.length;
-            }
-            return 0;
+            const page = await fetchPage('');
+            if (seq !== lokiRequestSeq) return;
+            lokiLogs.value = page.logs;
+            lokiNextBeforeNs = page.next_before_ns;
+            lokiCanLoadOlder.value = page.has_more;
         } catch (error) {
+            if (seq !== lokiRequestSeq) return;
             console.error('Fetch Loki logs error:', error);
             showToast(error.message, 'error');
-            return 0;
+        } finally {
+            if (seq === lokiRequestSeq) lokiLoading.value = false;
         }
     };
-    
-    // 初始化加载（最近 50 条，使用 backward 从最新开始取）
-    const initLokiLogs = async () => {
-        lokiLoading.value = true;
-        lokiLogs.value = [];
-        lokiCanLoadOlder.value = true;
-        
-        const now = Date.now();
-        const oneHourAgo = now - 60 * 60 * 1000;  // 1 小时范围
-        
-        // 使用 backward 方向，Loki 会从 end 时间往前取 limit 条，即最新的日志
-        await fetchLokiLogs(oneHourAgo, now, 'backward', false);
-        
-        lokiLoading.value = false;
-        
-        nextTick(() => {
-            scrollLokiToBottom();
-        });
-    };
-    
-    // 加载更早的日志（每次往前 1 小时）
+
+    // 加载更早的一页，接在列表末尾
     const loadOlderLogs = async () => {
-        if (lokiLoadingOlder.value || !lokiCanLoadOlder.value || lokiLogs.value.length === 0) return;
-        
+        if (lokiLoading.value || lokiLoadingOlder.value || !lokiCanLoadOlder.value || !lokiNextBeforeNs) return;
+        const seq = lokiRequestSeq;
         lokiLoadingOlder.value = true;
-        
-        const endMs = lokiEarliestMs.value - 1;
-        const startMs = endMs - 60 * 60 * 1000;  // 往前 1 小时
-        
-        // 使用 backward 从 endMs 往前取，即取这个范围内最新的 50 条（离当前日志最近的）
-        const count = await fetchLokiLogs(startMs, endMs, 'backward', true);
-        
-        if (count === 0) {
-            lokiCanLoadOlder.value = false;
+        try {
+            const page = await fetchPage(lokiNextBeforeNs);
+            if (seq !== lokiRequestSeq) return;
+            const existing = new Set(lokiLogs.value.map(logKey));
+            const olderLogs = page.logs.filter(l => !existing.has(logKey(l)));
+            lokiLogs.value = [...lokiLogs.value, ...olderLogs];
+            lokiNextBeforeNs = page.next_before_ns;
+            lokiCanLoadOlder.value = page.has_more;
+        } catch (error) {
+            if (seq !== lokiRequestSeq) return;
+            console.error('Fetch older Loki logs error:', error);
+            showToast(error.message, 'error');
+        } finally {
+            if (seq === lokiRequestSeq) lokiLoadingOlder.value = false;
         }
-        
-        lokiLoadingOlder.value = false;
     };
-    
-    // 加载最新日志
-    const loadNewerLogs = async () => {
-        if (lokiLoadingNewer.value) return;
-        
-        lokiLoadingNewer.value = true;
-        
-        const endMs = Date.now();
-        let count = 0;
-        
-        if (lokiLatestMs.value > 0) {
-            // 已有日志，从最后一条之后开始用 forward 查询（连续加载）
-            const startMs = lokiLatestMs.value + 1;
-            count = await fetchLokiLogs(startMs, endMs, 'forward', false);
-        } else {
-            // 没有日志（比如清空后），用 backward 获取最新的 50 条
-            const startMs = endMs - 60 * 60 * 1000;
-            count = await fetchLokiLogs(startMs, endMs, 'backward', false);
-        }
-        
-        if (count > 0 && isNearBottom()) {
-            nextTick(() => {
-                scrollLokiToBottom();
-            });
-        }
-        
-        lokiLoadingNewer.value = false;
-        return count;
+
+    const initLokiLogs = () => reloadLokiLogs();
+
+    // 刷新：回到顶部并拉最新
+    const refreshLokiLogs = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return reloadLokiLogs();
     };
-    
-    // 刷新日志
-    const refreshLokiLogs = async () => {
-        await loadNewerLogs();
-        showToast('日志已刷新', 'success');
-    };
-    
-    // 清空日志
-    const clearLokiLogs = () => {
-        lokiLogs.value = [];
-        lokiEarliestMs.value = 0;
-        lokiLatestMs.value = 0;
-        lokiCanLoadOlder.value = true;
-    };
-    
-    // 切换服务过滤
+
+    // 切换服务过滤，至少保留一个
     const toggleServiceFilter = (svc) => {
         const idx = lokiServiceFilter.value.indexOf(svc);
         if (idx > -1) {
-            if (lokiServiceFilter.value.length > 1) {
-                lokiServiceFilter.value.splice(idx, 1);
-            }
+            if (lokiServiceFilter.value.length === 1) return;
+            lokiServiceFilter.value.splice(idx, 1);
         } else {
             lokiServiceFilter.value.push(svc);
         }
-    };
-    
-    // 判断是否在底部附近（150px 阈值）
-    const isNearBottom = () => {
-        return window.scrollY + window.innerHeight >= document.body.scrollHeight - 150;
+        refreshLokiLogs();
     };
 
-    // 滚动控制 - 使用页面滚动
-    const scrollLokiToBottom = () => {
-        window.scrollTo({
-            top: document.body.scrollHeight,
-            behavior: 'smooth'
-        });
+    const searchLokiLogs = () => refreshLokiLogs();
+
+    const clearLokiKeyword = () => {
+        if (!lokiKeyword.value) return;
+        lokiKeyword.value = '';
+        refreshLokiLogs();
     };
 
-    const scrollToBottom = () => {
-        lokiAutoScroll.value = true;
-        scrollLokiToBottom();
+    // 向上箭头：同刷新
+    const scrollToTop = () => refreshLokiLogs();
+
+    // 向下箭头：到底部并拉更早的一页
+    const scrollToBottom = async () => {
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        await loadOlderLogs();
     };
 
-    const scrollToTop = () => {
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        });
-    };
-
-    // 滚动事件：根据位置实时更新 autoScroll 状态
+    // 滚到底部附近时自动加载更早的日志
     const handleLokiScroll = () => {
-        lokiAutoScroll.value = isNearBottom();
-    };
-
-    const toggleLokiAutoScroll = () => {
-        lokiAutoScroll.value = !lokiAutoScroll.value;
-        if (lokiAutoScroll.value) {
-            scrollLokiToBottom();
+        const distance = document.body.scrollHeight - (window.scrollY + window.innerHeight);
+        if (distance < LOAD_OLDER_THRESHOLD) {
+            loadOlderLogs();
         }
     };
 
-    // 轮询控制
-    const startLokiPolling = () => {
-        if (lokiPollTimer) return;
-        lokiPolling.value = true;
+    const activateLokiLogs = () => {
         window.addEventListener('scroll', handleLokiScroll, { passive: true });
-        lokiPollTimer = setInterval(() => {
-            loadNewerLogs();
-        }, 15000);
+        if (lokiLogs.value.length === 0) {
+            initLokiLogs();
+        }
     };
 
-    const stopLokiPolling = () => {
-        if (lokiPollTimer) {
-            clearInterval(lokiPollTimer);
-            lokiPollTimer = null;
-        }
+    const deactivateLokiLogs = () => {
         window.removeEventListener('scroll', handleLokiScroll);
-        lokiPolling.value = false;
     };
-    
+
     return {
         lokiServices,
         lokiServiceFilter,
+        lokiKeyword,
         lokiLogs,
-        filteredLokiLogs,
         lokiLoading,
         lokiLoadingOlder,
-        lokiLoadingNewer,
-        lokiLogsContainer,
-        lokiAutoScroll,
-        lokiPolling,
         lokiCanLoadOlder,
         lokiTimeRange,
         initLokiLogs,
         loadOlderLogs,
-        loadNewerLogs,
         refreshLokiLogs,
-        clearLokiLogs,
         toggleServiceFilter,
-        handleLokiScroll,
-        toggleLokiAutoScroll,
+        searchLokiLogs,
+        clearLokiKeyword,
         scrollToTop,
         scrollToBottom,
-        startLokiPolling,
-        stopLokiPolling
+        activateLokiLogs,
+        deactivateLokiLogs
     };
 };

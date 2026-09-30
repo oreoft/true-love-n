@@ -164,49 +164,47 @@
                     <div class="logs-controls">
                         <!-- 服务过滤 -->
                         <div class="service-filter-tags">
-                            <span 
-                                v-for="svc in lokiServices" 
-                                :key="svc"
-                                :class="['service-filter-tag', { active: lokiServiceFilter.includes(svc) }]"
-                                @click="toggleServiceFilter(svc)"
+                            <span
+                                v-for="svc in lokiServices"
+                                :key="svc.value"
+                                :class="['service-filter-tag', { active: lokiServiceFilter.includes(svc.value) }]"
+                                @click="toggleServiceFilter(svc.value)"
                             >
-                                {{ svc }}
+                                {{ svc.label }}
                             </span>
                         </div>
-                        
-                        <button class="btn btn-outline btn-xs" @click="refreshLokiLogs" :disabled="lokiLoading" title="刷新">
+
+                        <!-- 关键词搜索 -->
+                        <div class="loki-search">
+                            <input
+                                type="search"
+                                class="loki-search-input"
+                                v-model="lokiKeyword"
+                                placeholder="搜索关键词，回车查询"
+                                @keyup.enter="searchLokiLogs"
+                                @search="lokiKeyword || clearLokiKeyword()"
+                            >
+                            <button class="btn btn-outline btn-xs" @click="searchLokiLogs" :disabled="lokiLoading">搜索</button>
+                        </div>
+
+                        <button class="btn btn-outline btn-xs" @click="refreshLokiLogs" :disabled="lokiLoading" title="回到顶部并拉取最新日志">
                             {{ lokiLoading ? '加载中...' : '🔄 刷新' }}
-                        </button>
-                        <button class="btn btn-outline btn-xs" @click="clearLokiLogs" title="清空显示">
-                            清空
                         </button>
                     </div>
                     <div class="loki-logs-info">
-                        <span>
-                            <span :class="['poll-indicator', { paused: !lokiPolling }]"></span>
-                            {{ lokiPolling ? '轮询中' : '已暂停' }}
-                        </span>
-                        <span>{{ filteredLokiLogs.length }} 条</span>
+                        <span>{{ lokiLogs.length }} 条</span>
                         <span v-if="lokiTimeRange" class="time-range-display">
                             {{ lokiTimeRange }}
                         </span>
                     </div>
                 </div>
-                
-                <!-- 日志列表 - 直接在页面滚动 -->
-                <div class="loki-logs-list" ref="lokiLogsContainer">
-                    <!-- 加载更早日志的提示 -->
-                    <div v-if="lokiCanLoadOlder && filteredLokiLogs.length > 0" 
-                         class="load-more-hint top" 
-                         :class="{ loading: lokiLoadingOlder }"
-                         @click="loadOlderLogs">
-                        {{ lokiLoadingOlder ? '加载中...' : '↑ 点击加载更早日志' }}
-                    </div>
-                    
-                    <template v-if="filteredLokiLogs.length > 0">
-                        <div 
-                            v-for="log in filteredLokiLogs" 
-                            :key="log.timestamp + log.raw"
+
+                <!-- 日志列表：最新的在最上面，往下滚加载更早的 -->
+                <div class="loki-logs-list">
+                    <template v-if="lokiLogs.length > 0">
+                        <div
+                            v-for="log in lokiLogs"
+                            :key="log.ts_ns + log.raw"
                             :class="['loki-log-item', { 'error-row': log.level === 'ERROR', 'warn-row': log.level === 'WARN' }]"
                         >
                             <span class="loki-log-dots">⋮</span>
@@ -219,41 +217,33 @@
                             <span class="loki-log-content">{{ log.content }}</span>
                         </div>
                     </template>
-                    
+
                     <div v-else class="loki-logs-empty">
                         <div class="loki-logs-empty-icon">📜</div>
                         <p>{{ lokiLoading ? '加载中...' : '暂无日志' }}</p>
                     </div>
-                    
-                    <!-- 加载最新日志的提示 -->
-                    <div v-if="filteredLokiLogs.length > 0 && !lokiLoading" 
-                         class="load-more-hint bottom" 
-                         :class="{ loading: lokiLoadingNewer }"
-                         @click="loadNewerLogs">
-                        {{ lokiLoadingNewer ? '加载中...' : '↓ 点击加载最新日志' }}
+
+                    <!-- 底部：加载更早日志 -->
+                    <div v-if="lokiLogs.length > 0 && !lokiLoading"
+                         class="load-more-hint bottom"
+                         :class="{ loading: lokiLoadingOlder, done: !lokiCanLoadOlder }"
+                         @click="loadOlderLogs">
+                        {{ lokiLoadingOlder ? '加载中...' : (lokiCanLoadOlder ? '↓ 加载更早日志' : '没有更早的日志了') }}
                     </div>
                 </div>
-                
+
                 <!-- 滚动按钮 -->
                 <div class="scroll-btns">
-                    <button 
-                        class="scroll-btn"
-                        @click="scrollToTop"
-                        title="滚动到顶部"
-                    >
+                    <button class="scroll-btn" @click="scrollToTop" :disabled="lokiLoading" title="回到顶部并拉取最新日志">
                         ⬆️
                     </button>
-                    <button 
-                        :class="['scroll-btn', { active: lokiAutoScroll }]"
-                        @click="scrollToBottom"
-                        :title="lokiAutoScroll ? '自动滚动开启' : '滚动到底部'"
-                    >
+                    <button class="scroll-btn" @click="scrollToBottom" :disabled="lokiLoadingOlder || !lokiCanLoadOlder" title="到底部并加载更早日志">
                         ⬇️
                     </button>
                 </div>
             </div>
         </template>
-        
+
         <!-- Reminders Page：普通提醒 + 定时任务 -->
         <template v-else-if="activeTab === 'reminders'">
             <!-- Summary Bar -->

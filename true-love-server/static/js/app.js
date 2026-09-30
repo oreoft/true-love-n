@@ -34,12 +34,9 @@
                 activeTab.value = tab;
 
                 if (tab === 'logs') {
-                    if (lokiLogs.lokiLogs.value.length === 0) {
-                        lokiLogs.initLokiLogs();
-                    }
-                    lokiLogs.startLokiPolling();
+                    lokiLogs.activateLokiLogs();
                 } else {
-                    lokiLogs.stopLokiPolling();
+                    lokiLogs.deactivateLokiLogs();
                 }
 
                 if (tab === 'reminders') {
@@ -60,7 +57,7 @@
 
             // 清理
             onUnmounted(() => {
-                lokiLogs.stopLokiPolling();
+                lokiLogs.deactivateLokiLogs();
             });
 
             return {

@@ -396,56 +396,50 @@ async def run_job(request: dict):
 
 # ==================== Loki 日志查询接口 ====================
 
+LOKI_LOOKBACK_NS = 14 * 24 * 3600 * 1_000_000_000
+
+
 @router.get("/admin/loki/logs")
 async def query_loki_logs(
-        start_ms: int = None,
-        end_ms: int = None,
-        limit: int = 500,
-        direction: str = 'backward'
+        before_ns: int = None,
+        services: str = '',
+        keyword: str = '',
+        limit: int = 50
 ):
     """
-    查询 Loki 日志
-    
+    分页查询 Loki 日志，从新到旧
+
     Query Parameters:
-        - start_ms: 开始时间（毫秒时间戳），默认为 end_ms 前 5 分钟
-        - end_ms: 结束时间（毫秒时间戳），默认为当前时间
-        - limit: 最大返回条数，默认 500
-        - direction: 排序方向 forward(旧→新) / backward(新→旧)，默认 backward
-    
+        - before_ns: 只查这个时间点之前的日志（纳秒，不含），不传就从当前时间开始，即第一页
+        - services: 逗号分隔的服务名（tl-ai,tl-base,tl-server），不传查全部
+        - keyword: 关键词，不区分大小写
+        - limit: 每页条数，默认 50，最多 500
+
     Returns:
-        - logs: 日志列表 [{timestamp, time_str, level, service, content, raw}, ...]
-        - earliest_ms: 返回数据中最早的毫秒时间戳
-        - latest_ms: 返回数据中最新的毫秒时间戳
-        - query_start_ms: 本次查询的开始时间
-        - query_end_ms: 本次查询的结束时间
+        - logs: 日志列表（从新到旧）[{timestamp, time_str, level, service, content, raw, ts_ns}, ...]
+        - next_before_ns: 下一页的 before_ns，没有更多时为空
+        - has_more: 是否还有更早的日志
     """
-    now_ms = int(time.time() * 1000)
-
-    # 默认值处理
-    if end_ms is None:
-        end_ms = now_ms
-    if start_ms is None:
-        start_ms = end_ms - 60 * 60 * 1000  # 默认 1 小时
-
-    # 转换为纳秒
-    start_ns = start_ms * 1_000_000
-    end_ns = end_ms * 1_000_000
+    limit = max(1, min(limit, 500))
+    end_ns = before_ns or time.time_ns()
+    # 免费版只保留 14 天，往前查 14 天就覆盖了全部数据
+    start_ns = end_ns - LOKI_LOOKBACK_NS
+    service_list = [s.strip() for s in services.split(',') if s.strip()]
 
     loki_client = get_loki_client()
-    result = loki_client.query_range(start_ns, end_ns, limit, direction)
+    result = loki_client.query_range(start_ns, end_ns, limit, 'backward', service_list, keyword)
 
     if not result["success"]:
         raise ValidationException(result["message"])
 
-    # 转换 LogEntry 为 dict
     logs = [entry.to_dict() for entry in result["logs"]]
+    has_more = len(logs) >= limit
+    next_before_ns = str(min(int(log["ts_ns"]) for log in logs)) if logs and has_more else ""
 
     return ApiResponse(data={
         "logs": logs,
-        "earliest_ms": result["earliest_ns"] // 1_000_000,
-        "latest_ms": result["latest_ns"] // 1_000_000,
-        "query_start_ms": start_ms,
-        "query_end_ms": end_ms,
+        "next_before_ns": next_before_ns,
+        "has_more": has_more,
         "count": len(logs)
     })
 
