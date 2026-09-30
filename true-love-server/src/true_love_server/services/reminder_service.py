@@ -101,6 +101,21 @@ def update_reminder(job_id: str, new_time_iso: str = "", new_content: str = "") 
     return {"job_id": job_id, "next_run_time": dt.isoformat()}
 
 
+def edit_reminder(job_id: str, receiver: str, content: str, target_time_iso: str,
+                  at_user: str = "", platform: str = "wechat") -> dict:
+    """后台修改提醒，所有字段一起改；接收者变了就换一个 job_id（AI 按接收者前缀查提醒）"""
+    job = scheduler.get_job(job_id)
+    if not job or not job_id.startswith("reminder_"):
+        raise ValueError(f"未找到提醒任务: {job_id}")
+    old_receiver = (job.kwargs or {}).get("receiver", "")
+    new_id = job_id if receiver == old_receiver else make_job_id(receiver)
+    data = add_reminder(new_id, target_time_iso, receiver, content, at_user, platform)
+    if new_id != job_id:
+        scheduler.remove_job(job_id)
+    LOG.info("reminder/edit: job_id=%s -> %s", job_id, new_id)
+    return data
+
+
 def query_reminders(receiver: str = "", platform: str = "wechat") -> list[dict]:
     """按 receiver + platform 过滤查询（AI 用），返回精简字段列表。"""
     jobs = scheduler.get_jobs()

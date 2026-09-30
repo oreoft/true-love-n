@@ -511,12 +511,15 @@ async def admin_add_reminder(request: dict):
 @router.post("/admin/reminder/update")
 async def admin_update_reminder(request: dict):
     job_id = request.get("job_id", "").strip()
-    new_time_iso = request.get("new_time_iso", "").strip()
-    new_content = request.get("new_content", "").strip()
-    if not job_id:
-        raise ValidationException("job_id 不能为空")
+    receiver = request.get("receiver", "").strip()
+    content = request.get("content", "").strip()
+    target_time_iso = request.get("target_time_iso", "").strip()
+    at_user = request.get("at_user", "").strip()
+    platform = request.get("platform", "wechat").strip()
+    if not job_id or not receiver or not content or not target_time_iso:
+        raise ValidationException("job_id、receiver、content、target_time_iso 不能为空")
     try:
-        data = _rs.update_reminder(job_id, new_time_iso, new_content)
+        data = _rs.edit_reminder(job_id, receiver, content, target_time_iso, at_user, platform)
     except ValueError as e:
         raise ValidationException(str(e))
     LOG.info("admin/reminder/update: job_id=%s", job_id)
@@ -554,7 +557,7 @@ async def list_tasks():
     LOG.info("admin/task/list: count=%d", len(tasks))
     return ApiResponse(data={
         "tasks": tasks,
-        "jobs": _ts.job_options(),
+        "jobs": _ts.job_names(),
         "timezones": [{"value": key, "label": label} for key, label in _ts.TIMEZONES.items()],
     })
 

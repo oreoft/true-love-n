@@ -96,18 +96,34 @@ def send_daily_notice(room_id, content='早上好☀️家人萌~'):
         LOG.info(f"send_image: {moyu_file_path}, result: {zao_bao_res}")
 
 
-# 后台"定时任务"里可选的任务：任务名 → 显示名和给一个接收者执行的方法
-TASKS = {
-    "notice_moyu_schedule": {
-        "label": "国内摸鱼",
-        "run": lambda room_id: send_daily_notice(room_id),
-    },
-    "notice_usa_moyu_schedule": {
-        "label": "美国摸鱼",
-        "run": lambda room_id: send_daily_notice(
-            room_id, "早上好☀️友友们~, \n现在国内太阳已经落下, 多赢阿美莉卡一天"),
-    },
-}
+def push_task(func):
+    """标记可以在后台"定时任务"里按方法名选用的推送任务，参数是一个接收者"""
+    func.is_push_task = True
+    return func
+
+
+@push_task
+def notice_moyu_schedule(room_id):
+    send_daily_notice(room_id)
+
+
+@push_task
+def notice_usa_moyu_schedule(room_id):
+    send_daily_notice(room_id, "早上好☀️友友们~, \n现在国内太阳已经落下, 多赢阿美莉卡一天")
+
+
+def find_task(job_name: str):
+    """按方法名找推送任务，找不到或不是推送任务时抛 ValueError"""
+    func = globals().get(job_name)
+    if getattr(func, "is_push_task", False) is not True:
+        raise ValueError(f"找不到任务方法: {job_name}")
+    return func
+
+
+def task_names() -> list[str]:
+    """所有推送任务的方法名"""
+    return [name for name, func in globals().items() if getattr(func, "is_push_task", False) is True]
+
 
 _download_lock = threading.Lock()
 
@@ -125,7 +141,7 @@ def ensure_today_images():
 @log_function_execution
 def run_task(job_name: str, receivers: list[str]) -> None:
     """把任务依次推给每个接收者，接收者之间隔 30 秒"""
-    task = TASKS[job_name]
+    task = find_task(job_name)
     try:
         ensure_today_images()
     except Exception as e:
@@ -135,7 +151,7 @@ def run_task(job_name: str, receivers: list[str]) -> None:
         if index:
             time.sleep(30)
         try:
-            task["run"](room_id)
+            task(room_id)
         except Exception as e:
             LOG.exception("任务 %s 推送到 %s 失败: %s", job_name, room_id, e)
 

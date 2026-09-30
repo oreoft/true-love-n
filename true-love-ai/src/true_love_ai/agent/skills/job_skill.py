@@ -7,19 +7,14 @@ from true_love_ai.agent.server_client import _async_post
 
 LOG = logging.getLogger("JobSkill")
 
-_JOBS = [
-    "notice_moyu_schedule",
-    "notice_usa_moyu_schedule",
-]
-
-
 @register_skill({
     "type": "function",
     "function": {
         "name": "run_job",
         "description": (
-            "立即执行服务器上某个任务名下的所有定时任务（用于测试），推给这些定时任务里配置的群。"
-            f"可用任务：{', '.join(_JOBS)}（国内摸鱼、美国摸鱼）。"
+            "立即执行服务器上某个任务方法名下的所有定时任务（用于测试），推给这些定时任务里配置的群。"
+            "任务方法名如 notice_moyu_schedule（国内摸鱼）、notice_usa_moyu_schedule（美国摸鱼），"
+            "服务器找不到这个方法时会报错。"
             "当用户说'执行job xxx'、'触发任务 xxx'、'跑一下 xxx' 等时使用。"
         ),
         "parameters": {
@@ -27,8 +22,7 @@ _JOBS = [
             "properties": {
                 "job_name": {
                     "type": "string",
-                    "enum": _JOBS,
-                    "description": "要触发的任务名称"
+                    "description": "要触发的任务方法名"
                 }
             },
             "required": ["job_name"]
@@ -37,8 +31,8 @@ _JOBS = [
 })
 async def run_job(params: dict, ctx: dict) -> str:
     job_name = params.get("job_name", "").strip()
-    if job_name not in _JOBS:
-        return f"未知任务：{job_name}，可选：{', '.join(_JOBS)}"
+    if not job_name:
+        return "要触发哪个任务？告诉我任务方法名，比如 notice_moyu_schedule"
 
     result = await _async_post("/action/job/run", {"job_name": job_name}, timeout=10.0)
     if result.get("code") == 0:

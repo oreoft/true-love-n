@@ -14,11 +14,12 @@ window.useReminderPage = function(showToast, showConfirm) {
     const loading = ref(false);
     const deletingItems = ref({});
 
-    // 添加弹窗状态（taskId 不为空时是在修改定时任务）
+    // 添加/修改弹窗状态（reminderId、taskId 不为空时是在修改）
     const addModal = reactive({
         show: false,
         loading: false,
         type: 'reminder',
+        reminderId: '',
         receiver: '',
         content: '',
         targetTime: '',   // datetime-local 格式 YYYY-MM-DDTHH:MM
@@ -32,17 +33,6 @@ window.useReminderPage = function(showToast, showConfirm) {
         runAt: '',        // datetime-local 格式
         time: '09:00',
         timezone: 'Asia/Shanghai',
-    });
-
-    // 修改弹窗状态
-    const editModal = reactive({
-        show: false,
-        loading: false,
-        jobId: '',
-        newContent: '',
-        newTime: '',      // datetime-local 格式
-        originalContent: '',
-        originalTime: '',
     });
 
     /**
@@ -135,6 +125,7 @@ window.useReminderPage = function(showToast, showConfirm) {
         Object.assign(addModal, {
             show: true,
             type: 'reminder',
+            reminderId: '',
             receiver: '',
             content: '',
             targetTime: '',
@@ -143,11 +134,23 @@ window.useReminderPage = function(showToast, showConfirm) {
             taskId: '',
             receivers: [],
             newReceiver: '',
-            jobName: jobOptions.value[0]?.job_name || '',
+            jobName: '',
             mode: 'daily',
             runAt: '',
             time: '09:00',
             timezone: 'Asia/Shanghai',
+        });
+    };
+
+    const openReminderEdit = (job) => {
+        openAddModal();
+        Object.assign(addModal, {
+            reminderId: job.job_id,
+            receiver: job.receiver,
+            content: job.content,
+            targetTime: isoToLocalInput(job.next_run_time),
+            atUser: job.at_user || '',
+            platform: job.platform || 'wechat',
         });
     };
 
@@ -226,55 +229,26 @@ window.useReminderPage = function(showToast, showConfirm) {
         }
         addModal.loading = true;
         try {
-            const isoStr = localInputToIso(addModal.targetTime);
-            await api.addReminder(
+            const reminder = [
                 addModal.receiver.trim(),
                 addModal.content.trim(),
-                isoStr,
+                localInputToIso(addModal.targetTime),
                 addModal.atUser.trim(),
                 addModal.platform,
-            );
-            showToast('提醒添加成功', 'success');
+            ];
+            if (addModal.reminderId) {
+                await api.updateReminder(addModal.reminderId, ...reminder);
+                showToast('提醒已修改', 'success');
+            } else {
+                await api.addReminder(...reminder);
+                showToast('提醒添加成功', 'success');
+            }
             addModal.show = false;
             await fetchReminders();
         } catch (error) {
             showToast(error.message, 'error');
         } finally {
             addModal.loading = false;
-        }
-    };
-
-    // ==================== 修改 ====================
-
-    const openEditModal = (job) => {
-        editModal.show = true;
-        editModal.jobId = job.job_id;
-        editModal.newContent = job.content;
-        editModal.newTime = isoToLocalInput(job.next_run_time);
-        editModal.originalContent = job.content;
-        editModal.originalTime = job._time.full + ' ' + job._time.offset;
-    };
-
-    const submitEdit = async () => {
-        if (!editModal.newContent.trim() && !editModal.newTime) {
-            showToast('时间和内容至少修改一项', 'error');
-            return;
-        }
-        editModal.loading = true;
-        try {
-            const newTimeIso = editModal.newTime ? localInputToIso(editModal.newTime) : '';
-            await api.updateReminder(
-                editModal.jobId,
-                newTimeIso,
-                editModal.newContent.trim(),
-            );
-            showToast('提醒修改成功', 'success');
-            editModal.show = false;
-            await fetchReminders();
-        } catch (error) {
-            showToast(error.message, 'error');
-        } finally {
-            editModal.loading = false;
         }
     };
 
@@ -302,7 +276,7 @@ window.useReminderPage = function(showToast, showConfirm) {
     const deleteTask = (task) => {
         showConfirm(
             '删除定时任务',
-            `确定要删除「${task.job_label}」（${task._schedule}，${task.receivers.length} 个接收者）吗？`,
+            `确定要删除「${task.job_name}」（${task._schedule}，${task.receivers.length} 个接收者）吗？`,
             async () => {
                 deletingItems.value[task.task_id] = true;
                 try {
@@ -321,7 +295,7 @@ window.useReminderPage = function(showToast, showConfirm) {
     const runTask = (task) => {
         showConfirm(
             '立即执行',
-            `现在就把「${task.job_label}」推给 ${task.receivers.join('、')} 吗？不影响之后的定时。`,
+            `现在就把「${task.job_name}」推给 ${task.receivers.join('、')} 吗？不影响之后的定时。`,
             async () => {
                 try {
                     await api.runTask(task.task_id);
@@ -347,10 +321,7 @@ window.useReminderPage = function(showToast, showConfirm) {
         addModal,
         openAddModal,
         submitAdd,
-        // 修改
-        editModal,
-        openEditModal,
-        submitEdit,
+        openReminderEdit,
         // 定时任务
         openTaskEdit,
         addTaskReceiver,

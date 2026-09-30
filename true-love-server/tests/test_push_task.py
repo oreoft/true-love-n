@@ -49,6 +49,16 @@ class PushTaskTests(unittest.TestCase):
         self.downloaded.append(folder)
         self.pictures.add(folder)
 
+    def test_task_is_found_by_its_method_name(self):
+        self.assertEqual(self.jobs.find_task("notice_moyu_schedule"), self.jobs.notice_moyu_schedule)
+        self.assertEqual(self.jobs.task_names(), ["notice_moyu_schedule", "notice_usa_moyu_schedule"])
+
+    def test_methods_that_are_not_push_tasks_cannot_be_run_by_name(self):
+        for name in ("download_moyu_file", "send_to_jina", "os", "no_such_task", ""):
+            with self.subTest(name=name):
+                with self.assertRaisesRegex(ValueError, "找不到任务方法"):
+                    self.jobs.find_task(name)
+
     def test_push_goes_to_every_receiver_in_order(self):
         self.jobs.run_task("notice_moyu_schedule", ["委员会", "家人群"])
 

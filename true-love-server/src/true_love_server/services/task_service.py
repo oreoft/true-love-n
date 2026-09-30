@@ -36,22 +36,21 @@ _LEGACY_SETTINGS = {
 }
 
 
-def _tasks() -> dict:
-    from ..jobs.job_process import TASKS
-    return TASKS
+def _job_process():
+    from ..jobs import job_process
+    return job_process
 
 
 def _run_task(task_id: str, job_name: str, receivers: list[str], schedule: dict) -> None:
     """APScheduler 触发函数（模块级，SQLAlchemy jobstore 按名字引用）"""
     LOG.info("定时任务触发: task_id=%s job=%s receivers=%s", task_id, job_name, receivers)
-    from ..jobs import job_process
-    job_process.run_task(job_name, receivers)
+    _job_process().run_task(job_name, receivers)
 
 
-def _clean(job_name: str, receivers: Any, schedule: Any) -> tuple[list[str], dict, Any]:
-    """校验表单，返回 (接收者, 触发方式, APScheduler trigger)；不合法时抛 ValueError"""
-    if job_name not in _tasks():
-        raise ValueError(f"未知任务: {job_name}")
+def _clean(job_name: str, receivers: Any, schedule: Any) -> tuple[str, list[str], dict, Any]:
+    """校验表单，返回 (方法名, 接收者, 触发方式, APScheduler trigger)；不合法时抛 ValueError"""
+    job_name = str(job_name or "").strip()
+    _job_process().find_task(job_name)
 
     if not isinstance(receivers, list):
         raise ValueError("接收者必须是列表")
@@ -71,7 +70,7 @@ def _clean(job_name: str, receivers: Any, schedule: Any) -> tuple[list[str], dic
             raise ValueError("执行时间必须带时区")
         if run_at <= datetime.now(run_at.tzinfo):
             raise ValueError("执行时间已经过去了")
-        return receivers, {"mode": ONCE, "run_at": run_at.isoformat()}, DateTrigger(run_date=run_at)
+        return job_name, receivers, {"mode": ONCE, "run_at": run_at.isoformat()}, DateTrigger(run_date=run_at)
 
     if mode == DAILY:
         at = str(schedule.get("time", "")).strip()
@@ -83,13 +82,13 @@ def _clean(job_name: str, receivers: Any, schedule: Any) -> tuple[list[str], dic
             raise ValueError(f"不支持的时区: {timezone}")
         hour, minute = int(match.group(1)), int(match.group(2))
         trigger = CronTrigger(hour=hour, minute=minute, timezone=pytz.timezone(timezone))
-        return receivers, {"mode": DAILY, "time": f"{hour:02d}:{minute:02d}", "timezone": timezone}, trigger
+        return job_name, receivers, {"mode": DAILY, "time": f"{hour:02d}:{minute:02d}", "timezone": timezone}, trigger
 
     raise ValueError("触发方式只能是单次或每天")
 
 
 def _schedule_job(task_id: str, job_name: str, receivers: Any, schedule: Any) -> dict:
-    receivers, schedule, trigger = _clean(job_name, receivers, schedule)
+    job_name, receivers, schedule, trigger = _clean(job_name, receivers, schedule)
     job = scheduler.add_job(
         _run_task,
         trigger,
@@ -103,11 +102,9 @@ def _schedule_job(task_id: str, job_name: str, receivers: Any, schedule: Any) ->
 
 def _describe(job) -> dict:
     kwargs = job.kwargs or {}
-    job_name = kwargs.get("job_name", "")
     return {
         "task_id": job.id,
-        "job_name": job_name,
-        "job_label": _tasks().get(job_name, {}).get("label", job_name),
+        "job_name": kwargs.get("job_name", ""),
         "receivers": list(kwargs.get("receivers", [])),
         "schedule": dict(kwargs.get("schedule", {})),
         "next_run_time": job.next_run_time.isoformat() if job.next_run_time else "",
@@ -121,9 +118,9 @@ def _get(task_id: str):
     return job
 
 
-def job_options() -> list[dict]:
-    """后台下拉框里可选的任务"""
-    return [{"job_name": name, "label": task["label"]} for name, task in _tasks().items()]
+def job_names() -> list[str]:
+    """可选的推送任务方法名，后台输入框用来提示"""
+    return _job_process().task_names()
 
 
 def list_tasks() -> list[dict]:
@@ -164,8 +161,7 @@ def run_now(task_id: str) -> dict:
 
 def run_by_job_name(job_name: str) -> list[str]:
     """立即执行这个任务名下的所有定时任务（AI 手动触发用），返回执行了的 task_id"""
-    if job_name not in _tasks():
-        raise ValueError(f"未知任务: {job_name}，可选: {list(_tasks())}")
+    _job_process().find_task(job_name)
     started = []
     for job in scheduler.get_jobs():
         kwargs = dict(job.kwargs or {})

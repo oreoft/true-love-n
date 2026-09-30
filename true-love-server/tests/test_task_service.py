@@ -38,10 +38,12 @@ class TaskServiceCase(unittest.TestCase):
         self.scheduler = BackgroundScheduler(
             jobstores={"default": SQLAlchemyJobStore(engine=engine), "memory": MemoryJobStore()}, timezone="UTC")
         self.run_task = Mock()
-        tasks = {
-            "notice_moyu_schedule": {"label": "国内摸鱼", "run": Mock()},
-            "notice_usa_moyu_schedule": {"label": "美国摸鱼", "run": Mock()},
-        }
+        names = ["notice_moyu_schedule", "notice_usa_moyu_schedule"]
+
+        def find_task(job_name):
+            if job_name not in names:
+                raise ValueError(f"找不到任务方法: {job_name}")
+            return Mock()
         # Real task code against a throwaway database and a paused scheduler: jobs are stored, nothing fires.
         dependencies = {
             "true_love_server": module("true_love_server", SOURCE),
@@ -53,7 +55,8 @@ class TaskServiceCase(unittest.TestCase):
                 "true_love_server.services.scheduler_service", scheduler=self.scheduler),
             "true_love_server.jobs": module("true_love_server.jobs", SOURCE / "jobs"),
             "true_love_server.jobs.job_process": module(
-                "true_love_server.jobs.job_process", TASKS=tasks, run_task=self.run_task),
+                "true_love_server.jobs.job_process", find_task=find_task, task_names=lambda: list(names),
+                run_task=self.run_task),
         }
         modules = patch.dict(sys.modules, dependencies)
         modules.start()
@@ -89,12 +92,12 @@ class TaskTests(TaskServiceCase):
         self.assertEqual(self.next_run(task), run_at)
         self.assertEqual(task["schedule"]["mode"], "once")
 
-    def test_console_lists_tasks_with_receivers_and_a_readable_job_name(self):
+    def test_console_lists_tasks_with_receivers_and_the_job_method_name(self):
         self.tasks.add_task("notice_usa_moyu_schedule", [" 湾区群 ", "", "委员会", "湾区群"], self.daily("08:00", "America/Chicago"))
 
         [task] = self.tasks.list_tasks()
 
-        self.assertEqual(task["job_label"], "美国摸鱼")
+        self.assertEqual(task["job_name"], "notice_usa_moyu_schedule")
         self.assertEqual(task["receivers"], ["湾区群", "委员会"])
         self.assertEqual(task["schedule"], {"mode": "daily", "time": "08:00", "timezone": "America/Chicago"})
 
@@ -123,6 +126,14 @@ class TaskTests(TaskServiceCase):
                     self.tasks.add_task(*args)
 
         self.assertEqual(self.tasks.list_tasks(), [])
+
+    def test_console_suggests_the_job_method_names(self):
+        self.assertEqual(self.tasks.job_names(), ["notice_moyu_schedule", "notice_usa_moyu_schedule"])
+
+    def test_job_name_is_trimmed_before_it_is_looked_up(self):
+        task = self.tasks.add_task(" notice_moyu_schedule ", ["委员会"], self.daily())
+
+        self.assertEqual(task["job_name"], "notice_moyu_schedule")
 
     def test_changing_a_task_keeps_its_id_and_replaces_everything_else(self):
         task = self.tasks.add_task("notice_moyu_schedule", ["委员会"], self.daily())
@@ -179,6 +190,42 @@ class TaskTests(TaskServiceCase):
         job.func(**job.kwargs)
 
         self.run_task.assert_called_once_with("notice_moyu_schedule", ["委员会", "家人群"])
+
+
+class ReminderEditTests(TaskServiceCase):
+    """The console edits every field of a reminder, and AI still finds it by its receiver afterwards."""
+
+    def setUp(self):
+        super().setUp()
+        self.reminders = importlib.import_module("true_love_server.services.reminder_service")
+        self.later = (datetime.now(timezone.utc) + timedelta(hours=2)).replace(microsecond=0).isoformat()
+        self.reminders.add_reminder("reminder_委员会_1", self.later, "委员会", "去开会", "alice")
+
+    def test_every_field_can_be_changed(self):
+        even_later = (datetime.now(timezone.utc) + timedelta(hours=5)).replace(microsecond=0).isoformat()
+
+        self.reminders.edit_reminder("reminder_委员会_1", "委员会", "去吃饭", even_later, "bob", "lark")
+
+        [reminder] = self.reminders.list_all_reminders()
+        self.assertEqual((reminder["job_id"], reminder["content"], reminder["at_user"], reminder["platform"]),
+                         ("reminder_委员会_1", "去吃饭", "bob", "lark"))
+        self.assertEqual(datetime.fromisoformat(reminder["next_run_time"]), datetime.fromisoformat(even_later))
+
+    def test_new_receiver_is_where_ai_looks_for_it(self):
+        self.reminders.edit_reminder("reminder_委员会_1", "家人群", "去开会", self.later)
+
+        self.assertEqual(self.reminders.query_reminders("委员会"), [])
+        [moved] = self.reminders.query_reminders("家人群")
+        self.assertEqual(moved["content"], "去开会")
+        self.assertEqual(len(self.reminders.list_all_reminders()), 1)
+
+    def test_missing_reminder_or_task_id_is_refused(self):
+        task = self.tasks.add_task("notice_moyu_schedule", ["委员会"], self.daily())
+
+        for job_id in ("reminder_nobody_1", task["task_id"]):
+            with self.subTest(job_id=job_id):
+                with self.assertRaises(ValueError):
+                    self.reminders.edit_reminder(job_id, "委员会", "去开会", self.later)
 
 
 class ImportFromSettingsTests(TaskServiceCase):

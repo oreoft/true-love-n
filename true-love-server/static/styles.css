@@ -1712,3 +1712,8 @@ body {
 .form-field .settings-rows {
     margin-bottom: 0;
 }
+
+.job-name {
+    font-family: monospace;
+    font-size: 13px;
+}

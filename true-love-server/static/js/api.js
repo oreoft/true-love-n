@@ -69,9 +69,9 @@ window.api = {
         body: JSON.stringify({ receiver, content, target_time_iso: targetTimeIso, at_user: atUser, platform })
     }),
 
-    updateReminder: (jobId, newTimeIso, newContent) => apiRequest('/admin/reminder/update', {
+    updateReminder: (jobId, receiver, content, targetTimeIso, atUser, platform) => apiRequest('/admin/reminder/update', {
         method: 'POST',
-        body: JSON.stringify({ job_id: jobId, new_time_iso: newTimeIso, new_content: newContent })
+        body: JSON.stringify({ job_id: jobId, receiver, content, target_time_iso: targetTimeIso, at_user: atUser, platform })
     }),
 
     deleteReminder: (jobId) => apiRequest('/admin/reminder/delete', {
