@@ -11,14 +11,11 @@ import logging
 import threading
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 
 from true_love_common.chat_msg import ChatMsg
 from true_love_base.core import WxAutoClient
 from true_love_base.services import server_client
-
-if TYPE_CHECKING:
-    from true_love_base.services.listen_store import ListenStore
 
 
 class Robot:
@@ -34,19 +31,17 @@ class Robot:
     # 线程池配置
     MAX_WORKERS = 10
 
-    def __init__(self, client: WxAutoClient, listen_store: "ListenStore", master: str = "") -> None:
+    def __init__(self, client: WxAutoClient, master: str = "") -> None:
         """
         初始化机器人
         
         Args:
             client: 微信客户端实例
-            listen_store: 监听列表持久化管理器
             master: 这台机器的管理员昵称，没有时为空串
         """
         self.client = client
         self.master = master
         self.LOG = logging.getLogger("Robot")
-        self._listen_store = listen_store
 
         # 消息处理线程池
         self._executor = ThreadPoolExecutor(
@@ -134,7 +129,7 @@ class Robot:
         """
         添加监听的聊天对象（仅操作 SDK，不写入文件）
         
-        Note: 文件持久化由 Server 端的 ListenManager 负责
+        Note: 监听列表由 Server 端的 ListenManager 保存
         
         Args:
             chat_name: 聊天对象名称（好友昵称或群名）
@@ -185,26 +180,27 @@ class Robot:
         return False
 
     def load_listen_chats(
-        self, *, stop_event: Optional[threading.Event] = None
-    ) -> dict[str, list[str]]:
+        self, *, stop_event: threading.Event
+    ) -> dict:
         """
-        从持久化文件加载监听列表并开始监听
-        
-        Note: 文件由 Server 端管理，Base 端只读取
-        
+        向 server 取监听列表并开始监听；取不到时一个都不监听
+
         Returns:
             包含成功和失败列表的字典:
             - success: 成功监听的聊天列表
             - failed: 监听失败的聊天列表
+            - unavailable: 没从 server 取到监听列表时为 True
         """
-        chats = self._listen_store.load()
-        self.LOG.info(f"Loading {len(chats)} listen chats from store")
+        chats = server_client.fetch_listen_chats(stop_event)
+        if chats is None:
+            return {"success": [], "failed": [], "unavailable": True}
+        self.LOG.info(f"Loading {len(chats)} listen chats from server")
 
         success = []
         failed = []
 
         for chat_name in chats:
-            if stop_event is not None and stop_event.is_set():
+            if stop_event.is_set():
                 self.LOG.info(
                     "Listener loading cancelled before [%s]: success=%s failed=%s remaining=%s",
                     chat_name, len(success), len(failed), len(chats) - len(success) - len(failed),
@@ -212,7 +208,7 @@ class Robot:
                 break
             if self.add_listen_chat(chat_name, stop_event=stop_event):
                 success.append(chat_name)
-            elif stop_event is not None and stop_event.is_set():
+            elif stop_event.is_set():
                 self.LOG.info(
                     "Listener loading cancelled while registering [%s]: success=%s failed=%s remaining=%s",
                     chat_name, len(success), len(failed), len(chats) - len(success) - len(failed),
@@ -221,7 +217,7 @@ class Robot:
             else:
                 failed.append(chat_name)
 
-        return {"success": success, "failed": failed}
+        return {"success": success, "failed": failed, "unavailable": False}
 
     def cleanup(self) -> None:
         """

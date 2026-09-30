@@ -54,7 +54,6 @@ services:
       /bin/sh -c "
       R=/mnt/true-love-n &&
       ln -sfn /mnt/config-center/true-love-server/config.yaml /app/config.yaml &&
-      ln -sfn $$R/true-love-base/listen_chats.json /app/listen_chats.json &&
       for d in wx_imgs moyu-jpg zaobao-jpg gen-img gen-video gen-audio files-save; do
       mkdir -p $$R/true-love-base/$$d && ln -sfn $$R/true-love-base/$$d /app/$$d || exit 1;
       done &&

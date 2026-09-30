@@ -15,7 +15,6 @@ from typing import Optional
 import yaml
 
 from true_love_common.observability.logging import LoggingConfig
-from .utils.path_resolver import get_listen_chats_file
 
 DEFAULT_SERVER_HOST = "http://host.docker.internal:8088"
 
@@ -51,9 +50,6 @@ class Config:
 
         # Server 服务地址（默认与 base 同机，server 跑在 Docker Desktop 里）
         self.server_host = (self.config.get("server") or {}).get("host") or DEFAULT_SERVER_HOST
-
-        # 监听列表文件路径（与 config.yaml 同级目录）
-        self.listen_chats_file = get_listen_chats_file()
         
         Config._initialized = True
         
@@ -61,7 +57,6 @@ class Config:
         LOG = logging.getLogger("Config")
         LOG.info(f"Config loaded: machine_name={self.machine_name}, master_wix={self.master_wix}")
         LOG.info(f"Config loaded: server_host={self.server_host}")
-        LOG.info(f"Config loaded: listen_chats_file={self.listen_chats_file}")
     
     def _setup_logging(self) -> None:
         """设置日志系统（从配置文件读取 Loki 配置）"""

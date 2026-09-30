@@ -3,17 +3,19 @@
 Server Client - 与后端 AI 服务通信
 
 负责把消息转发到服务端的 /on-message；服务端只确认收到，AI 回复由服务端异步回调 base 发送。
+连上微信时从服务端的 /listen/list 取监听列表。
 使用全局 httpx.Client 复用 HTTP 连接，线程安全的熔断器。
 """
 
 import logging
 import threading
 import time
+from typing import Optional
 
 import httpx
 
 from true_love_common.chat_msg import ChatMsg
-from true_love_common.http.client import post
+from true_love_common.http.client import post, post_json
 from true_love_base.configuration import Config
 from true_love_base.models.api import ChatRequest, ChatResponse
 
@@ -175,3 +177,53 @@ def _get_error_message() -> str:
     if _circuit_breaker.fail_count < _circuit_breaker.threshold:
         return "啊哦~消息没送到服务端，稍后再试试捏~"
     return "啊哦~, 服务正在重新调整，请稍后重试再试"
+
+
+# ==================== 监听列表 ====================
+
+LISTEN_LIST_ENDPOINT = f"{SERVER_HOST}/listen/list"
+
+# 取监听列表的退避重试：机器重启后 base 往往比 Docker 里的 server 先起来
+LISTEN_FETCH_DEADLINE = 300  # 秒，过了就放弃，由 server 启动后补监听
+LISTEN_FETCH_FIRST_DELAY = 2
+LISTEN_FETCH_MAX_DELAY = 60
+
+
+def _get_listen_chats() -> list[str]:
+    """向 server 取一次监听列表，失败时抛异常"""
+    response = post_json(LISTEN_LIST_ENDPOINT, {"token": config.http_token}, timeout=(2, 10), client=_get_client())
+    response.raise_for_status()
+    resp_data = response.data if isinstance(response.data, dict) else {}
+    if resp_data.get("code") != 0:
+        raise RuntimeError(f"server returned {resp_data}")
+    chats = (resp_data.get("data") or {}).get("chats")
+    if not isinstance(chats, list):
+        raise RuntimeError(f"server returned no chat list: {resp_data}")
+    return [str(chat) for chat in chats]
+
+
+def fetch_listen_chats(stop_event: threading.Event) -> Optional[list[str]]:
+    """
+    向 server 取监听列表，失败时退避重试
+
+    Returns:
+        监听列表；到截止时间还没取到或收到退出信号时返回 None
+    """
+    deadline = time.monotonic() + LISTEN_FETCH_DEADLINE
+    delay = LISTEN_FETCH_FIRST_DELAY
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            return _get_listen_chats()
+        except Exception as e:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                LOG.error("Gave up fetching listen chats from server after %s attempts: %s", attempt, e)
+                return None
+            wait = min(delay, remaining)
+            LOG.warning("Failed to fetch listen chats from server (attempt %s), retrying in %.0fs: %s",
+                        attempt, wait, e)
+            if stop_event.wait(wait):
+                return None
+            delay = min(delay * 2, LISTEN_FETCH_MAX_DELAY)

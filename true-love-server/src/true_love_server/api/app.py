@@ -5,6 +5,7 @@ FastAPI Application - FastAPI 应用
 创建和配置 FastAPI 应用实例。
 """
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -17,15 +18,32 @@ from true_love_common.integrations.fastapi import HttpLoggingMiddleware
 from .routes import router
 from .action_routes import action_router
 from .exception_handlers import setup_exception_handlers
+from ..services.listen_manager import get_listen_manager
 
 LOG = logging.getLogger("FastAPIApp")
+
+
+# server 启动后等多久再补一次监听，给同时启动的 base 留出自己注册监听的时间
+STARTUP_REFRESH_DELAY = 60
+
+
+async def _refresh_listen_after_startup():
+    """兜底：base 比 server 先起来、等不到 server 放弃监听时，由 server 把监听补上"""
+    await asyncio.sleep(STARTUP_REFRESH_DELAY)
+    try:
+        result = await get_listen_manager().refresh_listen()
+        LOG.info("启动后补监听完成: 共 %s 个，失败 %s 个", result["total"], result["fail_count"])
+    except Exception:
+        LOG.exception("启动后补监听失败")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     LOG.info("FastAPI 应用已启动...")
+    refresh = asyncio.create_task(_refresh_listen_after_startup())
     yield
+    refresh.cancel()
     LOG.info("FastAPI 应用已关闭...")
 
 
