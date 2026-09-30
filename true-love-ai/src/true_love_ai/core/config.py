@@ -36,8 +36,6 @@ class Config(BaseSettings):
     base_server: BaseServerConfig = BaseServerConfig()
     nexu: NexuConfig = NexuConfig()
 
-    logging: Optional[dict] = None
-
     @classmethod
     def from_yaml(cls, path: str = "config.yaml") -> "Config":
         with open(path, "r", encoding="utf-8") as f:

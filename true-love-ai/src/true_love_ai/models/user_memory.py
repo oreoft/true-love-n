@@ -19,7 +19,7 @@ class UserMemory(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
 
-    group_id = Column(String(128), nullable=False, comment="群聊ID（私聊时等于sender）")
+    group_id = Column(String(128), nullable=False, comment="会话 ID（群聊、私聊一律为 session_id）")
     sender_id = Column(String(128), nullable=False, comment="发送者唯一 ID")
 
     key = Column(String(64), nullable=False, comment="格式: category.sub_key（如 interest.music）或特殊key（timezone）")

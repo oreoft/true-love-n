@@ -48,7 +48,7 @@ async def list_models(params: dict, ctx: dict) -> str:
                 "key": {
                     "type": "string",
                     "enum": ["default", "fallback"],
-                    "description": "default=主力模型，fallback=降级备用（chat/compress/vision 只有 default）",
+                    "description": "default=主力模型，fallback=降级备用（只有 image/video 会用到 fallback）",
                 },
                 "value": {
                     "type": "string",

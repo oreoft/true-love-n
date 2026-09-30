@@ -59,7 +59,6 @@ class Session:
         self._compress_fn = compress_fn
         self._compressing = False
 
-        self.created_at = datetime.now()
         self.updated_at = datetime.now()
 
     @property
@@ -186,11 +185,6 @@ class Session:
         result.extend(messages)
         return result
 
-    def clear(self):
-        self.updated_at = datetime.now()
-        from true_love_ai.memory.session_repository import get_session_repo
-        get_session_repo().clear(self.session_id)
-
 
 class SessionManager:
     """会话管理器（线程安全，Session 对象只存元数据）"""
@@ -236,7 +230,6 @@ class SessionManager:
     def get_or_create(
             self,
             session_id: str,
-            system_prompt: Optional[str] = None,
             user_ctx: Optional[str] = None,
     ) -> Session:
         with self._lock:
@@ -250,10 +243,9 @@ class SessionManager:
                 return prompt
 
             if session_id not in self._sessions:
-                base_prompt = system_prompt if system_prompt is not None else self._resolve_prompt(session_id)
                 self._sessions[session_id] = Session(
                     session_id=session_id,
-                    system_prompt=_build_prompt(base_prompt),
+                    system_prompt=_build_prompt(self._resolve_prompt(session_id)),
                     ttl_seconds=self.ttl_seconds,
                     compress_threshold=self.compress_threshold,
                     compress_keep_recent=self.compress_keep_recent,
@@ -267,40 +259,11 @@ class SessionManager:
 
             return self._sessions[session_id]
 
-    def get(self, session_id: str) -> Optional[Session]:
-        with self._lock:
-            session = self._sessions.get(session_id)
-            if session and session.is_expired:
-                del self._sessions[session_id]
-                return None
-            return session
-
-    def delete(self, session_id: str):
-        with self._lock:
-            self._sessions.pop(session_id, None)
-
     def _cleanup_expired(self):
         expired = [sid for sid, s in self._sessions.items() if s.is_expired]
         for sid in expired:
             del self._sessions[sid]
             LOG.debug("清理过期会话: %s", sid)
-
-    def get_stats(self) -> dict:
-        from true_love_ai.memory.session_repository import get_session_repo
-        repo = get_session_repo()
-        with self._lock:
-            return {
-                "total_sessions": len(self._sessions),
-                "sessions": [
-                    {
-                        "id": sid,
-                        "message_count": repo.count_messages(sid),
-                        "created_at": s.created_at.isoformat(),
-                        "updated_at": s.updated_at.isoformat(),
-                    }
-                    for sid, s in self._sessions.items()
-                ],
-            }
 
 
 _session_manager: Optional[SessionManager] = None

@@ -171,7 +171,6 @@ async def update_reminder(params: dict, ctx: dict) -> str:
     result = await _update(job_id, new_time_iso=new_time_iso, new_content=new_content)
 
     if result.get("code") == 0:
-        data = result.get("data", {})
         parts = []
         if new_time_iso:
             from dateutil.parser import isoparse

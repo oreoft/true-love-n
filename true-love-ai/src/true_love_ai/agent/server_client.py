@@ -180,18 +180,11 @@ async def fetch_media_bytes(ref: str, platform: str = "wechat", timeout: float =
 
 async def query_history(chat_id: str, sender_id: str = "", sender_name: str = "",
                         limit: int = 500, platform: str = "wechat") -> list[dict]:
+    """查询聊天历史，sender_id / sender_name 均为可选过滤条件"""
     payload = {"chat_id": chat_id, "limit": limit, "platform": platform}
     if sender_id:
         payload["sender_id"] = sender_id
     if sender_name:
         payload["sender_name"] = sender_name
-    result = await _async_post("/query/history", payload, timeout=15.0)
-    return result.get("data", {}).get("messages", [])
-
-
-async def query_group_history(chat_id: str, limit: int = 1000,
-                              platform: str = "wechat") -> list[dict]:
-    result = await _async_post("/query/history", {
-        "chat_id": chat_id, "limit": limit, "platform": platform,
-    }, timeout=20.0)
+    result = await _async_post("/query/history", payload, timeout=20.0)
     return result.get("data", {}).get("messages", [])

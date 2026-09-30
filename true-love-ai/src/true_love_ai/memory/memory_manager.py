@@ -74,7 +74,7 @@ def upsert_user_memory(group_id: str, sender_id: str, facts: list[dict], source:
     批量写入用户记忆条目。
 
     Args:
-        group_id: 群 ID（私聊时传 sender_id）
+        group_id: 会话 ID（群聊、私聊一律传 session_id）
         sender_id:   发送者唯一 ID
         facts:    [{key, value}, ...] 列表
         source:   来源标记
@@ -100,14 +100,3 @@ def upsert_user_memory(group_id: str, sender_id: str, facts: list[dict], source:
 
     LOG.info("写入记忆 %d 条: group=%s sender_id=%s", success_count, group_id, sender_id)
     return success_count
-
-
-def clear_user_memory(group_id: str, sender_id: str) -> int:
-    """清除某人在某群的所有记忆，返回删除条数"""
-    try:
-        with SessionLocal() as db:
-            repo = UserMemoryRepository(db)
-            return repo.delete_by_user(group_id, sender_id)
-    except Exception as e:
-        LOG.error("clear_user_memory 失败: %s", e)
-        return 0

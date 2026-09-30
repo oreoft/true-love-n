@@ -68,9 +68,6 @@ class ModelRegistry:
         self._save_override()
         LOG.info("模型已更新: %s.%s = %s", category, key, value)
 
-    def reload(self, config) -> None:
-        self.load(config)
-
     def all(self) -> dict[str, dict[str, str]]:
         return {cat: dict(keys) for cat, keys in self._models.items()}
 

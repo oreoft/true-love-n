@@ -82,7 +82,3 @@ async def execute(name: str, params: dict, ctx: dict) -> str:
 
     require_permission(name, ctx, skill["permissions"])
     return await skill["handler"](params, ctx)
-
-
-def list_skills() -> list[str]:
-    return list(_skills.keys())

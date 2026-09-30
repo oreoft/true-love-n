@@ -38,21 +38,12 @@ class LLMRouter:
             self,
             messages: list[dict],
             model: Optional[str] = None,
-            stream: bool = False,
             **kwargs,
     ) -> str:
         resolved = model or self._model("chat")
         LOG.info("chat: model=%s msgs=%d", resolved, len(messages))
         client = get_openai_client()
-        response = await client.chat.completions.create(
-            model=resolved, messages=messages, stream=stream, **kwargs
-        )
-        if stream:
-            result = ""
-            async for chunk in response:
-                if chunk.choices[0].delta.content:
-                    result += chunk.choices[0].delta.content
-            return result
+        response = await client.chat.completions.create(model=resolved, messages=messages, **kwargs)
         return response.choices[0].message.content
 
     async def chat_for_agent(
@@ -80,7 +71,7 @@ class LLMRouter:
                     args = json.loads(tc.function.arguments) if tc.function.arguments else {}
                 except Exception:
                     args = {}
-                calls.append({"id": tc.id, "name": tc.function.name, "arguments": args, "_raw": tc})
+                calls.append({"id": tc.id, "name": tc.function.name, "arguments": args})
             return "tool_calls", calls
 
         return "text", message.content or ""

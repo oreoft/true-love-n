@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""监听管理 Skill（通过 Server /action/listen/* 实现，仅限 master 私聊）"""
+"""监听管理 Skill（通过 Server /action/listen/* 实现，权限由 skill_permissions 控制）"""
 import logging
 
 from true_love_ai.agent.skill_registry import register_skill

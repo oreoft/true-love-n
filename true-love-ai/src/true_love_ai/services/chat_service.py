@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 聊天服务模块
-
-analyze_speech 已由 analyze_speech_skill 直接实现，本模块只保留：
   - extract_memory_facts: 从分析报告中提取结构化记忆（供 analyze_speech_skill 内部调用）
 """
 import json
