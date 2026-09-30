@@ -52,7 +52,3 @@ def enable_http(robot: "Robot", host: str = "0.0.0.0", port: int = 5000) -> None
     t.start()
 
     LOG.info("HTTP server (Uvicorn) started on %s:%s", host, port)
-
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=5000, log_level="info")

@@ -83,13 +83,13 @@ class Config:
         这台机器的管理员昵称，没配置时为空串
 
         Args:
-            value: 配置里的 master_wix，{机器名: 昵称}；旧写法是单个昵称，对所有机器生效
+            value: 配置里的 master_wix，{机器名: 昵称}
             machine_name: 这台机器的名字
         """
+        master = ""
         if isinstance(value, dict):
-            masters = {str(name).lower(): master for name, master in value.items()}
-            value = masters.get(machine_name)
-        master = str(value or "").strip()
+            masters = {str(name).lower(): nickname for name, nickname in value.items()}
+            master = str(masters.get(machine_name) or "").strip()
         if not master:
             logging.getLogger("Config").warning(
                 f"No master configured for machine [{machine_name}], notifications to the master are off")
@@ -102,8 +102,3 @@ class Config:
         with open(config_path, "r", encoding='utf-8') as fp:
             config = yaml.safe_load(fp)
         return config
-
-    @staticmethod
-    def _get_listen_chats_file() -> str:
-        """获取监听列表文件路径（与 config.yaml 同级目录）"""
-        return "listen_chats.json"

@@ -38,7 +38,6 @@ class ForwardFailureReplyTests(unittest.TestCase):
         spec.loader.exec_module(robot_module)
 
         self.client = Mock()
-        self.client.get_self_name.return_value = "bot"
         self.client.send_text.return_value = True
         self.robot = robot_module.Robot(self.client, Mock())
         self.addCleanup(self.robot.cleanup)

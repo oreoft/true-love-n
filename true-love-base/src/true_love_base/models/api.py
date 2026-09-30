@@ -7,7 +7,7 @@ API Models - HTTP API 请求/响应模型
 
 import json
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from true_love_common.chat_msg import ChatMsg
 from true_love_common.http.response import ApiResponse, BizCode
@@ -28,22 +28,14 @@ class ChatRequest:
 
 @dataclass
 class ChatResponse:
-    """
-    Server 返回的响应
-    """
+    """server /on-message 的响应，base 只看 code 判断是否接收成功；回复由 server 异步回调发送"""
     code: int  # 状态码，0 表示成功
-    message: str  # 状态消息
-    data: Optional[str] = None  # 返回的回复内容
-    
+
     @classmethod
     def from_dict(cls, d: dict) -> "ChatResponse":
         """从字典创建"""
-        return cls(
-            code=d.get("code", -1),
-            message=d.get("message", ""),
-            data=d.get("data"),
-        )
-    
+        return cls(code=d.get("code", -1))
+
     @property
     def is_success(self) -> bool:
         """是否成功"""
@@ -58,4 +50,3 @@ class ApiErrors:
     NO_MASTER = ApiResponse.error(BizCode.BAD_REQUEST, "No master is configured for this machine")
     SEND_FAILED = ApiResponse.error(BizCode.SEND_FAILED, "Send failed, please retry")
     INVALID_PARAMS = ApiResponse.error(BizCode.TOKEN_ERROR, "Invalid parameters")
-    INTERNAL_ERROR = ApiResponse.error(BizCode.INTERNAL_ERROR, "Internal server error")

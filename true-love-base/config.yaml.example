@@ -15,51 +15,17 @@ http_token: "your_secret_token"
 server:
   host: "http://host.docker.internal:8088"
 
-# Chat listeners are stored in listen_chats.json (auto-created)
-# Manage via HTTP API:
-#   GET  /listen/list   - List all listeners
-#   POST /listen/add    - Add listener {"chat_name": "xxx"}
-#   POST /listen/remove - Remove listener {"chat_name": "xxx"}
+# Chat listeners are read from listen_chats.json in the base working directory at startup.
+# The file is NOT created automatically; base only reads it, the server writes it
+# (it is linked into the server container by docker-compose).
+# Format: ["好友昵称", "群名称"]
 #
-# Or manually edit listen_chats.json: ["好友昵称", "群名称"]
+# To start listening to a chat right away without restarting:
+#   POST /listen/add  - {"nickname": "xxx"}
 
-# Logging configuration
-logging:
-  version: 1
-  disable_existing_loggers: False
-
-  formatters:
-    simple:
-      format: "%(asctime)s %(message)s"
-      datefmt: "%Y-%m-%d %H:%M:%S"
-    error:
-      format: "%(asctime)s %(name)s %(levelname)s %(filename)s::%(funcName)s[%(lineno)d]:%(message)s"
-
-  handlers:
-    console:
-      class: logging.StreamHandler
-      level: INFO
-      formatter: simple
-      stream: ext://sys.stdout
-
-    info_file_handler:
-      class: logging.handlers.RotatingFileHandler
-      level: INFO
-      formatter: simple
-      filename: logs/base_info.log
-      maxBytes: 10485760 # 10MB
-      backupCount: 20
-      encoding: utf8
-
-    error_file_handler:
-      class: logging.handlers.RotatingFileHandler
-      level: ERROR
-      formatter: error
-      filename: logs/base_error.log
-      maxBytes: 10485760 # 10MB
-      backupCount: 20
-      encoding: utf8
-
-  root:
-    level: INFO
-    handlers: [ console, info_file_handler, error_file_handler ]
+# Loki log shipping (optional). Leave enable: false to log to the console only.
+loki:
+  enable: false
+  loki_url: "https://your-loki-host"  # /loki/api/v1/push is appended automatically
+  user_id: "your_loki_user_id"
+  api_key: "your_loki_api_key"

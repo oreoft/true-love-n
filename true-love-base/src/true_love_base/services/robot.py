@@ -3,7 +3,7 @@
 Robot - 消息处理机器人
 
 负责消息监听、处理和转发。
-使用抽象的 WeChatClientProtocol 接口，与底层SDK解耦。
+通过 WxAutoClient 操作微信，不直接调用 SDK。
 支持异步消息处理，按 chat_id 分组保证同一聊天的消息顺序。
 """
 
@@ -39,7 +39,7 @@ class Robot:
         初始化机器人
         
         Args:
-            client: 微信客户端实例（实现 WeChatClientProtocol）
+            client: 微信客户端实例
             listen_store: 监听列表持久化管理器
             master: 这台机器的管理员昵称，没有时为空串
         """
@@ -129,7 +129,7 @@ class Robot:
     LISTEN_ADD_RETRY_DELAY = 1.0  # 秒
 
     def add_listen_chat(
-        self, chat_name: str, retry: bool = True, *, stop_event: Optional[threading.Event] = None
+        self, chat_name: str, *, stop_event: Optional[threading.Event] = None
     ) -> bool:
         """
         添加监听的聊天对象（仅操作 SDK，不写入文件）
@@ -138,7 +138,6 @@ class Robot:
         
         Args:
             chat_name: 聊天对象名称（好友昵称或群名）
-            retry: 是否在失败时重试（默认 True）
             stop_event: 启动取消信号，停止后续尝试和重试等待
             
         Returns:
@@ -146,7 +145,7 @@ class Robot:
         """
         import time
 
-        max_attempts = self.LISTEN_ADD_RETRY_COUNT if retry else 1
+        max_attempts = self.LISTEN_ADD_RETRY_COUNT
         last_error = None
 
         for attempt in range(1, max_attempts + 1):

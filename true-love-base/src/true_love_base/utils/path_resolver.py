@@ -53,7 +53,7 @@ def get_wx_imgs_dir() -> str:
     return WX_IMGS_DIR
 
 
-def to_server_path(full_path: str, subdir: str = WX_IMGS_DIR) -> str:
+def to_server_path(full_path: str) -> str:
     """
     将完整路径转换为 Server 可用的相对路径
     
@@ -61,7 +61,6 @@ def to_server_path(full_path: str, subdir: str = WX_IMGS_DIR) -> str:
     
     Args:
         full_path: 完整文件路径，如 "wx_imgs/xxx.jpg"
-        subdir: 子目录名，默认为 wx_imgs
     
     Returns:
         相对路径，如 "wx_imgs/xxx.jpg"
@@ -70,13 +69,10 @@ def to_server_path(full_path: str, subdir: str = WX_IMGS_DIR) -> str:
         >>> to_server_path("wx_imgs/image.jpg")
         "wx_imgs/image.jpg"
     """
-    if not full_path:
-        return None
-
     # 提取文件名
     filename = os.path.basename(str(full_path))
     # 返回相对路径
-    relative_path = f"{subdir}/{filename}"
+    relative_path = f"{WX_IMGS_DIR}/{filename}"
     LOG.debug(f"Converted to server path: {full_path} -> {relative_path}")
     return relative_path
 
@@ -100,9 +96,6 @@ def resolve_path(path: str) -> str:
         >>> resolve_path("moyu-jpg/12-28.jpg")
         "moyu-jpg/12-28.jpg"
     """
-    if not path:
-        return path
-
     # 检查文件是否存在
     if not os.path.exists(path):
         raise FileNotFoundError(f"文件路径不存在: {path}")

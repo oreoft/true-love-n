@@ -2,8 +2,8 @@
 """
 Server Client - 与后端 AI 服务通信
 
-负责将消息发送到后端服务处理，并返回回复。
-使用 Session 复用 HTTP 连接，线程安全的熔断器。
+负责把消息转发到服务端的 /on-message；服务端只确认收到，AI 回复由服务端异步回调 base 发送。
+使用全局 httpx.Client 复用 HTTP 连接，线程安全的熔断器。
 """
 
 import logging
@@ -105,6 +105,11 @@ class CircuitBreaker:
             return True
 
     @property
+    def threshold(self) -> int:
+        """失败阈值"""
+        return self._threshold
+
+    @property
     def fail_count(self) -> int:
         """获取当前失败次数"""
         with self._lock:
@@ -141,7 +146,6 @@ def get_chat(msg: ChatMsg) -> str:
         response = post(
             CHAT_ENDPOINT,
             data=payload,
-            headers={"Content-Type": "application/json"},
             timeout=(2, 10),
             client=client,
         )
@@ -168,6 +172,6 @@ def get_chat(msg: ChatMsg) -> str:
 
 def _get_error_message() -> str:
     """获取错误提示消息"""
-    if _circuit_breaker.fail_count < 3:
+    if _circuit_breaker.fail_count < _circuit_breaker.threshold:
         return "啊哦~消息没送到服务端，稍后再试试捏~"
     return "啊哦~, 服务正在重新调整，请稍后重试再试"
