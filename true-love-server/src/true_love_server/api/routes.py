@@ -19,7 +19,7 @@ from .exception_handlers import ApiResponse, ValidationException
 from ..core import Config
 from true_love_common.chat_msg import ChatMsg
 from ..services import base_client
-from ..services import settings_service
+from ..services import listen_store, settings_service
 from ..services.listen_manager import get_listen_manager
 from ..services.loki_client import get_loki_client
 from ..services.group_message_repository import GroupMessageRepository
@@ -231,7 +231,7 @@ async def listen_list(request: dict):
         - token: 鉴权 token
     """
     verify_token(request.get("token", ""))
-    return ApiResponse(data={"chats": listen_manager.get_listen_list()})
+    return ApiResponse(data={"chats": listen_store.list_all()})
 
 
 @router.get("/admin/listen/status")
