@@ -56,13 +56,23 @@ class RunJobTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_daily_push_can_still_be_triggered_by_hand(self):
         async def accept(path, payload, timeout=None):
-            return {"code": 0}
+            return {"code": 0, "data": {"tasks": 2}}
 
         with patch.object(job_skill, "_async_post", side_effect=accept) as post:
             reply = await job_skill.run_job({"job_name": "notice_moyu_schedule"}, {})
 
         post.assert_called_once_with("/action/job/run", {"job_name": "notice_moyu_schedule"}, timeout=10.0)
         self.assertIn("已触发", reply)
+        self.assertIn("2 个定时任务", reply)
+
+    async def test_job_without_any_scheduled_task_says_where_to_add_one(self):
+        async def accept(path, payload, timeout=None):
+            return {"code": 0, "data": {"tasks": 0}}
+
+        with patch.object(job_skill, "_async_post", side_effect=accept):
+            reply = await job_skill.run_job({"job_name": "notice_moyu_schedule"}, {})
+
+        self.assertIn("还没有配置定时任务", reply)
 
 
 if __name__ == "__main__":
