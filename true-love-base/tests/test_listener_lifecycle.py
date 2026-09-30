@@ -36,6 +36,7 @@ class ListenerLifecycleTests(unittest.TestCase):
         self.sdk.SendMsg.return_value = True
         self.sdk.IsOnline.return_value = True
         self.wechat_running = True
+        self.server = types.SimpleNamespace(get_chat=Mock(), fetch_listen_chats=Mock(return_value=[]))
 
         def open_wechat(**kwargs):
             if not self.wechat_running:
@@ -66,14 +67,11 @@ class ListenerLifecycleTests(unittest.TestCase):
             "true_love_base.configuration": module(
                 "true_love_base.configuration",
                 Config=lambda: types.SimpleNamespace(
-                    master_wix="owner", listen_chats_file="listen_chats.json", machine_name="win10-m8s",
+                    master_wix="owner", machine_name="win10-m8s",
                 ),
             ),
             "true_love_base.services": module(
-                "true_love_base.services", __path__=[], server_client=types.SimpleNamespace(get_chat=Mock())
-            ),
-            "true_love_base.services.listen_store": module(
-                "true_love_base.services.listen_store", ListenStore=Mock()
+                "true_love_base.services", __path__=[], server_client=self.server
             ),
         }
         modules = patch.dict(sys.modules, dependencies)
@@ -155,7 +153,7 @@ class ListenerLifecycleTests(unittest.TestCase):
         self.assertEqual(self.events, ["registered", "stop-sdk"])
 
     def test_robot_drains_accepted_messages_and_ignores_late_callbacks(self):
-        robot = self.robot_module.Robot(self.client, Mock())
+        robot = self.robot_module.Robot(self.client)
         delivered = []
         robot.forward_msg = delivered.append
         first = types.SimpleNamespace(msg_hash="1", msg_id="1")
@@ -170,9 +168,8 @@ class ListenerLifecycleTests(unittest.TestCase):
         self.assertEqual(delivered, [first])
 
     def test_startup_cancellation_skips_remaining_chats(self):
-        store = Mock()
-        store.load.return_value = ["first", "second"]
-        robot = self.robot_module.Robot(self.client, store)
+        self.server.fetch_listen_chats.return_value = ["first", "second"]
+        robot = self.robot_module.Robot(self.client)
         self.addCleanup(robot.cleanup)
         stopped = threading.Event()
 
@@ -183,11 +180,11 @@ class ListenerLifecycleTests(unittest.TestCase):
         self.sdk.AddListenChat.side_effect = register
         result = robot.load_listen_chats(stop_event=stopped)
 
-        self.assertEqual(result, {"success": ["first"], "failed": []})
+        self.assertEqual(result, {"success": ["first"], "failed": [], "unavailable": False})
         self.assertEqual([call.args[0] for call in self.sdk.AddListenChat.call_args_list], ["first"])
 
     def test_startup_cancellation_stops_registration_retries(self):
-        robot = self.robot_module.Robot(self.client, Mock())
+        robot = self.robot_module.Robot(self.client)
         self.addCleanup(robot.cleanup)
         stopped = threading.Event()
 
@@ -201,6 +198,28 @@ class ListenerLifecycleTests(unittest.TestCase):
 
         self.assertEqual(self.sdk.AddListenChat.call_count, 1)
 
+    def test_nothing_is_registered_when_the_server_list_is_unavailable(self):
+        self.server.fetch_listen_chats.return_value = None
+        robot = self.robot_module.Robot(self.client)
+        self.addCleanup(robot.cleanup)
+
+        result = robot.load_listen_chats(stop_event=threading.Event())
+
+        self.assertEqual(result, {"success": [], "failed": [], "unavailable": True})
+        self.sdk.AddListenChat.assert_not_called()
+
+    def test_listeners_are_registered_in_the_order_the_server_returns(self):
+        self.server.fetch_listen_chats.return_value = ["first", "second"]
+        robot = self.robot_module.Robot(self.client)
+        self.addCleanup(robot.cleanup)
+        stop = threading.Event()
+
+        result = robot.load_listen_chats(stop_event=stop)
+
+        self.server.fetch_listen_chats.assert_called_once_with(stop)
+        self.assertEqual(result, {"success": ["first", "second"], "failed": [], "unavailable": False})
+        self.assertEqual([call.args[0] for call in self.sdk.AddListenChat.call_args_list], ["first", "second"])
+
     def test_listener_is_not_registered_when_its_chat_window_never_opened(self):
         self.sdk.AddListenChat.side_effect = lambda *args: True
 
@@ -208,7 +227,7 @@ class ListenerLifecycleTests(unittest.TestCase):
             self.assertFalse(self.client.add_message_listener("group", Mock()))
 
     def test_registration_is_retried_until_the_chat_window_opens(self):
-        robot = self.robot_module.Robot(self.client, Mock())
+        robot = self.robot_module.Robot(self.client)
         self.addCleanup(robot.cleanup)
         attempts = []
 
@@ -228,7 +247,7 @@ class ListenerLifecycleTests(unittest.TestCase):
 
     def run_main(
         self, *, fail_loading=False, fail_stopping=False, cancel_loading=False, wechat_running=True,
-        changes=(), master="owner",
+        changes=(), master="owner", unavailable=False,
     ):
         """Run main(), applying one of `changes` after each supervisor step, then shut down."""
         self.wechat_running = wechat_running
@@ -249,7 +268,9 @@ class ListenerLifecycleTests(unittest.TestCase):
                 raise RuntimeError("startup failed")
             if cancel_loading:
                 shutdown.is_set.return_value = True
-            return {"success": ["group"], "failed": []}
+            if unavailable:
+                return {"success": [], "failed": [], "unavailable": True}
+            return {"success": ["group"], "failed": [], "unavailable": False}
 
         robot.load_listen_chats.side_effect = load
         robot.cleanup.side_effect = lambda: self.events.append("drain")
@@ -321,6 +342,13 @@ class ListenerLifecycleTests(unittest.TestCase):
         self.assertIn("reconnected", reconnected)
         self.assertNotIn("started successfully", reconnected)
         self.assertIn("shutting down", stopping)
+
+    def test_master_is_told_when_the_server_list_is_unavailable(self):
+        with self.assertLogs("Main", level="ERROR"):
+            robot = self.run_main(unavailable=True)
+
+        started = robot.send_text_msg.call_args_list[0].args[0]
+        self.assertIn("没从 server 取到监听列表", started)
 
     def test_startup_notice_warns_when_display_scaling_is_not_standard(self):
         with (

@@ -222,6 +222,18 @@ async def query_history(request: dict):
 
 # ==================== Listen 监听管理接口 ====================
 
+@router.post("/listen/list")
+async def listen_list(request: dict):
+    """
+    base 连上微信时来取要监听的群和好友
+
+    Request Body:
+        - token: 鉴权 token
+    """
+    verify_token(request.get("token", ""))
+    return ApiResponse(data={"chats": listen_manager.get_listen_list()})
+
+
 @router.get("/admin/listen/status")
 async def get_listen_status():
     """

@@ -15,13 +15,9 @@ http_token: "your_secret_token"
 server:
   host: "http://host.docker.internal:8088"
 
-# Chat listeners are read from listen_chats.json in the base working directory at startup.
-# The file is NOT created automatically; base only reads it, the server writes it
-# (it is linked into the server container by docker-compose).
-# Format: ["好友昵称", "群名称"]
-#
-# To start listening to a chat right away without restarting:
-#   POST /listen/add  - {"nickname": "xxx"}
+# Chat listeners are kept in the server's database. When WeChat connects, base fetches
+# them from the server above, retrying for a few minutes; the server restores them after it starts.
+# Add or remove listeners from the server admin console (POST /admin/listen/add on the server).
 
 # Loki log shipping (optional). Leave enable: false to log to the console only.
 loki:

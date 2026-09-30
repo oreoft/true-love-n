@@ -1,123 +1,184 @@
-"""Listener removal must report whether the restart source was actually saved."""
+"""The listen list lives in this server's database; base fetches it instead of reading a shared file."""
 
-import importlib.util
+import importlib
 import json
+import os
+import sqlite3
 import sys
 import tempfile
 import types
 import unittest
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 
-SOURCE = Path(__file__).parents[1] / "src/true_love_server/services"
+SOURCE = Path(__file__).parents[1] / "src/true_love_server"
 
 
-def load_source(name, filename):
-    spec = importlib.util.spec_from_file_location(name, SOURCE / filename)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+def module(name, path=None, **attributes):
+    result = types.ModuleType(name)
+    if path is not None:
+        result.__path__ = [str(path)]
+    result.__dict__.update(attributes)
+    return result
 
 
-class ListenManagerPersistenceTests(unittest.IsolatedAsyncioTestCase):
+class ListenCase(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
-        self.temp_dir = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp_dir.cleanup)
-        self.path = Path(self.temp_dir.name) / "listen_chats.json"
-        self.path.write_text('["deleted chat", "kept chat"]', encoding="utf-8")
-
-        # Load the real manager and store without importing the application,
-        # which initializes configuration and HTTP routes at package import.
-        package = types.ModuleType("listen_manager_persistence")
-        package.__path__ = []
-        self.sdk = types.SimpleNamespace(execute_wx=AsyncMock())
-        base_client = types.ModuleType("listen_manager_persistence.base_client")
-        base_client.get_wechat_client = lambda: self.sdk
-        self.store_module = load_source(
-            "listen_manager_persistence.listen_store", "listen_store.py"
-        )
-        self.store = self.store_module.ListenStore(str(self.path))
-        self.store.load()
+        engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        self.sdk = types.SimpleNamespace(execute_wx=AsyncMock(), add_listen_chat=AsyncMock())
+        # Import the real store and manager against a throwaway database, without loading config or the app.
         dependencies = {
-            package.__name__: package,
-            base_client.__name__: base_client,
-            self.store_module.__name__: self.store_module,
+            "true_love_server": module("true_love_server", SOURCE),
+            "true_love_server.core": module("true_love_server.core", SOURCE / "core"),
+            "true_love_server.models": module("true_love_server.models", SOURCE / "models"),
+            "true_love_server.services": module("true_love_server.services", SOURCE / "services"),
+            "true_love_server.core.db_engine": module(
+                "true_love_server.core.db_engine", SessionLocal=sessionmaker(bind=engine)),
+            "true_love_server.services.base_client": module(
+                "true_love_server.services.base_client", get_wechat_client=lambda: self.sdk),
         }
-        with patch.dict(sys.modules, dependencies):
-            manager_module = load_source(
-                "listen_manager_persistence.listen_manager", "listen_manager.py"
-            )
-        self.manager = manager_module.ListenManager()
+        modules = patch.dict(sys.modules, dependencies)
+        modules.start()
+        self.addCleanup(modules.stop)
+        importlib.import_module("true_love_server.models.listen_chat").Base.metadata.create_all(bind=engine)
+        self.store = importlib.import_module("true_love_server.services.listen_store")
+        self.manager = importlib.import_module("true_love_server.services.listen_manager").ListenManager()
 
     def set_sdk_result(self, success):
-        self.sdk.execute_wx.return_value = {
-            "success": success,
-            "data": None,
-            "message": "ok" if success else "listener was not running",
-        }
+        result = {"success": success, "data": None, "message": "ok" if success else "listener was not running"}
+        self.sdk.execute_wx.return_value = result
+        self.sdk.add_listen_chat.return_value = result
 
-    def assert_saved_chats(self, expected):
-        self.assertEqual(expected, json.loads(self.path.read_text(encoding="utf-8")))
-        self.assertEqual(expected, self.store.load())
 
-    async def test_sdk_success_removes_restart_record(self):
+class ListenStoreTests(ListenCase):
+    def test_chats_are_listed_in_the_order_they_were_added(self):
+        for chat in ("群A", "好友B", "群C"):
+            self.assertTrue(self.store.add(chat))
+
+        self.assertEqual(self.store.list_all(), ["群A", "好友B", "群C"])
+
+    def test_adding_twice_keeps_one_entry(self):
+        self.assertTrue(self.store.add("群A"))
+        self.assertFalse(self.store.add("群A"))
+
+        self.assertEqual(self.store.list_all(), ["群A"])
+
+    def test_removing_an_absent_chat_is_harmless(self):
+        self.store.add("群A")
+
+        self.assertFalse(self.store.remove("群B"))
+        self.assertTrue(self.store.remove("群A"))
+        self.assertFalse(self.store.exists("群A"))
+
+
+class ListenManagerTests(ListenCase):
+    def setUp(self):
+        super().setUp()
+        self.store.add("deleted chat")
+        self.store.add("kept chat")
+
+    async def test_chat_is_saved_only_after_base_starts_listening(self):
+        self.set_sdk_result(False)
+        self.assertFalse((await self.manager.add_listen("new chat"))["success"])
+        self.assertFalse(self.store.exists("new chat"))
+
         self.set_sdk_result(True)
+        self.assertTrue((await self.manager.add_listen("new chat"))["success"])
+        self.assertEqual(self.store.list_all(), ["deleted chat", "kept chat", "new chat"])
 
-        result = await self.manager.remove_listen("deleted chat")
+    async def test_removal_is_saved_whether_or_not_base_was_listening(self):
+        for sdk_success in (True, False):
+            with self.subTest(sdk_success=sdk_success):
+                self.store.add("deleted chat")
+                self.set_sdk_result(sdk_success)
 
-        self.assertTrue(result["success"])
-        self.assert_saved_chats(["kept chat"])
-        self.sdk.execute_wx.assert_awaited_once_with(
-            "RemoveListenChat", {"nickname": "deleted chat"}
-        )
+                result = await self.manager.remove_listen("deleted chat")
 
-    async def test_sdk_failure_still_removes_restart_record(self):
+                self.assertTrue(result["success"])
+                self.assertEqual(self.store.list_all(), ["kept chat"])
+        self.sdk.execute_wx.assert_awaited_with("RemoveListenChat", {"nickname": "deleted chat"})
+
+    async def test_reset_keeps_the_saved_chat(self):
         self.set_sdk_result(False)
 
-        result = await self.manager.remove_listen("deleted chat")
+        result = await self.manager.remove_listen("deleted chat", skip_store=True)
 
         self.assertTrue(result["success"])
-        self.assert_saved_chats(["kept chat"])
+        self.assertEqual(self.store.list_all(), ["deleted chat", "kept chat"])
 
-    async def test_failed_persistence_is_reported_after_sdk_success(self):
-        await self.assert_failed_persistence(sdk_success=True)
 
-    async def test_failed_persistence_is_reported_after_sdk_failure(self):
-        await self.assert_failed_persistence(sdk_success=False)
+class LegacyFileImportTests(unittest.TestCase):
+    """The shared listen_chats.json is imported once by migration 002."""
 
-    async def assert_failed_persistence(self, sdk_success):
-        self.set_sdk_result(sdk_success)
-        with patch.object(
-            self.store_module.os, "replace", side_effect=PermissionError("read only")
-        ):
-            result = await self.manager.remove_listen("deleted chat")
+    def setUp(self):
+        spec = importlib.util.spec_from_file_location("migrate_subject", SOURCE / "core/migrate.py")
+        self.migrate = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.migrate)
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        cwd = os.getcwd()
+        os.chdir(temp.name)
+        self.addCleanup(os.chdir, cwd)
+        self.db = Path(temp.name) / "server.db"
+        with sqlite3.connect(self.db) as conn:
+            conn.execute("CREATE TABLE schema_migrations (version TEXT, description TEXT, applied_at TEXT)")
+            conn.execute("CREATE TABLE listen_chats (chat_name VARCHAR(128) PRIMARY KEY, created_at DATETIME)")
 
-        self.assertFalse(result["success"])
-        self.assertIn("persist", result["message"].lower())
-        self.assertIn("deleted chat", result["message"])
-        self.assertTrue(self.store.exists("deleted chat"))
-        self.assert_saved_chats(["deleted chat", "kept chat"])
+    def saved(self):
+        with sqlite3.connect(self.db) as conn:
+            return [row[0] for row in conn.execute("SELECT chat_name FROM listen_chats ORDER BY created_at")]
 
-    async def test_missing_record_is_idempotent_for_either_sdk_result(self):
-        for sdk_success in (True, False):
-            with self.subTest(sdk_success=sdk_success):
-                self.set_sdk_result(sdk_success)
+    def test_file_is_imported_in_order_once(self):
+        Path("listen_chats.json").write_text(json.dumps(["群A", "好友B", "群A"]), encoding="utf-8")
 
-                result = await self.manager.remove_listen("already absent")
+        self.migrate.run(str(self.db))
+        self.assertEqual(self.saved(), ["群A", "好友B"])
 
-                self.assertTrue(result["success"])
-                self.assert_saved_chats(["deleted chat", "kept chat"])
+        # Later edits to the old file no longer matter.
+        Path("listen_chats.json").write_text(json.dumps(["群C"]), encoding="utf-8")
+        self.migrate.run(str(self.db))
+        self.assertEqual(self.saved(), ["群A", "好友B"])
 
-    async def test_reset_keeps_restart_record_for_either_sdk_result(self):
-        for sdk_success in (True, False):
-            with self.subTest(sdk_success=sdk_success):
-                self.set_sdk_result(sdk_success)
+    def test_missing_file_imports_nothing(self):
+        self.migrate.run(str(self.db))
 
-                result = await self.manager.remove_listen("deleted chat", skip_store=True)
+        self.assertEqual(self.saved(), [])
 
-                self.assertTrue(result["success"])
-                self.assert_saved_chats(["deleted chat", "kept chat"])
+
+class ListenRoutesTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.manager = types.SimpleNamespace(get_listen_list=Mock(return_value=["群A"]), refresh_listen=AsyncMock())
+        self.verify_token = Mock()
+        dependencies = {
+            "true_love_server": module("true_love_server", SOURCE),
+            "true_love_server.api": module("true_love_server.api", SOURCE / "api"),
+            "true_love_server.api.deps": module("true_love_server.api.deps", verify_token=self.verify_token),
+            "true_love_server.core": module("true_love_server.core", Config=Mock()),
+            "true_love_server.services": module(
+                "true_love_server.services", SOURCE / "services", base_client=Mock(), settings_service=Mock(),
+                reminder_service=Mock(), task_service=Mock(), ai_skill_client=Mock()),
+            "true_love_server.services.listen_manager": module(
+                "true_love_server.services.listen_manager", get_listen_manager=lambda: self.manager),
+            "true_love_server.services.loki_client": module(
+                "true_love_server.services.loki_client", get_loki_client=Mock()),
+            "true_love_server.services.group_message_repository": module(
+                "true_love_server.services.group_message_repository", GroupMessageRepository=Mock()),
+        }
+        modules = patch.dict(sys.modules, dependencies)
+        modules.start()
+        self.addCleanup(modules.stop)
+        self.routes = importlib.import_module("true_love_server.api.routes")
+
+    async def test_base_gets_the_list_with_its_token(self):
+        response = await self.routes.listen_list({"token": "token"})
+
+        self.verify_token.assert_called_once_with("token")
+        self.assertEqual(response.data, {"chats": ["群A"]})
 
 
 if __name__ == "__main__":

@@ -11,7 +11,6 @@ Base 端文件路径处理工具。
 - uv 执行时工作目录就是 true-love-base，直接使用相对路径即可
 
 核心函数：
-- get_listen_chats_file(): 获取 listen_chats.json 路径
 - get_wx_imgs_dir(): 获取 wx_imgs 路径，用于 Base 下载文件
 - to_server_path(): 将完整路径转为相对路径，用于传输给 Server
 - resolve_path(): 解析相对路径，用于 Base 读取文件
@@ -24,16 +23,6 @@ LOG = logging.getLogger("PathResolver")
 
 # 微信图片下载目录名
 WX_IMGS_DIR = "wx_imgs"
-
-
-def get_listen_chats_file() -> str:
-    """
-    获取 listen_chats.json 文件路径
-    
-    Returns:
-        listen_chats.json 的路径
-    """
-    return "listen_chats.json"
 
 
 def get_wx_imgs_dir() -> str:

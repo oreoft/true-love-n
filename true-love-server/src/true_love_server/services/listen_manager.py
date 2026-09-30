@@ -6,7 +6,7 @@ Listen Manager - 监听管理器
 所有连接管理逻辑集中在此模块，Base 端只提供底层能力。
 
 职责：
-- 本地管理 listen_chats.json（单一数据源）
+- 在 server 数据库里管理监听列表（单一数据源）
 - 通过 Base 的 execute 接口操作 SDK
 - 提供监听状态查询、增删、刷新、重置等功能
 """
@@ -15,8 +15,7 @@ import asyncio
 import logging
 from typing import Optional
 
-from .listen_store import get_listen_store
-from . import base_client
+from . import base_client, listen_store
 
 LOG = logging.getLogger("ListenManager")
 
@@ -25,7 +24,7 @@ class ListenManager:
     """
     监听管理器（单例）
     
-    - 本地管理 listen_chats.json（单一数据源）
+    - 在 server 数据库里管理监听列表（单一数据源）
     - 通过 Base 的 execute 接口操作 SDK
     """
 
@@ -40,7 +39,6 @@ class ListenManager:
         if hasattr(self, '_initialized') and self._initialized:
             return
 
-        self._store = get_listen_store()
         self._initialized = True
         LOG.info("ListenManager initialized")
 
@@ -59,7 +57,7 @@ class ListenManager:
         Returns:
             状态结果，包含 listeners 和 summary
         """
-        db_chats = self._store.list_all()
+        db_chats = listen_store.list_all()
 
         if not db_chats:
             return {"listeners": [], "summary": {"healthy": 0, "unhealthy": 0}}
@@ -140,17 +138,17 @@ class ListenManager:
         流程：
         1. 切换 ChatWith（打开聊天窗口）
         2. 调用 Base 添加 SDK 监听
-        3. 成功后写入本地 JSON（除非 skip_store=True）
+        3. 成功后写入数据库（除非 skip_store=True）
         
         Args:
             chat_name: 聊天对象名称
-            skip_store: 是否跳过本地存储操作（用于 reset 场景，已有记录无需重复写入）
+            skip_store: 是否跳过数据库操作（用于 reset 场景，已有记录无需重复写入）
             
         Returns:
             {"success": bool, "message": str}
         """
         # 检查是否已存在（仅在非 skip_store 模式下检查）
-        if not skip_store and self._store.exists(chat_name):
+        if not skip_store and listen_store.exists(chat_name):
             LOG.info(f"[{chat_name}] already in listen list")
             return {"success": True, "message": f"[{chat_name}] already exists"}
 
@@ -164,9 +162,9 @@ class ListenManager:
         result = await base_client.get_wechat_client().add_listen_chat(chat_name)
 
         if result.get("success"):
-            # SDK 添加成功，写入本地（除非 skip_store）
+            # SDK 添加成功，写入数据库（除非 skip_store）
             if not skip_store:
-                self._store.add(chat_name)
+                listen_store.add(chat_name)
             LOG.info(f"Added listener for [{chat_name}]")
             return {"success": True, "message": f"Added listener for [{chat_name}]"}
         else:
@@ -179,11 +177,11 @@ class ListenManager:
         
         流程：
         1. 调用 Base 移除 SDK 监听
-        2. 从本地 JSON 删除（除非 skip_store=True）
+        2. 从数据库删除（除非 skip_store=True）
         
         Args:
             chat_name: 聊天对象名称
-            skip_store: 是否跳过本地存储操作（用于 reset 场景，不需要删除本地记录）
+            skip_store: 是否跳过数据库操作（用于 reset 场景，不需要删除本地记录）
             
         Returns:
             {"success": bool, "message": str}
@@ -195,20 +193,13 @@ class ListenManager:
             LOG.warning(f"SDK remove failed for [{chat_name}]: {result.get('message')}")
 
         if not skip_store:
-            removed = self._store.remove(chat_name)
-            # remove also returns False when already absent; that is idempotent success.
-            if not removed and self._store.exists(chat_name):
-                LOG.error(f"Failed to persist listener removal for [{chat_name}]")
-                return {
-                    "success": False,
-                    "message": f"Failed to persist removal for [{chat_name}]; listener is still saved locally",
-                }
+            listen_store.remove(chat_name)
 
         if result.get("success"):
             LOG.info(f"Removed listener for [{chat_name}]")
             return {"success": True, "message": f"Removed listener for [{chat_name}]"}
         else:
-            return {"success": True, "message": f"Removed from local (SDK: {result.get('message', 'failed')})"}
+            return {"success": True, "message": f"Removed from listen list (SDK: {result.get('message', 'failed')})"}
 
     # ==================== 刷新/重置接口 ====================
 
@@ -296,8 +287,8 @@ class ListenManager:
         Returns:
             {"success": bool, "message": str, "steps": list}
         """
-        if not self._store.exists(chat_name):
-            return {"success": False, "message": f"Chat [{chat_name}] not in local config", "steps": []}
+        if not listen_store.exists(chat_name):
+            return {"success": False, "message": f"Chat [{chat_name}] not in listen list", "steps": []}
 
         steps = []
 
@@ -315,7 +306,7 @@ class ListenManager:
         except Exception as e:
             steps.append({"step": "close_window", "success": False, "error": str(e)})
 
-        # Step 3: 移除监听（skip_store=True，不删除本地记录）
+        # Step 3: 移除监听（skip_store=True，不删除数据库记录）
         try:
             result = await self.remove_listen(chat_name, skip_store=True)
             steps.append({"step": "remove_listen", "success": result.get("success", False)})
@@ -326,7 +317,7 @@ class ListenManager:
         await asyncio.sleep(0.5)
         steps.append({"step": "wait", "success": True, "duration": 0.5})
 
-        # Step 5: 重新添加监听（skip_store=True，不重复写入本地记录）
+        # Step 5: 重新添加监听（skip_store=True，不重复写入数据库记录）
         try:
             result = await self.add_listen(chat_name, skip_store=True)
             steps.append({"step": "add_listen", "success": result.get("success", False)})
@@ -355,7 +346,7 @@ class ListenManager:
         Returns:
             {"success": bool, "message": str, "total": int, "recovered": list, "failed": list, "steps": list}
         """
-        db_chats = self._store.list_all()
+        db_chats = listen_store.list_all()
 
         if not db_chats:
             return {

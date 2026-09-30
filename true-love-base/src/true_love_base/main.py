@@ -14,7 +14,6 @@ from threading import Event
 from true_love_base.api import server
 from true_love_base.configuration import Config
 from true_love_base.core import WxAutoClient
-from true_love_base.services.listen_store import ListenStore
 from true_love_base.services.robot import Robot
 from true_love_base.services.wx_supervisor import WxSupervisor
 from true_love_base.utils.win_env import display_scale_percent, keep_awake
@@ -127,11 +126,14 @@ def init_listening(robot: Robot, stop_event: Event, *, reconnected: bool = False
         return False
     success_chats = load_result["success"]
     failed_chats = load_result["failed"]
+    unavailable = load_result["unavailable"]
 
-    if len(success_chats) > 0:
-        LOG.info(f"Loaded {len(success_chats)} listen chats from file")
+    if unavailable:
+        LOG.error("Listen chats unavailable from server; not listening to any chat until the server restores them")
+    elif len(success_chats) > 0:
+        LOG.info(f"Loaded {len(success_chats)} listen chats from server")
     else:
-        LOG.warning("No listen_chats found! Use API to add listeners")
+        LOG.warning("No listen chats on server! Use API to add listeners")
 
     if len(failed_chats) > 0:
         LOG.warning(f"Failed to load {len(failed_chats)} listen chats: {failed_chats}")
@@ -150,6 +152,8 @@ def init_listening(robot: Robot, stop_event: Event, *, reconnected: bool = False
         startup_msg = f"{headline}\n\n当前监听列表 ({len(success_chats)}个):\n{success_list_str}"
         if failed_chats:
             startup_msg += f"\n\n监听失败 ({len(failed_chats)}个):\n{failed_list_str}"
+        if unavailable:
+            startup_msg += "\n\n没从 server 取到监听列表，暂时不监听任何聊天；server 启动后会自动补上"
 
         scale = display_scale_percent()
         if scale is not None and scale != 100:
@@ -167,10 +171,6 @@ def init_wx() -> tuple[WxAutoClient, Robot]:
     # 初始化微信客户端；连接微信由 WxSupervisor 负责，微信没开也不影响 base 启动
     client = WxAutoClient(bot_id=config.machine_name)
 
-    # 初始化监听列表持久化管理器
-    listen_store = ListenStore(config.listen_chats_file)
-    LOG.info(f"ListenStore initialized: {config.listen_chats_file}")
-
-    # 初始化机器人
-    robot = Robot(client, listen_store, master=config.master_wix)
+    # 初始化机器人；监听列表在连上微信后向 server 取
+    robot = Robot(client, master=config.master_wix)
     return client, robot
