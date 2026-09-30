@@ -1,7 +1,6 @@
 """Scheduled tasks push a chosen job to a list of receivers, once or every day, and survive in this server's database."""
 
 import importlib
-import json
 import sys
 import types
 import unittest
@@ -16,7 +15,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger  # noqa: F401  loaded before sys.modules is patched, so pickling finds the same class
 from apscheduler.triggers.date import DateTrigger  # noqa: F401
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 
@@ -34,7 +32,6 @@ def module(name, path=None, **attributes):
 class TaskServiceCase(unittest.TestCase):
     def setUp(self):
         engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
-        self.SessionLocal = sessionmaker(bind=engine)
         self.scheduler = BackgroundScheduler(
             jobstores={"default": SQLAlchemyJobStore(engine=engine), "memory": MemoryJobStore()}, timezone="UTC")
         # A stand-in job_process: its own functions can be run by name, imported helpers and private ones cannot.
@@ -62,9 +59,7 @@ class TaskServiceCase(unittest.TestCase):
         dependencies = {
             "true_love_server": module("true_love_server", SOURCE),
             "true_love_server.core": module("true_love_server.core", SOURCE / "core"),
-            "true_love_server.models": module("true_love_server.models", SOURCE / "models"),
             "true_love_server.services": module("true_love_server.services", SOURCE / "services"),
-            "true_love_server.core.db_engine": module("true_love_server.core.db_engine", SessionLocal=self.SessionLocal),
             "true_love_server.services.scheduler_service": module(
                 "true_love_server.services.scheduler_service", scheduler=self.scheduler),
             "true_love_server.jobs": module("true_love_server.jobs", SOURCE / "jobs"),
@@ -77,8 +72,6 @@ class TaskServiceCase(unittest.TestCase):
         sleep = patch.object(self.tasks.time, "sleep")
         sleep.start()
         self.addCleanup(sleep.stop)
-        self.Setting = importlib.import_module("true_love_server.models.setting").Setting
-        self.Setting.metadata.create_all(bind=engine)
         self.scheduler.start(paused=True)
         self.addCleanup(self.scheduler.shutdown, wait=False)
 
@@ -259,54 +252,6 @@ class ReminderEditTests(TaskServiceCase):
             with self.subTest(job_id=job_id):
                 with self.assertRaises(ValueError):
                     self.reminders.edit_reminder(job_id, "委员会", "去开会", self.later)
-
-
-class ImportFromSettingsTests(TaskServiceCase):
-    """The push groups that used to be settings become daily tasks once, at the times they used to run."""
-
-    def save_setting(self, key, value):
-        with self.SessionLocal() as db:
-            db.add(self.Setting(key=key, value=json.dumps(value, ensure_ascii=False)))
-            db.commit()
-
-    def settings_left(self):
-        with self.SessionLocal() as db:
-            return sorted(row.key for row in db.query(self.Setting).all())
-
-    def test_old_groups_become_daily_tasks_at_the_old_times(self):
-        self.save_setting("moyu_groups", ["委员会", "家人群"])
-        self.save_setting("usa_moyu_groups", ["湾区群"])
-        self.save_setting("reply_to", "http://h-m8s:8088")
-
-        self.tasks.import_from_settings()
-
-        described = {task["job_name"]: (task["receivers"], task["schedule"]) for task in self.tasks.list_tasks()}
-        self.assertEqual(described, {
-            "notice_moyu_schedule": (["委员会", "家人群"], self.daily("09:05", "Asia/Shanghai")),
-            "notice_usa_moyu_schedule": (["湾区群"], self.daily("08:00", "America/Chicago")),
-        })
-        self.assertEqual(self.settings_left(), ["reply_to"])
-
-    def test_migration_happens_only_once(self):
-        self.save_setting("moyu_groups", ["委员会"])
-
-        self.tasks.import_from_settings()
-        self.tasks.import_from_settings()
-
-        self.assertEqual(len(self.tasks.list_tasks()), 1)
-
-    def test_emptied_groups_are_dropped_without_creating_a_task(self):
-        self.save_setting("moyu_groups", [])
-
-        self.tasks.import_from_settings()
-
-        self.assertEqual(self.tasks.list_tasks(), [])
-        self.assertEqual(self.settings_left(), [])
-
-    def test_new_server_has_nothing_to_migrate(self):
-        self.tasks.import_from_settings()
-
-        self.assertEqual(self.tasks.list_tasks(), [])
 
 
 if __name__ == "__main__":

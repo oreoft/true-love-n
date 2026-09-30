@@ -20,13 +20,13 @@ def module(name, path=None, **attributes):
 
 
 class FakeSettings:
-    """Stands in for the settings service: one list setting, validated like the real one."""
+    """Stands in for the settings service: one text setting, validated like the real one."""
 
     def __init__(self):
-        self.values = {"moyu_groups": ["委员会"]}
+        self.values = {"reply_to": "http://h-m8s:8088"}
 
     def list_all(self):
-        return [{"key": "moyu_groups", "label": "每日摸鱼推送的群", "type": "list", "hint": "", "value": self.values["moyu_groups"]}]
+        return [{"key": "reply_to", "label": "本机回调地址", "type": "text", "hint": "", "value": self.values["reply_to"]}]
 
     def update(self, key, value):
         if key not in self.values:
@@ -66,14 +66,14 @@ class AdminSettingsTests(unittest.IsolatedAsyncioTestCase):
         response = await self.routes.list_settings()
 
         self.assertEqual(response.data, {"settings": [{
-            "key": "moyu_groups", "label": "每日摸鱼推送的群", "type": "list", "hint": "", "value": ["委员会"],
+            "key": "reply_to", "label": "本机回调地址", "type": "text", "hint": "", "value": "http://h-m8s:8088",
         }]})
 
     async def test_change_made_in_the_console_is_saved(self):
-        response = await self.routes.update_setting({"key": "moyu_groups", "value": ["委员会", "家人群"]})
+        response = await self.routes.update_setting({"key": "reply_to", "value": "http://win10-m8s:8088"})
 
-        self.assertEqual(self.settings.values["moyu_groups"], ["委员会", "家人群"])
-        self.assertEqual(response.data, {"key": "moyu_groups", "value": ["委员会", "家人群"]})
+        self.assertEqual(self.settings.values["reply_to"], "http://win10-m8s:8088")
+        self.assertEqual(response.data, {"key": "reply_to", "value": "http://win10-m8s:8088"})
 
     async def test_rejected_change_tells_the_console_why(self):
         with self.assertRaisesRegex(self.routes.ValidationException, "未知的设置项: master"):
@@ -81,9 +81,9 @@ class AdminSettingsTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_change_without_a_setting_name_is_refused(self):
         with self.assertRaises(self.routes.ValidationException):
-            await self.routes.update_setting({"value": ["委员会"]})
+            await self.routes.update_setting({"value": "http://win10-m8s:8088"})
 
-        self.assertEqual(self.settings.values["moyu_groups"], ["委员会"])
+        self.assertEqual(self.settings.values["reply_to"], "http://h-m8s:8088")
 
 
 if __name__ == "__main__":

@@ -46,15 +46,6 @@ class ListenManager:
 
     # ==================== 查询接口 ====================
 
-    def get_listen_list(self) -> list[str]:
-        """
-        获取监听列表（从本地 JSON）
-        
-        Returns:
-            监听对象名称列表
-        """
-        return self._store.list_all()
-
     async def get_listener_status(self) -> dict:
         """
         获取监听状态

@@ -17,7 +17,6 @@ from ..models.setting import Setting
 LOG = logging.getLogger("SettingsService")
 
 TEXT = "text"
-LIST = "list"
 
 DEFINITIONS: dict[str, dict[str, str]] = {
     "reply_to": {
@@ -38,12 +37,6 @@ def _definition(key: str) -> dict[str, str]:
 def _clean(key: str, value: Any) -> Any:
     """校验并整理要保存的值，不合法时抛 ValueError"""
     definition = _definition(key)
-    if definition["type"] == LIST:
-        if not isinstance(value, list):
-            raise ValueError(f"{definition['label']}必须是列表")
-        names = [str(item).strip() for item in value]
-        return list(dict.fromkeys(name for name in names if name))
-
     if not isinstance(value, str):
         raise ValueError(f"{definition['label']}必须是文本")
     value = value.strip().rstrip("/")
@@ -60,12 +53,10 @@ def _read(key: str) -> Optional[Any]:
 
 
 def get(key: str) -> Any:
-    """读取设置，没设置过时文本为空串、列表为空列表"""
-    definition = _definition(key)
+    """读取设置，没设置过时为空串"""
+    _definition(key)
     value = _read(key)
-    if value is None:
-        return [] if definition["type"] == LIST else ""
-    return value
+    return "" if value is None else value
 
 
 def update(key: str, value: Any) -> Any:

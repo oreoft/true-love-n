@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
-from true_love_common.http.client import HttpResult, async_get, get, trace_headers
+from true_love_common.http.client import HttpResult, async_get
 
 from ...core.fs import ensure_dir
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Server DB 当前 Migration
-历史记录见 db/migrations/*.sql 和 schema_migrations 表。
+已执行过的版本记录在 schema_migrations 表里。
 
 有新 migration 时：直接替换此文件内容即可，旧版本已在 schema_migrations 里记录，不会重复执行。
 """
@@ -13,7 +13,7 @@ def _cols(conn: sqlite3.Connection, table: str) -> set[str]:
     return {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
 
 
-# 对应 db/migrations/001_multi_platform.sql
+# 多平台支持迁移
 VERSION = "001"
 DESCRIPTION = "multi_platform: add platform/sender_id/sender_name/chat_name, drop sender"
 

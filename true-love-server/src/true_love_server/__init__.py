@@ -7,14 +7,13 @@ True Love Server - 真爱粉服务端
 
 __version__ = "0.2.0"
 
-from .core import Config, local_msg_id
+from .core import Config
 from .models import ChatMsg
 from .api import create_app
 
 __all__ = [
     "__version__",
     "Config",
-    "local_msg_id",
     "ChatMsg",
     "create_app",
 ]

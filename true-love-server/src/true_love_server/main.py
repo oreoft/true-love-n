@@ -48,12 +48,8 @@ def main():
     init_db()
 
     # 启动持久化调度器（提醒和定时任务）
-    from .services import task_service
     from .services.scheduler_service import start_scheduler
     start_scheduler()
-
-    # 设置页原来的推送群迁移成定时任务（只迁移一次）
-    task_service.import_from_settings()
 
     # 通知 master
     notice_master()

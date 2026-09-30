@@ -8,7 +8,6 @@ Schema Migration 记录模型
 from datetime import datetime
 
 from sqlalchemy import Column, String, DateTime
-from sqlalchemy.orm import declarative_base
 
 from .group_message import Base
 

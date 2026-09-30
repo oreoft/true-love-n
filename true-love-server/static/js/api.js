@@ -2,14 +2,12 @@
  * API 请求模块
  */
 
-const SERVER_HOST = window.location.origin;
-
 /**
- * 通用请求方法
+ * 通用请求方法（请求当前页面所在的 server）
  */
-async function apiRequest(url, options = {}, host = SERVER_HOST) {
+async function apiRequest(url, options = {}) {
     try {
-        const response = await fetch(host + url, {
+        const response = await fetch(url, {
             headers: { 'Content-Type': 'application/json' },
             ...options
         });
@@ -28,8 +26,6 @@ async function apiRequest(url, options = {}, host = SERVER_HOST) {
 
 // 导出为全局对象
 window.api = {
-    request: apiRequest,
-    
     // Listen API
     fetchListenStatus: () => apiRequest('/admin/listen/status'),
     

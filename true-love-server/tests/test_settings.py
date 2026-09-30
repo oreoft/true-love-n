@@ -82,12 +82,6 @@ class SettingsTests(SettingsCase):
         self.assertEqual(listed["reply_to"]["type"], "text")
         self.assertTrue(listed["reply_to"]["label"])
 
-    def test_push_groups_are_no_longer_settings(self):
-        """They became scheduled tasks; see test_task_service."""
-        for key in ("moyu_groups", "usa_moyu_groups"):
-            with self.assertRaises(ValueError):
-                self.settings.get(key)
-
 
 if __name__ == "__main__":
     unittest.main()
