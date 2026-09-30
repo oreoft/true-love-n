@@ -455,13 +455,33 @@
                                 {{ item.label }}
                                 <span v-if="isSettingEmpty(item)" class="settings-unset">未设置</span>
                             </label>
-                            <textarea
-                                v-if="item.type === 'list'"
-                                :id="'setting-' + item.key"
-                                v-model="item.draft"
-                                class="modal-input settings-textarea"
-                                placeholder="每行一个群名"
-                            ></textarea>
+                            <div v-if="item.type === 'list'" class="settings-rows">
+                                <div v-for="(name, index) in item.draft" :key="index" class="settings-row">
+                                    <span class="settings-row-index">{{ index + 1 }}</span>
+                                    <input v-model="item.draft[index]" class="settings-row-input" />
+                                    <button
+                                        class="settings-row-remove"
+                                        @click="removeSettingEntry(item, index)"
+                                        title="删除"
+                                    >&times;</button>
+                                </div>
+                                <div v-if="item.draft.length === 0" class="settings-rows-empty">还没有群</div>
+                                <div class="settings-row settings-row-add">
+                                    <span class="settings-row-index">+</span>
+                                    <input
+                                        :id="'setting-' + item.key"
+                                        v-model="item.newEntry"
+                                        class="settings-row-input"
+                                        placeholder="输入群名，回车添加"
+                                        @keyup.enter="addSettingEntry(item)"
+                                    />
+                                    <button
+                                        class="btn btn-outline btn-sm"
+                                        @click="addSettingEntry(item)"
+                                        :disabled="!item.newEntry.trim()"
+                                    >添加</button>
+                                </div>
+                            </div>
                             <input
                                 v-else
                                 :id="'setting-' + item.key"
