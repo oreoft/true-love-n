@@ -134,7 +134,7 @@ window.useReminderPage = function(showToast, showConfirm) {
             taskId: '',
             receivers: [],
             newReceiver: '',
-            jobName: '',
+            jobName: jobOptions.value[0] || '',
             mode: 'daily',
             runAt: '',
             time: '09:00',

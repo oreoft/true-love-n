@@ -575,10 +575,9 @@
                     <template v-else>
                         <div class="form-field">
                             <label>任务方法名 <span class="form-required">*</span></label>
-                            <input v-model="addModal.jobName" list="task-job-names" class="modal-input job-name" placeholder="如 notice_moyu_schedule" />
-                            <datalist id="task-job-names">
-                                <option v-for="name in jobOptions" :key="name" :value="name"></option>
-                            </datalist>
+                            <select v-model="addModal.jobName" class="modal-input job-name">
+                                <option v-for="name in jobOptions" :key="name" :value="name">{{ name }}</option>
+                            </select>
                         </div>
                         <div class="form-field">
                             <label>接收者 <span class="form-required">*</span></label>
