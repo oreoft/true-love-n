@@ -186,8 +186,8 @@ window.useReminderPage = function(showToast, showConfirm) {
     const submitTask = async () => {
         // 输入框里还没点"添加"的也算上
         const receivers = [...addModal.receivers, addModal.newReceiver].map(name => name.trim()).filter(Boolean);
-        if (receivers.length === 0 || !addModal.jobName) {
-            showToast('接收者和任务不能为空', 'error');
+        if (!addModal.jobName) {
+            showToast('请选择任务方法', 'error');
             return;
         }
         if (addModal.mode === 'once' && !addModal.runAt) {

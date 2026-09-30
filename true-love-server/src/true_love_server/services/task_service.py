@@ -5,9 +5,11 @@ Task Service - 定时任务
 后台"定时任务"页里的第二种类型：把写好的任务（如国内摸鱼）推给一批接收者，
 可以只执行一次，也可以每天定时执行。和提醒共用同一个 APScheduler，存在这台 server 的数据库里。
 """
+import inspect
 import json
 import logging
 import re
+import time
 import uuid
 from datetime import datetime
 from typing import Any
@@ -41,22 +43,46 @@ def _job_process():
     return job_process
 
 
+def _find(job_name: str):
+    """按方法名找 job_process 里的方法，找不到时抛 ValueError"""
+    module = _job_process()
+    func = getattr(module, job_name, None) if job_name and not job_name.startswith("_") else None
+    if not inspect.isfunction(func) or func.__module__ != module.__name__:
+        raise ValueError(f"找不到任务方法: {job_name}")
+    return func
+
+
+def _takes_receiver(func) -> bool:
+    """带参数的方法按接收者逐个执行，不带参数的只执行一次"""
+    return len(inspect.signature(func).parameters) > 0
+
+
 def _run_task(task_id: str, job_name: str, receivers: list[str], schedule: dict) -> None:
     """APScheduler 触发函数（模块级，SQLAlchemy jobstore 按名字引用）"""
     LOG.info("定时任务触发: task_id=%s job=%s receivers=%s", task_id, job_name, receivers)
-    _job_process().run_task(job_name, receivers)
+    func = _find(job_name)
+    if not _takes_receiver(func):
+        func()
+        return
+    for index, receiver in enumerate(receivers):
+        if index:
+            time.sleep(30)
+        try:
+            func(receiver)
+        except Exception as e:
+            LOG.exception("任务 %s 推送到 %s 失败: %s", job_name, receiver, e)
 
 
 def _clean(job_name: str, receivers: Any, schedule: Any) -> tuple[str, list[str], dict, Any]:
     """校验表单，返回 (方法名, 接收者, 触发方式, APScheduler trigger)；不合法时抛 ValueError"""
     job_name = str(job_name or "").strip()
-    _job_process().find_task(job_name)
+    func = _find(job_name)
 
     if not isinstance(receivers, list):
         raise ValueError("接收者必须是列表")
     receivers = list(dict.fromkeys(str(name).strip() for name in receivers if str(name).strip()))
-    if not receivers:
-        raise ValueError("至少要有一个接收者")
+    if not receivers and _takes_receiver(func):
+        raise ValueError(f"{job_name} 需要接收者，至少填一个")
 
     schedule = schedule if isinstance(schedule, dict) else {}
     mode = schedule.get("mode")
@@ -119,8 +145,10 @@ def _get(task_id: str):
 
 
 def job_names() -> list[str]:
-    """可选的推送任务方法名，后台输入框用来提示"""
-    return _job_process().task_names()
+    """job_process 里所有可以按名字执行的方法，后台下拉框用"""
+    module = _job_process()
+    return [name for name, func in vars(module).items()
+            if not name.startswith("_") and inspect.isfunction(func) and func.__module__ == module.__name__]
 
 
 def list_tasks() -> list[dict]:
@@ -161,7 +189,7 @@ def run_now(task_id: str) -> dict:
 
 def run_by_job_name(job_name: str) -> list[str]:
     """立即执行这个任务名下的所有定时任务（AI 手动触发用），返回执行了的 task_id"""
-    _job_process().find_task(job_name)
+    _find(job_name)
     started = []
     for job in scheduler.get_jobs():
         kwargs = dict(job.kwargs or {})

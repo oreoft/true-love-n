@@ -580,7 +580,7 @@
                             </select>
                         </div>
                         <div class="form-field">
-                            <label>接收者 <span class="form-required">*</span></label>
+                            <label>接收者</label>
                             <div class="settings-rows">
                                 <div v-for="(name, index) in addModal.receivers" :key="index" class="settings-row">
                                     <span class="settings-row-index">{{ index + 1 }}</span>
@@ -598,6 +598,7 @@
                                     <button class="btn btn-outline btn-sm" @click="addTaskReceiver" :disabled="!addModal.newReceiver.trim()">添加</button>
                                 </div>
                             </div>
+                            <p class="settings-hint">方法带参数时按接收者逐个执行（中间隔 30 秒）；不带参数的方法只执行一次，不用填</p>
                         </div>
                         <div class="form-field">
                             <label>触发时机</label>

@@ -37,13 +37,27 @@ class TaskServiceCase(unittest.TestCase):
         self.SessionLocal = sessionmaker(bind=engine)
         self.scheduler = BackgroundScheduler(
             jobstores={"default": SQLAlchemyJobStore(engine=engine), "memory": MemoryJobStore()}, timezone="UTC")
-        self.run_task = Mock()
-        names = ["notice_moyu_schedule", "notice_usa_moyu_schedule"]
+        # A stand-in job_process: its own functions can be run by name, imported helpers and private ones cannot.
+        self.calls = []
+        job_process = module("true_love_server.jobs.job_process", Mock=Mock)
 
-        def find_task(job_name):
-            if job_name not in names:
-                raise ValueError(f"找不到任务方法: {job_name}")
-            return Mock()
+        def notice_moyu_schedule(room_id):
+            self.calls.append(("notice_moyu_schedule", room_id))
+            if room_id == "坏群":
+                raise RuntimeError("wechat busy")
+
+        def notice_usa_moyu_schedule(room_id):
+            self.calls.append(("notice_usa_moyu_schedule", room_id))
+
+        def download_moyu_file():
+            self.calls.append(("download_moyu_file", None))
+
+        def _private(room_id):
+            self.calls.append(("_private", room_id))
+
+        for func in (notice_moyu_schedule, notice_usa_moyu_schedule, download_moyu_file, _private):
+            func.__module__ = job_process.__name__
+            setattr(job_process, func.__name__, func)
         # Real task code against a throwaway database and a paused scheduler: jobs are stored, nothing fires.
         dependencies = {
             "true_love_server": module("true_love_server", SOURCE),
@@ -54,14 +68,15 @@ class TaskServiceCase(unittest.TestCase):
             "true_love_server.services.scheduler_service": module(
                 "true_love_server.services.scheduler_service", scheduler=self.scheduler),
             "true_love_server.jobs": module("true_love_server.jobs", SOURCE / "jobs"),
-            "true_love_server.jobs.job_process": module(
-                "true_love_server.jobs.job_process", find_task=find_task, task_names=lambda: list(names),
-                run_task=self.run_task),
+            "true_love_server.jobs.job_process": job_process,
         }
         modules = patch.dict(sys.modules, dependencies)
         modules.start()
         self.addCleanup(modules.stop)
         self.tasks = importlib.import_module("true_love_server.services.task_service")
+        sleep = patch.object(self.tasks.time, "sleep")
+        sleep.start()
+        self.addCleanup(sleep.stop)
         self.Setting = importlib.import_module("true_love_server.models.setting").Setting
         self.Setting.metadata.create_all(bind=engine)
         self.scheduler.start(paused=True)
@@ -111,7 +126,9 @@ class TaskTests(TaskServiceCase):
         future = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
         past = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
         cases = {
-            "unknown job": ("download_moyu_file", ["委员会"], self.daily()),
+            "unknown job": ("no_such_job", ["委员会"], self.daily()),
+            "private function": ("_private", ["委员会"], self.daily()),
+            "imported helper": ("Mock", ["委员会"], self.daily()),
             "no receiver": ("notice_moyu_schedule", ["", " "], self.daily()),
             "receivers not a list": ("notice_moyu_schedule", "委员会", self.daily()),
             "bad time": ("notice_moyu_schedule", ["委员会"], self.daily("25:00")),
@@ -127,8 +144,16 @@ class TaskTests(TaskServiceCase):
 
         self.assertEqual(self.tasks.list_tasks(), [])
 
-    def test_console_suggests_the_job_method_names(self):
-        self.assertEqual(self.tasks.job_names(), ["notice_moyu_schedule", "notice_usa_moyu_schedule"])
+    def test_console_offers_every_function_of_job_process(self):
+        self.assertEqual(self.tasks.job_names(), ["notice_moyu_schedule", "notice_usa_moyu_schedule", "download_moyu_file"])
+
+    def test_function_without_a_parameter_needs_no_receiver(self):
+        task = self.tasks.add_task("download_moyu_file", [], self.daily("08:30"))
+        job = self.scheduler.get_job(task["task_id"])
+
+        job.func(**job.kwargs)
+
+        self.assertEqual(self.calls, [("download_moyu_file", None)])
 
     def test_job_name_is_trimmed_before_it_is_looked_up(self):
         task = self.tasks.add_task(" notice_moyu_schedule ", ["委员会"], self.daily())
@@ -181,15 +206,23 @@ class TaskTests(TaskServiceCase):
         self.assertEqual(len(started), 2)
         self.assertEqual(sorted(run["receivers"][0] for run in extra), ["委员会", "家人群"])
         with self.assertRaises(ValueError):
-            self.tasks.run_by_job_name("download_moyu_file")
+            self.tasks.run_by_job_name("no_such_job")
 
-    def test_scheduled_run_pushes_to_the_task_receivers(self):
+    def test_scheduled_run_calls_the_function_once_per_receiver_in_order(self):
         task = self.tasks.add_task("notice_moyu_schedule", ["委员会", "家人群"], self.daily())
         job = self.scheduler.get_job(task["task_id"])
 
         job.func(**job.kwargs)
 
-        self.run_task.assert_called_once_with("notice_moyu_schedule", ["委员会", "家人群"])
+        self.assertEqual(self.calls, [("notice_moyu_schedule", "委员会"), ("notice_moyu_schedule", "家人群")])
+
+    def test_one_failing_receiver_does_not_stop_the_rest(self):
+        task = self.tasks.add_task("notice_moyu_schedule", ["坏群", "家人群"], self.daily())
+        job = self.scheduler.get_job(task["task_id"])
+
+        job.func(**job.kwargs)
+
+        self.assertEqual(self.calls[-1], ("notice_moyu_schedule", "家人群"))
 
 
 class ReminderEditTests(TaskServiceCase):

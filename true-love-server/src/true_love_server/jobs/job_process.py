@@ -68,6 +68,11 @@ def log_function_execution(func):
 
 
 def send_daily_notice(room_id, content='早上好☀️家人萌~'):
+    try:
+        ensure_today_images()
+    except Exception as e:
+        # 图片下载失败也照常推文字
+        LOG.error("下载当天图片失败: %s", e)
     # 图片按北京时间的日期命名，和下载时一致
     current_date = get_current_date()
     moyu_file_path = f'moyu-jpg/{current_date}.jpg'
@@ -96,64 +101,25 @@ def send_daily_notice(room_id, content='早上好☀️家人萌~'):
         LOG.info(f"send_image: {moyu_file_path}, result: {zao_bao_res}")
 
 
-def push_task(func):
-    """标记可以在后台"定时任务"里按方法名选用的推送任务，参数是一个接收者"""
-    func.is_push_task = True
-    return func
-
-
-@push_task
 def notice_moyu_schedule(room_id):
     send_daily_notice(room_id)
 
 
-@push_task
 def notice_usa_moyu_schedule(room_id):
     send_daily_notice(room_id, "早上好☀️友友们~, \n现在国内太阳已经落下, 多赢阿美莉卡一天")
-
-
-def find_task(job_name: str):
-    """按方法名找推送任务，找不到或不是推送任务时抛 ValueError"""
-    func = globals().get(job_name)
-    if getattr(func, "is_push_task", False) is not True:
-        raise ValueError(f"找不到任务方法: {job_name}")
-    return func
-
-
-def task_names() -> list[str]:
-    """所有推送任务的方法名"""
-    return [name for name, func in globals().items() if getattr(func, "is_push_task", False) is True]
 
 
 _download_lock = threading.Lock()
 
 
 def ensure_today_images():
-    """当天的摸鱼图、早报图还没有就先下载；加锁，同时触发的任务只下载一次"""
+    """当天的摸鱼图、早报图还没有就先下载；加锁，同时触发的推送只下载一次"""
     with _download_lock:
         current_date = get_current_date()
         if not check_image_openable(f'moyu-jpg/{current_date}.jpg'):
             download_moyu_file()
         if not check_image_openable(f'zaobao-jpg/{current_date}.jpg'):
             download_zao_bao_file()
-
-
-@log_function_execution
-def run_task(job_name: str, receivers: list[str]) -> None:
-    """把任务依次推给每个接收者，接收者之间隔 30 秒"""
-    task = find_task(job_name)
-    try:
-        ensure_today_images()
-    except Exception as e:
-        # 图片下载失败也照常推文字
-        LOG.error("下载当天图片失败: %s", e)
-    for index, room_id in enumerate(receivers):
-        if index:
-            time.sleep(30)
-        try:
-            task(room_id)
-        except Exception as e:
-            LOG.exception("任务 %s 推送到 %s 失败: %s", job_name, room_id, e)
 
 
 @log_function_execution
