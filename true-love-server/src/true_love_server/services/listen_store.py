@@ -3,7 +3,7 @@
 Listen Store - 监听列表持久化管理
 
 Server 端负责监听列表的读写，Base 端只读取。
-文件位置：true-love-server/listen_chats.json
+文件位置：/app/listen_chats.json，部署时软链到 true-love-base/listen_chats.json（共享卷上的同一份文件）
 """
 
 import json
@@ -52,15 +52,6 @@ class ListenStore:
         self._initialized = True
         
         LOG.info(f"ListenStore initialized: {file_path}")
-    
-    def _ensure_file_exists(self) -> None:
-        """确保文件存在，不存在则创建空列表"""
-        if not os.path.exists(self._file_path):
-            dir_path = os.path.dirname(self._file_path)
-            if dir_path and not os.path.exists(dir_path):
-                os.makedirs(dir_path)
-            self._write_file([])
-            LOG.info(f"Created empty listen file: {self._file_path}")
     
     def _read_file(self) -> list[str]:
         """从文件读取监听列表"""

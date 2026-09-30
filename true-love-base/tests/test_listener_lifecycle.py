@@ -252,20 +252,12 @@ class ListenerLifecycleTests(unittest.TestCase):
             return {"success": ["group"], "failed": []}
 
         robot.load_listen_chats.side_effect = load
-        robot.start_listening.side_effect = lambda: self.events.append("keep-running")
         robot.cleanup.side_effect = lambda: self.events.append("drain")
         if fail_stopping:
             def stop(**kwargs):
                 self.events.append("stop-sdk")
                 raise RuntimeError("SDK stop failed")
             self.sdk.StopListening.side_effect = stop
-
-        class ImmediateThread:
-            def __init__(self, target, **kwargs):
-                self.target = target
-
-            def start(self):
-                self.target()
 
         shutdown = Mock()
         shutdown.is_set.return_value = False
@@ -274,7 +266,6 @@ class ListenerLifecycleTests(unittest.TestCase):
             patch.object(self.main_module, "init_wx", return_value=(client, robot)),
             patch.object(self.main_module, "disable_quick_edit"),
             patch.object(self.main_module.signal, "signal"),
-            patch.object(self.main_module, "Thread", ImmediateThread, create=True),
             patch.object(self.main_module, "Event", return_value=shutdown),
         ):
             self.main_module.main()

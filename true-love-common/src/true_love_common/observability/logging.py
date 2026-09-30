@@ -3,14 +3,12 @@
 
 from __future__ import annotations
 
-import atexit
 import json
 import logging
-import logging.handlers
 import sys
 from datetime import datetime, timezone
 from queue import Queue
-from typing import Any, Optional
+from typing import Any
 
 from true_love_common.observability.sanitize import sanitize_text, sanitize_value
 from true_love_common.observability.trace import get_span_id, get_trace_id
@@ -51,7 +49,6 @@ class JsonFormatter(logging.Formatter):
             "path",
             "status_code",
             "cost_ms",
-            "peer",
             "error_type",
         ):
             if hasattr(record, field):
@@ -76,8 +73,6 @@ class JsonFormatter(logging.Formatter):
 class LoggingConfig:
     """Common logging setup for True Love services."""
 
-    _log_queue: Optional[Queue] = None
-    _log_listener: Optional[logging.handlers.QueueListener] = None
     _initialized: bool = False
 
     SIMPLE_FORMAT = "%(asctime)s %(levelname)s [trace=%(trace_id)s span=%(span_id)s] %(name)s: %(message)s"
@@ -89,7 +84,6 @@ class LoggingConfig:
         service_name: str,
         log_level: int = logging.INFO,
         json_format: bool = True,
-        enable_async: bool = False,
         queue_size: int = 10000,
         enable_loki: bool = False,
         loki_url: str = "",
@@ -139,18 +133,14 @@ class LoggingConfig:
         root_logger.handlers.clear()
         root_logger.addFilter(trace_filter)
 
-        if enable_async:
-            cls._setup_async_logging(root_logger, handlers, trace_filter)
-        else:
-            for handler in handlers:
-                root_logger.addHandler(handler)
+        for handler in handlers:
+            root_logger.addHandler(handler)
 
         cls._initialized = True
         logging.getLogger("LoggingConfig").info(
-            "日志配置完成: service=%s, json=%s, async=%s",
+            "日志配置完成: service=%s, json=%s",
             service_name,
             json_format,
-            enable_async,
             extra={"extra_fields": {"loki": loki_enabled}},
         )
 
@@ -163,36 +153,3 @@ class LoggingConfig:
                 sys.stdout = open(sys.stdout.fileno(), mode="w", encoding="utf-8", buffering=1)
         except Exception:
             pass
-
-    @classmethod
-    def _setup_async_logging(
-        cls,
-        root_logger: logging.Logger,
-        handlers: list[logging.Handler],
-        trace_filter: logging.Filter,
-    ) -> None:
-        cls._log_queue = Queue(-1)
-        queue_handler = logging.handlers.QueueHandler(cls._log_queue)
-        queue_handler.setLevel(logging.DEBUG)
-        queue_handler.addFilter(trace_filter)
-        root_logger.addHandler(queue_handler)
-
-        cls._log_listener = logging.handlers.QueueListener(
-            cls._log_queue,
-            *handlers,
-            respect_handler_level=True,
-        )
-        cls._log_listener.start()
-        atexit.register(cls._cleanup_logging)
-
-    @classmethod
-    def _cleanup_logging(cls) -> None:
-        if cls._log_listener:
-            cls._log_listener.stop()
-            cls._log_listener = None
-
-    @classmethod
-    def reset(cls) -> None:
-        cls._cleanup_logging()
-        cls._initialized = False
-        cls._log_queue = None

@@ -4,9 +4,9 @@
 import json
 import logging
 
-from true_love_common.http.client import HttpResult, async_post
+from true_love_common.http.client import HttpResult, async_post, trace_headers
 
-from ._interface import BaseClient, api_response_ok, download_to_tmp, trace_headers
+from ._interface import BaseClient, api_response_ok, download_to_tmp
 
 LOG = logging.getLogger("WeChatBaseClient")
 _TIMEOUT = (2, 10)
@@ -66,26 +66,13 @@ class WeChatBaseClient(BaseClient):
     async def send_img(self, path: str, receiver: str, raise_on_error: bool = False) -> tuple[bool, str]:
         return await self.send_file(path, receiver, raise_on_error=raise_on_error)
 
-    async def send_video(self, path: str, receiver: str, raise_on_error: bool = False) -> tuple[bool, str]:
-        return await self.send_file(path, receiver, raise_on_error=raise_on_error)
-
-    async def get_by_room_id(self, room_id) -> dict:
-        payload = json.dumps({"room_id": room_id}, ensure_ascii=False)
-        try:
-            res = await self._post("get_by_room_id", f"{self.host}/get/by/room-id", payload)
-            res.raise_for_status()
-            return (res.data or {})["data"]
-        except Exception as e:
-            LOG.error("WeChat get_by_room_id failed: %s", e)
-        return {}
-
     async def add_listen_chat(self, nickname: str) -> dict:
         payload = json.dumps({"nickname": nickname}, ensure_ascii=False)
         try:
             res = await self._post("add_listen_chat", f"{self.host}/listen/add", payload)
             res.raise_for_status()
             result = res.data or {}
-            return {"success": result.get("code") == 0, "data": result.get("data"), "message": result.get("msg", "")}
+            return {"success": result.get("code") == 0, "data": result.get("data"), "message": result.get("message", "")}
         except Exception as e:
             LOG.error("WeChat add_listen_chat failed: %s", e)
             return {"success": False, "data": None, "message": str(e)}
@@ -96,7 +83,7 @@ class WeChatBaseClient(BaseClient):
             res = await self._post("execute_wx", f"{self.host}/execute/wx", payload)
             res.raise_for_status()
             result = res.data or {}
-            return {"success": result.get("code") == 0, "data": result.get("data"), "message": result.get("msg", "")}
+            return {"success": result.get("code") == 0, "data": result.get("data"), "message": result.get("message", "")}
         except Exception as e:
             LOG.error("WeChat execute_wx failed: %s", e)
             return {"success": False, "data": None, "message": str(e)}
@@ -108,7 +95,7 @@ class WeChatBaseClient(BaseClient):
             res = await self._post("execute_chat", f"{self.host}/execute/chat", payload)
             res.raise_for_status()
             result = res.data or {}
-            return {"success": result.get("code") == 0, "data": result.get("data"), "message": result.get("msg", "")}
+            return {"success": result.get("code") == 0, "data": result.get("data"), "message": result.get("message", "")}
         except Exception as e:
             LOG.error("WeChat execute_chat failed: %s", e)
             return {"success": False, "data": None, "message": str(e)}
@@ -121,7 +108,7 @@ class WeChatBaseClient(BaseClient):
             res = await self._post("batch_chat_info", f"{self.host}/execute/batch-chat-info", payload)
             res.raise_for_status()
             result = res.data or {}
-            return {"success": result.get("code") == 0, "data": result.get("data"), "message": result.get("msg", "")}
+            return {"success": result.get("code") == 0, "data": result.get("data"), "message": result.get("message", "")}
         except Exception as e:
             LOG.error("WeChat batch_chat_info failed: %s", e)
             return {"success": False, "data": None, "message": str(e)}

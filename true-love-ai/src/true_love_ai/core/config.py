@@ -36,8 +36,6 @@ class Config(BaseSettings):
     base_server: BaseServerConfig = BaseServerConfig()
     nexu: NexuConfig = NexuConfig()
 
-    logging: Optional[dict] = None
-
     @classmethod
     def from_yaml(cls, path: str = "config.yaml") -> "Config":
         with open(path, "r", encoding="utf-8") as f:
@@ -61,19 +59,21 @@ class Config(BaseSettings):
 _config: Optional[Config] = None
 
 
+def _config_path() -> str:
+    import os
+    return "config.yaml" if os.environ.get("APP_ENV", "") == "prod" else "config-dev.yaml"
+
+
 def get_config() -> Config:
     global _config
     if _config is None:
-        import os
-        app_env = os.environ.get("APP_ENV", "")
-        path = "config.yaml" if app_env == "prod" else "config-dev.yaml"
-        _config = Config.from_yaml(path)
+        _config = Config.from_yaml(_config_path())
     return _config
 
 
 def reload_config() -> Config:
     global _config
-    _config = Config.from_yaml()
+    _config = Config.from_yaml(_config_path())
     return _config
 
 

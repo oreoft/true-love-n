@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
-"""搜索增强 Skill（复用 AI 现有 search_service）"""
+"""搜索增强 Skill（通过百度搜索获取实时信息）"""
 import json
 import logging
+import subprocess
+from urllib.parse import quote_plus
 
 from true_love_ai.agent.skill_registry import register_skill
 
@@ -41,11 +43,7 @@ async def web_search(params: dict, ctx: dict) -> str:
         return "诶嘿~请提供搜索关键词哦~"
 
     try:
-        """通过百度搜索获取参考信息"""
-        if True:
-            results = fetch_baidu_references(query)
-        else:
-            results = await fetch_baidu_references_httpx(query)
+        results = fetch_baidu_references(query)
         if not results:
             return f"搜索「{query}」没有找到相关结果"
         return f"搜索「{query}」的结果：\n{json.dumps(results[:5], ensure_ascii=False, indent=2)}"
@@ -55,12 +53,8 @@ async def web_search(params: dict, ctx: dict) -> str:
 
 
 def fetch_baidu_references(keyword: str) -> list[dict]:
-    import json
-    import subprocess
-    from urllib.parse import quote_plus
-
     """
-    通过百度搜索获取参考信息（同步方法，保持兼容）
+    通过百度搜索获取参考信息
 
     使用 curl 命令避免被风控
 
@@ -105,48 +99,3 @@ def fetch_baidu_references(keyword: str) -> list[dict]:
 
     return reference_list
 
-
-async def fetch_baidu_references_httpx(keyword: str) -> list[dict]:
-    import json
-    from urllib.parse import quote_plus
-
-    """
-    通过百度搜索获取参考信息（异步方法，使用 httpx）
-
-    Args:
-        keyword: 搜索关键词
-
-    Returns:
-        参考信息列表，每项包含 content 和 source_url
-    """
-    reference_list = []
-    url = f"https://www.baidu.com/s?wd={quote_plus(keyword)}&tn=json"
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) "
-            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
-        )
-    }
-
-    try:
-        from true_love_common.http.client import async_get
-
-        LOG.info(f"百度搜索(common-http): {keyword}")
-        response = await async_get(url, headers=headers, timeout=30.0, follow_redirects=True)
-        response.raise_for_status()
-        data = response.data if isinstance(response.data, dict) else {}
-
-        reference_list = [
-            {"content": entry['abs'], "source_url": entry['url']}
-            for entry in data['feed']['entry']
-            if 'abs' in entry and 'url' in entry
-        ]
-
-        LOG.info(f"百度搜索结果数量: {len(reference_list)}")
-
-    except json.JSONDecodeError as e:
-        LOG.error(f"百度搜索响应解析失败(common-http): {e}")
-    except Exception:
-        LOG.exception(f"百度搜索失败(common-http), keyword: {keyword}")
-
-    return reference_list

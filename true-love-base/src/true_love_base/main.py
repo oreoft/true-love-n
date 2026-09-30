@@ -174,7 +174,3 @@ def init_wx() -> tuple[WxAutoClient, Robot]:
     # 初始化机器人
     robot = Robot(client, listen_store, master=config.master_wix)
     return client, robot
-
-
-if __name__ == '__main__':
-    main()

@@ -47,17 +47,12 @@ llm:
   image:
     default:  "openai/gpt-image-1"
     fallback: "openai/gemini/imagen-4.0-generate-001"
-  # video:
-  #   default:  "openai/sora-2-pro"          # Sora 直连，使用 platform_key.openai_key
-  #   fallback: "gemini/veo-3.1-generate-preview"  # Veo 直连，使用 platform_key.gemini_key
 
 # ==================== 第三方平台 Key ====================
 
 platform_key:
   litellm_api_key: ""           # LiteLLM 代理 API key（聊天/图像通用）
   litellm_base_url: ""          # LiteLLM 代理地址
-  openai_key: ""                # OpenAI 直连 key（Sora 视频生成专用）
-  gemini_key: ""                # Gemini 直连 key（Veo 视频生成专用）
 
 # ==================== 外部服务配置 ====================
 
@@ -67,7 +62,6 @@ nexu:
 
 # ==================== Skill 权限配置 ====================
 # 格式：["*"] / ["wechat:*"] / ["wechat:sender_id", "lark:*"]
-# 兼容旧格式：["昵称"]（无 : 时视为任意平台该用户）
 # 未配置某 skill 时所有人可用（规则1）；skill 代码/DB 中声明的权限优先（规则2）
 
 skill_permissions:

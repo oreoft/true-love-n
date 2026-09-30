@@ -1,7 +1,7 @@
 [project]
 name = "true-love-common"
 version = "0.1.1"
-description = "True Love Common — 各服务共享的协议定义"
+description = "True Love Common — 各服务共享的协议定义、HTTP 客户端、日志与 FastAPI 集成"
 requires-python = ">=3.12"
 dependencies = [
     "httpx>=0.28.0",

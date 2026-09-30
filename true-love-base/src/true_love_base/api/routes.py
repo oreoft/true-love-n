@@ -52,7 +52,8 @@ async def status() -> dict[str, Any]:
     base 进程不依赖微信存活，微信是否可用要看这个接口。
 
     Response:
-        - data: {"wx_online": 微信是否在线, "self_name": 当前登录的昵称, "since": 进入当前状态的时间}
+        - data: {"wx_online": 微信是否在线, "self_name": 当前登录的昵称, "since": 进入当前状态的时间,
+                  "bot_id": 这个机器人的标识（机器名）}
     """
     robot = _get_robot()
     if robot is None:
@@ -103,7 +104,7 @@ async def send_file(request: dict[str, Any] | None = Body(default=None)) -> dict
     Request Body:
         - sendReceiver: 接收者
         - is_master: 为 true 时发给这台机器的管理员，忽略 sendReceiver（可选）
-        - path: 文件路径（可以是 Server 的相对路径，会自动在 true-love-server 目录下查找）
+        - path: 文件路径，相对 base 工作目录（如 wx_imgs/xxx.jpg、moyu-jpg/xxx.jpg），文件必须存在
     """
     robot = _get_robot()
     unavailable = _unavailable(robot)

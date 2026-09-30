@@ -57,7 +57,7 @@ class AudioService:
         audio_path.write_bytes(resp.content)
         duration = self._wav_duration_seconds(resp.content)
         LOG.info("语音完成: %s (%.2fKB, %.1fs)", audio_path, len(resp.content) / 1024, duration)
-        return AudioResponse(text=text, audio_id=aid, duration_seconds=duration)
+        return AudioResponse(text=text, audio_id=aid)
 
     @staticmethod
     def _wav_duration_seconds(data: bytes) -> float:

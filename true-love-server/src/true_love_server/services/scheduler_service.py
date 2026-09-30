@@ -54,8 +54,3 @@ def start_scheduler():
     if not scheduler.running:
         scheduler.start()
         LOG.info("Global persistent APScheduler has started (SQLAlchemyJobStore).")
-
-def stop_scheduler():
-    if scheduler.running:
-        scheduler.shutdown()
-        LOG.info("Global persistent APScheduler has gracefully shutdown.")

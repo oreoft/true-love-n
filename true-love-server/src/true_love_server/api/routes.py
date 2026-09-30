@@ -10,7 +10,7 @@ import logging
 import time
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Body, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Body
 from fastapi.responses import FileResponse
 from true_love_common.http.client import post_json
 
@@ -245,7 +245,6 @@ async def add_listen(request: dict):
     添加监听的聊天对象
 
     Request Body:
-        - token:     鉴权 token
         - chat_name: 聊天对象名称（好友昵称或群名）
     """
     chat_name = request.get('chat_name', '')
@@ -265,7 +264,6 @@ async def remove_listen(request: dict):
     移除监听的聊天对象
 
     Request Body:
-        - token:     鉴权 token
         - chat_name: 聊天对象名称
     """
     chat_name = request.get('chat_name', '')
@@ -282,9 +280,6 @@ async def remove_listen(request: dict):
 async def refresh_listen(request: dict = Body(default={})):
     """
     智能刷新监听列表
-
-    Request Body:
-        - token: 鉴权 token
 
     Returns:
         - total: 总监听数
@@ -307,7 +302,6 @@ async def reset_listen(request: dict):
     通过关闭子窗口、移除监听、重新添加监听的方式恢复异常的监听。
 
     Request Body:
-        - token:     鉴权 token
         - chat_name: 聊天对象名称
 
     Returns:
@@ -331,9 +325,6 @@ async def reset_all_listen(request: dict = Body(default={})):
     重置所有监听
 
     通过停止所有监听、关闭所有子窗口、刷新 UI、重新添加所有监听的方式恢复。
-
-    Request Body:
-        - token: 鉴权 token
 
     Returns:
         - success: 是否成功
@@ -427,7 +418,7 @@ async def query_loki_logs(
     service_list = [s.strip() for s in services.split(',') if s.strip()]
 
     loki_client = get_loki_client()
-    result = loki_client.query_range(start_ns, end_ns, limit, 'backward', service_list, keyword)
+    result = loki_client.query_range(start_ns, end_ns, limit, service_list, keyword)
 
     if not result["success"]:
         raise ValidationException(result["message"])

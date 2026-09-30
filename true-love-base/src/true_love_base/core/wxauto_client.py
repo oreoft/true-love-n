@@ -2,7 +2,7 @@
 """
 WxAuto WxAutoClient - wxautox4 SDK 封装客户端
 
-实现 WeChatClientProtocol 接口，封装 wxautox4 的具体调用。
+封装 wxautox4 的具体调用。
 """
 
 import json
@@ -24,8 +24,8 @@ LOG = logging.getLogger("WxAutoClient")
 # 用消息哈希辅助判断新消息；每次启动重新测量头像到消息的 X 偏移量，不沿用上次的值
 WxParam.MESSAGE_HASH = True
 WxParam.FORCE_MESSAGE_XBIAS = True
-# 设置 wxauto 默认文件保存路径到 server 的 wx_imgs 目录
 WxParam.CHAT_WINDOW_SIZE = (8000, 6000)
+# 下载的文件默认存到 base 工作目录下的 wx_imgs，server 通过 docker 挂载读取
 _wx_imgs_dir = get_wx_imgs_dir()
 if _wx_imgs_dir:
     WxParam.DEFAULT_SAVE_PATH = _wx_imgs_dir

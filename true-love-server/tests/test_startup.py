@@ -22,11 +22,10 @@ def module(name, path=None, **attributes):
 class StartupTests(unittest.TestCase):
     def setUp(self):
         self.events = []
-        self.config = types.SimpleNamespace(APP_ENV="dev", HTTP={"host": "127.0.0.1", "port": 8088})
+        self.config = types.SimpleNamespace(HTTP={"host": "127.0.0.1", "port": 8088})
         self.send_to_master = AsyncMock(
             side_effect=lambda content: self.events.append(("master", content)) or (True, ""))
         self.send_text = AsyncMock(return_value=(True, ""))
-        tasks = types.SimpleNamespace(import_from_settings=lambda: self.events.append(("import", None)))
         dependencies = {
             "true_love_server": module("true_love_server", SOURCE),
             "true_love_server.api": module("true_love_server.api", create_app=Mock()),
@@ -34,7 +33,7 @@ class StartupTests(unittest.TestCase):
             "true_love_server.core.db_engine": module(
                 "true_love_server.core.db_engine", init_db=lambda: self.events.append(("db", None))),
             "true_love_server.services": module(
-                "true_love_server.services", SOURCE / "services", task_service=tasks,
+                "true_love_server.services", SOURCE / "services",
                 base_client=types.SimpleNamespace(send_to_master=self.send_to_master, send_text=self.send_text)),
             "true_love_server.services.scheduler_service": module(
                 "true_love_server.services.scheduler_service",
@@ -47,11 +46,6 @@ class StartupTests(unittest.TestCase):
         for patcher in (patch.object(self.main.uvicorn, "run"), patch.object(self.main.signal, "signal")):
             patcher.start()
             self.addCleanup(patcher.stop)
-
-    def test_old_push_groups_become_tasks_once_the_scheduler_runs(self):
-        self.main.main()
-
-        self.assertEqual(self.events[:3], [("db", None), ("scheduler", None), ("import", None)])
 
     def test_master_is_told_the_server_started_without_the_server_knowing_who_that_is(self):
         self.main.main()

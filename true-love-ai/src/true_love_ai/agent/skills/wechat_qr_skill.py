@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """微信扫码连通道 Skill（通过 Nexu 生成二维码，后台完成绑定）"""
 import asyncio
-import json
 import logging
 
 from true_love_ai.agent.skill_registry import register_skill
@@ -95,7 +94,7 @@ async def wechat_qr_connect(params: dict, ctx: dict) -> str:
 
 
 async def _wait_and_bind(session_key: str, base_url: str, headers: dict) -> None:
-    """后台轮询扫码结果，完成最终绑定（复用旧 ChatService 逻辑）"""
+    """后台轮询扫码结果，完成最终绑定"""
     from true_love_common.http.client import async_post
 
     wait_url = f"{base_url}/api/v1/channels/wechat/qr-wait"

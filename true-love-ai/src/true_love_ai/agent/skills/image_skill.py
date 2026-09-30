@@ -19,7 +19,7 @@ LOG = logging.getLogger("ImageSkill")
         "description": (
                 "根据文字描述生成图像。"
                 "当用户说'画一张...','生成图片...','帮我画...'时使用。"
-                "默认优先用 Gemini，失败自动降级 OpenAI。"
+                "默认优先用 OpenAI，失败自动降级 Gemini。"
                 "用户明确指定提供商（如'用openai画'）时才传 provider 参数。"
         ),
         "parameters": {
@@ -35,7 +35,7 @@ LOG = logging.getLogger("ImageSkill")
                 "provider": {
                     "type": "string",
                     "enum": ["gemini", "openai"],
-                    "description": "生图提供商，不指定时 Gemini 优先自动降级"
+                    "description": "生图提供商，不指定时 OpenAI 优先自动降级"
                 }
             },
             "required": ["prompt"]

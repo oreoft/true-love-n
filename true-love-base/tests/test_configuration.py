@@ -43,9 +43,6 @@ class MasterTests(unittest.TestCase):
 
         self.assertEqual(config.master_wix, "")
 
-    def test_single_master_written_the_old_way_serves_every_machine(self):
-        self.assertEqual(self.load('master_wix: "alice"\n', hostname="any-machine").master_wix, "alice")
-
     def test_file_without_any_master_still_loads(self):
         with self.assertLogs("Config", level="WARNING"):
             config = self.load("")

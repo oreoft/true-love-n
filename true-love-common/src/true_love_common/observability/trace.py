@@ -51,20 +51,12 @@ def is_trace_sampled() -> bool:
     return _trace_sampled.get()
 
 
-def get_trace_context() -> TraceContext:
-    return TraceContext(
-        trace_id=get_trace_id(),
-        span_id=get_span_id(),
-        sampled=is_trace_sampled(),
-    )
-
-
-def set_trace_id(trace_id: str, span_id: str | None = None, sampled: bool | None = None) -> TraceContext:
-    """Set the current trace id and optionally span/sample state."""
+def set_trace_id(trace_id: str) -> TraceContext:
+    """Set the current trace id, keeping the current span/sample state."""
     context = TraceContext(
         trace_id=_normalize_trace_id(trace_id) or new_trace_id(),
-        span_id=_normalize_span_id(span_id) if span_id is not None else get_span_id(),
-        sampled=is_trace_sampled() if sampled is None else bool(sampled),
+        span_id=get_span_id(),
+        sampled=is_trace_sampled(),
     )
     set_trace_context(context)
     return context
@@ -79,27 +71,21 @@ def set_trace_context(context: TraceContext) -> TraceContext:
     return TraceContext(trace_id=trace_id, span_id=span_id, sampled=bool(context.sampled))
 
 
-def clear_trace_context() -> None:
-    _trace_id.set("-")
-    _span_id.set("-")
-    _trace_sampled.set(False)
-
-
-def set_trace_from_gcp_header(header_value: str | None, *, create_if_missing: bool = True) -> TraceContext:
+def set_trace_from_gcp_header(header_value: str | None) -> TraceContext:
     """Parse and set trace context from X-Cloud-Trace-Context.
 
-    Invalid or empty headers create a fresh trace id by default.
+    Invalid or empty headers create a fresh trace id.
     """
     context = parse_gcp_trace_header(header_value)
     if context is None:
-        context = TraceContext(new_trace_id(), new_span_id(), False) if create_if_missing else TraceContext("-", "-", False)
+        context = TraceContext(new_trace_id(), new_span_id(), False)
     return set_trace_context(context)
 
 
-def get_gcp_trace_header(*, span_id: str | None = None) -> str:
+def get_gcp_trace_header() -> str:
     """Return the current context formatted as X-Cloud-Trace-Context."""
     trace_id = _normalize_trace_id(get_trace_id()) or new_trace_id()
-    current_span_id = _normalize_span_id(span_id) if span_id is not None else _normalize_span_id(get_span_id())
+    current_span_id = _normalize_span_id(get_span_id())
     if not current_span_id or current_span_id == "-":
         current_span_id = new_span_id()
     sampled = "1" if is_trace_sampled() else "0"

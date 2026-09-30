@@ -27,7 +27,6 @@ class Config:
         config_path = "config.yaml" if app_env == "prod" else "config-dev.yaml"
         with open(config_path, "r", encoding='utf-8') as fp:
             updated_config: dict = yaml.safe_load(fp)
-        updated_config["app_env"] = app_env
         return updated_config
 
     def reload(self) -> None:
@@ -52,4 +51,3 @@ class Config:
             self.AI_SERVICE: dict = yconfig.get("ai_service", {})
             self.ALAPI: dict = yconfig.get("alapi", {})
             self.LOKI: dict = loki_config
-            self.APP_ENV: dict = yconfig.get("app_env", "")

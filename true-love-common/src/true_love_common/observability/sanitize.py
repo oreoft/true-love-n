@@ -105,10 +105,6 @@ def sanitize_json_text(
     return truncate_text(json.dumps(sanitized, ensure_ascii=False), max_text_length)
 
 
-def sanitize_headers(headers: Mapping[str, Any]) -> dict[str, Any]:
-    return sanitize_value(headers, sensitive_keys=DEFAULT_SENSITIVE_KEYS)
-
-
 def _is_sensitive_key(key: str, sensitive_keys: set[str] | frozenset[str]) -> bool:
     normalized = key.lower().replace("-", "_")
     if normalized in sensitive_keys:

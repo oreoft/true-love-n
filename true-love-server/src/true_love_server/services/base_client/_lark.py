@@ -4,9 +4,9 @@
 import json
 import logging
 
-from true_love_common.http.client import HttpResult, async_post
+from true_love_common.http.client import HttpResult, async_post, trace_headers
 
-from ._interface import BaseClient, api_response_ok, trace_headers
+from ._interface import BaseClient, api_response_ok
 
 LOG = logging.getLogger("LarkBaseClient")
 _TIMEOUT = (10, 30)

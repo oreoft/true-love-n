@@ -178,7 +178,7 @@ async def action_listen_add(request: dict):
     if not chat_name:
         raise ValidationException("chat_name 不能为空")
 
-    result = listen_manager.add_listen(chat_name)
+    result = await listen_manager.add_listen(chat_name)
     if not result.get("success"):
         raise ValidationException(result.get("message", "添加监听失败"))
 
@@ -201,7 +201,7 @@ async def action_listen_remove(request: dict):
     if not chat_name:
         raise ValidationException("chat_name 不能为空")
 
-    result = listen_manager.remove_listen(chat_name)
+    result = await listen_manager.remove_listen(chat_name)
     if not result.get("success"):
         raise ValidationException(result.get("message", "移除监听失败"))
 

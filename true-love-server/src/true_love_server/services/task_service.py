@@ -6,7 +6,6 @@ Task Service - 定时任务
 可以只执行一次，也可以每天定时执行。和提醒共用同一个 APScheduler，存在这台 server 的数据库里。
 """
 import inspect
-import json
 import logging
 import re
 import time
@@ -29,12 +28,6 @@ DAILY = "daily"
 TIMEZONES = {
     "Asia/Shanghai": "北京时间",
     "America/Chicago": "美中时间",
-}
-
-# 设置页里原来的推送群 → 迁移成的每天任务
-_LEGACY_SETTINGS = {
-    "moyu_groups": ("notice_moyu_schedule", "09:05", "Asia/Shanghai"),
-    "usa_moyu_groups": ("notice_usa_moyu_schedule", "08:00", "America/Chicago"),
 }
 
 
@@ -204,24 +197,3 @@ def _start(kwargs: dict) -> None:
     """在调度器的线程池里执行，推送要几十秒，不阻塞接口"""
     scheduler.add_job(_run_task, kwargs=kwargs, jobstore="memory")
 
-
-def import_from_settings() -> None:
-    """
-    设置页原来的两组推送群迁移成每天执行的定时任务
-
-    迁移完删掉旧设置，所以只会迁移一次；旧设置不存在时什么都不做。
-    """
-    from ..core.db_engine import SessionLocal
-    from ..models.setting import Setting
-
-    with SessionLocal() as db:
-        for key, (job_name, at, timezone) in _LEGACY_SETTINGS.items():
-            row = db.get(Setting, key)
-            if row is None:
-                continue
-            groups = json.loads(row.value)
-            if groups:
-                task = add_task(job_name, groups, {"mode": DAILY, "time": at, "timezone": timezone})
-                LOG.info("setting [%s] migrated to task %s", key, task)
-            db.delete(row)
-            db.commit()

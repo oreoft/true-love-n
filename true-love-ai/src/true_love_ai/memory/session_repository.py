@@ -14,8 +14,8 @@ LOG = logging.getLogger("SessionRepository")
 
 class SessionRepository:
 
-    def load(self, session_id: str, msg_limit: int | None = None) -> tuple[str | None, list[dict]]:
-        """加载 session 的摘要和消息列表，msg_limit 限制最近 N 条消息"""
+    def load(self, session_id: str) -> tuple[str | None, list[dict]]:
+        """加载 session 的摘要和消息列表"""
         try:
             with SessionLocal() as db:
                 rows = (
@@ -31,8 +31,6 @@ class SessionRepository:
                     summary = row.content
                 else:
                     messages.append({"role": row.role, "content": row.content})
-            if msg_limit is not None:
-                messages = messages[-msg_limit:]
             return summary, messages
         except Exception as e:
             LOG.error("load session failed: session=%s err=%s", session_id, e)
@@ -97,14 +95,6 @@ class SessionRepository:
                 db.commit()
         except Exception as e:
             LOG.error("compress failed: session=%s err=%s", session_id, e)
-
-    def clear(self, session_id: str) -> None:
-        try:
-            with SessionLocal() as db:
-                db.query(SessionMessage).filter(SessionMessage.session_id == session_id).delete()
-                db.commit()
-        except Exception as e:
-            LOG.error("clear session failed: session=%s err=%s", session_id, e)
 
 
 _repo: SessionRepository | None = None

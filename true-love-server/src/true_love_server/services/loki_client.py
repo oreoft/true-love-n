@@ -8,7 +8,6 @@ Loki Client - Loki 日志查询客户端
 import json
 import logging
 import re
-import time
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from typing import Optional, List
@@ -62,7 +61,7 @@ class LokiClient:
         self.api_key = loki_config.get('api_key', '')
         self.services = loki_config.get('services', ['tl-ai', 'tl-base', 'tl-server'])
 
-        # 复用 Session + 重试，避免高频轮询下 SSL EOF
+        # 复用 Session + 重试，避免连接复用时偶发的 SSL EOF
         retry = Retry(total=2, backoff_factor=1, status_forcelist=[429, 500, 502, 503])
         adapter = HTTPAdapter(max_retries=retry)
         self._session = requests.Session()
@@ -145,7 +144,6 @@ class LokiClient:
             start_ns: int,
             end_ns: int,
             limit: int = 50,
-            direction: str = 'backward',
             services: Optional[List[str]] = None,
             keyword: str = ''
     ) -> dict:
@@ -156,7 +154,6 @@ class LokiClient:
             start_ns: 开始时间（纳秒时间戳）
             end_ns: 结束时间（纳秒时间戳）
             limit: 最大返回条数
-            direction: 排序方向 forward/backward
             services: 只查这些服务，为空查全部
             keyword: 关键词，不区分大小写
         
@@ -164,8 +161,6 @@ class LokiClient:
             {
                 "success": bool,
                 "logs": [LogEntry...],
-                "earliest_ns": int,  # 返回数据中最早的时间戳（纳秒）
-                "latest_ns": int,    # 返回数据中最新的时间戳（纳秒）
                 "message": str
             }
         """
@@ -173,8 +168,6 @@ class LokiClient:
             return {
                 "success": False,
                 "logs": [],
-                "earliest_ns": 0,
-                "latest_ns": 0,
                 "message": "Loki 配置不完整，请检查 config.yaml 中的 loki 配置"
             }
 
@@ -188,32 +181,25 @@ class LokiClient:
             'start': start_ns,
             'end': end_ns,
             'limit': limit,
-            'direction': direction
+            'direction': 'backward',  # 从新到旧取，分页往更早翻
         }
 
         try:
-            start_time = time.time()
-
             resp = self._session.get(url, auth=self._get_auth(), params=params, timeout=(10, 30))
             resp.raise_for_status()
 
             data = resp.json()
-            cost_ms = (time.time() - start_time) * 1000
 
             if data.get('status') != 'success':
                 LOG.error(f"Loki 查询失败: {data}")
                 return {
                     "success": False,
                     "logs": [],
-                    "earliest_ns": 0,
-                    "latest_ns": 0,
                     "message": f"Loki 返回错误: {data.get('error', 'unknown')}"
                 }
 
             # 解析结果
             logs: List[LogEntry] = []
-            earliest_ns = end_ns
-            latest_ns = start_ns
 
             result = data.get('data', {}).get('result', [])
             for stream in result:
@@ -221,12 +207,7 @@ class LokiClient:
                 values = stream.get('values', [])
 
                 for ts_ns_str, line in values:
-                    ts_ns = int(ts_ns_str)
-                    entry = self._parse_log_line(line, labels, ts_ns)
-                    logs.append(entry)
-
-                    earliest_ns = min(earliest_ns, ts_ns)
-                    latest_ns = max(latest_ns, ts_ns)
+                    logs.append(self._parse_log_line(line, labels, int(ts_ns_str)))
 
             # 按时间戳排序（从新到旧，前端最新的在最上面）
             logs.sort(key=lambda x: x.timestamp, reverse=True)
@@ -234,8 +215,6 @@ class LokiClient:
             return {
                 "success": True,
                 "logs": logs,
-                "earliest_ns": earliest_ns if logs else start_ns,
-                "latest_ns": latest_ns if logs else end_ns,
                 "message": ""
             }
 
@@ -244,8 +223,6 @@ class LokiClient:
             return {
                 "success": False,
                 "logs": [],
-                "earliest_ns": 0,
-                "latest_ns": 0,
                 "message": "查询超时，请稍后重试"
             }
         except requests.exceptions.HTTPError as e:
@@ -260,8 +237,6 @@ class LokiClient:
             return {
                 "success": False,
                 "logs": [],
-                "earliest_ns": 0,
-                "latest_ns": 0,
                 "message": f"HTTP 错误: {error_msg}"
             }
         except Exception as e:
@@ -269,8 +244,6 @@ class LokiClient:
             return {
                 "success": False,
                 "logs": [],
-                "earliest_ns": 0,
-                "latest_ns": 0,
                 "message": str(e)
             }
 

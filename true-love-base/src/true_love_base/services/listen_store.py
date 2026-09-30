@@ -3,14 +3,13 @@
 Listen Store - 监听列表持久化管理（只读）
 
 Base 端只需要读取监听列表，写入操作由 Server 端负责。
-文件位置：true-love-server/listen_chats.json
+文件位置：base 工作目录下的 listen_chats.json，server 通过 docker-compose 软链挂进容器
 """
 
 import json
 import logging
 import os
 import threading
-from typing import Optional
 
 LOG = logging.getLogger("ListenStore")
 
@@ -30,11 +29,10 @@ class ListenStore:
         初始化 ListenStore（只读模式）
         
         Args:
-            file_path: JSON 文件路径（指向 server 目录下的文件）
+            file_path: JSON 文件路径（base 工作目录下）
         """
         self._file_path = file_path
         self._lock = threading.Lock()
-        self._cache: Optional[list[str]] = None
         
         LOG.info(f"ListenStore initialized (read-only): {file_path}")
     
@@ -66,7 +64,7 @@ class ListenStore:
             监听对象名称列表
         """
         with self._lock:
-            self._cache = self._read_file()
-            LOG.info(f"Loaded {len(self._cache)} listen chats from file")
-            return self._cache.copy()
+            chats = self._read_file()
+            LOG.info(f"Loaded {len(chats)} listen chats from file")
+            return chats
 

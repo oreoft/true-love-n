@@ -7,8 +7,6 @@ class PlatformKeyConfig(BaseSettings):
     """第三方平台 Key"""
     litellm_api_key: str = ""
     litellm_base_url: str = ""
-    gemini_key: str = ""    # Veo 视频直连
-    openai_key: str = ""    # Sora 视频直连
 
 
 class BaseServerConfig(BaseSettings):
